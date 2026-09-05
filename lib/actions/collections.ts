@@ -65,6 +65,29 @@ const submissionSchema = z.object({
      they are looking at names the destination, and Finance still decides it
      for real on the way through. */
   accountId: z.string().trim().min(1, "Say which account the money landed in."),
+  /*
+    "THE CUSTOMER PAID THE CARGO PLUS THE TRANSPORT."
+
+    Support is the desk on the phone, so Support is the desk that hears it, and
+    the claim is where it has to be written down. Without it the figure Support
+    sends up is simply larger than the bill, and Finance is looking at what
+    reads as an overpayment with no explanation — they send back a correct
+    claim, or agree a wrong one.
+
+    Optional and zero by default, because almost no claim has transport in it.
+  */
+  transport: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? Number(v) : 0))
+    .refine(
+      (v) => Number.isFinite(v) && v >= 0,
+      "The transport has to be a number, or nothing at all."
+    ),
+  /* Where Support expects it to be paid out of. Finance can name a different
+     account when they verify, exactly as they can with the one above. */
+  transportSourceId: z.string().trim().optional(),
   // The one thing this desk genuinely has to type: the code off the customer's
   // message. Everything else is already on the invoice.
   /* Expected on screen, optional here: cash across the counter has no code,
@@ -98,6 +121,50 @@ async function claimedAccount(
   if (account.currency !== currency) {
     throw new Error(
       `${account.name} is a ${account.currency} account, so ${currency} could not have landed in it.`
+    );
+  }
+  return account;
+}
+
+/**
+ * The account the transport will be paid out of.
+ *
+ * The customer may send the whole thing anywhere — a bank, a till, cash across
+ * the counter — but the transport leaves the business by one of two routes and
+ * no others: the Lipa number or the office cash. That is the owner's rule, and
+ * it exists so the money going out to drivers can be counted against a till
+ * and a tin rather than hunted through a bank statement.
+ *
+ * Checked here rather than only at verification, so a desk that picks the
+ * wrong one finds out while the customer is still on the phone instead of
+ * having the claim sent back a day later.
+ */
+async function claimedTransportSource(
+  tx: TxClient,
+  transportSourceId: string | undefined,
+  transport: number,
+  currency: string
+) {
+  if (transport <= 0) return null;
+  if (!transportSourceId) {
+    throw new Error(
+      "Say where the transport is being paid from — the Lipa number or the office cash."
+    );
+  }
+  const account = await tx.companyAccount.findUnique({
+    where: { id: transportSourceId },
+    select: { id: true, name: true, kind: true, currency: true, active: true },
+  });
+  if (!account) throw new Error("That transport account no longer exists.");
+  if (!account.active) throw new Error(`${account.name} has been archived.`);
+  if (account.kind !== "CASH" && account.kind !== "MOBILE_MONEY") {
+    throw new Error(
+      `Transport is settled in cash or off the Lipa number. ${account.name} is a bank account.`
+    );
+  }
+  if (account.currency !== currency) {
+    throw new Error(
+      `${account.name} is a ${account.currency} account, so the transport cannot be paid out of it in ${currency}.`
     );
   }
   return account;
@@ -213,6 +280,25 @@ export async function submitPaymentForVerification(
       }
 
       const account = await claimedAccount(tx, input.accountId, input.currency);
+      /*
+        The transport cannot be more than what was sent.
+
+        Said here rather than only on the form, because the form is not the
+        only way in — and because a claim whose transport swallows the whole
+        transfer settles nothing against the bill while looking, on the queue,
+        exactly like one that does.
+      */
+      if (input.transport > input.amount + 0.001) {
+        throw new Error(
+          `The transport (${input.currency} ${input.transport.toLocaleString()}) is more than the customer sent (${input.currency} ${input.amount.toLocaleString()}).`
+        );
+      }
+      const transportSource = await claimedTransportSource(
+        tx,
+        input.transportSourceId,
+        input.transport,
+        input.currency
+      );
 
       const submission = await tx.paymentSubmission.create({
         data: {
@@ -225,6 +311,11 @@ export async function submitPaymentForVerification(
              what they had been chased for. */
           customerId: invoice.customerId,
           amount: new Prisma.Decimal(input.amount),
+          /* The whole transfer stays in `amount`. This is the part of it the
+             customer was paying for the delivery, and it is what stops the
+             figure above reading as an overpayment on the verify screen. */
+          transportAmount: new Prisma.Decimal(input.transport),
+          transportSourceId: transportSource?.id ?? null,
           currency: input.currency,
           method: methodForKind(account.kind),
           accountId: account.id,
@@ -250,7 +341,11 @@ export async function submitPaymentForVerification(
           action: "payment.submitted",
           entity: "PaymentSubmission",
           entityId: submission.id,
-          summary: `${submission.submissionNumber} — ${input.currency} ${input.amount.toLocaleString()} claimed against ${invoice.invoiceNumber} for ${invoice.customer.name}`,
+          summary:
+            `${submission.submissionNumber} — ${input.currency} ${input.amount.toLocaleString()} claimed against ${invoice.invoiceNumber} for ${invoice.customer.name}` +
+            (input.transport > 0
+              ? ` (includes ${input.currency} ${input.transport.toLocaleString()} transport)`
+              : ""),
           metadata: {
             ip,
             department: user.role,
@@ -258,6 +353,8 @@ export async function submitPaymentForVerification(
             trackingNumber: invoice.shipment.trackingNumber,
             reference: input.reference || null,
             proofs: proofs.length,
+            transport: input.transport || null,
+            transportFrom: transportSource?.name ?? null,
           },
         },
         tx
@@ -421,6 +518,11 @@ export async function verifyPaymentSubmission(
       /* What Support said the customer's proof named. Finance's own choice
          still wins — this is only the answer they start from. */
       accountId: true,
+      /* The split Support wrote down, which is the whole reason the claimed
+         figure is larger than the bill. It travels into recordPayment below
+         and becomes the Payment's own transport. */
+      transportAmount: true,
+      transportSourceId: true,
       reference: true,
       note: true,
       proofs: { select: { id: true } },
@@ -516,6 +618,26 @@ export async function verifyPaymentSubmission(
   /* No method travels on this handover any more: recordPayment reads it off
      the accountId below, which is the same account this block used to look up
      purely to restate as a method. */
+  /*
+    THE SPLIT SUPPORT WROTE DOWN TRAVELS WITH THE MONEY.
+
+    Without this the whole claimed figure would be put against the bill — which
+    is the overpayment recordPayment exists to refuse, so a perfectly good claim
+    would simply fail to verify and nobody would be able to say why. With it,
+    the cargo half settles the bill and the transport half posts its own leg out
+    of the cash or Lipa account, exactly as it does when Finance takes the money
+    across the counter.
+
+    Finance can name a different transport account on the verify form; theirs
+    wins, because they are the desk that actually pays the driver.
+  */
+  const transport = toNumber(submission.transportAmount);
+  if (transport > 0) {
+    handover.set("transport", transport.toString());
+    const namedSource = String(formData.get("transportSourceId") ?? "");
+    const source = namedSource || submission.transportSourceId;
+    if (source) handover.set("transportSourceId", source);
+  }
   if (submission.reference) handover.set("reference", submission.reference);
   if (submission.note) handover.set("note", submission.note);
   if (accountId) handover.set("accountId", accountId);
@@ -702,11 +824,37 @@ export async function submitCombinedPayment(
     );
   }
 
+  /*
+    THE TRANSPORT IS NOT AVAILABLE TO SETTLE BILLS.
+
+    A customer with four consignments sends one transfer for all four AND the
+    delivery. Only the cargo half can be put against the bills — the rest is
+    somebody's fare, and allocating it would settle four invoices with money
+    that is about to leave again.
+
+    So the ceiling on the split is what was sent MINUS the transport, and the
+    figure quoted back names both, because "you have allocated more than the
+    payment" is a baffling thing to be told about a payment that is visibly
+    large enough.
+  */
+  const transport = input.transport ?? 0;
+  if (transport > input.amount + 0.005) {
+    return fail(
+      `The transport (${input.currency} ${transport.toLocaleString()}) is more than the customer sent ` +
+        `(${input.currency} ${input.amount.toLocaleString()}).`
+    );
+  }
+  const forBills = Math.round((input.amount - transport) * 100) / 100;
   const allocated = input.allocations.reduce((sum, a) => sum + a.amount, 0);
-  if (allocated > input.amount + 0.005) {
+  if (allocated > forBills + 0.005) {
     return fail(
       `You have put ${input.currency} ${allocated.toLocaleString()} against bills out of a ` +
-        `${input.currency} ${input.amount.toLocaleString()} payment. Money cannot be claimed twice over.`
+        `${input.currency} ${input.amount.toLocaleString()} payment` +
+        (transport > 0
+          ? `, of which ${input.currency} ${transport.toLocaleString()} is transport — leaving ` +
+            `${input.currency} ${forBills.toLocaleString()} for the bills`
+          : "") +
+        `. Money cannot be claimed twice over.`
     );
   }
 
@@ -803,6 +951,12 @@ export async function submitCombinedPayment(
       )!;
 
       const account = await claimedAccount(tx, input.accountId, input.currency);
+      const transportSource = await claimedTransportSource(
+        tx,
+        input.transportSourceId,
+        transport,
+        input.currency
+      );
 
       const submission = await tx.paymentSubmission.create({
         data: {
@@ -811,6 +965,11 @@ export async function submitCombinedPayment(
           invoiceId: anchor.id,
           customerId: customer.id,
           amount: new Prisma.Decimal(input.amount),
+          /* The whole transfer stays in `amount`; this names the part of it
+             that was the delivery, and the allocations above only ever total
+             the rest. */
+          transportAmount: new Prisma.Decimal(transport),
+          transportSourceId: transportSource?.id ?? null,
           currency: input.currency,
           method: methodForKind(account.kind),
           accountId: account.id,
@@ -844,13 +1003,18 @@ export async function submitCombinedPayment(
           entityId: submission.id,
           summary:
             `${submission.submissionNumber} — ${input.currency} ${input.amount.toLocaleString()} claimed ` +
-            `for ${customer.name} across ${input.allocations.length} bill(s)`,
+            `for ${customer.name} across ${input.allocations.length} bill(s)` +
+            (transport > 0
+              ? ` (includes ${input.currency} ${transport.toLocaleString()} transport)`
+              : ""),
           metadata: {
             ip,
             department: user.role,
             customer: customer.name,
             proofs: proofs.length,
             reference: input.reference || null,
+            transport: transport || null,
+            transportFrom: transportSource?.name ?? null,
             bills: invoices.map((invoice) => ({
               invoice: invoice.invoiceNumber,
               tracking: invoice.shipment.trackingNumber,

@@ -3163,14 +3163,38 @@ export async function recordCustomerPayment(
     return fail(toActionError(error));
   }
 
+  /*
+    ONE TRANSFER, SEVERAL BILLS, AND THE DELIVERY.
+
+    A customer with four consignments sends one amount covering all four and
+    the transport to bring them. The whole figure stays in `amount` — that is
+    what the account received and what the receipt says — but only the cargo
+    half is available to settle bills. Allocating the transport would answer
+    four invoices with money that is about to leave again for a driver.
+  */
+  const transport = input.transport ?? 0;
+  if (transport > input.amount + 0.005) {
+    return fail(
+      `The transport (${input.currency} ${transport.toLocaleString()}) is more than the ` +
+        `${input.currency} ${input.amount.toLocaleString()} that came in.`
+    );
+  }
+  /* What is actually there for the bills. Rounded to the cent before it is
+     compared, so a split typed to match it to the shilling is not refused by
+     a floating-point tail. */
+  const forBills = Math.round((input.amount - transport) * 100) / 100;
   const allocated = input.allocations.reduce((sum, a) => sum + a.amount, 0);
   /* Checked here for a plain answer, and again inside the transaction against
      figures read there — this one only saves a round trip. */
-  if (allocated > input.amount + 0.005) {
+  if (allocated > forBills + 0.005) {
     return fail(
       `You have allocated ${input.currency} ${allocated.toLocaleString()} of a ` +
-        `${input.currency} ${input.amount.toLocaleString()} payment. Money cannot be ` +
-        `put against bills twice over.`
+        `${input.currency} ${input.amount.toLocaleString()} payment` +
+        (transport > 0
+          ? `, of which ${input.currency} ${transport.toLocaleString()} is transport — ` +
+            `leaving ${input.currency} ${forBills.toLocaleString()} for the bills`
+          : "") +
+        `. Money cannot be put against bills twice over.`
     );
   }
 
@@ -3380,6 +3404,51 @@ export async function recordCustomerPayment(
         credited.set(alloc.invoiceId, against);
       }
 
+      /*
+        WHERE THE TRANSPORT HALF IS SETTLED FROM.
+
+        The same two rules the single-bill door enforces, for the same reasons:
+        required as soon as there is any transport, because money that left no
+        account leaves the till short against a register that balances; and
+        cash or the Lipa number only, because a driver is not paid out of a
+        bank account. The customer may still have sent the whole thing into
+        the bank — where it landed and where the fare leaves from are two
+        independent facts.
+      */
+      let transportAccount: {
+        id: string;
+        name: string;
+        currency: string;
+        kind: string;
+      } | null = null;
+      if (transport > 0) {
+        if (!input.transportSourceId) {
+          throw new Error(
+            "Say which account the transport is settled from — the cash box or the Lipa number."
+          );
+        }
+        transportAccount = await tx.companyAccount.findUnique({
+          where: { id: input.transportSourceId },
+          select: { id: true, name: true, currency: true, kind: true },
+        });
+        if (!transportAccount) {
+          throw new Error("That transport account no longer exists.");
+        }
+        if (
+          transportAccount.kind !== "CASH" &&
+          transportAccount.kind !== "MOBILE_MONEY"
+        ) {
+          throw new Error(
+            `Transport is settled in cash or off the Lipa number. ${transportAccount.name} is a bank account.`
+          );
+        }
+        if (transportAccount.currency !== input.currency) {
+          throw new Error(
+            `${transportAccount.name} is a ${transportAccount.currency} account, so ${input.currency} transport cannot be settled from it.`
+          );
+        }
+      }
+
       /* One pair of hands, twice — a double tap or a refreshed page. The
          conditional claims below catch two clerks racing each other; they
          cannot catch a first attempt that succeeded. */
@@ -3455,22 +3524,35 @@ export async function recordCustomerPayment(
              just the allocated part. Anything beyond what was allocated is the
              customer's credit, and `availableCredit` reads it from here against
              the allocation rows below, both in the bills' currency. */
+          /* The delivery half, named on the money itself. `amount` above stays
+             the whole transfer — the receipt and the account both say so —
+             and this is what comes off it before anything settles a bill. */
+          transportAmount: new Prisma.Decimal(transport),
+          transportSourceId: transport > 0 ? transportAccount!.id : null,
           creditedAmount: new Prisma.Decimal(
             crossCurrency
               ? /* What the allocations actually settled, plus whatever is left
                    over valued at the rate of the last bill it would answer.
                    Only the allocated part is ever compared against a bill; the
                    remainder is credit, and `spareOf` in lib/customer-credit.ts
-                   works from the native `amount` rather than from this. */
+                   works from the native `amount` rather than from this.
+
+                   THE LEFTOVER IS MEASURED FROM THE CARGO HALF, not from the
+                   whole transfer. Otherwise the transport — money already
+                   promised to a driver — would sit on the customer's account
+                   as credit they could spend on their next consignment, and
+                   the company would owe it twice. */
                 Math.round(
                   ([...credited.values()].reduce((sum, n) => sum + n, 0) +
                     (rateUsed
-                      ? (input.amount - allocated) /
+                      ? (forBills - allocated) /
                         (input.currency === LOCAL_CURRENCY ? rateUsed : 1)
                       : 0)) *
                     100
                 ) / 100
-              : input.amount
+              : /* Same rule in one currency: what this payment is worth
+                   against bills is what arrived minus the fare. */
+                forBills
           ),
           idempotencyKey,
           method: methodForKind(mustHaveAccount(account).kind),
@@ -3564,6 +3646,49 @@ export async function recordCustomerPayment(
             (input.allocations.length
               ? `${input.allocations.length} bill(s) settled`
               : "deposit, no bill yet"),
+          sourceEntity: "Payment",
+          sourceId: payment.id,
+          paymentId: payment.id,
+          recordedById: user.id,
+        });
+      }
+
+      /*
+        THE SECOND LEG: THE FARE LEAVING AGAIN.
+
+        The IN leg above is the whole transfer, because the whole transfer is
+        what the account received. This is the part of it that was never the
+        company's, leaving whichever till or Lipa number the desk named.
+
+        Its own kind, TRANSPORT_OUT, so it reaches neither revenue nor
+        expenses and is not netted against CUSTOMER_PAYMENT when the register
+        is reconciled. Posted even when the receiving account was not named:
+        money leaving the till is a fact on its own.
+      */
+      if (transport > 0 && transportAccount) {
+        const occurredAt = input.paidAt ?? payment.paidAt;
+        const transportRate =
+          rateUsed ??
+          (allocatedInvoices.length === 1
+            ? toNumber(allocatedInvoices[0]!.exchangeRate) || null
+            : null) ??
+          (await currentRateValue(occurredAt));
+        const transportUsd =
+          input.currency === "USD"
+            ? transport
+            : transportRate
+              ? transport / transportRate
+              : transport;
+        await postLedgerEntry(tx, {
+          accountId: transportAccount.id,
+          currency: transportAccount.currency,
+          direction: "OUT",
+          kind: "TRANSPORT_OUT",
+          amount: transport,
+          amountUsd: transportUsd,
+          exchangeRate: input.currency === "USD" ? null : transportRate,
+          occurredAt,
+          description: `${receipt.receiptNumber} — transport for ${customer.name}`,
           sourceEntity: "Payment",
           sourceId: payment.id,
           paymentId: payment.id,

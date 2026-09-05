@@ -114,6 +114,9 @@ export default async function ShipmentDetailPage({
               /* Which account the desk says it went into — shown on the notice
                  below in place of the payment method that used to sit there. */
               account: { select: { name: true } },
+              /* Where Support expects the fare to be paid from, so the panel
+                 can offer it back to Finance already chosen. */
+              transportSource: { select: { id: true, name: true } },
               proofs: { select: { id: true } },
             },
           },
@@ -209,6 +212,12 @@ export default async function ShipmentDetailPage({
         submittedAt: s.submittedAt,
         submittedByName: s.submittedBy?.name ?? null,
         proofCount: s.proofs.length,
+        /* The delivery half, so the panel can say why the claimed figure is
+           larger than the bill instead of leaving it looking like an
+           overpayment nobody can account for. */
+        transport: toNumber(s.transportAmount),
+        transportSourceId: s.transportSourceId,
+        transportSourceName: s.transportSource?.name ?? null,
       }))
     : [];
   // Only for the desk that can take money. Nobody else is offered a question
@@ -797,6 +806,11 @@ export default async function ShipmentDetailPage({
             submissions={pendingSubmissions}
             canVerify={canVerifyPayments}
             accounts={accounts}
+            /* Cash and the Lipa number only — the fare never leaves a bank. */
+            transportAccounts={accounts.filter(
+              (account) =>
+                account.kind === "CASH" || account.kind === "MOBILE_MONEY"
+            )}
           />
 
               {/*

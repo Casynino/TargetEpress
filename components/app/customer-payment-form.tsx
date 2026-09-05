@@ -217,6 +217,18 @@ export function CustomerPaymentForm({
     it cannot be derived.
   */
   const [accountId, setAccountId] = useState("");
+  /*
+    THE DELIVERY, INSIDE THE SAME TRANSFER.
+
+    A customer with four consignments sends one amount for all four AND the
+    transport to bring them. Only the cargo half can be put against the bills;
+    the rest is a fare that leaves again the same day. Without a field for it
+    the desk had two bad options — leave it out of the total, so the receipt
+    disagrees with the bank, or put it in and have the screen refuse the whole
+    payment as more than the bills.
+  */
+  const [transport, setTransport] = useState("");
+  const [transportSourceId, setTransportSourceId] = useState("");
   /** Null while the total is following the selection, which is nearly always. */
   const [typedTotal, setTypedTotal] = useState<string | null>(null);
 
@@ -298,8 +310,17 @@ export function CustomerPaymentForm({
      somebody says otherwise, because in the ordinary case they are the same
      number and asking for it twice is how a 330,000 becomes a 33,000. */
   const received = typedTotal === null ? allocated : Number(typedTotal) || 0;
-  const left = received - allocated;
+  /* Comes off the top. What is left after the fare is the only money that can
+     answer a bill, so every figure below measures from here rather than from
+     the total the customer sent. */
+  const fare = Math.max(0, Number(transport) || 0);
+  const forBills = received - fare;
+  const left = forBills - allocated;
   const over = left < -0.005;
+  /* A fare bigger than the transfer settles nothing and means somebody has
+     typed the wrong box. Said separately, because "you have put more against
+     bills than the customer sent" is the wrong sentence for it. */
+  const fareTooBig = fare > received + 0.005;
 
   const chosen = accounts.find((a) => a.id === accountId) ?? null;
   const money = (n: number, currency = payCurrency) =>
@@ -808,6 +829,57 @@ export function CustomerPaymentForm({
 
 
           {/*
+            THE FARE, UNDER THE AMOUNT IT CAME IN WITH.
+
+            Directly beneath the total, because it is a part of that total and
+            not a separate payment. The customer may send the whole thing into
+            any account the company holds; the fare leaves by cash or the Lipa
+            number and nothing else, so the second field offers only those.
+          */}
+          <div className="min-w-0 space-y-1.5">
+            <Label htmlFor="transport">{t("Of that, transport")}</Label>
+            <MoneyInput
+              id="transport"
+              name="transport"
+              value={transport}
+              onValueChange={(raw) => setTransport(raw)}
+            />
+          </div>
+
+          {/* Always here, greyed until there is a fare to settle — a disabled
+              field is not submitted, so nothing is asked for when there is
+              nothing to pay, and the desk can still see where it would go. */}
+          <div className="min-w-0 space-y-1.5">
+            <Label htmlFor="transportSourceId">
+              {t("Transport settled from")}
+            </Label>
+            <NativeSelect
+              id="transportSourceId"
+              name="transportSourceId"
+              required={fare > 0}
+              disabled={!(fare > 0)}
+              className="h-11 disabled:opacity-50"
+              value={transportSourceId}
+              onChange={(event) => setTransportSourceId(event.target.value)}
+            >
+              <option value="" disabled>
+                {t("Cash or the Lipa number")}
+              </option>
+              {accounts
+                .filter(
+                  (a) =>
+                    a.currency === payCurrency &&
+                    (a.kind === "CASH" || a.kind === "MOBILE_MONEY")
+                )
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+            </NativeSelect>
+          </div>
+
+          {/*
             Asked of both desks, and no longer optional.
 
             It used to be Finance's field alone and skippable at that. The
@@ -916,9 +988,32 @@ export function CustomerPaymentForm({
           </div>
         </div>
 
+        {/* THE RECORD SAYS THE CUSTOMER PAID CARGO PLUS TRANSPORT.
+
+            Read back before the button, so the desk sending this to Finance —
+            or recording it outright — can see that the figure they typed is
+            deliberately larger than the bills, and by exactly what. */}
+        {fare > 0 && !fareTooBig ? (
+          <div className="rounded-lg border border-warning/40 bg-warning/[0.06] p-3 text-sm text-warning">
+            <span className="font-medium">
+              {t("The customer paid cargo plus transport")}
+            </span>{" "}
+            — {money(forBills)} {t("to the bill")}, {money(fare)}{" "}
+            {t("transport")}.
+          </div>
+        ) : null}
+
+        {fareTooBig ? (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
+            {t(
+              "The transport is more than the customer sent. Check which box the figure belongs in."
+            )}
+          </div>
+        ) : null}
+
         {/* Shown only when the two figures differ, because in the ordinary case
             they are the same and a row of matching numbers is just noise. */}
-        {Math.abs(left) > 0.005 ? (
+        {Math.abs(left) > 0.005 && !fareTooBig ? (
           <div
             className={`rounded-lg border p-3 text-sm ${
               over
@@ -948,7 +1043,10 @@ export function CustomerPaymentForm({
       <SubmitButton
         className="w-full"
         disabled={
-          over || received <= 0 || (!canRecord && allocations.length === 0)
+          over ||
+          fareTooBig ||
+          received <= 0 ||
+          (!canRecord && allocations.length === 0)
         }
         pendingLabel="Recording…"
       >

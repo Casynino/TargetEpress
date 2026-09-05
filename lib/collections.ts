@@ -146,6 +146,13 @@ export async function submissionQueue(
          checking their own work. */
       accountId: true,
       account: { select: { id: true, name: true, currency: true } },
+      /* The delivery half of the claim. Without it the queue compares the
+         whole transfer against the bill and flags a correct claim as not
+         matching the balance — which is the exact confusion the split was
+         added to end. */
+      transportAmount: true,
+      transportSourceId: true,
+      transportSource: { select: { id: true, name: true } },
       /* What answered this one, and what it answered. Both directions, so a
          refused claim can say it has been re-raised and the fresh one can say
          what it replaces. */

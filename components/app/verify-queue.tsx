@@ -73,11 +73,20 @@ export async function VerifyQueue() {
               const outstanding =
                 toNumber(row.invoice.total) - toNumber(row.invoice.amountPaid);
               const claimed = toNumber(row.amount);
+              /* The part of the claim that was the delivery, not the cargo.
+                 Support writes it down at the counter because the customer is
+                 the one who says so. */
+              const transport = toNumber(row.transportAmount);
+              /* What is actually being offered against the bill. Comparing the
+                 WHOLE transfer here flagged every correct claim that carried
+                 transport as not matching the balance — of course it did not
+                 match; it was larger by the fare. */
+              const forBill = claimed - transport;
               // A claim that does not match what is owed is the one worth a
               // second look, so it is flagged rather than left to be spotted.
               const mismatch =
                 row.currency === row.invoice.currency &&
-                Math.abs(claimed - outstanding) > 0.5;
+                Math.abs(forBill - outstanding) > 0.5;
 
               return (
                 <li
@@ -192,6 +201,22 @@ export async function VerifyQueue() {
                         <p className="font-mono text-sm font-medium tabular-nums">
                           {formatMoney(claimed, row.currency)}
                         </p>
+                        {/* SAID ON THE ROW, BEFORE ANYBODY OPENS ANYTHING.
+
+                            The figure above is deliberately larger than the
+                            bill: the customer paid the cargo and the delivery
+                            in one transfer. Finance reading only the total
+                            would be looking at an apparent overpayment with no
+                            explanation, and would either send back a correct
+                            claim or agree a wrong one. */}
+                        {transport > 0 ? (
+                          <p className="text-[11px] font-medium text-warning">
+                            {formatMoney(forBill, row.currency)}{" "}
+                            {t(locale, "cargo")} +{" "}
+                            {formatMoney(transport, row.currency)}{" "}
+                            {t(locale, "transport")}
+                          </p>
+                        ) : null}
                         <p className="text-[11px] text-muted-foreground">
                           {t(locale, "owed")}{" "}
                           {formatMoney(outstanding, row.invoice.currency)}
@@ -251,6 +276,27 @@ export async function VerifyQueue() {
                           name: a.name,
                           currency: a.currency,
                         }))}
+                        currency={row.currency}
+                        transport={transport}
+                        cargo={forBill}
+                        transportSourceId={row.transportSourceId}
+                        transportSourceName={row.transportSource?.name ?? null}
+                        /* Cash or the Lipa number, in the currency the money
+                           came in. A driver is not paid out of a bank account,
+                           and an account cannot give up money it is not
+                           denominated in — offering either here would only be
+                           a refusal waiting to happen. */
+                        transportAccounts={accounts
+                          .filter(
+                            (a) =>
+                              a.currency === row.currency &&
+                              (a.kind === "CASH" || a.kind === "MOBILE_MONEY")
+                          )
+                          .map((a) => ({
+                            id: a.id,
+                            name: a.name,
+                            currency: a.currency,
+                          }))}
                       />
                     </div>
                   </div>

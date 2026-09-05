@@ -26,6 +26,11 @@ const KIND_LABEL: Record<string, string> = {
   TRANSFER_IN: "Transfer in",
   TRANSFER_OUT: "Transfer out",
   ADJUSTMENT: "Adjustment",
+  /* Money that arrived with a customer's payment and was never the company's:
+     the delivery, on its way to whoever drives. Named rather than left as the
+     raw enum, because it appears on the register beside real income and must
+     not read as either an expense or a payment. */
+  TRANSPORT_OUT: "Transport paid out",
 };
 
 function fileSize(bytes: number) {

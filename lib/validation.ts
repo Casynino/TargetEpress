@@ -201,6 +201,12 @@ export const invoiceRateSchema = z.object({
 export const customerPaymentSchema = z.object({
   customerId: z.string().min(1, "Choose the customer who paid."),
   amount: numeric("Amount", { min: 0.01 }),
+  /* The delivery half of a combined transfer — see paymentSchema. A customer
+     with four consignments sends one transfer for all four AND the transport,
+     so the merge screen has to be able to say so, or the whole feature refuses
+     the payment as an overpayment against the four bills. */
+  transport: numeric("Transport", { min: 0 }).optional(),
+  transportSourceId: z.string().trim().optional(),
   currency: z.enum(["USD", "TZS"]),
   reference: z.string().trim().max(120).optional(),
   note: z.string().trim().max(500).optional(),

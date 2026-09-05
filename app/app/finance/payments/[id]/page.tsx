@@ -16,7 +16,6 @@ import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { activeAccounts } from "@/lib/accounts";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
-import { formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -64,6 +63,10 @@ export default async function PaymentDetailPage({
       _count: { select: { allocations: true } },
       receipt: true,
       account: { select: { id: true, name: true, currency: true } },
+      /* The account the transport was paid out of — cash or the Lipa number.
+         Without its name the record shows money leaving and cannot say from
+         where, which is the one question asked when the till is counted. */
+      transportSource: { select: { id: true, name: true } },
       receivedBy: { select: { name: true } },
       voidedBy: { select: { name: true } },
       /* Who actually raised this, when it arrived as a claim rather than
@@ -111,6 +114,9 @@ export default async function PaymentDetailPage({
   if (!payment) notFound();
 
   const tendered = toNumber(payment.amount);
+  /* The half that was never the company's. Zero on every payment that is
+     purely a bill being settled, which is nearly all of them. */
+  const transport = toNumber(payment.transportAmount);
   const credited =
     payment.creditedAmount === null ? null : toNumber(payment.creditedAmount);
   const invoice = payment.invoice;
@@ -173,7 +179,8 @@ export default async function PaymentDetailPage({
               {/* Named, because one of these is the customer's money arriving
                   and the other is the transport going out again. */}
               {line.kind === "TRANSPORT_OUT" ? (
-                <span className="ml-1 font-sans text-[10px] text-muted-foreground">
+                <span className="ml-1.5 font-sans text-[10px] text-muted-foreground">
+                  {" "}
                   {t(locale, "transport")}
                 </span>
               ) : null}
@@ -268,7 +275,12 @@ export default async function PaymentDetailPage({
             </p>
             {converted && credited !== null ? (
               <p className="mt-2 text-sm text-muted-foreground">
-                {t(locale, "Settled")} {formatUsd(credited)}{" "}
+                {t(locale, "Settled")}{" "}
+                {/* In the BILL's own currency — `credited` is what the bill
+                    moved by, and a bill is only ever settled in its own
+                    money. Labelled USD regardless, this read as dollars on
+                    every shilling-denominated bill. */}
+                {formatMoney(credited, invoice?.currency ?? payment.currency)}{" "}
                 {t(locale, "against the bill")}
                 {payment.exchangeRate
                   ? `, ${t(locale, "at")} ${toNumber(payment.exchangeRate).toLocaleString()} ${t(locale, "to the dollar")}`
@@ -284,6 +296,66 @@ export default async function PaymentDetailPage({
                 {t(locale, "Paid in the same currency the bill was raised in.")}
               </p>
             )}
+
+            {/*
+              THE CUSTOMER PAID CARGO PLUS TRANSPORT, AND THE RECORD SAYS SO.
+
+              The figure above is everything that arrived in one transfer. Only
+              part of it was the company's — the rest was the delivery, which is
+              collected on somebody else's behalf and paid straight out again.
+
+              Anyone reading this record later, with nothing but the screen and
+              a customer on the phone, has to be able to answer three questions:
+              how much came in, how much of it settled the bill, and where the
+              rest went. Leaving it as one number makes the payment look like an
+              overpayment on the bill, and the transport look like income.
+            */}
+            {transport > 0 ? (
+              <div className="mt-4 rounded-xl border border-warning/30 bg-warning/[0.06] p-4">
+                <p className="text-xs font-semibold uppercase tracking-widest text-warning">
+                  {t(locale, "Cargo plus transport")}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t(
+                    locale,
+                    "The customer sent one amount covering the cargo and the delivery."
+                  )}
+                </p>
+                <dl className="mt-3 space-y-1.5 text-sm">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <dt className="text-muted-foreground">{t(locale, "Cargo charge")}</dt>
+                    <dd className="font-semibold tabular-nums">
+                      {formatMoney(tendered - transport, payment.currency)}
+                    </dd>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-4">
+                    <dt className="text-muted-foreground">
+                      {t(locale, "Transport (passed on)")}
+                    </dt>
+                    <dd className="font-semibold tabular-nums text-warning">
+                      {formatMoney(transport, payment.currency)}
+                    </dd>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-4 border-t pt-1.5">
+                    <dt className="font-medium">{t(locale, "Total received")}</dt>
+                    <dd className="font-bold tabular-nums">
+                      {formatMoney(tendered, payment.currency)}
+                    </dd>
+                  </div>
+                </dl>
+                {payment.transportSource ? (
+                  <p className="mt-3 border-t pt-2 text-xs text-muted-foreground">
+                    {t(locale, "Settled from")}{" "}
+                    <Link
+                      href={`/app/finance/accounts/${payment.transportSource.id}`}
+                      className="font-medium hover:text-brand"
+                    >
+                      {payment.transportSource.name}
+                    </Link>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             <dl className="mt-5 grid grid-cols-1 gap-x-6 gap-y-4 border-t pt-4 sm:grid-cols-2">
               {facts.map((fact) => (
@@ -396,7 +468,7 @@ export default async function PaymentDetailPage({
                 <div className="flex items-baseline justify-between gap-3">
                   <dt className="text-muted-foreground">{t(locale, "Total")}</dt>
                   <dd className="font-mono tabular-nums">
-                    {formatUsd(toNumber(invoice.total))}
+                    {formatMoney(toNumber(invoice.total), invoice.currency)}
                   </dd>
                 </div>
                 <div className="flex items-baseline justify-between gap-3">
@@ -404,7 +476,7 @@ export default async function PaymentDetailPage({
                     {t(locale, "Paid to date")}
                   </dt>
                   <dd className="font-mono tabular-nums">
-                    {formatUsd(toNumber(invoice.amountPaid))}
+                    {formatMoney(toNumber(invoice.amountPaid), invoice.currency)}
                   </dd>
                 </div>
                 <div className="flex items-baseline justify-between gap-3 border-t pt-3">
@@ -414,7 +486,7 @@ export default async function PaymentDetailPage({
                       owing > 0 ? "text-warning" : "text-success"
                     }`}
                   >
-                    {formatUsd(owing)}
+                    {formatMoney(owing, invoice.currency)}
                   </dd>
                 </div>
               </dl>

@@ -920,9 +920,11 @@ model Shipment {
   @@index([createdAt])
   @@index([status, batchId])
   @@index([cartonRef])
-  /* The three dates every dashboard, report and ageing figure ranges on.
-     Without them a window like "arrived this month" reads the whole shipment
-     table, on every one of those screens, and the table only grows. */
+  /**
+   * The three dates every dashboard, report and ageing figure ranges on.
+   * Without them a window like "arrived this month" reads the whole shipment
+   * table, on every one of those screens, and the table only grows.
+   */
   @@index([arrivedAt])
   @@index([registeredAt])
   @@index([deliveredAt])
@@ -1624,7 +1626,6 @@ model Payment {
   transportSourceId String?
   transportSource   CompanyAccount? @relation("TransportSettledFrom", fields: [transportSourceId], references: [id], onDelete: Restrict)
 
-
   receivedById String?
   receivedBy   User?    @relation(fields: [receivedById], references: [id], onDelete: SetNull)
   paidAt       DateTime @default(now())
@@ -1665,18 +1666,18 @@ model Payment {
 
   createdAt DateTime @default(now())
 
-  receipt     Receipt?
+  receipt       Receipt?
   /// Two at most: the money in, and the transport settled out.
   ledgerEntries LedgerEntry[]
   /// The Support submission that produced this, when one did. Null for a
   /// payment Finance recorded at the counter themselves.
-  submission  PaymentSubmission?
+  submission    PaymentSubmission?
   /// The slip, screenshot or bank confirmation the customer produced. This is
   /// the evidence the money moved; the typed reference is only an index into
   /// it. Kept as its own table because one payment can arrive with two proofs
   /// — a screenshot and a bank PDF — and because a nullable column would go
   /// stale the day somebody needs to add a second.
-  proofs      PaymentProof[]
+  proofs        PaymentProof[]
 
   @@index([invoiceId])
   @@index([customerId])
@@ -2523,22 +2524,26 @@ model CompanyAccount {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  payments        Payment[]
+  payments             Payment[]
   /// Claims naming this account as where the customer says the money went.
   /// Not money yet — see PaymentSubmission.accountId.
-  submissions     PaymentSubmission[]
-  expenses        Expense[]
-  ledgerEntries   LedgerEntry[]
-  transfersOut    AccountTransfer[]       @relation("TransferFrom")
-  transfersIn     AccountTransfer[]       @relation("TransferTo")
-  cashCounts      CashCount[]
-  payrollRuns     PayrollRun[]
-  reconciliations AccountReconciliation[]
-  compensations   Compensation[]          @relation("CompensationPaidFrom")
+  submissions          PaymentSubmission[]
+  expenses             Expense[]
+  ledgerEntries        LedgerEntry[]
+  transfersOut         AccountTransfer[]       @relation("TransferFrom")
+  transfersIn          AccountTransfer[]       @relation("TransferTo")
+  cashCounts           CashCount[]
+  payrollRuns          PayrollRun[]
+  reconciliations      AccountReconciliation[]
+  compensations        Compensation[]          @relation("CompensationPaidFrom")
+  /// Payments whose transport half was settled out of this account.
+  transportSettlements Payment[]               @relation("TransportSettledFrom")
+
+  /// Transport a claim says will be settled out of this account. Not money
+  /// until Finance verifies it — see PaymentSubmission.transportAmount.
+  submissionTransportSettlements PaymentSubmission[] @relation("SubmissionTransportFrom")
 
   @@index([active, sortOrder])
-  /// Payments whose transport half was settled out of this account.
-  transportSettlements Payment[] @relation("TransportSettledFrom")
 }
 
 enum LedgerDirection {
@@ -2651,8 +2656,10 @@ model LedgerEntry {
   @@index([occurredAt])
   @@index([kind])
   @@index([sourceEntity, sourceId])
-  /* Filtering the register by who recorded a line, which is the first thing
-     anybody does when a figure looks wrong. It served the sort as well. */
+  /**
+   * Filtering the register by who recorded a line, which is the first thing
+   * anybody does when a figure looks wrong. It served the sort as well.
+   */
   @@index([recordedById, occurredAt])
 }
 
@@ -2997,6 +3004,30 @@ model PaymentSubmission {
   accountId String?
   account   CompanyAccount? @relation(fields: [accountId], references: [id], onDelete: Restrict)
 
+  /// HOW MUCH OF THE CLAIM WAS THE DELIVERY, NOT THE CARGO.
+  ///
+  /// A customer settling a consignment often sends the freight and the
+  /// delivery in one transfer. Support is the desk that hears it — the
+  /// customer says on the phone "that includes the transport" — and Support
+  /// is therefore the only desk that can say so.
+  ///
+  /// It has to be said AT SUBMISSION, not later. The figure Support claims is
+  /// larger than the bill whenever transport is in it, and a claim that says
+  /// nothing about why looks to Finance like a customer who overpaid, or like
+  /// a mistyped amount. Finance then either rejects a correct claim or agrees
+  /// a wrong one. Carrying the split means the verify screen can show the two
+  /// halves and Finance can simply check them against the slip.
+  ///
+  /// A CLAIM, like everything else on this row. It travels into recordPayment
+  /// on verification and becomes the Payment's own transportAmount there.
+  transportAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Which account Support expects the transport to be paid out of — cash or
+  /// the Lipa number, never a bank. Finance can name a different one when they
+  /// verify, exactly as they can with accountId above.
+  transportSourceId String?
+  transportSource   CompanyAccount? @relation("SubmissionTransportFrom", fields: [transportSourceId], references: [id], onDelete: Restrict)
+
   status SubmissionStatus @default(PENDING)
 
   submittedById String?
@@ -3043,6 +3074,7 @@ model PaymentSubmission {
   @@index([status, submittedAt])
   @@index([invoiceId])
   @@index([customerId])
+  @@index([transportSourceId])
 }
 
 /// One claim, one bill, one figure.

@@ -585,17 +585,20 @@ export function RecordIncome({
                 className="w-28 bg-card"
               />
             </label>
-            {Number(transport) > 0 ? (
-              <label className="flex flex-col gap-1">
+            {/* Always here, greyed until there is transport to settle — a
+                disabled field is not submitted. It used to appear only once a
+                figure was typed, so nobody knew it existed. */}
+            <label className="flex flex-col gap-1">
                 <span className="whitespace-nowrap text-[11px] text-muted-foreground">
                   {t("Transport settled from")}
                 </span>
                 <NativeSelect
                   name="transportSourceId"
-                  required
+                  required={Number(transport) > 0}
+                  disabled={!(Number(transport) > 0)}
                   value={transportSourceId}
                   onChange={(event) => setTransportSourceId(event.target.value)}
-                  className="w-52 bg-card"
+                  className="w-52 bg-card disabled:opacity-50"
                 >
                   <option value="" disabled>
                     {t("Cash or the Lipa number")}
@@ -612,8 +615,7 @@ export function RecordIncome({
                       </option>
                     ))}
                 </NativeSelect>
-              </label>
-            ) : null}
+            </label>
             <label className="flex flex-col gap-1">
               <span className="text-[11px] text-muted-foreground">
                 {t("Paid in")}

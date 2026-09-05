@@ -18,6 +18,12 @@ export type PendingSubmission = {
   submittedAt: Date;
   submittedByName: string | null;
   proofCount: number;
+  /** The delivery half of the claim, when the customer paid the cargo and the
+      transport in one transfer. Zero on almost every claim. */
+  transport?: number;
+  /** Where Support expects the fare to come from — cash or the Lipa number. */
+  transportSourceId?: string | null;
+  transportSourceName?: string | null;
 };
 
 /**
@@ -41,12 +47,17 @@ export async function PendingSubmissionNotice({
   submissions,
   canVerify,
   accounts,
+  transportAccounts = [],
 }: {
   submissions: PendingSubmission[];
   /** payment.verify — Finance and the CEO. */
   canVerify: boolean;
   /** Where the money landed. Empty for desks that may not verify. */
   accounts: { id: string; name: string; currency: string }[];
+  /** Cash and Lipa accounts only, for the transport leg. Narrowed per claim
+      to the currency that claim came in — an account cannot give up money it
+      is not denominated in. */
+  transportAccounts?: { id: string; name: string; currency: string }[];
 }) {
   if (submissions.length === 0) return null;
 
@@ -78,6 +89,18 @@ export async function PendingSubmissionNotice({
                 {formatRelative(s.submittedAt, locale)}
               </span>
             </p>
+
+            {/* Why the figure above is bigger than the bill: the customer
+                paid the cargo and the delivery in one transfer, and Support
+                said so when they sent it up. Without this the panel reads as
+                an overpayment nobody can explain. */}
+            {s.transport && s.transport > 0 ? (
+              <p className="mt-1 text-xs font-medium text-warning">
+                {formatMoney(s.amount - s.transport, s.currency)}{" "}
+                {t(locale, "to the bill")} ·{" "}
+                {formatMoney(s.transport, s.currency)} {t(locale, "transport")}
+              </p>
+            ) : null}
 
             <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-muted-foreground">
               <span>{s.submissionNumber}</span>
@@ -117,7 +140,18 @@ export async function PendingSubmissionNotice({
             */}
             {canVerify ? (
               <div className="mt-3">
-                <VerifySubmission submissionId={s.id} accounts={accounts} />
+                <VerifySubmission
+                  submissionId={s.id}
+                  accounts={accounts}
+                  currency={s.currency}
+                  transport={s.transport ?? 0}
+                  cargo={s.amount - (s.transport ?? 0)}
+                  transportSourceId={s.transportSourceId ?? null}
+                  transportSourceName={s.transportSourceName ?? null}
+                  transportAccounts={transportAccounts.filter(
+                    (a) => a.currency === s.currency
+                  )}
+                />
               </div>
             ) : null}
           </li>

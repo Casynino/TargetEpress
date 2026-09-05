@@ -41,7 +41,13 @@ export function ClaimedBadge({
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-md border border-warning/40 bg-warning/10 px-2 py-0.5 text-[11px] font-semibold text-warning ${className ?? ""}`}
-      title={`${claim.submissionNumber} · ${formatMoney(claim.amount, claim.currency)}`}
+      title={
+        `${claim.submissionNumber} · ${formatMoney(claim.amount, claim.currency)}` +
+        (claim.transport > 0
+          ? ` (${formatMoney(claim.amount - claim.transport, claim.currency)} ${t(locale, "to the bill")}, ` +
+            `${formatMoney(claim.transport, claim.currency)} ${t(locale, "transport")})`
+          : "")
+      }
     >
       <Hourglass className="h-3 w-3 shrink-0" />
       {merged
@@ -70,6 +76,11 @@ export function ClaimedLine({
   if (!claim) return null;
   const parts = [
     claim.submissionNumber,
+    /* Said on the line, because a claimed figure larger than the bill is
+       otherwise read as a mistake by whoever picks the row up next. */
+    claim.transport > 0
+      ? `${t(locale, "includes")} ${formatMoney(claim.transport, claim.currency)} ${t(locale, "transport")}`
+      : null,
     claim.reference,
     claim.submittedByName
       ? `${t(locale, "by")} ${claim.submittedByName}`

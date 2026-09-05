@@ -369,18 +369,20 @@ export function RecordCollectionForm({
             placeholder="0"
           />
         </div>
-        {Number(transport) > 0 ? (
-          <div className="space-y-1.5">
+        {/* Always here, greyed until there is transport to settle — a disabled
+            field is not submitted. */}
+        <div className="space-y-1.5">
             <Label htmlFor="transportSourceId">
               {t("Transport settled from")}
             </Label>
             <NativeSelect
               id="transportSourceId"
               name="transportSourceId"
-              required
+              required={Number(transport) > 0}
+              disabled={!(Number(transport) > 0)}
               value={transportSourceId}
               onChange={(event) => setTransportSourceId(event.target.value)}
-              className="h-11"
+              className="h-11 disabled:opacity-50"
             >
               <option value="" disabled>
                 {t("Cash or the Lipa number")}
@@ -397,8 +399,7 @@ export function RecordCollectionForm({
                   </option>
                 ))}
             </NativeSelect>
-          </div>
-        ) : null}
+        </div>
       </div>
 
       {/*

@@ -33,6 +33,10 @@ export type Claim = {
   amount: number;
   currency: string;
   method: string;
+  /** The delivery half of the claim, when the customer paid the cargo and the
+      transport in one transfer. Zero on almost every claim — and the reason a
+      claimed figure can legitimately exceed the bill. */
+  transport: number;
   reference: string | null;
   submittedAt: Date;
   submittedByName: string | null;
@@ -104,6 +108,7 @@ export async function claimsForInvoices(
       amount: true,
       currency: true,
       method: true,
+      transportAmount: true,
       reference: true,
       createdAt: true,
       submittedBy: { select: { name: true } },
@@ -160,6 +165,7 @@ export async function claimsForInvoices(
       amount: toNumber(s.amount),
       currency: s.currency,
       method: s.method,
+      transport: toNumber(s.transportAmount),
       reference: s.reference,
       submittedAt: s.createdAt,
       submittedByName: s.submittedBy?.name ?? null,

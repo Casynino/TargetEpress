@@ -702,30 +702,63 @@ function PaymentPanel({
                 placeholder="0"
               />
             </div>
-            {Number(transport) > 0 ? (
-              <div className="space-y-1.5">
-                <Label htmlFor="transportSourceId" className="text-xs">
-                  {t("Transport settled from")}
-                </Label>
-                <NativeSelect
-                  id="transportSourceId"
-                  name="transportSourceId"
-                  required
-                  value={transportSourceId}
-                  onChange={(event) => setTransportSourceId(event.target.value)}
-                >
-                  <option value="" disabled>
-                    {t("Cash or the Lipa number")}
+            {/*
+              ALWAYS HERE, NOT REVEALED.
+
+              It appeared only once a transport figure was typed, so a desk
+              looking at the panel could see where the customer's money landed
+              and no sign of where the driver's half comes from — and had no
+              reason to think typing would produce one. Shown beside the
+              amount and greyed until there is transport to settle: a disabled
+              field is not submitted, so nothing is asked for when there is
+              nothing to pay.
+            */}
+            <div className="space-y-1.5">
+              <Label htmlFor="transportSourceId" className="text-xs">
+                {t("Transport settled from")}
+              </Label>
+              <NativeSelect
+                id="transportSourceId"
+                name="transportSourceId"
+                required={Number(transport) > 0}
+                disabled={!(Number(transport) > 0)}
+                value={transportSourceId}
+                onChange={(event) => setTransportSourceId(event.target.value)}
+                className="disabled:opacity-50"
+              >
+                <option value="" disabled>
+                  {t("Cash or the Lipa number")}
+                </option>
+                {transportAccounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
                   </option>
-                  {transportAccounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </div>
-            ) : null}
+                ))}
+              </NativeSelect>
+            </div>
           </div>
+
+          {/*
+            SAID OUT LOUD, SO NOBODY WONDERS WHICH FIGURE IS WHICH.
+
+            The amount at the top is the WHOLE thing the customer handed over —
+            the freight and the delivery in one transfer. Without this line a
+            clerk cannot tell whether the box above was meant to be the cargo
+            price or the total, and the difference is somebody being asked for
+            the transport twice.
+          */}
+          {Number(transport) > 0 && Number(amount) > 0 ? (
+            <p className="rounded-md border border-warning/30 bg-warning/[0.06] px-3 py-2 text-[11px] leading-relaxed text-warning">
+              {t("The customer paid cargo plus transport")}:{" "}
+              <span className="font-semibold">
+                {currency} {Number(amount).toLocaleString()}
+              </span>{" "}
+              — {currency}{" "}
+              {Math.max(0, Number(amount) - Number(transport)).toLocaleString()}{" "}
+              {t("to the bill")}, {currency}{" "}
+              {Number(transport).toLocaleString()} {t("transport")}.
+            </p>
+          ) : null}
           {/* Straight under the figure it changes. A discount moves what the
               customer owes, so it belongs beside the amount rather than down
               among the fields about where the money landed — and on its own
