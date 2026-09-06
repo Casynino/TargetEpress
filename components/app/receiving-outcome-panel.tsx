@@ -27,13 +27,16 @@ import {
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import { CARGO_PHYSICALLY_HERE } from "@/lib/cargo-presence";
 import {
   DAMAGE_SEVERITY_LABELS,
   PACKAGE_TYPE_LABELS,
+  SHIPMENT_STATUS_META,
   enumOptions,
 } from "@/lib/constants";
 import {
   RECEIVING_OUTCOMES,
+  RECEIVING_OUTCOME_EXCEPTION,
   RECEIVING_OUTCOME_HINTS,
   RECEIVING_OUTCOME_LABELS,
   outcomeNeedsNote,
@@ -135,6 +138,21 @@ export function ReceivingOutcomePanel({
   const kgValid = Number.isFinite(nowKg) && nowKg > 0;
   const kgDelta = kgValid ? gapOf(nowKg, weightKg) : 0;
   const kgMoved = kgValid && Math.abs(kgDelta) > 0.005;
+
+  /*
+    WHERE THE CARGO ENDS UP, READ FROM THE TABLE THE SERVER READS.
+
+    This promised "Under investigation" under every one of the ten faults, and
+    it was true of three. A damaged carton, a wrong item, a box with no label
+    and four extra pieces are all on the floor: verifyShipment receives them,
+    prices them, and leaves the case to hold them off the pickup counter. A
+    clerk told otherwise stops trusting the sentence.
+
+    Derived rather than restated, so a new outcome cannot describe itself
+    wrongly — CARGO_PHYSICALLY_HERE is the same table the check-in branches on.
+  */
+  const fault = outcome ? RECEIVING_OUTCOME_EXCEPTION[outcome] : null;
+  const staysHere = fault !== null && CARGO_PHYSICALLY_HERE[fault];
 
   // A short count on a multi-box shipment that is not actually short is not a
   // short count. Naming which boxes is the entire content of the report.
@@ -433,8 +451,30 @@ export function ReceivingOutcomePanel({
             {outcome !== "RECEIVED" ? (
               <p className="text-xs text-muted-foreground">
                 {t("Tracking will read")}{" "}
-                <span className="font-medium">{t("Under investigation")}</span>
-                {t(", not Ready for pickup.")}
+                <span className="font-medium">
+                  {staysHere
+                    ? t(SHIPMENT_STATUS_META.RECEIVED_AT_DAR.label)
+                    : t("Under investigation")}
+                </span>
+                {staysHere
+                  ? t(", and the case holds it off the pickup counter.")
+                  : t(", not Ready for pickup.")}
+                {/* The split, in the owner's words: what goes on the shelf and
+                    what somebody has to go looking for. Only where boxes were
+                    actually named, because everywhere else there is no split
+                    to state. */}
+                {ticker && missingCount > 0 ? (
+                  <>
+                    {" "}
+                    <span className="font-medium text-foreground">
+                      {t("Into the warehouse:")} {present.length}
+                    </span>
+                    {" · "}
+                    <span className="font-medium text-warning">
+                      {t("To the case:")} {missingCount}
+                    </span>
+                  </>
+                ) : null}
               </p>
             ) : null}
           </div>

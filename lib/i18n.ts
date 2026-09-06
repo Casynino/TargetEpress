@@ -4784,6 +4784,11 @@ const ZH: Record<string, string> = {
   "Tracking number, customer, phone or goods…": "运单号、客户、电话或货物名称…",
   "Tracking number, customer, receiver or pickup note…":
     "运单号、客户、提货人或提货单…",
+  ", and the case holds it off the pickup counter.": "，问题单会阻止其进入提货环节。",
+  "Into the warehouse:": "入库：",
+  "To the case:": "列入问题单：",
+  "Check it in": "办理入库",
+  "This cargo is on a flight that has landed and has not been checked in yet.": "该货物所在航班已抵达，尚未办理入库。",
   "Tracking will read": "查件状态将显示为",
   "Tracking, note number or name": "运单号、提货单号或姓名",
   "Trader name or the mark on the packages": "商户名称或箱唛",

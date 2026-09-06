@@ -16,6 +16,7 @@ import {
 import { PresenceBadge } from "@/components/app/presence-badge";
 import { PageHeader } from "@/components/app/page-header";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
+import { CargoCheckIn } from "@/components/app/cargo-check-in";
 import { CargoDeleteButton, DeleteCargoForm } from "@/components/app/cargo-delete";
 import { PendingSubmissionNotice } from "@/components/app/pending-submission-notice";
 import { ReleaseUndo } from "@/components/app/release-undo";
@@ -54,6 +55,7 @@ import { prisma } from "@/lib/prisma";
 import { shipmentQrDataUrl } from "@/lib/qr";
 import { FIELD_LABELS, changeHistory } from "@/lib/change-history";
 import { can, canAmendCargo } from "@/lib/rbac";
+import { storageIsDurable } from "@/lib/storage";
 import { requirePermission } from "@/lib/session";
 import { StorageStatusCard } from "@/components/app/storage-status-card";
 import { STORAGE_POLICY, storageStatus } from "@/lib/constants";
@@ -206,6 +208,38 @@ export default async function ShipmentDetailPage({
   const openExceptions = shipment.exceptions.filter((exception) =>
     blocksPickup(exception.status)
   );
+  /*
+    THE THREE ANSWERS, WHERE THE CARGO IS.
+
+    The check-in list is built for a pallet and is the right screen for one.
+    But a clerk who opened a single consignment — a customer rang, or the
+    carton looked wrong — was sent back to a list of eighty-seven rows to find
+    the one they were already looking at.
+
+    Offered only where it means something: a flight that has landed, a
+    consignment nobody has ruled on for it, and a desk that may check cargo in.
+    verifyShipment re-checks every one of these itself; this decides whether to
+    draw the card, never whether the action is allowed.
+  */
+  const mayCheckIn =
+    shipment.batch !== null &&
+    can(user.role, "batch.verify") &&
+    (shipment.batch.status === "ARRIVED" ||
+      shipment.batch.status === "VERIFIED") &&
+    shipment.status === "IN_TRANSIT";
+  const ruledOn = mayCheckIn
+    ? await prisma.batchVerification.findUnique({
+        where: {
+          batchId_shipmentId: {
+            batchId: shipment.batch!.id,
+            shipmentId: shipment.id,
+          },
+        },
+        select: { id: true },
+      })
+    : null;
+  const showCheckIn = mayCheckIn && ruledOn === null;
+
   const showInternal = can(user.role, "shipment.viewInternal");
   const canPrintLabel = can(user.role, "label.print");
   /*
@@ -416,6 +450,21 @@ export default async function ShipmentDetailPage({
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
+          {showCheckIn ? (
+            <CargoCheckIn
+              batchId={shipment.batch!.id}
+              shipmentId={shipment.id}
+              trackingNumber={shipment.trackingNumber}
+              weightKg={toNumber(shipment.weightKg)}
+              packageType={shipment.packageType}
+              packageList={shipment.packageList.map((pkg) => ({
+                id: pkg.id,
+                sequence: pkg.sequence,
+              }))}
+              photosDurable={storageIsDurable()}
+            />
+          ) : null}
+
           {/* Cargo */}
           <section className="rounded-xl border bg-card shadow-soft">
             <h2 className="border-b px-5 py-4 font-display font-semibold">
