@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Scale, TriangleAlert } from "lucide-react";
+import { Check, Scale, TriangleAlert, Undo2 } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
 
@@ -97,27 +97,44 @@ export function PaymentDifference({
   const state = gap < 0 ? "over" : clearRest ? "armed" : "short";
   const tone =
     state === "short"
-      ? { ring: "hsl(var(--warning) / 0.55)", cls: "border-warning/40 bg-warning/10 text-warning" }
-      : { ring: "hsl(var(--success) / 0.55)", cls: "border-success/40 bg-success/[0.08] text-success" };
+      ? {
+          ring: "hsl(var(--warning) / 0.55)",
+          cls: "border-warning/40 bg-warning/10 text-warning",
+          /* Spelt out per state rather than bg-current/15: Tailwind gives
+             currentColor no opacity scale, so that class compiled to nothing
+             and the icon sat on the panel with no disc behind it at all. */
+          disc: "bg-warning/20",
+        }
+      : {
+          ring: "hsl(var(--success) / 0.55)",
+          cls: "border-success/40 bg-success/[0.08] text-success",
+          disc: "bg-success/20",
+        };
 
   /*
-    ONE ROW THAT STAYS ONE ROW.
+    TEXT ON TOP, THE PRESS UNDERNEATH IT.
 
-    It wrapped: the figure on the first line and the button dropped beneath it,
-    pushed to the right by `ml-auto` and hanging there on its own. The panel it
-    sits in is a sidebar, so there was never much width to lose — and a wrapped
-    flex row puts the button wherever the leftovers land rather than anywhere
-    deliberate.
+    This was one row, and one row is what it kept failing to be: the panel it
+    lives in is a narrow column, so the line broke and the button fell to the
+    next line pushed hard right by the space it had left over — landing in a
+    different place on every screen, at a different width, for no reason a
+    reader could see.
 
-    So no wrapping. The text takes the space that is left and wraps inside its
-    own column if it must; the button keeps its size and stays beside it, which
-    is the arrangement the eye expects — read the figure, press the thing next
-    to it.
+    Stacked, nothing is left to chance. The icon and the figure hold the top
+    line, the text wraps under itself in its own column rather than under the
+    icon, and the one thing to press sits centred beneath, the same size and
+    the same place every time.
   */
-  const shell = `money-notice flex w-full items-center gap-2 rounded-md border px-2.5 py-2 text-xs ${tone.cls}`;
-  const chip =
-    "grid h-5 w-5 shrink-0 place-items-center rounded-full bg-current/15";
+  const shell = `money-notice w-full rounded-lg border px-3 py-2.5 text-xs leading-relaxed ${tone.cls}`;
+  /* A fixed first column, so a second line of text tucks under the first line
+     of text and never under the icon. */
+  const row = "grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2";
+  const disc = `mt-[1px] grid h-5 w-5 shrink-0 place-items-center rounded-full ${tone.disc}`;
   const figure = "font-semibold tabular-nums";
+  /* Small, round and quiet. The old one was a full-height rectangle in solid
+     amber — a button that shouted about a rounding error. */
+  const press =
+    "focus-ring inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[11px] font-semibold transition active:scale-[0.97]";
 
   if (state === "over") {
     return (
@@ -126,15 +143,23 @@ export function PaymentDifference({
         className={shell}
         style={{ "--flash": tone.ring } as React.CSSProperties}
       >
-        <span className={chip}>
-          <Check className="h-3 w-3" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className={figure}>
-            {t("Overpaid")} {both}
+        <div className={row}>
+          <span className={disc}>
+            <Check className="h-3 w-3" />
           </span>
-          <span className="opacity-80"> · {t("bill settled, cargo can go")}</span>
-        </span>
+          <span className="min-w-0">
+            <span className={figure}>
+              {t("Overpaid")} {both} ·
+            </span>
+            {/* Its own line on purpose. The figure is what gets read; the
+                sentence after it is the reassurance, and putting the two on
+                one line made a long line that wrapped in the middle of a
+                number. */}
+            <span className="block opacity-80">
+              {t("Bill settled, cargo can go")}
+            </span>
+          </span>
+        </div>
       </div>
     );
   }
@@ -146,25 +171,29 @@ export function PaymentDifference({
         className={shell}
         style={{ "--flash": tone.ring } as React.CSSProperties}
       >
-        <span className={chip}>
-          <Check className="h-3 w-3" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className={figure}>
-            {submitting ? t("Finance clears") : t("Clearing")} {both}
+        <div className={row}>
+          <span className={disc}>
+            <Check className="h-3 w-3" />
           </span>
-          <span className="opacity-80">
-            {" "}
-            · {tendered} {money(paid, tendered)} {t("recorded")}
+          <span className="min-w-0">
+            <span className={figure}>
+              {submitting ? t("Finance clears") : t("Clearing")} {both} ·
+            </span>
+            <span className="block opacity-80">
+              {tendered} {money(paid, tendered)} {t("recorded")}
+            </span>
           </span>
-        </span>
-        <button
-          type="button"
-          onClick={() => arm(false)}
-          className="focus-ring shrink-0 rounded px-1 underline underline-offset-2 opacity-80 transition-opacity hover:opacity-100"
-        >
-          {t("Undo")}
-        </button>
+        </div>
+        <div className="mt-2 flex justify-center">
+          <button
+            type="button"
+            onClick={() => arm(false)}
+            className={`${press} border border-success/40 opacity-90 hover:opacity-100`}
+          >
+            <Undo2 className="h-3 w-3 shrink-0" />
+            {t("Undo")}
+          </button>
+        </div>
         <input type="hidden" name="clearShortfall" value="1" />
         {/* The figure on the button, travelling with the tick, so the action
             can never write off more than the desk was shown. */}
@@ -183,21 +212,25 @@ export function PaymentDifference({
       className={shell}
       style={{ "--flash": tone.ring } as React.CSSProperties}
     >
-      <span className={chip}>
-        <TriangleAlert className="h-3 w-3" />
-      </span>
-      <span className={`min-w-0 flex-1 ${figure}`}>
-        {t("Short")} {both}
-      </span>
+      <div className={row}>
+        <span className={disc}>
+          <TriangleAlert className="h-3 w-3" />
+        </span>
+        <span className={`min-w-0 ${figure}`}>
+          {t("Short")} {both}
+        </span>
+      </div>
       {canClear ? (
-        <button
-          type="button"
-          onClick={() => arm(true)}
-          className="focus-ring inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md bg-warning px-2 py-1 font-semibold text-warning-foreground shadow-sm transition hover:opacity-90 active:scale-[0.98]"
-        >
-          <Scale className="h-3.5 w-3.5 shrink-0" />
-          {t("Clear it")}
-        </button>
+        <div className="mt-2 flex justify-center">
+          <button
+            type="button"
+            onClick={() => arm(true)}
+            className={`${press} bg-warning text-warning-foreground shadow-sm hover:brightness-110`}
+          >
+            <Scale className="h-3 w-3 shrink-0" />
+            {t("Clear it")}
+          </button>
+        </div>
       ) : null}
     </div>
   );

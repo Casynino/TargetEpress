@@ -3431,7 +3431,7 @@ const ZH: Record<string, string> = {
   "No photos on record. A photo is what settles a damage claim months later, so add one if the cargo is still to hand.": "暂无照片记录。数月后处理货损索赔时，照片才是能说明问题的凭据——若货物仍在手边，请补拍一张。",
   "The money comes off the bill and any write-off made with it is taken back, so the customer owes the full amount again. The cargo goes back to unpaid and any pickup note is withdrawn. A reversing line is posted against this one — the ledger is never edited, so the history still explains the balance.": "款项将从账单中冲回，随该收款一并核销的差额也会撤销，客户将重新欠付全额。货物恢复为未付状态，已签发的提货单将作废。系统会针对该分录记入一笔冲正分录——账簿从不修改，因此历史记录仍能解释余额的由来。",
   "Overpaid": "多付",
-  "bill settled, cargo can go": "账单已结清，货物可放行",
+  "Bill settled, cargo can go": "账单已结清，货物可放行",
   "Finance clears": "由财务核销",
   "Clearing": "核销",
   "Undo": "撤销",
