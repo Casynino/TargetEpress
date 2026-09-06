@@ -193,7 +193,7 @@ export default async function ReceivePage() {
 
         A finished flight was showing twice: once in this table, wearing a
         green "Verified" badge with nothing left to do about it, and again in
-        "Flights already finished" below. The owner's rule is that the top
+        "Landed and checked in" below. The owner's rule is that the top
         list holds cargo in the air or still to check — everything else is
         history, and history has its own section three inches down.
       */}
@@ -218,7 +218,7 @@ export default async function ReceivePage() {
         <section className="mt-6 rounded-xl border bg-card">
           <header className="border-b p-4">
             <h2 className="text-sm font-semibold">
-              {t(locale, "Flights already finished")}
+              {t(locale, "Landed and checked in")}
             </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {t(

@@ -4792,6 +4792,7 @@ const ZH: Record<string, string> = {
   ". The case is recorded against it and does not hold it.": "。问题单已记录在案，但不会阻止提货。",
   "What is actually in the carton, and the label beside it.": "纸箱内的实际物品，以及旁边的标签。",
   "Checked in the wrong flight?": "入库了错误的航班？",
+  "Landed and checked in": "已抵达并完成入库",
   "Tracking will read": "查件状态将显示为",
   "Tracking, note number or name": "运单号、提货单号或姓名",
   "Trader name or the mark on the packages": "商户名称或箱唛",
