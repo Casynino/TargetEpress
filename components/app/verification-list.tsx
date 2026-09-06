@@ -171,7 +171,7 @@ export function VerificationList({
               batchId={batchId}
               shipment={shipment}
               locked={batchStatus !== "ARRIVED"}
-              photosDurable={photosDurable}
+          photosDurable={photosDurable}
             />
           </li>
         ))}
@@ -217,7 +217,7 @@ export function VerificationList({
                   batchId={batchId}
                   shipment={shipment}
                   locked={batchStatus !== "ARRIVED"}
-                  photosDurable={photosDurable}
+          photosDurable={photosDurable}
                 />
               ))}
             </tbody>
@@ -336,10 +336,15 @@ function VerificationCard({
           under it — one thumb, no scrolling between reading and answering. */}
       {locked ? null : (
         <div className="mt-3 flex items-stretch gap-2">
-          <form action={action} className="flex-1">
+          <form action={action} className="flex-1 space-y-2">
             <input type="hidden" name="batchId" value={batchId} />
             <input type="hidden" name="shipmentId" value={shipment.id} />
             <input type="hidden" name="outcome" value="RECEIVED" />
+            <WeightBox
+              id={`w-${shipment.id}`}
+              weightKg={shipment.weightKg}
+              className="w-full justify-between"
+            />
             <SubmitButton
               variant={done ? "outline" : "brand"}
               className="h-12 w-full rounded-lg"
@@ -404,6 +409,7 @@ function VerificationCard({
           trackingNumber={shipment.trackingNumber}
           packageType={shipment.packageType}
           packageList={shipment.packageList}
+          weightKg={shipment.weightKg}
           photosDurable={photosDurable}
           action={action}
         />
@@ -542,13 +548,18 @@ function VerificationRow({
         <td className="px-3 py-1.5">
           {locked ? null : (
             <div className="flex items-center justify-center gap-1">
-              <form action={action}>
+              <form action={action} className="flex items-center justify-end">
                 <input type="hidden" name="batchId" value={batchId} />
                 <input type="hidden" name="shipmentId" value={shipment.id} />
                 {/* The first of the six outcomes, taken in one click because it
                     is the one taken almost every time. The other five live in
                     the panel behind the ⚠. */}
                 <input type="hidden" name="outcome" value="RECEIVED" />
+                <WeightBox
+                  id={`wt-${shipment.id}`}
+                  weightKg={shipment.weightKg}
+                  className="mr-1.5"
+                />
                 <SubmitButton
                   variant={done ? "outline" : "brand"}
                   size="icon"
@@ -618,7 +629,8 @@ function VerificationRow({
                 trackingNumber={shipment.trackingNumber}
                 packageType={shipment.packageType}
                 packageList={shipment.packageList}
-                photosDurable={photosDurable}
+                weightKg={shipment.weightKg}
+          photosDurable={photosDurable}
                 action={action}
               />
             ) : null}
@@ -774,6 +786,55 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * THE SCALE, BESIDE THE TICK.
+ *
+ * China writes a weight at booking; Dar puts the carton on a scale. They
+ * disagree constantly — the tape, the pallet, a mistyped digit — and until now
+ * the bill was struck on China's figure, because the clerk holding the box had
+ * nowhere to put what the scale said.
+ *
+ * It sits on the ORDINARY path, not behind the ⚠. Correcting a weight is not a
+ * problem with the cargo and the owner was explicit that it must not force
+ * anybody to open a case. Pre-filled with the booked figure, so the clerk who
+ * has nothing to correct presses the tick exactly as before and nothing moves.
+ *
+ * Written before the cargo is priced, so the bill is struck on this number —
+ * which is what "priced at Dar check-in" was always supposed to mean.
+ */
+function WeightBox({
+  id,
+  weightKg,
+  className,
+}: {
+  id: string;
+  weightKg: number;
+  className?: string;
+}) {
+  const t = useT();
+  return (
+    <label
+      className={`inline-flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-xs ${className ?? ""}`}
+      title={t("What the scale in Dar says. Leave it if the booked weight is right.")}
+    >
+      <span className="sr-only">{t("Weight in Dar")}</span>
+      <input
+        id={id}
+        name="weightKg"
+        type="number"
+        step="0.01"
+        min="0"
+        inputMode="decimal"
+        defaultValue={weightKg}
+        /* Wide enough for 999.99 and no wider: this sits in a row a clerk
+           reads at arm's length with a carton in the other hand. */
+        className="focus-ring w-16 bg-transparent text-right tabular-nums outline-none"
+      />
+      <span className="text-muted-foreground">{t("kg")}</span>
+    </label>
   );
 }
 

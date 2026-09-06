@@ -92,6 +92,8 @@ export function ReceivingOutcomePanel({
   packageType,
   packageList,
   photosDurable,
+  /** The booked weight, so a flagged carton can still be re-weighed. */
+  weightKg,
   action,
 }: {
   batchId: string;
@@ -100,6 +102,7 @@ export function ReceivingOutcomePanel({
   packageType: string;
   packageList: PackageRow[];
   photosDurable: boolean;
+  weightKg: number;
   /** The row's own action, so one error surface serves the whole row. */
   action: (formData: FormData) => void;
 }) {
@@ -171,6 +174,26 @@ export function ReceivingOutcomePanel({
           <input type="hidden" name="batchId" value={batchId} />
           <input type="hidden" name="shipmentId" value={shipmentId} />
           <input type="hidden" name="outcome" value={outcome} />
+
+          {/* A damaged carton is still weighed, and a wrong item is still
+              weighed. The scale reading belongs to the check-in, not to the
+              fault — so it is offered on this path too and, exactly as on the
+              tick, changes nothing unless somebody types over it. */}
+          <label className="flex items-center justify-between gap-2 rounded-md border px-2.5 py-2 text-xs">
+            <span className="font-medium">{t("Weight in Dar")}</span>
+            <span className="inline-flex items-center gap-1">
+              <input
+                name="weightKg"
+                type="number"
+                step="0.01"
+                min="0"
+                inputMode="decimal"
+                defaultValue={weightKg}
+                className="focus-ring w-20 rounded border bg-card px-2 py-1 text-right tabular-nums outline-none"
+              />
+              <span className="text-muted-foreground">{t("kg")}</span>
+            </span>
+          </label>
 
           <p className="text-xs text-muted-foreground">
             {t(RECEIVING_OUTCOME_HINTS[outcome])}

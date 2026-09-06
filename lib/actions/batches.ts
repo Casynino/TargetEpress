@@ -926,6 +926,28 @@ export async function verifyShipment(
   const legacyResult = String(formData.get("result") ?? "");
   const exceptionType = String(formData.get("exceptionType") ?? "OTHER");
   const severityField = String(formData.get("severity") ?? "").trim();
+  /*
+    WHAT THE SCALE IN DAR SAID.
+
+    China writes a weight at booking and Dar puts the carton on a scale — the
+    two disagree all the time, by the tape and the pallet and by simple
+    mistyping. Until now the bill was struck on China's figure and the comment
+    two hundred lines below said so out loud: "a bill raised against a weight
+    nobody has put on a scale".
+
+    A NORMAL PART OF CHECKING IN, NOT A CASE. The owner was explicit: correcting
+    a weight must not force anybody to open a claim, an issue or an
+    investigation. So this is read on the ordinary path, beside the tick, and
+    opens nothing.
+
+    Empty means "China's figure stands" — which is the ordinary answer, and the
+    reason this is not required.
+  */
+  const weightField = String(formData.get("weightKg") ?? "").trim();
+  const weighed = weightField === "" ? null : Number(weightField);
+  if (weighed !== null && (!Number.isFinite(weighed) || weighed <= 0)) {
+    return fail(t(locale, "That weight is not a number the scale could show."));
+  }
   // The arrival screen always states which boxes it checked, even when that is
   // none of them. Without the flag, "nothing ticked" and "not a package-aware
   // form" look identical, and the safe reading of those is the opposite.
@@ -1015,6 +1037,9 @@ export async function verifyShipment(
           trackingNumber: true,
           batchId: true,
           packageType: true,
+          /* Read to compare against the scale, and to keep as the "before" on
+             the history line. */
+          weightKg: true,
           packageList: {
             select: { id: true, sequence: true, receivedAt: true },
             orderBy: { sequence: "asc" },
@@ -1101,6 +1126,42 @@ export async function verifyShipment(
         await tx.package.updateMany({
           where: { id: { in: present.map((pkg) => pkg.id) }, receivedAt: null },
           data: { receivedAt: now, receivedById: user.id },
+        });
+      }
+
+      /*
+        THE DAR FIGURE REPLACES THE CHINA ONE, AND THE CHINA ONE IS KEPT.
+
+        Written before the arrival update below, so the pricing that check-in
+        triggers reads the weight the clerk actually measured. That is what
+        "cargo is priced at Dar check-in" was always supposed to mean — the
+        rule was true about WHEN and false about WHICH FIGURE.
+
+        The old value goes to FieldChange, the same history every other cargo
+        edit writes to, so nobody has to take the new number on trust: the
+        booking figure, the confirmed figure, who confirmed it and when.
+
+        A tenth of a kilo is the scale settling, not a correction, so it is not
+        recorded as one.
+      */
+      const before = toNumber(shipment.weightKg);
+      const reweighed =
+        weighed !== null && Math.abs(weighed - before) > 0.005 ? weighed : null;
+      if (reweighed !== null) {
+        await tx.shipment.update({
+          where: { id: shipmentId },
+          data: { weightKg: new Prisma.Decimal(reweighed) },
+        });
+        await tx.fieldChange.create({
+          data: {
+            entity: "Shipment",
+            entityId: shipmentId,
+            field: "weightKg",
+            before: String(before),
+            after: String(reweighed),
+            actorId: user.id,
+            actorName: user.name,
+          },
         });
       }
 
@@ -1247,6 +1308,9 @@ export async function verifyShipment(
         ...(severity && problem === "DAMAGED_CARGO" ? { severity } : {}),
         ...(uploaded.length > 0 ? { photos: uploaded.length } : {}),
         ...(note ? { note } : {}),
+        ...(reweighed !== null
+          ? { weighedFrom: toNumber(shipment.weightKg), weighedTo: reweighed }
+          : {}),
       };
 
       await recordAudit(
