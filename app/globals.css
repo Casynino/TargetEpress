@@ -340,6 +340,55 @@
   }
 }
 
+/**
+ * THE MONEY NOTICE ARRIVING.
+ *
+ * A desk types into the amount box and, somewhere below it, a line appears
+ * saying the customer is short or has overpaid. Typing is a busy moment — the
+ * eyes are on the keypad and the customer's message — and a line that simply
+ * exists on the next render is a line nobody notices until they have already
+ * pressed Confirm.
+ *
+ * So it arrives: a short rise into place and a single ring that expands out of
+ * the border and fades. One flash, not a pulse — a thing that keeps blinking
+ * is a thing people learn to ignore, and this one is telling them something
+ * true about somebody's money.
+ *
+ * The ring's colour comes from --flash, set by whichever state is rendering,
+ * so amber says "short" and green says "settled" without a second class.
+ */
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes notice-flash {
+  from {
+    box-shadow: 0 0 0 0 var(--flash, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 8px transparent;
+  }
+}
+
+.money-notice {
+  animation:
+    notice-in 0.26s cubic-bezier(0.16, 1, 0.3, 1) both,
+    notice-flash 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .money-notice {
+    animation: none;
+  }
+}
+
 
 @layer components {
   /**

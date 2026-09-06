@@ -51,11 +51,34 @@ const known = new Set([
   ...[...dictionary.matchAll(/\n\s{2,}([A-Za-z_$][\w$]*):\s*["\n]/g)].map((m) => m[1]),
 ]);
 
-// t(locale, "…") and the client hook's t("…"), on one line or wrapped.
+/*
+  t(locale, "…") and the client hook's t("…"), on one line or wrapped.
+
+  A COMMENT BETWEEN t( AND ITS STRING USED TO HIDE THE CALL.
+
+  This codebase explains itself in comments, and several sit exactly there —
+  between the opening bracket and the literal, where the reason for the wording
+  belongs. Neither pattern allowed for that, so those calls matched nothing at
+  all: not counted as wrapped, not checked against the dictionary, and not even
+  listed as dynamic. They simply were not seen, and the script reported a clean
+  run over strings rendering in English to the Guangzhou desk.
+
+  Two were found that way — the photo hint on the cargo page and the
+  cancellation warning. Comments are stripped from the source before matching
+  now, so where a comment sits cannot decide whether a string is checked.
+*/
 const CALLS = [
   /\bt\(\s*(?:locale\s*,\s*)?"((?:[^"\\]|\\.)*)"\s*\)/g,
   /\bt\(\s*locale\s*,\s*\n\s*"((?:[^"\\]|\\.)*)"/g,
 ];
+
+/* Block and line comments out, string literals untouched — the patterns above
+   then see `t(` sitting against its argument however it was written. */
+function withoutComments(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+}
 
 /*
   t() called with something other than a literal — t(label), t(zone.offset),
@@ -78,7 +101,7 @@ const dynamic = new Map();
 let wrapped = 0;
 
 for (const file of [...sources(join(ROOT, "app")), ...sources(join(ROOT, "components")), ...sources(join(ROOT, "lib"))]) {
-  const src = readFileSync(file, "utf8");
+  const src = withoutComments(readFileSync(file, "utf8"));
   for (const pattern of CALLS) {
     for (const match of src.matchAll(pattern)) {
       const text = match[1].replace(/\\"/g, '"');

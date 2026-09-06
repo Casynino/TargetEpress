@@ -411,9 +411,19 @@ export function LedgerRowFix({
 
             {open === "cancel" ? (
               <p className="text-sm text-muted-foreground">
+                {/* The write-off is named because it is the one part a reader
+                    cannot infer. Everything else here follows from the word
+                    "cancel"; that a difference cleared WITH the payment comes
+                    back with it does not, and it is the difference between a
+                    customer owing the whole bill again and owing it less 450
+                    shillings nobody decided to forgive.
+
+                    Kept outside the t() call — a comment between t( and its
+                    string hides the literal from check-i18n, which then counts
+                    it as a computed key and passes it silently. */}
                 {subject.paymentId
                   ? t(
-                      "The money comes off the bill, the cargo goes back to unpaid and any pickup note is withdrawn. A reversing line is posted against this one — the ledger is never edited, so the history still explains the balance."
+                      "The money comes off the bill and any write-off made with it is taken back, so the customer owes the full amount again. The cargo goes back to unpaid and any pickup note is withdrawn. A reversing line is posted against this one — the ledger is never edited, so the history still explains the balance."
                     )
                   : isExpense && subject.expenseStatus === "PAID"
                     ? t(

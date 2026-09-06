@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Scale } from "lucide-react";
+import { Check, Scale, TriangleAlert } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
 
@@ -71,36 +71,69 @@ export function PaymentDifference({
       ? `${billCurrency} ${money(gapInBill, billCurrency)}`
       : `${tendered} ${money(gap, tendered)} · ${billCurrency} ${money(gapInBill, billCurrency)}`;
 
-  const row =
-    "flex w-full flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border px-2.5 py-2 text-xs";
+  /*
+    THE STATE IS THE KEY, SO THE ARRIVAL REPLAYS.
 
-  if (gap < 0) {
+    React keeps the same DOM node when only the text inside it changes, and a
+    CSS animation on a node that was never remounted does not run again. So
+    going short → cleared → overpaid would animate once and then change
+    silently. Keying on the state remounts the row, and each new answer arrives
+    the way the first one did.
+  */
+  const state = gap < 0 ? "over" : clearRest ? "armed" : "short";
+  const tone =
+    state === "short"
+      ? { ring: "hsl(var(--warning) / 0.55)", cls: "border-warning/40 bg-warning/10 text-warning" }
+      : { ring: "hsl(var(--success) / 0.55)", cls: "border-success/40 bg-success/[0.08] text-success" };
+
+  const shell = `money-notice flex w-full flex-wrap items-center gap-x-2.5 gap-y-1.5 rounded-md border px-2.5 py-2 text-xs ${tone.cls}`;
+  const chip =
+    "grid h-5 w-5 shrink-0 place-items-center rounded-full bg-current/15";
+  const figure = "font-semibold tabular-nums";
+
+  if (state === "over") {
     return (
-      <div className={`${row} border-success/40 bg-success/[0.08] text-success`}>
-        <Check className="h-3.5 w-3.5 shrink-0" />
+      <div
+        key={state}
+        className={shell}
+        style={{ "--flash": tone.ring } as React.CSSProperties}
+      >
+        <span className={chip}>
+          <Check className="h-3 w-3" />
+        </span>
         <span>
-          <span className="font-semibold">{t("Overpaid")} {both}</span>
-          {" · "}
-          {t("bill settled, cargo can go")}
+          <span className={figure}>
+            {t("Overpaid")} {both}
+          </span>
+          <span className="opacity-80"> · {t("bill settled, cargo can go")}</span>
         </span>
       </div>
     );
   }
 
-  if (clearRest) {
+  if (state === "armed") {
     return (
-      <div className={`${row} border-success/40 bg-success/[0.08] text-success`}>
-        <Check className="h-3.5 w-3.5 shrink-0" />
-        <span className="font-semibold">
-          {submitting ? t("Finance clears") : t("Clearing")} {both}
+      <div
+        key={state}
+        className={shell}
+        style={{ "--flash": tone.ring } as React.CSSProperties}
+      >
+        <span className={chip}>
+          <Check className="h-3 w-3" />
         </span>
-        <span className="opacity-80">
-          · {tendered} {money(paid, tendered)} {t("recorded")}
+        <span>
+          <span className={figure}>
+            {submitting ? t("Finance clears") : t("Clearing")} {both}
+          </span>
+          <span className="opacity-80">
+            {" "}
+            · {tendered} {money(paid, tendered)} {t("recorded")}
+          </span>
         </span>
         <button
           type="button"
           onClick={() => setClearRest(false)}
-          className="focus-ring ml-auto rounded underline underline-offset-2"
+          className="focus-ring ml-auto shrink-0 rounded px-1 underline underline-offset-2 opacity-80 transition-opacity hover:opacity-100"
         >
           {t("Undo")}
         </button>
@@ -117,15 +150,22 @@ export function PaymentDifference({
   }
 
   return (
-    <div className={`${row} border-warning/40 bg-warning/10 text-warning`}>
-      <span>
-        <span className="font-semibold">{t("Short")} {both}</span>
+    <div
+      key={state}
+      className={shell}
+      style={{ "--flash": tone.ring } as React.CSSProperties}
+    >
+      <span className={chip}>
+        <TriangleAlert className="h-3 w-3" />
+      </span>
+      <span className={figure}>
+        {t("Short")} {both}
       </span>
       {canClear ? (
         <button
           type="button"
           onClick={() => setClearRest(true)}
-          className="focus-ring ml-auto inline-flex items-center gap-1.5 rounded-md bg-warning px-2.5 py-1 font-semibold text-warning-foreground transition hover:opacity-90"
+          className="focus-ring ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-md bg-warning px-2.5 py-1 font-semibold text-warning-foreground shadow-sm transition hover:opacity-90 active:scale-[0.98]"
         >
           <Scale className="h-3.5 w-3.5 shrink-0" />
           {t("Clear it")}
