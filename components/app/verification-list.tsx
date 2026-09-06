@@ -483,11 +483,12 @@ function VerificationCard({
 
       {weighing && !locked ? (
         <div className="mt-3">
-          <WeightPanel
+          <VerifyPanel
             batchId={batchId}
             shipmentId={shipment.id}
             trackingNumber={shipment.trackingNumber}
             weightKg={shipment.weightKg}
+            packages={shipment.packageList.length}
             photosDurable={photosDurable}
             action={action}
             onDone={() => setWeighing(false)}
@@ -746,11 +747,12 @@ function VerificationRow({
 
             {weighing && !locked ? (
               <div className="pt-3">
-                <WeightPanel
+                <VerifyPanel
                   batchId={batchId}
                   shipmentId={shipment.id}
                   trackingNumber={shipment.trackingNumber}
                   weightKg={shipment.weightKg}
+                  packages={shipment.packageList.length}
                   photosDurable={photosDurable}
                   action={action}
                   onDone={() => setWeighing(false)}
@@ -942,23 +944,28 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
  * which is what "priced at Dar check-in" was always supposed to mean.
  */
 /**
- * THE SCALE, ON ITS OWN PANEL.
+ * WHAT ACTUALLY ARRIVED IN DAR.
  *
- * This lived inside the table cell and grew a photo control there, which turned
- * a 40px row into 600px of squeezed column — the owner's word for it was "no".
- * It belongs where flagging a fault already lives: the full-width panel under
- * the row, opened from an icon beside the ⚠, with room to show both figures
- * properly.
+ * The whole purpose of this desk: China wrote a weight and a count when the
+ * cargo was booked, and Dar says what is really on the floor. Two numbers,
+ * typed as they are read off the scale and the pallet, and the system works
+ * out the rest — how far each is from the China figure, which way, and what
+ * the cargo is now priced on.
  *
- * Two numbers and the gap between them, because that is the whole question a
- * clerk is answering: what China said, what the bench says, and how far apart
- * they are.
+ * NOTHING ELSE IS ASKED FOR. No reason, no claim, no investigation, no
+ * photograph. A weight that moves is not a problem with the cargo; it is this
+ * desk doing its job, and the owner was explicit that a mandatory picture on
+ * every corrected kilo is a step that stops the work. The cargo is already
+ * photographed and a photo stays available to anyone who wants one.
+ *
+ * Weigh · count · type · OK.
  */
-function WeightPanel({
+function VerifyPanel({
   batchId,
   shipmentId,
   trackingNumber,
   weightKg,
+  packages,
   photosDurable,
   action,
   onDone,
@@ -967,101 +974,169 @@ function WeightPanel({
   shipmentId: string;
   trackingNumber: string;
   weightKg: number;
+  packages: number;
   photosDurable: boolean;
   action: (formData: FormData) => void;
   onDone: () => void;
 }) {
   const t = useT();
-  const [typed, setTyped] = useState(String(weightKg));
-  const now = Number(typed);
-  const valid = Number.isFinite(now) && now > 0;
-  const moved = valid && Math.abs(now - weightKg) > 0.005;
-  const delta = Math.round((now - weightKg) * 100) / 100;
+  const [kg, setKg] = useState(String(weightKg));
+  const [count, setCount] = useState(String(packages));
+  const [photo, setPhoto] = useState(false);
+
+  const nowKg = Number(kg);
+  const kgValid = Number.isFinite(nowKg) && nowKg > 0;
+  const kgDelta = kgValid ? Math.round((nowKg - weightKg) * 100) / 100 : 0;
+  const kgMoved = kgValid && Math.abs(kgDelta) > 0.005;
+
+  const nowCount = Number(count);
+  const countValid = Number.isInteger(nowCount) && nowCount > 0;
+  const countDelta = countValid ? nowCount - packages : 0;
+  const countMoved = countValid && countDelta !== 0;
+
+  /* Said the same way for both figures: the China record, what Dar found, and
+     the gap with its sign — so nobody has to work out which way it went. */
+  const Figures = ({
+    label,
+    was,
+    unit,
+    delta,
+    moved,
+    children,
+  }: {
+    label: string;
+    was: string;
+    unit: string;
+    delta: number;
+    moved: boolean;
+    children: React.ReactNode;
+  }) => (
+    <div className="grid grid-cols-3 items-end gap-3">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          {t("China")} {t(label)}
+        </p>
+        <p className="mt-1 font-display text-xl font-bold tabular-nums text-muted-foreground">
+          {was} <span className="text-sm font-medium">{t(unit)}</span>
+        </p>
+      </div>
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-brand">
+          {t("Dar")} {t(label)}
+        </p>
+        <div className="mt-1 flex items-baseline gap-1">
+          {children}
+          <span className="text-sm font-medium text-muted-foreground">
+            {t(unit)}
+          </span>
+        </div>
+      </div>
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          {t("Difference")}
+        </p>
+        <p
+          className={`mt-1 font-display text-xl font-bold tabular-nums ${
+            moved ? "text-warning" : "text-muted-foreground"
+          }`}
+        >
+          {moved ? `${delta > 0 ? "+" : "−"}${Math.abs(delta)}` : "0"}{" "}
+          <span className="text-sm font-medium">{t(unit)}</span>
+        </p>
+      </div>
+    </div>
+  );
+
+  const box =
+    "focus-ring w-24 rounded-md border bg-background px-2 py-1 font-display text-xl font-bold tabular-nums outline-none";
 
   return (
-    <form action={action} className="rounded-lg border bg-card p-4">
+    <form action={action} className="space-y-4 rounded-lg border bg-card p-4">
       <input type="hidden" name="batchId" value={batchId} />
       <input type="hidden" name="shipmentId" value={shipmentId} />
-      {/* A re-weigh is not a fault. This checks the cargo in exactly as the
-          tick does; the only difference is the figure it carries. */}
+      {/* Verifying is checking in. The only difference is the two figures it
+          carries, and neither of them is a fault. */}
       <input type="hidden" name="outcome" value="RECEIVED" />
 
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-sm font-semibold">{t("Correct the weight")}</p>
+        <p className="text-sm font-semibold">{t("What arrived in Dar")}</p>
         <p className="font-mono text-xs text-muted-foreground">{trackingNumber}</p>
       </div>
 
-      {/* The three figures, side by side and large enough to read at arm's
-          length with a carton in the other hand. */}
-      <div className="mt-3 grid grid-cols-3 items-end gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            {t("Booked in China")}
-          </p>
-          <p className="mt-1 font-display text-xl font-bold tabular-nums text-muted-foreground">
-            {weightKg} <span className="text-sm font-medium">{t("kg")}</span>
-          </p>
-        </div>
-        <div>
-          <label
-            htmlFor={`kg-${shipmentId}`}
-            className="text-[11px] font-semibold uppercase tracking-widest text-brand"
-          >
-            {t("On the Dar bench")}
-          </label>
-          <div className="mt-1 flex items-baseline gap-1">
-            <input
-              id={`kg-${shipmentId}`}
-              name="weightKg"
-              type="number"
-              step="0.01"
-              min="0"
-              inputMode="decimal"
-              value={typed}
-              onChange={(event) => setTyped(event.target.value)}
-              className="focus-ring w-24 rounded-md border bg-background px-2 py-1 font-display text-xl font-bold tabular-nums outline-none"
-            />
-            <span className="text-sm font-medium text-muted-foreground">
-              {t("kg")}
-            </span>
-          </div>
-        </div>
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            {t("Difference")}
-          </p>
-          <p
-            className={`mt-1 font-display text-xl font-bold tabular-nums ${
-              moved ? "text-warning" : "text-muted-foreground"
-            }`}
-          >
-            {moved ? `${delta > 0 ? "+" : "−"}${Math.abs(delta)}` : "0"}{" "}
-            <span className="text-sm font-medium">{t("kg")}</span>
-          </p>
-        </div>
-      </div>
+      <Figures label="weight" was={String(weightKg)} unit="kg" delta={kgDelta} moved={kgMoved}>
+        <input
+          name="weightKg"
+          type="number"
+          step="0.01"
+          min="0"
+          inputMode="decimal"
+          value={kg}
+          onChange={(event) => setKg(event.target.value)}
+          className={box}
+          aria-label={t("Weight in Dar")}
+        />
+      </Figures>
 
-      {/* The proof, and only when there is something to prove. The bill is
-          struck on this figure and the customer was quoted the other one. */}
-      {moved ? (
-        <div className="mt-4 rounded-md border border-warning/40 bg-warning/10 p-3">
-          <PhotoCapture
-            name="photos"
-            required
-            max={2}
-            label="Photograph the scale"
-            hint="The reading, with the label in shot if you can."
-            durable={photosDurable}
-          />
-        </div>
+      <Figures
+        label="boxes"
+        was={String(packages)}
+        unit="boxes"
+        delta={countDelta}
+        moved={countMoved}
+      >
+        <input
+          name="packagesArrived"
+          type="number"
+          step="1"
+          min="1"
+          inputMode="numeric"
+          value={count}
+          onChange={(event) => setCount(event.target.value)}
+          className={box}
+          aria-label={t("Boxes counted in Dar")}
+        />
+      </Figures>
+
+      {/* Fewer boxes is a shortage, and the release counter has to know which
+          cartons are actually on the floor — so the ones above the count are
+          left unscanned rather than deleted. Said here so nobody presses OK
+          expecting the consignment to go out whole. */}
+      {countDelta < 0 ? (
+        <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          <span className="font-semibold">
+            {Math.abs(countDelta)} {t("short.")}
+          </span>{" "}
+          {t(
+            "The boxes that arrived go into the warehouse; release stays shut until the rest turn up."
+          )}
+        </p>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <SubmitButton variant="brand" size="sm" disabled={!valid} pendingLabel="Recording…">
+      {/* Optional, always. Never a condition of saving a figure. */}
+      {photo ? (
+        <PhotoCapture
+          name="photos"
+          max={2}
+          label="Photo (optional)"
+          hint="Only if you want one on the record."
+          durable={photosDurable}
+        />
+      ) : (
+        <Button type="button" variant="ghost" size="sm" onClick={() => setPhoto(true)}>
+          <Camera className="mr-1.5 h-4 w-4" />
+          {t("Add a photo (optional)")}
+        </Button>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <SubmitButton
+          variant="brand"
+          size="sm"
+          disabled={!kgValid || !countValid}
+          pendingLabel="Recording…"
+        >
           <Check className="mr-1.5 h-4 w-4" />
-          {moved
-            ? `${t("Save")} ${now} ${t("kg")} ${t("and check in")}`
-            : t("Check in — present & correct")}
+          {t("OK — check it in")}
         </SubmitButton>
         <Button type="button" variant="ghost" size="sm" onClick={onDone}>
           {t("Cancel")}

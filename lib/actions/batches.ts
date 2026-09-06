@@ -906,8 +906,11 @@ export async function verifyShipment(
     being nudged up — the warehouse handles boxes, not totals.
   */
   const countField = String(formData.get("packagesArrived") ?? "").trim();
-  const counted = countField === "" ? null : Number(countField);
-  if (counted !== null && (!Number.isInteger(counted) || counted < 1)) {
+  const countedArrived = countField === "" ? null : Number(countField);
+  if (
+    countedArrived !== null &&
+    (!Number.isInteger(countedArrived) || countedArrived < 1)
+  ) {
     return fail(t(locale, "That is not a number of boxes."));
   }
 
@@ -986,22 +989,17 @@ export async function verifyShipment(
     );
   }
   /*
-    A CHANGED WEIGHT NEEDS THE SCALE IN A PHOTOGRAPH.
+    A RE-WEIGH ASKS FOR NOTHING BUT THE NUMBER.
 
-    The bill is struck on this figure and the customer was quoted the other
-    one, so the difference is a conversation somebody will have to win weeks
-    later — with the cargo long gone and nothing to point at. The owner's
-    words: the kilos changing is a real issue and deserves the attention.
+    This required a photograph of the scale, on the reasoning that a figure
+    which moves the bill deserves proof. The owner's answer is that the point
+    of Dar verification is to make receiving fast and practical: the cargo is
+    already photographed, weighing is the ordinary job of the desk, and a
+    mandatory picture on every corrected kilo is a step that stops the work.
 
-    The same rule damage already follows, for the same reason: this is the only
-    moment the picture can be taken.
-
-    Enforced here rather than only in the browser, because the action is
-    reachable without the screen — and checked against what the shipment
-    actually says, further down, so a figure equal to the booked one asks for
-    nothing.
+    Weigh, type the number, press OK. A photo stays available for anybody who
+    wants one, and is still compulsory where it is genuinely evidence — damage.
   */
-  const weightPhotoNeeded = weighed !== null && photoFiles.length === 0;
 
   let uploaded: StoredImage[] = [];
   if (photoFiles.length > 0) {
@@ -1093,15 +1091,33 @@ export async function verifyShipment(
       //     and it would open the release counter on a short shipment. Left
       //     unticked, the manifest count reads low and release stays shut
       //     until somebody records which boxes actually landed.
+      /*
+        A TYPED COUNT LOWER THAN THE MANIFEST NAMES ITS OWN SHORTAGE.
+
+        The clerk counted the pallet and said nine of ten. Ticking all ten
+        would assert the one thing they have just told us is false and would
+        open the release counter on a short consignment. So the first nine are
+        on the floor and the tenth is not — the row keeps its identity and its
+        QR, the counter stays shut, and the box that turns up next week is
+        ticked rather than re-created.
+      */
+      const countedShort =
+        countedArrived !== null &&
+        countedArrived < shipment.packageList.length
+          ? countedArrived
+          : null;
+
       const present = !arrived
         ? []
         : explicitSelection
           ? shipment.packageList.filter((pkg) =>
               checkedPackageIds.includes(pkg.id)
             )
-          : problem === "PACKAGE_COUNT_MISMATCH"
-            ? []
-            : shipment.packageList;
+          : countedShort !== null
+            ? shipment.packageList.slice(0, countedShort)
+            : problem === "PACKAGE_COUNT_MISMATCH"
+              ? []
+              : shipment.packageList;
 
       const now = new Date();
 
@@ -1130,29 +1146,34 @@ export async function verifyShipment(
         recorded as one.
       */
       /*
-        AN EXTRA CARTON BECOMES AN EXTRA BOX, NOT A BIGGER NUMBER.
+        WHAT THE PALLET ACTUALLY HELD.
 
-        prisma/schema.prisma is explicit that the QR belongs to each physical
-        box, and lib/actions/delivery.ts keeps the counter shut until every one
-        of them has been scanned. Raising `packages` on its own would promise a
-        box the warehouse could never scan and could never hand over; minting
-        the row gives the carton the identity everything else already assumes
-        it has, and it can be labelled and released like any other.
+        The clerk types one number and the system does the rest — the owner's
+        rule, and the reason this desk exists: China wrote a count when the
+        cargo was booked and Dar says what is really there.
 
-        Only upwards. Fewer boxes is the ticker's question, and lowering the
-        count here would let a short consignment be made to look complete —
-        which is exactly what the release gate exists to catch.
+        MORE becomes more boxes, not a bigger number. The schema is explicit
+        that the QR belongs to the physical carton and the release counter
+        refuses to hand over anything it cannot scan, so raising the figure
+        alone would promise a box nobody could ever label.
+
+        FEWER leaves the rows alone and simply does not tick the ones above the
+        count. A missing carton is missing, not deleted: the row carries its
+        identity, the counter stays shut until it turns up, and the case that
+        follows has something to point at. Deleting it is how a warehouse ends
+        up unable to say what it received.
       */
-      const arrivedCount =
-        counted !== null && counted > shipment.packageList.length ? counted : null;
-      const extra = arrivedCount === null ? 0 : arrivedCount - shipment.packageList.length;
-      if (arrivedCount !== null) {
-        const from = shipment.packageList.length;
+      const counted =
+        countedArrived === null ? null : Math.trunc(countedArrived);
+      const booked = shipment.packageList.length;
+      const extra = counted !== null && counted > booked ? counted - booked : 0;
+
+      if (extra > 0) {
         await tx.package.createMany({
           data: Array.from({ length: extra }, (_, i) => ({
             shipmentId: shipmentId,
-            sequence: from + i + 1,
-            reference: packageReference(shipment.trackingNumber, from + i + 1),
+            sequence: booked + i + 1,
+            reference: packageReference(shipment.trackingNumber, booked + i + 1),
             qrToken: generateQrToken(),
             /* Received the moment they are recorded: somebody is holding them
                and has just said so. */
@@ -1160,17 +1181,20 @@ export async function verifyShipment(
             receivedById: user.id,
           })),
         });
+      }
+
+      if (counted !== null && counted !== booked) {
         await tx.shipment.update({
           where: { id: shipmentId },
-          data: { packages: arrivedCount },
+          data: { packages: counted },
         });
         await tx.fieldChange.create({
           data: {
             entity: "Shipment",
             entityId: shipmentId,
             field: "packages",
-            before: String(from),
-            after: String(arrivedCount),
+            before: String(booked),
+            after: String(counted),
             actorId: user.id,
             actorName: user.name,
           },
@@ -1180,14 +1204,6 @@ export async function verifyShipment(
       const before = toNumber(shipment.weightKg);
       const reweighed =
         weighed !== null && Math.abs(weighed - before) > 0.005 ? weighed : null;
-      if (reweighed !== null && weightPhotoNeeded) {
-        throw new Error(
-          t(
-            locale,
-            "Photograph the scale before recording a different weight. The bill is struck on this figure and the customer was quoted the other one."
-          )
-        );
-      }
       if (reweighed !== null) {
         await tx.shipment.update({
           where: { id: shipmentId },
@@ -1352,8 +1368,8 @@ export async function verifyShipment(
         ...(reweighed !== null
           ? { weighedFrom: toNumber(shipment.weightKg), weighedTo: reweighed }
           : {}),
-        ...(extra > 0
-          ? { boxesBooked: shipment.packageList.length, boxesArrived: extra + shipment.packageList.length }
+        ...(counted !== null && counted !== booked
+          ? { boxesBooked: booked, boxesArrived: counted }
           : {}),
       };
 

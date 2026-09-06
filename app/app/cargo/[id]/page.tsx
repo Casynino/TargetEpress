@@ -232,6 +232,21 @@ export default async function ShipmentDetailPage({
      the record that answers "who changed the weight, and what was it before"
      was being kept and never read. */
   const edits = showInternal ? await changeHistory(shipment.id) : [];
+  /*
+    CHINA SAID ONE FIGURE, DAR FOUND ANOTHER.
+
+    The owner asked for the difference to be visible wherever the cargo and its
+    price are reviewed — Finance, Support, Admin, management and the floor —
+    not only on the screen where it was typed. All four desks already hold
+    shipment.viewInternal, so the fact is available; it just was not said in
+    the one place everybody looks, which is the cargo card.
+
+    Newest first from changeHistory, so the first entry per field is the
+    figure that stands today.
+  */
+  const verified = (field: string) => edits.find((e) => e.field === field) ?? null;
+  const weighedInDar = verified("weightKg");
+  const countedInDar = verified("packages");
 
   const showMoney = can(user.role, "finance.view");
   const canVerifyPayments = can(user.role, "payment.verify");
@@ -415,8 +430,29 @@ export default async function ShipmentDetailPage({
                 {
                   label: t(locale, "Counted as"),
                   value: formatPackages(shipment.packages, shipment.packageType, locale),
+                  note: countedInDar
+                    ? `${t(locale, "China")} ${countedInDar.before} → ${t(locale, "Dar")} ${countedInDar.after} (${
+                        Number(countedInDar.after) > Number(countedInDar.before) ? "+" : "−"
+                      }${Math.abs(
+                        Number(countedInDar.after) - Number(countedInDar.before)
+                      )})`
+                    : null,
                 },
-                { label: t(locale, "Weight"), value: formatWeight(shipment.weightKg) },
+                {
+                  label: t(locale, "Weight"),
+                  value: formatWeight(shipment.weightKg),
+                  /* Said as the three figures the spec names: what China
+                     recorded, what Dar found, and which way it went. */
+                  note: weighedInDar
+                    ? `${t(locale, "China")} ${weighedInDar.before} → ${t(locale, "Dar")} ${weighedInDar.after} (${
+                        Number(weighedInDar.after) > Number(weighedInDar.before) ? "+" : "−"
+                      }${Math.abs(
+                        Math.round(
+                          (Number(weighedInDar.after) - Number(weighedInDar.before)) * 100
+                        ) / 100
+                      )} kg)`
+                    : null,
+                },
                 {
                   label: t(locale, "Origin"),
                   value: t(locale, ORIGIN_LABELS[shipment.origin]),
@@ -484,6 +520,14 @@ export default async function ShipmentDetailPage({
                 <div key={item.label} className="bg-card p-4">
                   <dt className="text-xs text-muted-foreground">{item.label}</dt>
                   <dd className="mt-1 text-sm font-medium">{item.value}</dd>
+                  {/* What Dar found, where the figure is read rather than only
+                      where it was typed. Amber because it is a fact somebody
+                      may need to explain, not a fault. */}
+                  {"note" in item && item.note ? (
+                    <dd className="mt-0.5 text-[11px] font-medium text-warning">
+                      {item.note}
+                    </dd>
+                  ) : null}
                 </div>
               ))}
             </dl>
