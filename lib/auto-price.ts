@@ -118,6 +118,27 @@ export async function autoPriceShipments(
       continue;
     }
 
+    /*
+      NOTHING IS BILLED BEFORE IT LANDS.
+
+      "Cargo is priced at Dar check-in and nowhere else" was true of the two
+      check-in paths and untrue of the third caller: updateCargo re-prices on a
+      corrected weight, and a warehouse holding shipment.amendOutbound can
+      correct a consignment that is still in the air. That raised a DRAFT
+      against cargo nobody had put on a scale, started the storage clock's
+      companion figures early, and left a bill standing if the box never came.
+
+      Only a FIRST bill is refused. A draft that already exists is re-priced as
+      before — that is the re-weigh-after-check-in case, and the whole reason
+      this call sits in updateCargo. Every caller that legitimately prices sets
+      arrivedAt first: both check-in paths write it in the transaction before
+      this runs, and cargo added at Dar is created with it.
+    */
+    if (!shipment.invoice && shipment.arrivedAt === null) {
+      skipped += 1;
+      continue;
+    }
+
     const quoted = await quote(
       {
         category: shipment.cargoCategory,

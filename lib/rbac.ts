@@ -417,6 +417,27 @@ const DAR: Permission[] = [
   "shipment.delete",
   "shipment.cancel",
   "shipment.amendLanded",
+  /*
+    BOTH HALVES, AT THE OWNER'S INSTRUCTION.
+
+    The split above gave this floor its three verbs only from the arrival scan
+    onward, and the owner asked twice for the same reach Guangzhou has: "we
+    need to be able to delete, edit and modify just as much as China can."
+
+    What made the half-and-half wrong in practice is the gap it left. A flight
+    lands and its consignments stay IN_TRANSIT until each is ticked — so the
+    clerk holding a carton off HK-16, reading a description that does not match
+    what is in front of them, was looking at cargo the system still called
+    Guangzhou's and could not correct the one record they were best placed to
+    correct.
+
+    It is genuinely wider than that gap: this also reaches cargo still on a
+    shelf in Guangzhou. The verbs keep their own guards either way — a package
+    that has been scanned cannot be deleted, and a bill past DRAFT refuses to
+    be re-priced — and every use is written to the cargo's history with the
+    name of whoever did it.
+  */
+  "shipment.amendOutbound",
   // Batch data is readable because a shipment names its batch and flight; there
   // is no batch.create / batch.manage here, so there is no way in to managing
   // one.
