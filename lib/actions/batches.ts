@@ -1587,8 +1587,31 @@ export async function verifyBatchAll(
         flagged on THIS flight is not overwritten by a clerk accepting the
         remainder of THIS flight.
       */
+      /*
+        A CHOSEN FEW, OR THE WHOLE REMAINDER.
+
+        Forty-six rows and two ways to answer them was one too few: tick each
+        one, or accept every one at once. The floor works in armfuls — check
+        off the twenty you have actually walked past, leave the rest for after
+        lunch — and that had no button at all.
+
+        Empty means the whole remainder, which is what Finish check-in sends
+        and how this always behaved. Named ids narrow it, and every guard below
+        is unchanged: still only lines nobody has ruled on for this flight, so
+        a chosen set can no more overwrite a flagged carton than the bulk one
+        could.
+      */
+      const chosen = String(formData.get("shipmentIds") ?? "")
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+
       const pending = await tx.shipment.findMany({
-        where: { batchId, verifications: { none: { batchId } } },
+        where: {
+          batchId,
+          verifications: { none: { batchId } },
+          ...(chosen.length > 0 ? { id: { in: chosen } } : {}),
+        },
         select: {
           id: true,
           status: true,

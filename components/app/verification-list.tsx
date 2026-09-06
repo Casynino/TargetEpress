@@ -154,6 +154,28 @@ export function VerificationList({
   const noteWeight = (id: string, kg: string) =>
     setWeights((current) => ({ ...current, [id]: kg }));
 
+  /*
+    AN ARMFUL AT A TIME.
+
+    Forty-six rows had two answers and needed three: tick one, accept every
+    one, or accept the ones you have actually walked past. The floor works in
+    armfuls — twenty checked before lunch, the rest after — and that had no
+    button.
+
+    Only rows nobody has ruled on can be picked; a carton already checked or
+    flagged is not something to re-answer in bulk.
+  */
+  const openRows = shipments.filter((s) => !s.verification);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const pick = (id: string) =>
+    setPicked((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const pickedOpen = openRows.filter((s) => picked.has(s.id));
+
   return (
     <div className="space-y-4">
       <div className="sticky top-14 z-20 flex flex-wrap items-center gap-3 rounded-xl border bg-card/95 p-4 shadow-soft backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:static sm:bg-card sm:backdrop-blur-none">
@@ -172,11 +194,21 @@ export function VerificationList({
           </div>
         </div>
         {batchStatus === "ARRIVED" ? (
-          <CompleteButton
-            batchId={batchId}
-            remaining={remaining}
-            weights={weights}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            {pickedOpen.length > 0 ? (
+              <AcceptPickedButton
+                batchId={batchId}
+                shipmentIds={pickedOpen.map((s) => s.id)}
+                weights={weights}
+                onDone={() => setPicked(new Set())}
+              />
+            ) : null}
+            <CompleteButton
+              batchId={batchId}
+              remaining={remaining}
+              weights={weights}
+            />
+          </div>
         ) : null}
       </div>
 
@@ -190,6 +222,8 @@ export function VerificationList({
         {shipments.map((shipment) => (
           <li key={shipment.id}>
             <VerificationCard
+              picked={picked.has(shipment.id)}
+              onPick={shipment.verification ? undefined : () => pick(shipment.id)}
               onWeight={noteWeight}
               batchId={batchId}
               shipment={shipment}
@@ -284,6 +318,8 @@ function VerificationCard({
   locked,
   photosDurable,
   onWeight,
+  picked,
+  onPick,
 }: {
   batchId: string;
   shipment: Row;
@@ -291,6 +327,9 @@ function VerificationCard({
   photosDurable: boolean;
   /** Reports a typed scale reading up, so Finish check-in can carry it. */
   onWeight?: (shipmentId: string, kg: string) => void;
+  picked?: boolean;
+  /** Absent on a row already ruled on — there is nothing to pick. */
+  onPick?: () => void;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -316,6 +355,17 @@ function VerificationCard({
     >
       <div className="flex items-start justify-between gap-3">
         <span className="flex min-w-0 items-center gap-2">
+          {/* Only on a line nobody has answered — a carton already checked or
+              flagged is not something to re-answer in an armful. */}
+          {onPick ? (
+            <input
+              type="checkbox"
+              checked={Boolean(picked)}
+              onChange={onPick}
+              aria-label={`${t("Pick")} ${shipment.trackingNumber}`}
+              className="h-5 w-5 shrink-0 accent-[var(--brand)]"
+            />
+          ) : null}
           {done ? (
             <Check className="h-4 w-4 shrink-0 text-success" />
           ) : flagged ? (
@@ -456,6 +506,8 @@ function VerificationRow({
   locked,
   photosDurable,
   onWeight,
+  picked,
+  onPick,
 }: {
   batchId: string;
   shipment: Row;
@@ -463,6 +515,9 @@ function VerificationRow({
   photosDurable: boolean;
   /** Reports a typed scale reading up, so Finish check-in can carry it. */
   onWeight?: (shipmentId: string, kg: string) => void;
+  picked?: boolean;
+  /** Absent on a row already ruled on — there is nothing to pick. */
+  onPick?: () => void;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -512,6 +567,15 @@ function VerificationRow({
               {open ? t("Hide cargo detail") : t("Show cargo detail")}
             </span>
           </button>
+          {onPick ? (
+            <input
+              type="checkbox"
+              checked={Boolean(picked)}
+              onChange={onPick}
+              aria-label={`${t("Pick")} ${shipment.trackingNumber}`}
+              className="ml-1 h-4 w-4 shrink-0 align-middle accent-[var(--brand)]"
+            />
+          ) : null}
         </td>
 
         <td className="whitespace-nowrap px-3 py-1.5">
@@ -923,6 +987,74 @@ function WeightBox({
             durable={photosDurable}
           />
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * ACCEPT THE ONES THEY HAVE ACTUALLY WALKED PAST.
+ *
+ * Between the single tick and Finish check-in. Same server action, same
+ * guards — it only names which lines to answer, and verifyBatchAll still
+ * refuses to touch anything already ruled on for this flight.
+ *
+ * Deliberately does NOT close the flight. Accepting an armful is a pause in
+ * the work, not the end of it; the clerk comes back for the rest, and Finish
+ * check-in is still the one press that says the aircraft is done.
+ */
+function AcceptPickedButton({
+  batchId,
+  shipmentIds,
+  weights,
+  onDone,
+}: {
+  batchId: string;
+  shipmentIds: string[];
+  weights: Record<string, string>;
+  onDone: () => void;
+}) {
+  const t = useT();
+  const [error, setError] = useState<string | null>(null);
+  const [running, start] = useTransition();
+
+  function accept() {
+    setError(null);
+    start(async () => {
+      const body = new FormData();
+      body.set("batchId", batchId);
+      body.set("shipmentIds", shipmentIds.join(","));
+      /* Only the scale readings for the rows being answered — a figure typed
+         on a row nobody picked is not being agreed to yet. */
+      const mine: Record<string, string> = {};
+      for (const id of shipmentIds) if (weights[id]) mine[id] = weights[id];
+      if (Object.keys(mine).length > 0) body.set("weights", JSON.stringify(mine));
+
+      const done = await verifyBatchAll(undefined, body);
+      if (!done.ok) {
+        setError(done.error ?? null);
+        return;
+      }
+      onDone();
+    });
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <Button
+        type="button"
+        variant="brand"
+        size="sm"
+        onClick={accept}
+        disabled={running}
+      >
+        <Check className="mr-1.5 h-4 w-4" />
+        {running
+          ? t("Recording…")
+          : `${t("Present & correct")} · ${shipmentIds.length}`}
+      </Button>
+      {error ? (
+        <p className="text-xs font-medium text-destructive">{error}</p>
       ) : null}
     </div>
   );
