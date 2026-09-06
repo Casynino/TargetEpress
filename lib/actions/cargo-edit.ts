@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
+import { autoPriceShipments } from "@/lib/auto-price";
 import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
@@ -331,9 +333,35 @@ export async function updateCargo(
       );
     });
 
+    /*
+      A CORRECTED WEIGHT HAS TO REACH THE BILL.
+
+      Editing the kilos here changed the record and left the invoice standing
+      on the old figure, so a consignment re-weighed after check-in was billed
+      the weight Guangzhou typed — silently, with the right number on the cargo
+      page and the wrong one on the customer's bill.
+
+      autoPriceShipments refuses to touch anything that is not still a DRAFT,
+      so a confirmed bill and a paid one are untouched: correcting those is
+      Finance's, through a discount or an adjustment, and must never happen by
+      somebody editing a weight.
+
+      Outside the transaction and unable to fail the edit — the same rule
+      check-in follows. The record is already saved; a pricing engine having a
+      bad moment must not tell the clerk their correction did not happen.
+    */
+    const repriced =
+      changes.some((c) => c.field === "weightKg" || c.field === "packages")
+        ? await autoPriceShipments([before.id], user.id).catch(() => null)
+        : null;
+
     revalidatePath(`/app/cargo/${before.trackingNumber}`);
     revalidatePath("/app/batches");
-    return ok({ trackingNumber: before.trackingNumber });
+    revalidatePath("/app/finance");
+    return ok({
+      trackingNumber: before.trackingNumber,
+      repriced: (repriced?.priced ?? 0) > 0,
+    });
   } catch (error) {
     return fail(toActionError(error));
   }

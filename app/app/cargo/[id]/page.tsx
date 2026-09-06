@@ -207,10 +207,24 @@ export default async function ShipmentDetailPage({
   );
   const showInternal = can(user.role, "shipment.viewInternal");
   const canPrintLabel = can(user.role, "label.print");
-  // Rendered only for the desk that owns the label. Not fetched at all for
-  // anyone else — a code never generated cannot be screenshotted off a page
-  // that merely hides it with CSS.
-  const qr = canPrintLabel
+  /*
+    THE CODE, FOR THE DESKS THAT HANDLE THE BOX.
+
+    This was label.print alone, which is Guangzhou — the desk that packs and
+    labels. But Dar is the desk that SCANS it: the sticker arrives rubbed off,
+    soaked or torn every week, and the clerk holding that carton had no way to
+    see the code they are supposed to scan. The owner asked for it here.
+
+    Still not everyone. A QR is what releases cargo, so it stays with the two
+    warehouses — the people already holding the box — and away from every desk
+    that only reads about it. Not fetched at all for the rest: a code never
+    generated cannot be screenshotted off a page that merely hides it.
+  */
+  const canSeeCode =
+    canPrintLabel ||
+    can(user.role, "batch.receive") ||
+    can(user.role, "shipment.release");
+  const qr = canSeeCode
     ? await shipmentQrDataUrl(shipment.qrToken, 200)
     : null;
   const showMoney = can(user.role, "finance.view");
@@ -1044,7 +1058,7 @@ export default async function ShipmentDetailPage({
               already the heading of this page, and repeating it in the sidebar
               spent the most valuable column on a number the reader is looking
               at. That column is for things to do. */}
-          {canPrintLabel && qr ? (
+          {canSeeCode && qr ? (
             <section className="rounded-xl border bg-card p-5 text-center shadow-soft">
               <Image
                 src={qr}
@@ -1060,6 +1074,15 @@ export default async function ShipmentDetailPage({
               <p className="mt-1 text-xs text-muted-foreground">
                 {t(locale, "The same code from China to release.")}
               </p>
+              {/* Only the desk that owns the sticker replaces one. Dar reads
+                  this code; Guangzhou prints it. */}
+              {canPrintLabel ? (
+                <Button asChild variant="outline" size="sm" className="mt-3">
+                  <Link href={`/app/cargo/${shipment.trackingNumber}/label`}>
+                    {t(locale, "Print the label")}
+                  </Link>
+                </Button>
+              ) : null}
             </section>
           ) : null}
 

@@ -46,31 +46,51 @@ await page.evaluate((n)=>{const row=[...document.querySelectorAll("li,tr,article
 await wait(6000);
 ok(`landed on ${page.url().replace(BASE,"")}`);
 
-/* Type what the bench says, then the ordinary tick. */
+/* Open the weight panel — its own control now, beside the ⚠. */
 const WEIGHED = process.env.UNCHANGED === "1" ? BOOKED : 5.4;
+const opened = await page.evaluate(()=>{
+  const b=[...document.querySelectorAll("button")].find(x=>/Correct the weight/i.test((x.innerText||"")+(x.getAttribute("title")||"")));
+  if(!b) return false; b.click(); return true;
+});
+opened ? ok("opened the weight panel from the row") : bad("no Correct the weight control");
+await wait(1400);
+
+const shape = await page.evaluate(()=>{
+  const f=[...document.querySelectorAll("form")].find(x=>x.querySelector('input[name="weightKg"]'));
+  return f?f.innerText.replace(/\s+/g," ").slice(0,200):null;
+});
+shape ? ok(`the panel reads: "${shape}"`) : bad("no weight panel");
+
 const typed = await page.evaluate((kg)=>{
   const box=document.querySelector('input[name="weightKg"]');
   if(!box) return false;
   const d=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(box),"value");
-  d.set.call(box,String(kg));
-  box.dispatchEvent(new Event("input",{bubbles:true}));
+  d.set.call(box,String(kg)); box.dispatchEvent(new Event("input",{bubbles:true}));
   return true;
 }, WEIGHED);
-typed ? ok(process.env.UNCHANGED === "1" ? "left the box exactly as booked" : `typed ${WEIGHED} kg into the box on the row`) : bad("no weight box on the check-in row");
-await wait(700);
+typed ? ok(process.env.UNCHANGED === "1" ? "left it exactly as booked" : `typed ${WEIGHED} kg`) : bad("no weight box in the panel");
+await wait(900);
+
 if (process.env.UNCHANGED !== "1") {
-  /* A changed weight moves the bill, so the scale has to be photographed —
-     the same rule damage already follows. Refused without it. */
-  const shows = await page.evaluate(()=>{const el=[...document.querySelectorAll("p,span")].find(e=>/→/.test(e.innerText)&&/kg/.test(e.innerText));return el?el.innerText.replace(/\s+/g," "):null;});
-  shows ? ok(`the row shows the change: "${shows}"`) : bad("the row does not show before → after");
+  const diff = await page.evaluate(()=>{
+    const f=[...document.querySelectorAll("form")].find(x=>x.querySelector('input[name="weightKg"]'));
+    return f?f.innerText.replace(/\s+/g," "):null;
+  });
+  /difference/i.test(diff??"") ? ok(`it shows both figures and the gap: "${diff.slice(0,120)}"`) : bad("no before/after shown");
   const asks = await page.evaluate(()=>/Photograph the scale/i.test(document.body.innerText));
   asks ? ok("and asks for the scale to be photographed") : bad("no photo asked for");
   const file = await page.$('input[type="file"][name="photos"]');
   if (file) { await file.uploadFile("/tmp/scale.png"); ok("attached a photo of the scale"); }
-  else bad("no photo input on the row");
+  else bad("no photo input in the panel");
   await wait(900);
 }
-await page.evaluate(()=>{const b=[...document.querySelectorAll("button")].find(x=>/Present & correct/i.test(x.innerText));b&&b.click();});
+
+await page.evaluate(()=>{
+  const f=[...document.querySelectorAll("form")].find(x=>x.querySelector('input[name="weightKg"]'));
+  /* The submit, not one of PhotoCapture's own buttons. */
+  const btn=f&&[...f.querySelectorAll('button[type="submit"], button:not([type])')].find(x=>!x.disabled&&!/Cancel|取消|photo|file/i.test(x.innerText));
+  btn&&btn.click();
+});
 await wait(9000);
 
 const after = await prisma.shipment.findUnique({ where:{ id: ship.id },

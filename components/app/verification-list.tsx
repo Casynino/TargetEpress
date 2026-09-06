@@ -14,6 +14,7 @@ import {
   Check,
   CheckCheck,
   ChevronRight,
+  Scale,
   Search,
 } from "lucide-react";
 
@@ -150,10 +151,6 @@ export function VerificationList({
     button. Keyed by consignment, so a row ticked on its own simply never
     appears in the payload the bulk accept sends.
   */
-  const [weights, setWeights] = useState<Record<string, string>>({});
-  const noteWeight = (id: string, kg: string) =>
-    setWeights((current) => ({ ...current, [id]: kg }));
-
   /*
     AN ARMFUL AT A TIME.
 
@@ -199,15 +196,10 @@ export function VerificationList({
               <AcceptPickedButton
                 batchId={batchId}
                 shipmentIds={pickedOpen.map((s) => s.id)}
-                weights={weights}
                 onDone={() => setPicked(new Set())}
               />
             ) : null}
-            <CompleteButton
-              batchId={batchId}
-              remaining={remaining}
-              weights={weights}
-            />
+            <CompleteButton batchId={batchId} remaining={remaining} />
           </div>
         ) : null}
       </div>
@@ -224,7 +216,6 @@ export function VerificationList({
             <VerificationCard
               picked={picked.has(shipment.id)}
               onPick={shipment.verification ? undefined : () => pick(shipment.id)}
-              onWeight={noteWeight}
               batchId={batchId}
               shipment={shipment}
               locked={batchStatus !== "ARRIVED"}
@@ -317,7 +308,6 @@ function VerificationCard({
   shipment,
   locked,
   photosDurable,
-  onWeight,
   picked,
   onPick,
 }: {
@@ -325,8 +315,6 @@ function VerificationCard({
   shipment: Row;
   locked: boolean;
   photosDurable: boolean;
-  /** Reports a typed scale reading up, so Finish check-in can carry it. */
-  onWeight?: (shipmentId: string, kg: string) => void;
   picked?: boolean;
   /** Absent on a row already ruled on — there is nothing to pick. */
   onPick?: () => void;
@@ -338,6 +326,9 @@ function VerificationCard({
     { ok: true }
   );
   const [flagging, setFlagging] = useState(false);
+  /* Its own opener, because a re-weigh is not a fault and does not belong
+     under "what happened to this cargo?". */
+  const [weighing, setWeighing] = useState(false);
   const [open, setOpen] = useState(false);
   const detailId = useId();
 
@@ -412,17 +403,10 @@ function VerificationCard({
           under it — one thumb, no scrolling between reading and answering. */}
       {locked ? null : (
         <div className="mt-3 flex items-stretch gap-2">
-          <form action={action} className="flex-1 space-y-2">
+          <form action={action} className="flex-1">
             <input type="hidden" name="batchId" value={batchId} />
             <input type="hidden" name="shipmentId" value={shipment.id} />
             <input type="hidden" name="outcome" value="RECEIVED" />
-            <WeightBox
-              id={`w-${shipment.id}`}
-              weightKg={shipment.weightKg}
-              onTyped={(kg) => onWeight?.(shipment.id, kg)}
-              photosDurable={photosDurable}
-              className="w-full"
-            />
             <SubmitButton
               variant={done ? "outline" : "brand"}
               className="h-12 w-full rounded-lg"
@@ -433,7 +417,24 @@ function VerificationCard({
           </form>
           <button
             type="button"
-            onClick={() => setFlagging((v) => !v)}
+            onClick={() => {
+              setWeighing((v) => !v);
+              setFlagging(false);
+            }}
+            aria-expanded={weighing}
+            className="focus-ring inline-flex h-12 min-w-[48px] items-center justify-center rounded-lg border px-4 text-brand hover:bg-brand/5"
+          >
+            <Scale className="h-5 w-5" />
+            <span className="sr-only">
+              {t("Correct the weight")} — {shipment.trackingNumber}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setFlagging((v) => !v);
+              setWeighing(false);
+            }}
             aria-expanded={flagging}
             className="focus-ring inline-flex h-12 min-w-[48px] items-center justify-center rounded-lg border px-4 text-destructive hover:bg-destructive/5"
           >
@@ -480,6 +481,20 @@ function VerificationCard({
 
       {open ? <CargoDetail id={detailId} shipment={shipment} /> : null}
 
+      {weighing && !locked ? (
+        <div className="mt-3">
+          <WeightPanel
+            batchId={batchId}
+            shipmentId={shipment.id}
+            trackingNumber={shipment.trackingNumber}
+            weightKg={shipment.weightKg}
+            photosDurable={photosDurable}
+            action={action}
+            onDone={() => setWeighing(false)}
+          />
+        </div>
+      ) : null}
+
       {flagging && !locked ? (
         <ReceivingOutcomePanel
           batchId={batchId}
@@ -505,7 +520,6 @@ function VerificationRow({
   shipment,
   locked,
   photosDurable,
-  onWeight,
   picked,
   onPick,
 }: {
@@ -513,8 +527,6 @@ function VerificationRow({
   shipment: Row;
   locked: boolean;
   photosDurable: boolean;
-  /** Reports a typed scale reading up, so Finish check-in can carry it. */
-  onWeight?: (shipmentId: string, kg: string) => void;
   picked?: boolean;
   /** Absent on a row already ruled on — there is nothing to pick. */
   onPick?: () => void;
@@ -526,6 +538,9 @@ function VerificationRow({
     { ok: true }
   );
   const [flagging, setFlagging] = useState(false);
+  /* Its own opener, because a re-weigh is not a fault and does not belong
+     under "what happened to this cargo?". */
+  const [weighing, setWeighing] = useState(false);
   // Collapsed by default. The dense list is the point of this screen; the detail
   // is for the one row the operator is standing in front of, and it is mounted
   // only when opened so the other eighty-six cost nothing to render or fetch.
@@ -650,13 +665,6 @@ function VerificationRow({
                     is the one taken almost every time. The other five live in
                     the panel behind the ⚠. */}
                 <input type="hidden" name="outcome" value="RECEIVED" />
-                <WeightBox
-                  id={`wt-${shipment.id}`}
-                  weightKg={shipment.weightKg}
-                  onTyped={(kg) => onWeight?.(shipment.id, kg)}
-                  photosDurable={photosDurable}
-                  className="mr-1.5"
-                />
                 <SubmitButton
                   variant={done ? "outline" : "brand"}
                   size="icon"
@@ -672,7 +680,24 @@ function VerificationRow({
               </form>
               <button
                 type="button"
-                onClick={() => setFlagging((v) => !v)}
+                onClick={() => {
+                  setWeighing((v) => !v);
+                  setFlagging(false);
+                }}
+                title={t("Correct the weight")}
+                className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-md border text-brand hover:bg-brand/5"
+              >
+                <Scale className="h-4 w-4" />
+                <span className="sr-only">
+                  {t("Correct the weight")} — {shipment.trackingNumber}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFlagging((v) => !v);
+                  setWeighing(false);
+                }}
                 title={t("Something is wrong")}
                 className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-md border text-destructive hover:bg-destructive/5"
               >
@@ -714,10 +739,24 @@ function VerificationRow({
           tracking numbers, which is the one thing this table is for. The badge
           and the Case link carry the fact; the words live in the investigation
           queue and on the cargo page. */}
-      {open || flagging || !state.ok ? (
+      {open || flagging || weighing || !state.ok ? (
         <tr className="border-t-0">
           <td colSpan={11} className="bg-muted/20 px-3 pb-3 pt-0">
             {open ? <CargoDetail id={detailId} shipment={shipment} /> : null}
+
+            {weighing && !locked ? (
+              <div className="pt-3">
+                <WeightPanel
+                  batchId={batchId}
+                  shipmentId={shipment.id}
+                  trackingNumber={shipment.trackingNumber}
+                  weightKg={shipment.weightKg}
+                  photosDurable={photosDurable}
+                  action={action}
+                  onDone={() => setWeighing(false)}
+                />
+              </div>
+            ) : null}
 
             {flagging && !locked ? (
               <ReceivingOutcomePanel
@@ -902,82 +941,110 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
  * Written before the cargo is priced, so the bill is struck on this number —
  * which is what "priced at Dar check-in" was always supposed to mean.
  */
-function WeightBox({
-  id,
+/**
+ * THE SCALE, ON ITS OWN PANEL.
+ *
+ * This lived inside the table cell and grew a photo control there, which turned
+ * a 40px row into 600px of squeezed column — the owner's word for it was "no".
+ * It belongs where flagging a fault already lives: the full-width panel under
+ * the row, opened from an icon beside the ⚠, with room to show both figures
+ * properly.
+ *
+ * Two numbers and the gap between them, because that is the whole question a
+ * clerk is answering: what China said, what the bench says, and how far apart
+ * they are.
+ */
+function WeightPanel({
+  batchId,
+  shipmentId,
+  trackingNumber,
   weightKg,
-  onTyped,
-  photosDurable = true,
-  className,
+  photosDurable,
+  action,
+  onDone,
 }: {
-  id: string;
+  batchId: string;
+  shipmentId: string;
+  trackingNumber: string;
   weightKg: number;
-  /** Reports a typed scale reading up, so Finish check-in can carry it. */
-  onTyped?: (kg: string) => void;
-  photosDurable?: boolean;
-  className?: string;
+  photosDurable: boolean;
+  action: (formData: FormData) => void;
+  onDone: () => void;
 }) {
   const t = useT();
   const [typed, setTyped] = useState(String(weightKg));
   const now = Number(typed);
-  /*
-    A CHANGED WEIGHT IS NOT A QUIET EDIT.
-
-    It moves the bill. The owner's words: measure it again, show what it WAS
-    and what it IS, and photograph the scale — the fact that the kilos changed
-    is a real issue and deserves the attention.
-
-    So the moment the figure differs the row says both numbers and the
-    difference between them, and asks for the picture. Nothing appears while
-    the booked figure stands, which is the ordinary case and must stay one
-    press.
-  */
-  const moved = Number.isFinite(now) && now > 0 && Math.abs(now - weightKg) > 0.005;
-  const delta = now - weightKg;
+  const valid = Number.isFinite(now) && now > 0;
+  const moved = valid && Math.abs(now - weightKg) > 0.005;
+  const delta = Math.round((now - weightKg) * 100) / 100;
 
   return (
-    <div className={`min-w-0 ${className ?? ""}`}>
-      <label
-        className="inline-flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-xs"
-        title={t("What the scale in Dar says. Leave it if the booked weight is right.")}
-      >
-        <span className="sr-only">{t("Weight in Dar")}</span>
-        <input
-          id={id}
-          name="weightKg"
-          type="number"
-          step="0.01"
-          min="0"
-          inputMode="decimal"
-          defaultValue={weightKg}
-          onChange={(event) => {
-            setTyped(event.target.value);
-            onTyped?.(event.target.value);
-          }}
-          /* Wide enough for 999.99 and no wider: this sits in a row a clerk
-             reads at arm's length with a carton in the other hand. */
-          className="focus-ring w-16 bg-transparent text-right tabular-nums outline-none"
-        />
-        <span className="text-muted-foreground">{t("kg")}</span>
-      </label>
+    <form action={action} className="rounded-lg border bg-card p-4">
+      <input type="hidden" name="batchId" value={batchId} />
+      <input type="hidden" name="shipmentId" value={shipmentId} />
+      {/* A re-weigh is not a fault. This checks the cargo in exactly as the
+          tick does; the only difference is the figure it carries. */}
+      <input type="hidden" name="outcome" value="RECEIVED" />
 
-      {moved ? (
-        <div className="mt-1.5 space-y-1.5 rounded-md border border-warning/40 bg-warning/10 p-2 text-left">
-          <p className="text-[11px] font-semibold text-warning">
-            <span className="tabular-nums line-through opacity-70">
-              {weightKg} {t("kg")}
-            </span>{" "}
-            →{" "}
-            <span className="tabular-nums">
-              {now} {t("kg")}
-            </span>{" "}
-            <span className="opacity-90">
-              ({delta > 0 ? "+" : "−"}
-              {Math.abs(Math.round(delta * 100) / 100)} {t("kg")})
-            </span>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm font-semibold">{t("Correct the weight")}</p>
+        <p className="font-mono text-xs text-muted-foreground">{trackingNumber}</p>
+      </div>
+
+      {/* The three figures, side by side and large enough to read at arm's
+          length with a carton in the other hand. */}
+      <div className="mt-3 grid grid-cols-3 items-end gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            {t("Booked in China")}
           </p>
-          {/* The proof, at the only moment it can be taken. The bill is about
-              to be struck on this number and the customer was quoted the
-              other one. */}
+          <p className="mt-1 font-display text-xl font-bold tabular-nums text-muted-foreground">
+            {weightKg} <span className="text-sm font-medium">{t("kg")}</span>
+          </p>
+        </div>
+        <div>
+          <label
+            htmlFor={`kg-${shipmentId}`}
+            className="text-[11px] font-semibold uppercase tracking-widest text-brand"
+          >
+            {t("On the Dar bench")}
+          </label>
+          <div className="mt-1 flex items-baseline gap-1">
+            <input
+              id={`kg-${shipmentId}`}
+              name="weightKg"
+              type="number"
+              step="0.01"
+              min="0"
+              inputMode="decimal"
+              value={typed}
+              onChange={(event) => setTyped(event.target.value)}
+              className="focus-ring w-24 rounded-md border bg-background px-2 py-1 font-display text-xl font-bold tabular-nums outline-none"
+            />
+            <span className="text-sm font-medium text-muted-foreground">
+              {t("kg")}
+            </span>
+          </div>
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            {t("Difference")}
+          </p>
+          <p
+            className={`mt-1 font-display text-xl font-bold tabular-nums ${
+              moved ? "text-warning" : "text-muted-foreground"
+            }`}
+          >
+            {moved ? `${delta > 0 ? "+" : "−"}${Math.abs(delta)}` : "0"}{" "}
+            <span className="text-sm font-medium">{t("kg")}</span>
+          </p>
+        </div>
+      </div>
+
+      {/* The proof, and only when there is something to prove. The bill is
+          struck on this figure and the customer was quoted the other one. */}
+      {moved ? (
+        <div className="mt-4 rounded-md border border-warning/40 bg-warning/10 p-3">
           <PhotoCapture
             name="photos"
             required
@@ -988,7 +1055,19 @@ function WeightBox({
           />
         </div>
       ) : null}
-    </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <SubmitButton variant="brand" size="sm" disabled={!valid} pendingLabel="Recording…">
+          <Check className="mr-1.5 h-4 w-4" />
+          {moved
+            ? `${t("Save")} ${now} ${t("kg")} ${t("and check in")}`
+            : t("Check in — present & correct")}
+        </SubmitButton>
+        <Button type="button" variant="ghost" size="sm" onClick={onDone}>
+          {t("Cancel")}
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -1006,12 +1085,10 @@ function WeightBox({
 function AcceptPickedButton({
   batchId,
   shipmentIds,
-  weights,
   onDone,
 }: {
   batchId: string;
   shipmentIds: string[];
-  weights: Record<string, string>;
   onDone: () => void;
 }) {
   const t = useT();
@@ -1024,11 +1101,6 @@ function AcceptPickedButton({
       const body = new FormData();
       body.set("batchId", batchId);
       body.set("shipmentIds", shipmentIds.join(","));
-      /* Only the scale readings for the rows being answered — a figure typed
-         on a row nobody picked is not being agreed to yet. */
-      const mine: Record<string, string> = {};
-      for (const id of shipmentIds) if (weights[id]) mine[id] = weights[id];
-      if (Object.keys(mine).length > 0) body.set("weights", JSON.stringify(mine));
 
       const done = await verifyBatchAll(undefined, body);
       if (!done.ok) {
@@ -1063,12 +1135,9 @@ function AcceptPickedButton({
 function CompleteButton({
   batchId,
   remaining,
-  weights,
 }: {
   batchId: string;
   remaining: number;
-  /** Typed but not ticked — see `weights` above. */
-  weights: Record<string, string>;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -1096,12 +1165,6 @@ function CompleteButton({
     start(async () => {
       const body = new FormData();
       body.set("batchId", batchId);
-      /* Whatever the clerk typed travels with the acceptance, so the rows
-         nobody ticked are still priced on the scale rather than on Guangzhou's
-         figure. */
-      if (Object.keys(weights).length > 0) {
-        body.set("weights", JSON.stringify(weights));
-      }
       if (remaining > 0) {
         const accepted = await verifyBatchAll(undefined, body);
         if (!accepted.ok) {
