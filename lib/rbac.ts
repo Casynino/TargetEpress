@@ -132,6 +132,14 @@ export type Permission =
   | "exception.approve"
   /// Finish a case for good.
   | "exception.close"
+  /* Answering "it never left Guangzhou" — and only that.
+
+     Held by China, which holds no other power over a case. It is not a general
+     close: the action refuses any case except one saying cargo did not arrive,
+     it writes no Dar arrival and ticks no package, and what it produces is a
+     consignment back on the loading table with its own tracking number, ready
+     for the next flight. See markFoundInChina. */
+  | "exception.foundInChina"
   // Finance
   | "finance.view"
   | "invoice.manage"
@@ -333,6 +341,23 @@ const CHINA: Permission[] = [
   // not flag cargo it has already handed to an airline, and does not close a
   // case against its own packing.
   "exception.view",
+  /*
+    THE ONE ANSWER ONLY THIS DESK HAS.
+
+    Dar reports a consignment missing; a week later it is found on a shelf in
+    Guangzhou. Until now China could read that case and do nothing about it —
+    the box sat in the building that could see the problem and could not touch
+    it, and the case stayed open while somebody rang Dar to have it closed
+    from 8,000 km away.
+
+    Deliberately narrow, and it does not undo the sentence above. This is not
+    closing a case against China's own packing: it is stating a physical fact
+    about a box this desk is holding. It refuses every case except one saying
+    the cargo did not arrive, and what it produces is a consignment back on
+    the loading table — the same tracking number, the same history, ready for
+    the next flight.
+  */
+  "exception.foundInChina",
 ];
 
 /**

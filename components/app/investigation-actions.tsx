@@ -32,6 +32,8 @@ export type InvestigationAllowances = {
   close: boolean;
   /** exception.compensate — Finance's hand on the till. */
   compensate: boolean;
+  /** exception.foundInChina — Guangzhou saying the box never travelled. */
+  foundInChina: boolean;
 };
 
 

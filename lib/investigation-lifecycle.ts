@@ -57,7 +57,14 @@ export const EXCEPTION_STATUS_TONES: Record<ExceptionStatus, StatusTone> = {
  * rather than reimplementing the halves it can see — one physical event must
  * not have two pieces of code that write it slightly differently.
  */
-export type StepVia = "advance" | "cargoFound" | "approveCompensation";
+export type StepVia =
+  | "advance"
+  | "cargoFound"
+  | "approveCompensation"
+  /* Answered from Guangzhou, and nothing like cargoFound: no Dar arrival, no
+     package ticked, and the consignment goes back to the loading table rather
+     than to the pickup counter. See markFoundInChina. */
+  | "foundInChina";
 
 export type LifecycleStep = {
   to: ExceptionStatus;
@@ -101,6 +108,14 @@ export const LIFECYCLE_STEPS: Record<ExceptionStatus, LifecycleStep[]> = {
       tone: "success",
       hint: "The boxes are back on the floor and count as received again.",
     },
+    {
+      to: "CARGO_FOUND",
+      via: "foundInChina" as const,
+      label: "Found in China",
+      permission: "exception.foundInChina",
+      tone: "success",
+      hint: "It never travelled. Back on the loading table for the next flight.",
+    },
   ],
   UNDER_INVESTIGATION: [
     {
@@ -118,6 +133,14 @@ export const LIFECYCLE_STEPS: Record<ExceptionStatus, LifecycleStep[]> = {
       permission: "exception.investigate",
       tone: "success",
       hint: "The boxes are back on the floor and count as received again.",
+    },
+    {
+      to: "CARGO_FOUND",
+      via: "foundInChina" as const,
+      label: "Found in China",
+      permission: "exception.foundInChina",
+      tone: "success",
+      hint: "It never travelled. Back on the loading table for the next flight.",
     },
     {
       to: "COMPENSATION_APPROVED",
@@ -152,6 +175,14 @@ export const LIFECYCLE_STEPS: Record<ExceptionStatus, LifecycleStep[]> = {
       permission: "exception.investigate",
       tone: "success",
       hint: "The boxes are back on the floor and count as received again.",
+    },
+    {
+      to: "CARGO_FOUND",
+      via: "foundInChina" as const,
+      label: "Found in China",
+      permission: "exception.foundInChina",
+      tone: "success",
+      hint: "It never travelled. Back on the loading table for the next flight.",
     },
     {
       to: "COMPENSATION_APPROVED",
@@ -257,11 +288,28 @@ export function isTerminalStep(status: ExceptionStatus) {
   return LIFECYCLE_STEPS[status].length === 0;
 }
 
+/**
+ * THE DESTINATION NO LONGER NAMES THE STEP ON ITS OWN.
+ *
+ * Two steps reach CARGO_FOUND: Dar saying the boxes are back on the floor, and
+ * Guangzhou saying they never left. Same ending, entirely different physical
+ * claim — one ticks every package as received in Dar, the other must not.
+ * Matching on `to` alone returned whichever was written first, so a press from
+ * China was routed to the Dar action, refused for want of a permission China
+ * does not hold, and reported nothing to the person who pressed it.
+ *
+ * So the caller says which route it took. `via` is optional because the older
+ * callers pass only a destination, and every status where that is still
+ * unambiguous keeps working unchanged.
+ */
 export function stepTo(
   from: ExceptionStatus,
-  to: ExceptionStatus
+  to: ExceptionStatus,
+  via?: StepVia
 ): LifecycleStep | null {
-  return LIFECYCLE_STEPS[from].find((step) => step.to === to) ?? null;
+  const steps = LIFECYCLE_STEPS[from];
+  if (via) return steps.find((s) => s.to === to && s.via === via) ?? null;
+  return steps.find((step) => step.to === to) ?? null;
 }
 
 /**

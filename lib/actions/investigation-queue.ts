@@ -11,12 +11,14 @@ import {
   NOTE_REQUIRED_ON,
   isTerminalStep,
   stepTo,
+  type StepVia,
 } from "@/lib/investigation-lifecycle";
 import { notify } from "@/lib/notify";
 import { prisma, type TxClient } from "@/lib/prisma";
 import {
   approveCompensation,
   markCargoFound,
+  markFoundInChina,
 } from "@/lib/actions/investigations";
 import { can, ROLE_PERMISSIONS, type Permission } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -133,12 +135,23 @@ export async function advanceInvestigation(
   // through it.
   const locale = await viewerLocale();
 
-  // Signed in and able to see the queue at all. Which *step* this person may
-  // take is a second question, answered below against the case as it stands —
-  // the permission on the step, never the role.
+  /*
+    Signed in and able to see the queue at all. Which *step* this person may
+    take is a second question, answered below against the case as it stands —
+    the permission on the step, never the role. That second check is real: the
+    transaction refuses on `can(user.role, step.permission)`, and each
+    delegated step re-authorises itself besides.
+
+    THIS SAID exception.raise, which is not what the sentence above describes.
+    Guangzhou holds exception.view and exception.foundInChina and nothing else
+    — the whole point of that desk's access — so it was turned away here,
+    before the router could reach the one step it is allowed to take, and the
+    press did nothing with no explanation. Gated on seeing the queue, as
+    written.
+  */
   let user: SessionUser;
   try {
-    user = await authorize("exception.raise");
+    user = await authorize("exception.view");
   } catch (error) {
     return fail(t(locale, toActionError(error)));
   }
@@ -157,12 +170,34 @@ export async function advanceInvestigation(
   });
   if (!current) return fail(t(locale, "Case not found."));
 
-  const route = stepTo(current.status, target);
+  const viaField = String(formData.get("via") ?? "").trim();
+  const route = stepTo(
+    current.status,
+    target,
+    viaField ? (viaField as StepVia) : undefined
+  );
   if (route && route.via !== "advance") {
-    const result =
+    /*
+      Named one by one, not a ternary with an else.
+
+      This was `via === "cargoFound" ? markCargoFound : approveCompensation`,
+      so the day a third route existed it would have quietly approved a payout
+      — a two-way branch answering a question with more than two answers. The
+      switch is exhaustive over StepVia, so adding a fourth stops the build
+      rather than paying somebody.
+    */
+    const delegate =
       route.via === "cargoFound"
-        ? await markCargoFound(undefined, formData)
-        : await approveCompensation(undefined, formData);
+        ? markCargoFound
+        : route.via === "foundInChina"
+          ? markFoundInChina
+          : route.via === "approveCompensation"
+            ? approveCompensation
+            : null;
+    if (!delegate) {
+      return fail(t(locale, "That step has no handler. Tell whoever runs the system."));
+    }
+    const result = await delegate(undefined, formData);
     // The delegates carry richer payloads; the queue only needs to know whether
     // the move landed.
     return result.ok ? ok() : fail(result.error);

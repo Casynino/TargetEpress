@@ -123,6 +123,151 @@ const cargoFoundSchema = z.object({
 });
 
 /**
+ * IT NEVER LEFT GUANGZHOU.
+ *
+ * Dar reports a consignment missing; a week later it is standing on a shelf in
+ * China. That is the commonest ending a missing-cargo case has, and until now
+ * the only desk that could see it was the only desk that could do nothing
+ * about it — China could read the case and not touch it, so the box sat in the
+ * building that knew where it was while somebody rang Dar to close it.
+ *
+ * DELIBERATELY NOT markCargoFound. That action is right for a box found in
+ * Dar: it stamps arrivedAt, ticks every package as received and writes a
+ * "Dar es Salaam warehouse" history line. Pointed at a carton in Guangzhou it
+ * would write four untruths at once, and the release counter would then offer
+ * cargo that is 8,000 km away — which is precisely the failure the two
+ * exhaustive presence tables exist to prevent.
+ *
+ * What it does instead is the only honest thing: the consignment goes back to
+ * READY_TO_DEPART and off the flight it never flew on, so it lands on the
+ * loading table where China can put it on the next one. Same tracking number,
+ * same history, no new record — the owner asked for that by name.
+ *
+ * REFUSES ANY CASE THAT DOES NOT SAY THE CARGO IS ABSENT. "Found in China" is
+ * not an answer to a damaged carton or a wrong item; those are on the Dar
+ * floor, and letting this reach them would send cargo the warehouse is holding
+ * back to a loading table in another country.
+ */
+export async function markFoundInChina(
+  _prev: ActionResult<{ trackingNumber: string }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ trackingNumber: string }>> {
+  const locale = await viewerLocale();
+  let user: SessionUser;
+  try {
+    user = await authorize("exception.foundInChina");
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+
+  const parsed = cargoFoundSchema.safeParse(
+    Object.fromEntries(formData) as Record<string, string>
+  );
+  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+  const input = parsed.data;
+
+  try {
+    const trackingNumber = await prisma.$transaction(async (tx) => {
+      const exception = await tx.shipmentException.findUnique({
+        where: { id: input.exceptionId },
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          shipment: {
+            select: {
+              id: true,
+              trackingNumber: true,
+              status: true,
+              batchId: true,
+              batch: { select: { batchNumber: true } },
+            },
+          },
+        },
+      });
+      if (!exception) throw new Error(t(locale, "Case not found."));
+      if (!REPORTED_CARGO_ABSENT[exception.type]) {
+        throw new Error(
+          t(
+            locale,
+            "This case is about cargo that is already in Dar. Only a case saying the cargo did not arrive can be answered from China."
+          )
+        );
+      }
+      if ((EXCEPTION_TERMINAL_STATUSES as readonly string[]).includes(exception.status)) {
+        throw new Error(t(locale, "That case is already finished."));
+      }
+
+      const shipment = exception.shipment;
+      const flownOn = shipment.batch?.batchNumber ?? null;
+
+      /* Re-stated as a conditional claim rather than a read-then-write: two
+         desks answering the same case in the same moment produce one move and
+         one history line. */
+      const moved = await tx.shipment.updateMany({
+        where: { id: shipment.id, status: { not: "READY_TO_DEPART" } },
+        data: {
+          status: "READY_TO_DEPART",
+          /* Off the flight it was manifested on and never flew. A batch's
+             figures are worked out from the cargo currently on it, and a box
+             that stayed in China did not earn that flight anything. */
+          batchId: null,
+          departedAt: null,
+          arrivedAt: null,
+        },
+      });
+
+      if (moved.count > 0) {
+        await tx.shipmentStatusHistory.create({
+          data: {
+            shipmentId: shipment.id,
+            fromStatus: shipment.status,
+            toStatus: "READY_TO_DEPART",
+            location: "Guangzhou warehouse",
+            note: flownOn
+              ? `Found in China. It was manifested on ${flownOn} and did not travel; back on the loading table for the next flight.`
+              : "Found in China. Back on the loading table for the next flight.",
+            actorId: user.id,
+          },
+        });
+      }
+
+      await tx.shipmentException.update({
+        where: { id: exception.id },
+        data: {
+          status: "CARGO_FOUND",
+          resolutionType: "CARGO_FOUND",
+          resolutionNote: input.note,
+          resolvedById: user.id,
+          resolvedAt: new Date(),
+        },
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "exception.foundInChina",
+          entity: "Shipment",
+          entityId: shipment.id,
+          summary: `${shipment.trackingNumber} found in China — back on the loading table`,
+          metadata: flownOn ? { wasManifestedOn: flownOn } : undefined,
+        },
+        tx
+      );
+
+      return shipment.trackingNumber;
+    });
+
+    revalidatePath("/app/exceptions");
+    revalidatePath("/app/shipments");
+    revalidatePath("/app/batches");
+    return ok({ trackingNumber });
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
+/**
  * The box turned up.
  *
  * Returns the cargo to Available Cargo, takes the case out of the queue,

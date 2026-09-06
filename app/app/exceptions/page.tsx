@@ -313,6 +313,8 @@ export default async function ExceptionsPage({
     investigate: can(user.role, "exception.investigate"),
     approve: can(user.role, "exception.approve"),
     close: can(user.role, "exception.close"),
+    /* China holds this and nothing else on a case — see lib/rbac.ts. */
+    foundInChina: can(user.role, "exception.foundInChina"),
     // Finance holds exception.compensate and had no control anywhere on this
     // page: the case would say "Finance has not recorded a payout yet" to the
     // one desk that could, and offer it nothing to press.

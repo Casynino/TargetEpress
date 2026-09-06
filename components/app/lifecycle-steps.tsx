@@ -31,6 +31,7 @@ const DESK: Record<string, string> = {
   "exception.investigate": "the warehouse or the support desk",
   "exception.approve": "whoever rules on claims",
   "exception.close": "whoever signs cases off",
+  "exception.foundInChina": "the Guangzhou warehouse",
 };
 
 const TONES: Record<LifecycleStep["tone"], string> = {
@@ -148,7 +149,9 @@ export function LifecycleSteps({
         ? allow.approve
         : permission === "exception.close"
           ? allow.close
-          : false;
+          : permission === "exception.foundInChina"
+            ? allow.foundInChina
+            : false;
 
   const mine = steps.filter((step) => may(step.permission));
   const others = steps.filter((step) => !may(step.permission));
@@ -166,6 +169,9 @@ export function LifecycleSteps({
         <form action={action} className="space-y-2">
           <input type="hidden" name="exceptionId" value={exceptionId} />
           <input type="hidden" name="to" value={chosen.to} />
+          {/* Which of the routes to that status this is — two of them reach
+              CARGO_FOUND and they do opposite things to the packages. */}
+          <input type="hidden" name="via" value={chosen.via} />
           <p className="text-sm font-semibold">{t(chosen.label)}</p>
           <p className="text-xs text-muted-foreground">{t(chosen.hint)}</p>
           <div className="space-y-1">
