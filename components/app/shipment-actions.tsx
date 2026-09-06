@@ -43,7 +43,6 @@ import {
   recordPayment,
 } from "@/lib/actions/finance";
 import { submitPaymentForVerification } from "@/lib/actions/collections";
-import { cancelShipment } from "@/lib/actions/shipments";
 import type { ActionResult } from "@/lib/actions/types";
 import { can, canAmendCargo } from "@/lib/rbac";
 
@@ -182,24 +181,11 @@ export function ShipmentActions(props: Props) {
     props.outstanding !== null &&
     props.outstanding > 0;
 
-  /* Cancelling is now both warehouses', each over its own half of the journey,
-     so holding the permission is no longer the whole question — canAmendCargo
-     asks whose cargo this currently is. cancelShipment enforces the same pair.
-
-     DELIVERED and CANCELLED stay out regardless: one is finished and the other
-     already is this. */
-  const canCancel =
-    can(role, "shipment.cancel") &&
-    canAmendCargo(role, status) &&
-    status !== "DELIVERED" &&
-    status !== "CANCELLED";
-
   const anything =
     canInvoice ||
     canPay ||
     canCollect ||
     canIssueNote ||
-    canCancel ||
     /* On its own this is reason enough to show the panel: a desk with no
        permission to touch the money can still be the one who rings. */
     Boolean(props.customerWhatsapp);
@@ -301,7 +287,6 @@ export function ShipmentActions(props: Props) {
             re-price from two screens is how they end up disagreeing. */}
         {canInvoice ? <InvoicePanel {...props} /> : null}
         {can(role, "pickupNote.view") ? <PickupNotePanel {...props} /> : null}
-        {canCancel ? <CancelPanel shipmentId={props.shipmentId} /> : null}
       </div>
     </section>
   );
@@ -1469,59 +1454,6 @@ function PickupNotePanel(props: Props) {
           {t("Issue pickup note")}
         </SubmitButton>
       </form>
-    </div>
-  );
-}
-
-function CancelPanel({ shipmentId }: { shipmentId: string }) {
-  const t = useT();
-  const [open, setOpen] = useState(false);
-  const [state, action] = useActionState<ActionResult, FormData>(cancelShipment, {
-    ok: true,
-  });
-
-  return (
-    <div className="px-4 py-3.5">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 text-sm font-medium text-destructive"
-      >
-        <Ban className="h-4 w-4" />
-        {t("Cancel cargo")}
-      </button>
-
-      {open ? (
-        <form action={action} className="mt-4 space-y-3">
-          <input type="hidden" name="shipmentId" value={shipmentId} />
-          <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs">
-            {t(
-              "The money comes back off the bill and the cargo stops being collectable. The payment stays visible in the records, marked cancelled."
-            )}
-          </p>
-          <div className="space-y-1.5">
-            <Label htmlFor="reason" className="text-xs">
-              {t("Note")}{" "}
-              <span className="text-muted-foreground">{t("(optional)")}</span>
-            </Label>
-            <Textarea id="reason" name="reason" rows={2} />
-          </div>
-          <FormError state={state} />
-          <div className="flex gap-2">
-            <SubmitButton variant="destructive" size="sm" pendingLabel="Cancelling…">
-              {t("Confirm cancel")}
-            </SubmitButton>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setOpen(false)}
-            >
-              {t("Keep it")}
-            </Button>
-          </div>
-        </form>
-      ) : null}
     </div>
   );
 }

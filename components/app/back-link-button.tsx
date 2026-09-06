@@ -38,10 +38,23 @@ export function BackLinkButton({
   const target = useSmartBack(fallbackHref, fallbackLabel);
 
   return (
-    <Button asChild variant={variant} size={size} className={className}>
+    /* Says "Back", not where it lands.
+    
+       Naming the destination read as another place to go rather than the way
+       out of this one — a header row of Add cargo · Manifest · Undo arrival ·
+       Receive gives no clue that the last of those is the one that leaves. The
+       page-header back control has always said "Back"; this now matches it, and
+       the destination is on the hover title for anybody who wants it. */
+    <Button
+      asChild
+      variant={variant}
+      size={size}
+      className={className}
+      title={t(target.label)}
+    >
       <Link href={target.href}>
         {icon ?? <ArrowLeft className="mr-2 h-4 w-4" />}
-        {t(target.label)}
+        {t("Back")}
       </Link>
     </Button>
   );

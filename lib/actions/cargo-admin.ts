@@ -161,9 +161,9 @@ export async function restoreCargo(
   try {
     /* Restoring is management's call, not the warehouse's — putting a record
        back onto a batch that has since flown is how a manifest stops matching.
-       It said so and then guarded on shipment.cancel, which both warehouses
-       hold. records.viewDeleted resolves to the owner and a manager, and it is
-       the permission on the only screen this is driven from. */
+       It said so and then guarded on a key both warehouses held.
+       records.viewDeleted resolves to the owner and a manager, and it is the
+       permission on the only screen this is driven from. */
     user = await authorize("records.viewDeleted");
   } catch (error) {
     return fail(t(locale, toActionError(error)));

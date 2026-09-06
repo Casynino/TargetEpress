@@ -13,7 +13,6 @@ export type Permission =
   | "shipment.create"
   | "shipment.edit"
   | "shipment.depart"
-  | "shipment.cancel"
   /// Soft delete: the record leaves every normal view but keeps its photos,
   /// its packages and its history. A warehouse fixes its own mistakes with
   /// this. Erasing a record for good is `shipment.purge`, and only the CEO
@@ -25,9 +24,9 @@ export type Permission =
    *
    * `amendOutbound` covers cargo still in the Guangzhou warehouse or in the air.
    * `amendLanded` covers cargo from the moment Dar confirms it arrived. Editing,
-   * deleting and cancelling all ask one of these beside `shipment.edit` /
-   * `shipment.delete` / `shipment.cancel`, so a desk can hold the verb and still
-   * be unable to use it on cargo that is not its own.
+   * Editing and deleting both ask one of these beside `shipment.edit` /
+   * `shipment.delete`, so a desk can hold the verb and still be unable to use
+   * it on cargo that is not its own.
    *
    * Guangzhou holds outbound because it typed the record and is who notices the
    * mistake; a flight sits in the air for days, which was long enough for a
@@ -262,26 +261,29 @@ export type Permission =
   /**
    * Read the deleted-records register at /app/admin/deleted.
    *
-   * Split off `shipment.cancel`, which was standing in for "senior enough" and
-   * so quietly bundled three unrelated things: cancelling a consignment, this
-   * register, and taking another desk's file off a shipment. The moment both
-   * warehouses were given cancelling — each over its own half of the journey —
-   * that bundle would have handed a warehouse the whole company's deleted
-   * records. Management only.
+   * Its own key. It used to travel inside a permission that stood in for
+   * "senior enough" and so bundled three unrelated things together: this
+   * register, taking another desk's file off a shipment, and a verb both
+   * warehouses were later given. That bundle would have handed a warehouse the
+   * whole company's deleted records. Management only.
    */
   | "records.viewDeleted"
   /**
    * Putting a landed flight back in the air, and putting collected cargo back
    * on the shelf.
    *
-   * Both undo a step a warehouse just performed, and both were gated on
-   * `shipment.cancel` — which both warehouses hold. So the desk that made the
-   * mistake was also the desk that could erase the evidence of it: undoing an
-   * arrival unwinds every check-in on the manifest, and undoing a release
-   * deletes the handover record and the photographs taken at the counter.
+   * Both undo a step a warehouse just performed, and both once sat behind a
+   * key both warehouses held — so the desk that made the mistake was also the
+   * desk that could erase the evidence of it.
    *
-   * Management only, which is what the comments above both actions always
-   * claimed and what neither of them enforced.
+   * `delivery.undo` stays management's: undoing a release deletes the handover
+   * record and the photographs taken at the counter, and the floor that handed
+   * the cargo over is not the floor to decide that never happened.
+   *
+   * `batch.undoArrival` went to Dar at the owner's instruction — see the note
+   * on the DAR list. Undoing an arrival unwinds every check-in on the manifest,
+   * so it is safe there only because undoBatchArrival refuses the flight the
+   * moment anybody has acted on its money.
    */
   | "batch.undoArrival"
   | "delivery.undo"
@@ -289,8 +291,8 @@ export type Permission =
    * Take a file off a consignment that somebody else attached.
    *
    * Anyone who may attach can always remove their OWN upload; this is the key
-   * for removing another desk's. Also split off `shipment.cancel`, and for the
-   * same reason — Guangzhou correcting a weight should not also be able to
+   * for removing another desk's. Split out of the same over-broad key, and for
+   * the same reason — Guangzhou correcting a weight should not also be able to
    * delete Dar's customs entry. Management only.
    */
   | "document.removeAny"
@@ -314,8 +316,6 @@ const CHINA: Permission[] = [
   "shipment.edit",
   // The desk that took the cargo in is the desk that mistyped the weight.
   "shipment.delete",
-  // And the desk that decides a consignment should not travel at all.
-  "shipment.cancel",
   /* All three above hold until Dar confirms arrival, and not one minute past
      it — see the custody note on the permission. This floor owns the record
      while the cargo is on its shelf or in the air, which is the whole time it
@@ -415,7 +415,6 @@ const DAR: Permission[] = [
      on shipment.amendOutbound / amendLanded. */
   "shipment.edit",
   "shipment.delete",
-  "shipment.cancel",
   "shipment.amendLanded",
   /*
     BOTH HALVES, AT THE OWNER'S INSTRUCTION.
@@ -491,7 +490,7 @@ const DAR: Permission[] = [
  *
  * Note what is deliberately absent: payment.record, pickupNote.issue,
  * shipment.create, shipment.edit, shipment.release, batch.create,
- * batch.manage, batch.receive, batch.verify, shipment.cancel.
+ * batch.manage, batch.receive, batch.verify.
  */
 const CUSTOMER_CARE: Permission[] = [
   "shipment.view",
@@ -720,14 +719,13 @@ const ALL: Permission[] = Array.from(
     ...DAR,
     ...FINANCE,
     ...CUSTOMER_CARE,
-    "shipment.cancel",
     /* Both halves of the journey, so management is never the desk that has to
        wait for a warehouse. Each floor holds one; only this list holds both. */
     "shipment.amendOutbound",
     "shipment.amendLanded",
-    /* The two that used to travel inside shipment.cancel. Split out when both
-       warehouses were given cancelling, so that neither inherited the deleted
-       records register or the right to bin another desk's paperwork. */
+    /* The two that used to travel inside the cancelling key, split out so that
+       neither warehouse inherited the deleted records register or the right to
+       bin another desk's paperwork. */
     "records.viewDeleted",
     /* Undoing a warehouse's own last step — see the declarations above. */
     "batch.undoArrival",
@@ -822,7 +820,7 @@ const ALL: Permission[] = Array.from(
  *                    accounts exist is ownership.
  *   shipment.purge   Destroying a record for good. Nobody else has it at any
  *                    rank, and a manager is not an exception — deleting is
- *                    already theirs via shipment.cancel, which is reversible.
+ *                    already theirs via shipment.delete, which is reversible.
  */
 /*
   STAFFING MOVED TO THE MANAGER, at the owner's instruction: the manager hires,
@@ -894,8 +892,8 @@ export function cargoCustody(status: ShipmentStatus): CargoCustody {
 /**
  * May this desk change this consignment's record at all?
  *
- * Custody, and nothing else — the caller still asks for `shipment.edit`,
- * `shipment.delete` or `shipment.cancel` beside it. Holding the verb is not
+ * Custody, and nothing else — the caller still asks for `shipment.edit` or
+ * `shipment.delete` beside it. Holding the verb is not
  * enough: a warehouse may only use it on cargo that is currently its own, which
  * is what stops Guangzhou reaching into a landed consignment and Dar reaching
  * into one that has not arrived. Management holds both halves and so is never

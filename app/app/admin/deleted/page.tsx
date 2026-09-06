@@ -32,8 +32,8 @@ export default async function DeletedRecordsPage() {
   /*
     Reading this page and emptying it are two different authorities.
 
-    Getting in is shipment.cancel — the owner and the manager, since restoring a
-    record and reading why it went are exactly the manager's job. Erasing one for
+    Getting in is records.viewDeleted — the owner and the manager, since
+    restoring a record and reading why it went are exactly the manager's job. Erasing one for
     good is shipment.purge, which is the owner's and nobody else's. The purge
     control was drawn on every row for whoever got through the door, so a manager
     was offered a button purgeCargo would then refuse. It failed loudly rather

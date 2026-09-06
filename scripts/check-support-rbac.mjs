@@ -35,7 +35,7 @@ const MUST_NOT = {
   "Cancel pickup notes": "pickupNote.cancel",
   "Create batches": "batch.create",
   "Modify batches": "batch.manage",
-  "Delete shipment records": "shipment.cancel",
+  "Delete shipment records": "shipment.delete",
   "Change the rate book": "pricing.manage",
   "Publish exchange rates": "fx.manage",
   "Manage staff accounts": "user.manage",
