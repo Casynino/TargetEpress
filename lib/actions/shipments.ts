@@ -674,61 +674,20 @@ export async function raiseException(
   }
 }
 
-export async function resolveException(
-  _prev: ActionResult | undefined,
-  formData: FormData
-): Promise<ActionResult> {
-  let user: SessionUser;
-  try {
-    // exception.close, not exception.resolve: this writes a TERMINAL status,
-    // and a terminal status lifts the pickup lock (lib/pickup-lock.ts). The Dar
-    // floor holds exception.resolve, so gating on it let the desk that reported
-    // cargo missing close its own case and release the cargo it could not find.
-    user = await authorize("exception.close");
-  } catch (error) {
-    return fail(toActionError(error));
-  }
-
-  const id = String(formData.get("exceptionId") ?? "");
-  const note = String(formData.get("resolutionNote") ?? "").trim();
-  if (!id) return fail("Missing exception.");
-  if (note.length < 3) return fail("Explain how it was resolved.");
-
-  try {
-    await prisma.$transaction(async (tx) => {
-      const exception = await tx.shipmentException.findUnique({
-        where: { id },
-        select: { id: true, status: true, shipment: { select: { trackingNumber: true } } },
-      });
-      if (!exception) throw new Error("Exception not found.");
-      if (exception.status !== "OPEN") throw new Error("Already closed.");
-
-      await tx.shipmentException.update({
-        where: { id },
-        data: {
-          status: "RESOLVED",
-          resolvedById: user.id,
-          resolvedAt: new Date(),
-          resolutionNote: note,
-        },
-      });
-
-      await recordAudit(
-        {
-          actor: user,
-          action: "exception.resolve",
-          entity: "ShipmentException",
-          entityId: id,
-          summary: `Resolved exception on ${exception.shipment.trackingNumber}`,
-          metadata: { note },
-        },
-        tx
-      );
-    });
-
-    revalidatePath("/app/exceptions");
-    return ok();
-  } catch (error) {
-    return fail(toActionError(error));
-  }
-}
+/*
+ * resolveException lived here and had no screen on it.
+ *
+ * Its only caller was ResolveExceptionForm, whose only caller was the
+ * ExceptionCard exported from components/app/exception-card.tsx — a component
+ * nothing imported. Every list renders the card defined inside
+ * exception-table.tsx instead. So the button was gone and the endpoint was
+ * not: a "use server" export is a public endpoint whether or not anything
+ * renders it, and this one wrote a TERMINAL status, which lifts the pickup
+ * lock and lets flagged cargo out of the building.
+ *
+ * Closing a case goes through resolveInvestigation, which asks what actually
+ * happened, records it against the case and writes CLOSED.
+ *
+ * The "exception.resolve" audit string stays in lib/audit-humanise.ts: it is
+ * still written on every live close, not merely by old rows.
+ */

@@ -1144,7 +1144,21 @@ export async function resolveInvestigation(
       await tx.shipmentException.update({
         where: { id: exceptionId },
         data: {
-          status: "RESOLVED",
+          /*
+            CLOSED, not RESOLVED.
+
+            lib/constants.ts says RESOLVED is one of "the pre-lifecycle values,
+            kept so old rows still read correctly and never written by new
+            code" — and then every close written since has written it. Two
+            spellings for one outcome, and a migration one day having to handle
+            three terminal words instead of one.
+
+            Behaviour-neutral today: both sit in EXCEPTION_TERMINAL_STATUSES and
+            in the queue's FINISHED set, and the lifecycle table offers nothing
+            onward from either. Rows already carrying RESOLVED keep it — the
+            history is a record of what was true.
+          */
+          status: "CLOSED",
           resolutionType: rawType,
           resolutionNote: note,
           resolvedById: user.id,

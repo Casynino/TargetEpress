@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type {
   ExceptionStatus,
   ExceptionType,
@@ -13,31 +12,26 @@ import {
   PackageSearch,
   PackageX,
   PauseCircle,
-  Plane,
   PlaneTakeoff,
   Replace,
   Scale,
   ShieldAlert,
   Shuffle,
-  User,
-  Warehouse,
 } from "lucide-react";
 
-import { PresenceBadge } from "@/components/app/presence-badge";
-import { ResolveExceptionForm } from "@/components/app/resolve-exception-form";
-import { ShipmentStatusBadge } from "@/components/app/status-badge";
-import { Badge } from "@/components/ui/badge";
-import {
-  EXCEPTION_OPEN_STATUSES,
-  EXCEPTION_TYPE_LABELS,
-  PACKAGE_TYPE_LABELS,
-} from "@/lib/constants";
-import { formatDate, formatDateTime } from "@/lib/format";
-import { t } from "@/lib/i18n";
-import type { Locale } from "@/lib/locale";
+/**
+ * WHAT A FLAGGED CONSIGNMENT IS, not how one is drawn.
+ *
+ * This file used to hold a card component as well, and nothing imported it —
+ * every list renders the card defined in exception-table.tsx. What is left is
+ * the vocabulary those lists share: the shape of the data, which pill a fault
+ * belongs under, and the icon and stripe that go with each one. One place to
+ * change what "missing" means, so the exceptions page, the investigation queue
+ * and the owner's dashboard cannot drift into three answers.
+ */
 
 /**
- * One flagged consignment, as an investigator needs to read it.
+ * One flagged consignment, as the lists need to read it.
  *
  * The questions are always the same four, in this order: what is wrong, whose
  * cargo is it, which flight brought it, and — the one nobody could answer
@@ -180,256 +174,4 @@ export const TYPE_META = {
 export function daysOpen(raisedAt: Date, until: Date | null = null) {
   const end = (until ?? new Date()).getTime();
   return Math.max(0, Math.floor((end - raisedAt.getTime()) / 86_400_000));
-}
-
-export function ExceptionCard({
-  exception,
-  canResolve,
-  locale,
-}: {
-  exception: ExceptionCardData;
-  canResolve: boolean;
-  /**
-   * Passed in rather than resolved here: this file is also imported by the
-   * client-side exception table, so it must never reach for `viewerLocale()`.
-   */
-  locale: Locale;
-}) {
-  // "Open" is no longer one status. A case being worked, waiting on a customer
-  // or approved for a payout is still unfinished, and reading `=== "OPEN"` here
-  // would draw a case under active investigation as though it were closed.
-  const open = (EXCEPTION_OPEN_STATUSES as readonly ExceptionStatus[]).includes(
-    exception.status
-  );
-  const meta = TYPE_META[exception.type];
-  const Icon = meta.icon;
-  const age = daysOpen(exception.raisedAt, exception.resolvedAt);
-
-  const { shipment } = exception;
-  const unit =
-    PACKAGE_TYPE_LABELS[shipment.packageType] ?? PACKAGE_TYPE_LABELS.PACKAGE;
-  const total = shipment.packages.length || shipment.declaredPackages;
-  const onFloor = shipment.packages.filter((p) => p.receivedAt).length;
-  const absent = shipment.packages
-    .filter((p) => !p.receivedAt)
-    .map((p) => p.sequence);
-  const collected = shipment.packages.filter((p) => p.deliveredAt).length;
-
-  return (
-    <li
-      id={`exception-${exception.id}`}
-      className={`scroll-mt-24 overflow-hidden rounded-xl border border-l-4 bg-card shadow-soft ${
-        open ? meta.stripe : "border-l-success/50"
-      }`}
-    >
-      {/* ---- What is wrong -------------------------------------------- */}
-      <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-3 sm:px-5">
-        <div className="flex min-w-0 items-start gap-3">
-          <Icon
-            className={`mt-0.5 h-5 w-5 shrink-0 ${
-              open ? "text-destructive" : "text-muted-foreground"
-            }`}
-          />
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={open ? "destructive" : "muted"}>
-                {t(locale, EXCEPTION_TYPE_LABELS[exception.type])}
-              </Badge>
-              {/* The fault says what is wrong; this says whether anybody
-                  should be out looking for the box. Only while the case is
-                  live — once it is closed the question is answered. */}
-              {open ? (
-                <PresenceBadge type={exception.type} />
-              ) : null}
-              <Link
-                href={`/app/cargo/${shipment.trackingNumber}`}
-                className="focus-ring rounded font-mono text-sm font-semibold tabular hover:text-brand"
-              >
-                {shipment.trackingNumber}
-              </Link>
-              <ShipmentStatusBadge status={shipment.status} />
-              {shipment.settled ? (
-                // Status, never a figure: cargo the customer has already paid
-                // for is the shortage you chase first.
-                <Badge variant="outline" className="text-xs">
-                  {shipment.settled === "PAID"
-                    ? t(locale, "Customer has paid")
-                    : t(locale, "Part-paid")}
-                </Badge>
-              ) : null}
-            </div>
-            <p className="mt-2 text-sm">{exception.description}</p>
-          </div>
-        </div>
-
-        <div className="shrink-0 text-right">
-          <p
-            className={`text-sm font-semibold tabular ${
-              open && age >= 7
-                ? "text-destructive"
-                : open && age >= 2
-                  ? "text-warning"
-                  : "text-muted-foreground"
-            }`}
-          >
-            {open
-              ? age === 0
-                ? t(locale, "Today")
-                : `${age} ${t(locale, age === 1 ? "day open" : "days open")}`
-              : t(locale, "Closed")}
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {formatDateTime(exception.raisedAt, locale)}
-          </p>
-        </div>
-      </div>
-
-      {/* ---- Whose cargo, which flight, where the boxes are ------------ */}
-      <div className="grid grid-cols-1 gap-px border-t bg-border sm:grid-cols-3">
-        <Field icon={User} label={t(locale, "Customer")}>
-          <p className="truncate text-sm font-medium">{shipment.customerName}</p>
-          <p className="truncate text-xs text-muted-foreground">
-            {shipment.customerPhone ?? t(locale, "no phone on file")}
-          </p>
-          <p className="mt-1 truncate text-xs text-muted-foreground">
-            {shipment.description}
-          </p>
-        </Field>
-
-        <Field icon={Plane} label={t(locale, "Arrived on")}>
-          {exception.batch ? (
-            <>
-              <Link
-                href={`/app/batches/${exception.batch.id}`}
-                className="focus-ring rounded font-mono text-sm tabular hover:text-brand"
-              >
-                {exception.batch.batchNumber}
-              </Link>
-              <p className="truncate text-xs text-muted-foreground">
-                {[exception.batch.airline, exception.batch.flightNumber]
-                  .filter(Boolean)
-                  .join(" ") || t(locale, "flight not recorded")}
-              </p>
-              <p className="mt-1 truncate text-xs text-muted-foreground">
-                {exception.batch.waybillNumber
-                  ? `AWB ${exception.batch.waybillNumber} · `
-                  : ""}
-                {t(locale, "landed")} {formatDate(exception.batch.arrivalDate, locale)}
-              </p>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              {t(locale, "No batch — flagged before it joined one.")}
-            </p>
-          )}
-        </Field>
-
-        <Field icon={Warehouse} label={t(locale, "Where the cargo is")}>
-          <p className="text-sm font-medium tabular">
-            {total === 0
-              ? t(locale, "No packages on record")
-              : `${onFloor} ${t(locale, "of")} ${total} ${t(locale, total === 1 ? unit.one : unit.many)} ${t(locale, "checked in at Dar")}`}
-          </p>
-
-          {shipment.packages.length > 0 ? (
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              {shipment.packages.map((pkg) => (
-                <span
-                  key={pkg.sequence}
-                  title={
-                    pkg.deliveredAt
-                      ? `${t(locale, unit.one)} ${pkg.sequence} ${t(locale, "collected")}`
-                      : pkg.receivedAt
-                        ? `${t(locale, unit.one)} ${pkg.sequence} ${t(locale, "checked in")}`
-                        : `${t(locale, unit.one)} ${pkg.sequence} ${t(locale, "not accounted for")}`
-                  }
-                  className={`inline-flex h-6 min-w-6 items-center justify-center rounded border px-1.5 text-xs font-semibold tabular ${
-                    pkg.deliveredAt
-                      ? "border-muted-foreground/30 text-muted-foreground line-through"
-                      : pkg.receivedAt
-                        ? "border-success/50 bg-success/10 text-success"
-                        : "border-dashed border-destructive/60 text-destructive"
-                  }`}
-                >
-                  {pkg.sequence}
-                </span>
-              ))}
-            </div>
-          ) : null}
-
-          {absent.length > 0 ? (
-            <p className="mt-1.5 text-xs text-destructive">
-              {t(locale, absent.length === 1 ? unit.one : unit.many)}{" "}
-              {absent.map((n) => `#${n}`).join(", ")}{" "}
-              {t(locale, "not accounted for")}
-              {onFloor > 0
-                ? ` ${t(locale, "— the rest is in the warehouse.")}`
-                : "."}
-            </p>
-          ) : total > 0 ? (
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              {collected > 0
-                ? `${t(locale, "Every")} ${t(locale, unit.one)} ${t(locale, "arrived,")} ${collected} ${t(locale, "already collected.")}`
-                : `${t(locale, "Every")} ${t(locale, unit.one)} ${t(locale, "is in the Dar warehouse.")}`}
-            </p>
-          ) : null}
-
-          {/* The system saying "in the air" while boxes are on the floor is
-              itself a fault worth showing — it is how cargo goes missing on
-              paper. */}
-          {shipment.status === "IN_TRANSIT" && onFloor > 0 ? (
-            <p className="mt-1.5 text-xs text-warning">
-              {t(
-                locale,
-                "Boxes are checked in but the cargo still reads In transit — finish its check-in."
-              )}
-            </p>
-          ) : null}
-        </Field>
-      </div>
-
-      {/* ---- Who raised it, and how it gets closed --------------------- */}
-      <div className="border-t px-4 py-3 sm:px-5">
-        <p className="text-xs text-muted-foreground">
-          {t(locale, "Raised by")} {exception.raisedByName ?? "—"}{" "}
-          {t(locale, "on")} {formatDateTime(exception.raisedAt, locale)}
-          {exception.resolvedAt
-            ? ` · ${t(locale, "closed by")} ${exception.resolvedByName ?? "—"} ${t(locale, "on")} ${formatDateTime(exception.resolvedAt, locale)}`
-            : ""}
-        </p>
-
-        {exception.resolutionNote ? (
-          <p className="mt-2 rounded-md bg-muted/50 p-2 text-sm text-muted-foreground">
-            {exception.resolutionNote}
-          </p>
-        ) : null}
-
-        {open && canResolve ? (
-          <div className="mt-3">
-            <ResolveExceptionForm exceptionId={exception.id} />
-          </div>
-        ) : null}
-      </div>
-    </li>
-  );
-}
-
-function Field({
-  icon: Icon,
-  label,
-  children,
-}: {
-  icon: typeof PackageX;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="min-w-0 bg-card px-4 py-3 sm:px-5">
-      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        {label}
-      </p>
-      <div className="mt-1.5">{children}</div>
-    </div>
-  );
 }

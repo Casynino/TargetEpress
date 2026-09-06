@@ -821,16 +821,38 @@ export const SUBMISSION_STATUS_LABELS: Record<SubmissionStatus, string> = {
   WITHDRAWN: "Withdrawn",
 };
 
+/**
+ * OPEN, SOLVED, SETTLED — and nothing about money.
+ *
+ * The owner's vocabulary. A case is being worked, or the problem went away, or
+ * it was made good. "Refunded" is deliberately not among them: a missing
+ * consignment can end in the box being found, released by customs, flown on
+ * the next aircraft, corrected, or paid for — and all five leave the case in
+ * the same place. The payout is a ledger entry with its own life, and folding
+ * it into the status would make the operational answer depend on the financial
+ * one.
+ *
+ * SOLVED is the cargo itself coming right. SETTLED is the case being finished
+ * some other way, which is where a compensated one lands. Two words rather
+ * than one, because "we found your boxes" and "we paid for your boxes" are not
+ * the same news.
+ *
+ * Nine enum values behind five labels: the mid-lifecycle *_APPROVED states are
+ * still open work, whatever the paperwork says, and the desk reading a list
+ * wants to know whether anybody still has to do something.
+ */
 export const EXCEPTION_STATUS_LABELS: Record<ExceptionStatus, string> = {
-  OPEN: "Under investigation",
-  UNDER_INVESTIGATION: "Under investigation",
-  WAITING_CUSTOMER: "Under investigation",
-  COMPENSATION_APPROVED: "Under investigation",
-  REPLACEMENT_APPROVED: "Under investigation",
-  CARGO_FOUND: "Resolved",
-  CLOSED: "Resolved",
-  RESOLVED: "Resolved",
-  WRITTEN_OFF: "Resolved",
+  OPEN: "Open",
+  UNDER_INVESTIGATION: "Open",
+  WAITING_CUSTOMER: "Open",
+  COMPENSATION_APPROVED: "Open",
+  REPLACEMENT_APPROVED: "Open",
+  // The boxes turned up. That is the problem itself going away.
+  CARGO_FOUND: "Solved",
+  CLOSED: "Settled",
+  // Retired spellings, kept because rows carry them. Same word on screen.
+  RESOLVED: "Settled",
+  WRITTEN_OFF: "Settled",
 };
 
 /**
