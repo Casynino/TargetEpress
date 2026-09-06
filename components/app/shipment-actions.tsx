@@ -571,10 +571,25 @@ function PaymentPanel({
   );
   const idem = useIdempotencyKey();
 
+  /*
+    A CLAIM IS A SUCCESS TOO.
+
+    This asked for a receipt number, which only recordPayment returns. Support
+    submits through this same panel and gets a submission number back — so for
+    her the confirmation never rendered and the idempotency key was never
+    retired. She saw a form that looked exactly as it had before pressing, and
+    the natural response to that is to press again, which is then refused as a
+    repeat of a claim she was never told about.
+  */
+  const done = state.ok ? state.data : undefined;
+  const saved = done?.receiptNumber ?? done?.submissionNumber ?? null;
+
   /* Part payments against one bill are normal at this counter, so the key is
      retired the moment one lands rather than held for the life of the page. */
   useEffect(() => {
-    if (state.ok && state.data?.receiptNumber) idem.reset();
+    if (saved) idem.reset();
+    // `saved` is derived from state, which is the dependency that matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
   const settled = props.outstanding !== null && props.outstanding <= 0;
@@ -1112,7 +1127,16 @@ function PaymentPanel({
                   ? gapInTender
                   : gapInTender / (currency === "TZS" ? activeRate : 1 / activeRate)
               }
-              canClear={Boolean(props.canAdjust)}
+              /*
+                SUPPORT PRESSES THIS TOO — the same rule the other two money
+                forms already follow. She is not exercising ledger.adjust: she
+                is telling Finance "the rest is not coming", and the tick rides
+                on her claim for Finance to confirm on the verify screen. Gated
+                on ledger.adjust alone, this panel was the one door where that
+                answer could not be given.
+              */
+              canClear={direct ? Boolean(props.canAdjust) : true}
+              submitting={!direct}
             />
           ) : null}
 
@@ -1206,11 +1230,13 @@ function PaymentPanel({
           <FormError state={state} />
           <FormSuccess
             message={
-              state.ok && state.data?.receiptNumber
-                ? state.data.pickupNoteNumber
-                  ? `${t("Receipt")} ${state.data.receiptNumber} ${t("issued, and pickup note")} ${state.data.pickupNoteNumber} — ${t("this cargo is now cleared for collection.")}`
-                  : `${t("Receipt")} ${state.data.receiptNumber} ${t("issued.")}`
-                : null
+              done?.receiptNumber
+                ? done.pickupNoteNumber
+                  ? `${t("Receipt")} ${done.receiptNumber} ${t("issued, and pickup note")} ${done.pickupNoteNumber} — ${t("this cargo is now cleared for collection.")}`
+                  : `${t("Receipt")} ${done.receiptNumber} ${t("issued.")}`
+                : done?.submissionNumber
+                  ? `${t("Sent to Finance")} · ${done.submissionNumber} — ${t("they verify it and the money is recorded from there.")}`
+                  : null
             }
           />
           {/* The same shape as Release on credit sitting under it — h-8, small

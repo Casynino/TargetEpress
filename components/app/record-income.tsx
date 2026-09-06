@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { MoneyInput } from "@/components/ui/money-input";
-import { AdjustDifference } from "@/components/app/adjust-difference";
 import { ChangeRate } from "@/components/app/change-rate";
 import { GiveDiscount } from "@/components/app/give-discount";
 import { PaymentDifference } from "@/components/app/payment-difference";
@@ -276,10 +275,24 @@ export function RecordIncome({
   const claimedCount = found.filter((b) => b.claimed).length;
   const busy = searchTerm.length >= 2 ? searching : loadingQueue;
 
+  /*
+    A CLAIM IS A SUCCESS TOO.
+
+    Both of these tested for a receipt number — which only recordPayment
+    returns. Support's door calls submitPaymentForVerification, which returns a
+    submission number, so for her NOTHING happened on success: no confirmation,
+    the form left full, the idempotency key never retired, and the queue still
+    showing the bill she had just sent up. A desk that cannot tell whether it
+    worked presses again, and the second press is refused as a repeat of a
+    payment they were never told about.
+  */
+  const done = state.ok ? state.data : undefined;
+  const saved = done?.receiptNumber ?? done?.submissionNumber ?? null;
+
   /* Once it saves, the panel resets rather than leaving a filled form that
      would record the same payment twice if somebody pressed again. */
   useEffect(() => {
-    if (state.ok && state.data?.receiptNumber) {
+    if (saved) {
       /* The next payment is a different payment and must not be refused as a
          repeat of the one that just saved. */
       idem.reset();
@@ -458,12 +471,14 @@ export function RecordIncome({
         </button>
       </div>
 
-      {state.ok && state.data?.receiptNumber ? (
+      {saved ? (
         <p className="border-b border-success/20 px-5 py-2.5 text-sm text-success">
           <Check className="mr-1.5 inline h-4 w-4" />
-          {t("Recorded")} · {state.data.receiptNumber}
-          {state.data.pickupNoteNumber
-            ? ` · ${t("pickup note")} ${state.data.pickupNoteNumber}`
+          {done?.receiptNumber
+            ? `${t("Recorded")} · ${done.receiptNumber}`
+            : `${t("Sent to Finance")} · ${saved}`}
+          {done?.pickupNoteNumber
+            ? ` · ${t("pickup note")} ${done.pickupNoteNumber}`
             : ""}
         </p>
       ) : null}
@@ -858,36 +873,22 @@ export function RecordIncome({
                   onSaved={refreshPicked}
                 />
               ) : null}
-              {canAdjust && picked.outstanding > 0.005 ? (
-                <AdjustDifference
-                  invoiceId={picked.invoiceId}
-                  currency={picked.currency}
-                  balance={picked.outstanding}
-                  total={picked.total}
-                  rate={billRate}
-                  money={(v) =>
-                    `${picked.currency} ${v.toLocaleString(undefined, {
-                      minimumFractionDigits: picked.currency === "TZS" ? 0 : 2,
-                      maximumFractionDigits: picked.currency === "TZS" ? 0 : 2,
-                    })}`
-                  }
-                  /* What is typed above, in the bill's own money — so the
-                     dialog asks before writing off a balance that a payment
-                     nobody has saved yet would have settled. */
-                  pendingCargo={
-                    cargoHalf <= 0
-                      ? 0
-                      : tendered === picked.currency
-                        ? cargoHalf
-                        : billRate
-                          ? tendered === "TZS"
-                            ? cargoHalf / billRate
-                            : cargoHalf * billRate
-                          : 0
-                  }
-                  onSaved={refreshPicked}
-                />
-              ) : null}
+              {/*
+                NO STANDALONE WRITE-OFF HERE, DELIBERATELY.
+
+                This dialog exists to record money. When the typed figure is
+                short of the bill the notice below offers to clear the rest in
+                the same step, and when it is over the notice says the bill is
+                settled — between them they answer the whole question, in the
+                place the desk is already looking.
+
+                A second control that writes the balance off on its own only
+                fires correctly when NO money is arriving, which is not what
+                anybody opened this dialog to do. Offered here it produced a
+                warning telling the desk to go and use the box above instead.
+                It lives on the cargo page, where a bill can be closed without
+                a payment.
+              */}
               {canChangeRate && picked.currency !== "TZS" ? (
                 <ChangeRate
                   invoiceId={picked.invoiceId}

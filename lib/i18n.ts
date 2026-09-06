@@ -3417,6 +3417,7 @@ const ZH: Record<string, string> = {
   "still owing on the bill.": "尚未付清。",
   "clears it in full.": "可全额付清。",
   "Write off the balance": "核销余额",
+  "they verify it and the money is recorded from there.": "由他们核实后，款项将从那里入账。",
   "Cleared with this payment": "随此笔收款核销",
   "Written off the bill": "从账单核销",
   "This is a record, not money. It reached no account, wrote no ledger line, and counts towards no total — the bill is settled, not part paid. It is here so the decision can be found.": "这是记录，不是资金。它未进入任何账户，未产生账簿分录，也不计入任何合计——该账单为已结清，而非部分支付。列在此处是为了让该决定有据可查。",
