@@ -9,55 +9,42 @@ import { useT } from "@/components/app/locale-provider";
  * WHAT THE CUSTOMER SENT IS NOT WHAT THE BILL SAYS.
  *
  * It rarely is. A bill of 36,450 is answered by 36,000, or by 38,000, because
- * the customer rounded, or the bank took a fee, or they simply sent what they
- * had. Both directions are ordinary and neither is an error to be corrected;
- * what matters is that the recorded payment stays the money that actually
- * arrived, and that the screen says plainly what will happen to the gap.
+ * the customer rounded, or the bank took a fee, or they sent what they had.
+ * Both directions are ordinary and neither is an error to be corrected; what
+ * matters is that the recorded payment stays the money that actually arrived,
+ * and that one line says what happens to the gap.
  *
- * TOO MUCH is nothing to decide. The money is recorded as it came, the bill is
- * settled, the cargo goes. Revenue in this system is derived from the BILL and
- * never from what was handed over, so the excess cannot leak into income by
+ * ONE LINE, DELIBERATELY. This began as a paragraph — what the button would
+ * do, what would be recorded, what would not move — and the owner's answer was
+ * that the office already knows all of that. Prose in the middle of a form is
+ * read once and skipped for ever after, while the figures beside it are read
+ * every time. So the figures lead and the words stop.
+ *
+ * TOO MUCH is nothing to decide. Revenue here derives from the BILL and never
+ * from what was handed over, so the excess cannot leak into income by
  * arithmetic — it stays named as an overpayment on the payment and in the
- * ledger, where it can be found. Nothing is held back as customer credit: the
- * owner's rule is to take it, say so, and let the cargo go.
+ * ledger. Nothing is held back as customer credit.
  *
- * TOO LITTLE is a decision, and it used to be two jobs. Every money form ended
- * this notice with a link reading "TZS 36,450 clears it in full", which typed
- * the bill's figure into the amount box — clearing the bill by recording 450
- * shillings that never arrived, then carrying that invented figure onto the
- * receipt, into the account balance and into the ledger. The honest route was
- * to record 36,000 here and then go to the bill's own page to clear the rest,
- * and the half that got forgotten left cargo settled in everybody's head and
- * unreleasable in the system.
+ * TOO LITTLE is one press: the payment keeps what came in and the remainder is
+ * written off in the same transaction — its own row, its own audit entry,
+ * reversible on its own, and no ledger line, because no money moved.
  *
- * So: one press, no figure to type and no reason to write. The payment keeps
- * what came in and the remainder is written off in the same transaction. It is
- * a real adjustment and nothing weaker — its own row, its own audit entry,
- * reversible on its own, and NO LEDGER LINE, because no money moved.
- *
- * SUPPORT PRESSES THE SAME BUTTON. The desk on the phone is the desk that
- * hears "that is all I am sending", and a claim that cannot carry it leaves
- * Finance unable to tell a customer still being chased from a bill that is
- * finished. Support's copy of this form submits rather than records, so the
- * tick travels on the claim and Finance confirms it on the verify screen — the
- * same handover as every other figure Support writes down.
+ * SUPPORT PRESSES THE SAME BUTTON. Her form submits rather than records, so
+ * the tick travels on the claim and Finance confirms it on the verify screen.
  */
 export function PaymentDifference({
-  /** Signed, in the money being handed over: positive when the customer is
-      short, negative when they sent too much. */
+  /** Signed, in the money being handed over: positive when short. */
   gap,
   /** What is being recorded as received, same money as `gap`. */
   paid,
-  /** The money the customer is paying in. */
   tendered,
-  /** The bill's own currency, and the gap expressed in it. Said together
-      because that is the pair Finance reconciles against. */
+  /** The bill's own currency, and the gap in it — the pair Finance
+      reconciles against. */
   billCurrency,
   gapInBill,
   /** ledger.adjust, or a Support desk whose claim may carry the answer. */
   canClear,
-  /** This form submits a claim rather than recording money, so the wording
-      says who actually decides. */
+  /** This form submits a claim rather than recording money. */
   submitting = false,
 }: {
   gap: number;
@@ -76,115 +63,73 @@ export function PaymentDifference({
       maximumFractionDigits: currency === "TZS" ? 0 : 2,
     });
 
-  /*
-    ONE DIFFERENCE, ONE FIGURE — IN BOTH MONIES WHEN THEY DIFFER.
-
-    The sentence said "This leaves USD 0.19 still owing" and the button under
-    it said "Clear the last TZS 500". The same gap, twice, in two currencies,
-    two lines apart — leaving the desk to satisfy itself by dividing in its
-    head that the two agree. Shillings lead, because that is the money on the
-    counter and the house style everywhere else.
-  */
-  const gapBothWays =
+  /* Both monies when they differ — the desk works in shillings and the bill is
+     written in dollars, and one figure in the wrong one is a figure somebody
+     has to convert in their head. */
+  const both =
     tendered === billCurrency
       ? `${billCurrency} ${money(gapInBill, billCurrency)}`
       : `${tendered} ${money(gap, tendered)} · ${billCurrency} ${money(gapInBill, billCurrency)}`;
 
-  /* Sent too much. There is nothing to arm and nothing to ask — the figures
-     below are already right, and this only says so out loud before the clerk
-     presses Confirm on what looks like the wrong number. */
+  const row =
+    "flex w-full flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border px-2.5 py-2 text-xs";
+
   if (gap < 0) {
     return (
-      <div className="w-full space-y-1 rounded-md border border-success/40 bg-success/[0.08] px-3 py-2.5 text-xs text-success">
-        <p className="flex items-start gap-1.5 font-semibold">
-          <Check className="mt-px h-3.5 w-3.5 shrink-0" />
-          {t("Overpaid by")} {gapBothWays} —{" "}
-          {t("the bill is settled in full and the cargo can go.")}
-        </p>
-        <p className="opacity-90">
-          {t(
-            "The whole amount is recorded exactly as it came in, and the extra is named as an overpayment on the receipt and in the ledger. Nothing is held back."
-          )}
-        </p>
+      <div className={`${row} border-success/40 bg-success/[0.08] text-success`}>
+        <Check className="h-3.5 w-3.5 shrink-0" />
+        <span>
+          <span className="font-semibold">{t("Overpaid")} {both}</span>
+          {" · "}
+          {t("bill settled, cargo can go")}
+        </span>
+      </div>
+    );
+  }
+
+  if (clearRest) {
+    return (
+      <div className={`${row} border-success/40 bg-success/[0.08] text-success`}>
+        <Check className="h-3.5 w-3.5 shrink-0" />
+        <span className="font-semibold">
+          {submitting ? t("Finance clears") : t("Clearing")} {both}
+        </span>
+        <span className="opacity-80">
+          · {tendered} {money(paid, tendered)} {t("recorded")}
+        </span>
+        <button
+          type="button"
+          onClick={() => setClearRest(false)}
+          className="focus-ring ml-auto rounded underline underline-offset-2"
+        >
+          {t("Undo")}
+        </button>
+        <input type="hidden" name="clearShortfall" value="1" />
+        {/* The figure on the button, travelling with the tick, so the action
+            can never write off more than the desk was shown. */}
+        <input
+          type="hidden"
+          name="clearShortfallUpTo"
+          value={Math.max(0, gapInBill).toFixed(2)}
+        />
       </div>
     );
   }
 
   return (
-    <div className="w-full space-y-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs text-warning">
-      <p>
-        {t("The customer sent less than the bill.")}{" "}
-        {t("This leaves")} {gapBothWays} {t("still owing on the bill.")}
-      </p>
-
+    <div className={`${row} border-warning/40 bg-warning/10 text-warning`}>
+      <span>
+        <span className="font-semibold">{t("Short")} {both}</span>
+      </span>
       {canClear ? (
-        clearRest ? (
-          <div className="space-y-1.5 rounded-md border border-success/40 bg-success/10 px-2.5 py-2 text-success">
-            <p className="flex items-start gap-1.5 font-semibold">
-              <Check className="mt-px h-3.5 w-3.5 shrink-0" />
-              {submitting
-                ? t("The bill will be settled once Finance confirms this.")
-                : t("The bill will be settled when you confirm.")}
-            </p>
-            <p className="opacity-90">
-              {tendered} {money(paid, tendered)}{" "}
-              {t("goes in as the payment, because that is what came in.")}{" "}
-              {tendered} {money(gap, tendered)}{" "}
-              {t("is cleared off the bill. No money moves for it.")}
-            </p>
-            <button
-              type="button"
-              onClick={() => setClearRest(false)}
-              className="font-semibold underline underline-offset-2"
-            >
-              {t("No, leave the balance owing.")}
-            </button>
-          </div>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={() => setClearRest(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-md bg-warning px-3 py-2 text-xs font-semibold text-warning-foreground transition hover:opacity-90"
-            >
-              <Scale className="h-3.5 w-3.5 shrink-0" />
-              {t("Clear the last")} {tendered} {money(gap, tendered)}{" "}
-              {t("and settle the bill")}
-            </button>
-            <p className="opacity-90">
-              {submitting
-                ? t(
-                    "Nothing to type. The claim keeps what the customer sent and tells Finance the rest is not coming."
-                  )
-                : t(
-                    "Nothing to type. The payment stays exactly what the customer sent, and the rest is written off the bill in the same step."
-                  )}
-            </p>
-          </>
-        )
-      ) : null}
-
-      {/*
-        Rendered only while the gap is on the screen and the desk has armed it.
-        A figure that stops being short must not carry a stale instruction to
-        write off a difference that is no longer there — and the action
-        recomputes the gap from the database before it clears anything, so this
-        can only ever ask, never decide.
-      */}
-      {clearRest ? (
-        <>
-          <input type="hidden" name="clearShortfall" value="1" />
-          {/* The figure on the button, travelling with the tick. The action
-              clears the smaller of this and the gap it finds at write time, so
-              a bill that moved between this page being drawn and Confirm being
-              pressed cannot be written off by more than the desk was shown. In
-              the BILL's own money, which is what gets written. */}
-          <input
-            type="hidden"
-            name="clearShortfallUpTo"
-            value={Math.max(0, gapInBill).toFixed(2)}
-          />
-        </>
+        <button
+          type="button"
+          onClick={() => setClearRest(true)}
+          className="focus-ring ml-auto inline-flex items-center gap-1.5 rounded-md bg-warning px-2.5 py-1 font-semibold text-warning-foreground transition hover:opacity-90"
+        >
+          <Scale className="h-3.5 w-3.5 shrink-0" />
+          {t("Clear it")}
+        </button>
       ) : null}
     </div>
   );

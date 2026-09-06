@@ -685,6 +685,10 @@ export default async function RecordCustomerPaymentPage({
             canDiscount={can(viewer.role, "invoice.discount")}
             canWaiveStorage={can(viewer.role, "invoice.storage.waive")}
             canChangeRate={can(viewer.role, "invoice.rate")}
+            /* Agreeing the last of a single bill is not coming. Support does
+               not hold it and does not need it — her tick rides on the claim
+               for Finance to confirm. */
+            canAdjust={can(viewer.role, "ledger.adjust")}
             canApproveCredit={can(viewer.role, "credit.approve")}
       />
     </div>

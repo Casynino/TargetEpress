@@ -52,6 +52,9 @@ export default async function RecordCollectionPage({
         total: true,
         amountPaid: true,
         amountAdjusted: true,
+        /* What is already off the bill, so the discount dialog opens on the
+           truth rather than overwriting it with a blank. */
+        discount: true,
         currency: true,
         /* The rate FROZEN onto this bill, which is the rate recordPayment will
            settle it at. Quoting today's instead meant the counter asked for a
@@ -232,6 +235,14 @@ export default async function RecordCollectionPage({
                 storageUncharged={storageToAdd}
                 storageFreeDaysLeft={storageFree}
                 canWaiveStorage={can(user.role, "invoice.storage.waive")}
+                /* The bill controls this component already carries and this
+                   page never switched on — so the dedicated Record Payment
+                   screen was the one door where a desk holding invoice.discount
+                   and invoice.rate could use neither. */
+                canDiscount={can(user.role, "invoice.discount")}
+                canChangeRate={can(user.role, "invoice.rate")}
+                invoiceDiscount={toNumber(invoice.discount)}
+                invoiceTotal={toNumber(invoice.total)}
               />
             </>
           ) : invoice.creditStatus === "REQUESTED" ? (
@@ -279,6 +290,14 @@ export default async function RecordCollectionPage({
                   storageUncharged={storageToAdd}
                   storageFreeDaysLeft={storageFree}
                   canWaiveStorage={can(user.role, "invoice.storage.waive")}
+                /* The bill controls this component already carries and this
+                   page never switched on — so the dedicated Record Payment
+                   screen was the one door where a desk holding invoice.discount
+                   and invoice.rate could use neither. */
+                canDiscount={can(user.role, "invoice.discount")}
+                canChangeRate={can(user.role, "invoice.rate")}
+                invoiceDiscount={toNumber(invoice.discount)}
+                invoiceTotal={toNumber(invoice.total)}
                 />
               }
               credit={

@@ -15,6 +15,7 @@ import {
   useIdempotencyKey,
 } from "@/components/app/idempotency-key";
 import { BillActions } from "@/components/app/bill-actions";
+import { PaymentDifference } from "@/components/app/payment-difference";
 import { PaymentProofField } from "@/components/app/payment-proof-field";
 import { TransportSplit } from "@/components/app/transport-split";
 import { useT } from "@/components/app/locale-provider";
@@ -121,6 +122,7 @@ export function CustomerPaymentForm({
   canWaiveStorage,
   canChangeRate,
   canApproveCredit,
+  canAdjust,
 }: {
   /**
    * Whether this desk may say money ARRIVED, or only that a customer says so.
@@ -144,6 +146,10 @@ export function CustomerPaymentForm({
   canChangeRate?: boolean;
   /** Whether pressing credit grants the terms or asks Finance for them. */
   canApproveCredit?: boolean;
+  /** ledger.adjust — may agree that the last of a single bill is not coming.
+      Support does not hold it and does not need to: her tick rides on the
+      claim for Finance to confirm, exactly as it does on the other forms. */
+  canAdjust?: boolean;
 }) {
   const t = useT();
   const [state, action] = useActionState<
@@ -338,6 +344,33 @@ export function CustomerPaymentForm({
   const received = Math.round((forBills + fare) * 100) / 100;
   const left = forBills - allocated;
   const over = left < -0.005;
+
+  /*
+    ONE BILL, ANSWERED SHORT — THE QUESTION THIS SCREEN COULD NOT ASK.
+
+    The notice further down compares the typed total against what was TICKED,
+    which is a different question: it catches "you have put more against bills
+    than the customer sent". It cannot see a bill left short, because the share
+    boxes follow the bill's own balance until somebody lowers one — and when
+    they do, `left` reaches zero and the screen falls silent while the bill
+    stays owing.
+
+    Only for a single ticked bill, which is what recordCustomerPayment honours:
+    across several, "the rest is not coming" does not say whose rest, and the
+    action refuses rather than spread it. The gap is measured in the money
+    being handed over, from the bill's own frozen rate, so the figure on the
+    button is the figure the desk was quoted.
+  */
+  const soleAllocated =
+    soleBill && allocations.length === 1 ? allocations[0]!.amount : null;
+  const soleOwedInPay = soleBill ? inPay(soleBill) : null;
+  const soleGap =
+    soleOwedInPay !== null && soleAllocated !== null
+      ? Math.round((soleOwedInPay - soleAllocated) * 100) / 100
+      : 0;
+  const soleTolerance = payCurrency === LOCAL ? 0.5 : 0.005;
+  const soleShort = soleGap > soleTolerance;
+  const soleOver = soleGap < -soleTolerance;
   /*
     A FARE BIGGER THAN THE CARGO IS ALMOST ALWAYS AN EXTRA NOUGHT.
 
@@ -1113,6 +1146,35 @@ export function CustomerPaymentForm({
                 : "border-warning/40 bg-warning/5"
             }`}
           >
+            {/*
+              THE ONE BILL LEFT SHORT — and the press that closes it.
+
+              Rendered above the total notice because it answers the earlier
+              question: not "does the typed figure match the ticks" but "does
+              this bill go out settled". recordCustomerPayment is already
+              wired for the tick on a single-bill payment; this is the screen
+              catching up with its own server.
+            */}
+            {soleBill && (soleShort || soleOver) ? (
+              <div className="mb-3">
+                <PaymentDifference
+                  gap={soleGap}
+                  paid={soleAllocated ?? 0}
+                  tendered={payCurrency}
+                  billCurrency={soleBill.currency}
+                  gapInBill={
+                    payCurrency === soleBill.currency || !soleBill.exchangeRate
+                      ? soleGap
+                      : payCurrency === LOCAL
+                        ? soleGap / soleBill.exchangeRate
+                        : soleGap * soleBill.exchangeRate
+                  }
+                  canClear={canRecord ? Boolean(canAdjust) : true}
+                  submitting={!canRecord}
+                />
+              </div>
+            ) : null}
+
             {over ? (
               t(
                 "You have put more against bills than the customer sent. Untick a bill, or raise the amount received."

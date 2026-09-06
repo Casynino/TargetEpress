@@ -25,7 +25,6 @@ import { PaymentProofField } from "@/components/app/payment-proof-field";
 import { PaymentDateField } from "@/components/app/payment-date-field";
 import { ChangeRate } from "@/components/app/change-rate";
 import { AddStorage } from "@/components/app/add-storage";
-import { AdjustDifference } from "@/components/app/adjust-difference";
 import { PaymentDifference } from "@/components/app/payment-difference";
 import { GiveDiscount } from "@/components/app/give-discount";
 import { TransportSplit } from "@/components/app/transport-split";
@@ -99,6 +98,17 @@ type Props = {
   /** Free days left when nothing has accrued, so the panel says why. */
   invoiceStorageFreeDays?: number | null;
   canWaiveStorage?: boolean;
+  /**
+   * invoice.edit — what chargeStorageFee actually authorizes.
+   *
+   * Every screen gated Add storage on invoice.storage.waive, which is the
+   * permission for FORGIVING the fee, not for charging it. It is harmless
+   * today because every role holding one holds the other — which is exactly
+   * why it would stay harmless right up until somebody split them, and then a
+   * control would quietly vanish for a desk that may press it, or appear for
+   * one the action refuses.
+   */
+  canChargeStorage?: boolean;
   /** The bill's own total, so the rate dialog can show what it becomes. */
   invoiceTotal?: number;
   /** fx.manage — the same permission the invoice edit demands. */
@@ -1012,52 +1022,35 @@ function PaymentPanel({
             </div>
           ) : null}
           {/*
-            BESIDE THE DISCOUNT, BECAUSE THEY ANSWER DIFFERENT QUESTIONS.
+            NO STANDALONE WRITE-OFF ON THIS PANEL EITHER.
 
-            A discount changes what the customer OWES, before they pay. This
-            closes what is left AFTER they have paid — the 625 that was never
-            coming. Same place on the panel, because it is the same moment: the
-            bill is in front of the desk and it needs to end.
+            The owner's call, and the third time he asked for it. When the desk
+            types less than the bill the notice below offers to clear the rest
+            in the same step, and when they type more it says the bill is
+            settled — between them they answer the whole question, in the place
+            the desk is already looking, with the figure already worked out.
+
+            A second control that writes the balance off on its own only fires
+            correctly when NO money is arriving, which is not what anybody
+            opened a payment panel to do. Offered here it greeted the desk with
+            a warning telling them to use the box above instead.
+
+            The capability is not deleted: adjustDifference still exists and
+            still guards itself with ledger.adjust, and AdjustDifference is one
+            line away from any screen that turns out to need it. Nothing here
+            is lost except a button that was in the way.
           */}
-          {props.canAdjust && props.invoiceId && (props.outstanding ?? 0) > 0.005 ? (
-            <div className="text-xs">
-              <AdjustDifference
-                invoiceId={props.invoiceId}
-                currency={props.currency}
-                balance={props.outstanding ?? 0}
-                total={props.invoiceTotal ?? 0}
-                rate={props.invoiceRate}
-                /* What is typed into the payment box above, restated in the
-                   bill's own money. The dialog asks before writing anything
-                   off while that figure is unsaved — see AdjustDifference. */
-                pendingCargo={
-                  !open || cargoHalf <= 0
-                    ? 0
-                    : currency === props.currency
-                      ? cargoHalf
-                      : rateUsable
-                        ? currency === "TZS"
-                          ? cargoHalf / activeRate
-                          : cargoHalf * activeRate
-                        : 0
-                }
-                money={(v) =>
-                  `${props.currency} ${v.toLocaleString(undefined, {
-                    minimumFractionDigits: props.currency === "TZS" ? 0 : 2,
-                    maximumFractionDigits: props.currency === "TZS" ? 0 : 2,
-                  })}`
-                }
-              />
-            </div>
-          ) : null}
-          {props.canWaiveStorage && props.invoiceId ? (
+          {props.canWaiveStorage || props.canChargeStorage ? (
             <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-              <AddStorage
-                invoiceId={props.invoiceId}
-                amount={props.invoiceStorageUncharged ?? 0}
-                currency={props.currency}
-                rate={props.invoiceRate}
-              />
+              {props.canChargeStorage && props.invoiceId ? (
+                <AddStorage
+                  invoiceId={props.invoiceId}
+                  amount={props.invoiceStorageUncharged ?? 0}
+                  currency={props.currency}
+                  rate={props.invoiceRate}
+                />
+              ) : null}
+              {props.canWaiveStorage && props.invoiceId ? (
               <WaiveStorage
                 invoiceId={props.invoiceId}
                 storage={props.invoiceStorage ?? 0}
@@ -1065,6 +1058,7 @@ function PaymentPanel({
                 currency={props.currency}
                 rate={props.invoiceRate}
               />
+              ) : null}
             </div>
           ) : null}
           {/*

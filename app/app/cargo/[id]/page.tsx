@@ -971,6 +971,9 @@ export default async function ShipmentDetailPage({
             }
             invoiceStorageFreeDays={storageFreeDaysLeft(shipment)}
             canWaiveStorage={can(user.role, "invoice.storage.waive")}
+            /* Charging the accrued days is invoice.edit, which is what the
+               action asks for — not the waiver permission beside it. */
+            canChargeStorage={can(user.role, "invoice.edit")}
             invoiceTotal={shipment.invoice ? toNumber(shipment.invoice.total) : 0}
             canChangeRate={can(user.role, "invoice.rate")}
             /* Credit granted means the cargo may go before the money does —

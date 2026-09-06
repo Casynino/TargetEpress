@@ -1089,6 +1089,21 @@ export async function submitCombinedPayment(
              the rest. */
           transportAmount: new Prisma.Decimal(transport),
           transportSourceId: transportSource?.id ?? null,
+          /*
+            AND WHAT SUPPORT WAS TOLD ABOUT THE GAP.
+
+            The single-bill claim has carried this since the column existed;
+            this one parsed the same field and then dropped it on the floor.
+            So Support could tick "the rest is not coming" on a merged claim,
+            be shown a confirmation saying so, and send Finance a claim that
+            said nothing — the answer lost between the form and the row.
+
+            Verification refuses the tick on a claim covering several bills
+            (it does not say which bill's rest), and the verify screen
+            withholds it there — but a claim raised on the combined form
+            against ONE consignment is the ordinary case, and it works.
+          */
+          clearShortfall: input.clearShortfall,
           currency: input.currency,
           method: methodForKind(account.kind),
           accountId: account.id,
