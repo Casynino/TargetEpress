@@ -15,6 +15,7 @@ import { shipmentQrDataUrl } from "@/lib/qr";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
+import { outstandingOf } from "@/lib/invoice-balance";
 
 export const metadata: Metadata = { title: "Pickup note" };
 
@@ -57,6 +58,7 @@ export default async function PickupNotePage({
                  reversed since it was issued takes the green with it. */
               total: true,
               amountPaid: true,
+              amountAdjusted: true,
             },
           },
         },
@@ -112,9 +114,17 @@ export default async function PickupNotePage({
     across the top and PAID IN FULL in green underneath. The customer reads the
     green.
   */
-  const outstanding =
-    toNumber(note.shipment.invoice?.total ?? 0) -
-    toNumber(note.shipment.invoice?.amountPaid ?? 0);
+  /*
+    THROUGH THE ONE HELPER, BECAUSE THIS CARD GOES TO THE CUSTOMER.
+
+    Subtracting only the money ignores what was written off, so a bill settled
+    at the counter — 36,000 handed over on a 36,450 bill with the last 450
+    cleared — printed PAYMENT NOT RECEIVED on the card sam brings back to
+    collect his cargo. The bill was paid; the note said it was not.
+  */
+  const outstanding = note.shipment.invoice
+    ? outstandingOf(note.shipment.invoice)
+    : 0;
   const moneyIn = note.shipment.invoice !== null && outstanding <= 0.005;
   const settled = note.status !== "CANCELLED" && moneyIn;
 

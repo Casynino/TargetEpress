@@ -1759,6 +1759,86 @@ export async function recordPayment(
         credited = Math.round(credited * 100) / 100;
       }
 
+      // In the invoice's currency, always. `input.amount` is what was handed
+      // over, which may be shillings; the bill is settled by `credited`.
+      const newPaid = paid + credited;
+
+      /*
+        CLEARING THE LAST OF IT WITHOUT LEAVING THE SCREEN.
+
+        A 36,450 bill answered by 36,000 leaves 450 that is not coming. The
+        desk used to record the payment here and then go to the bill's own page
+        to clear the difference — and the half that got forgotten left cargo
+        settled in everybody's head and unreleasable in the system.
+
+        The tick on the form does both in one transaction. WHAT IT DOES NOT DO
+        is change the payment: `credited` is still the money that actually
+        arrived, the receipt still says 36,000, and the ledger still shows
+        36,000. The remainder becomes an InvoiceAdjustment exactly as if it had
+        been cleared on the other screen — no ledger line, because no money
+        moved — and is reversible on its own.
+
+        Bounded by what is left owing after this payment, so the tick can never
+        clear more than the gap it is describing, and ignored outright when
+        there is no gap: a payment that covers the bill needs nothing written
+        off, and one that overpays it certainly does not.
+      */
+      const shortfall = Math.max(
+        0,
+        Math.round((total - newPaid - adjusted) * 100) / 100
+      );
+      /*
+        NEVER MORE THAN THE DESK WAS SHOWN.
+
+        `shortfall` is what the bill is short of NOW; the ceiling is what the
+        screen said when the button was pressed. They differ whenever the bill
+        moved in between — storage accruing overnight is the everyday case, and
+        it would otherwise be written off by a click that never saw it.
+
+        A cent of slack, because the screen converts shillings to the bill's
+        money to draw the figure and the two roundings need not land on the
+        same hundredth. More than a cent apart is a real change, not noise.
+      */
+      const agreed = input.clearShortfallUpTo;
+      const ceiling = agreed === null ? shortfall : agreed + 0.01;
+      const clearing =
+        input.clearShortfall && shortfall > 0.005
+          ? Math.min(shortfall, ceiling)
+          : 0;
+      if (clearing > 0 && !can(user.role, "ledger.adjust")) {
+        throw new Error(
+          "Writing off the difference is Finance's decision. Record what came in, and ask Finance to clear the rest."
+        );
+      }
+      const nextAdjusted = Math.round((adjusted + clearing) * 100) / 100;
+
+      /*
+        THE WRITE-OFF IN THE MONEY THAT ARRIVED — FOR THE ROW, NOT THE BOOKS.
+
+        The bill is written in dollars and stores the write-off there. Saying it
+        on a shilling ledger row by multiplying the stored cents back out gives
+        351 where the desk pressed a button reading 350: the cents were rounded
+        first, and 0.13 × 2,700 is not 350.
+
+        So the gap is measured in shillings from shilling figures — what the
+        bill comes to in the money that arrived, less what arrived — and only
+        the share actually cleared is named. Display only; every stored figure
+        stays in the bill's own currency.
+      */
+      const showRate =
+        tenderedCurrency === invoice.currency ? 1 : rateUsed ?? invoiceRate ?? 1;
+      const gapTendered =
+        tenderedCurrency === invoice.currency
+          ? shortfall
+          : Math.max(0, Math.round(total * showRate) - cargoTendered);
+      const clearedShown =
+        shortfall > 0.005 ? (clearing / shortfall) * gapTendered : 0;
+
+      /* Worked out HERE, above the ledger, because the register has to be able
+         to say what happened. A line reading 36,000 against a bill of 36,450,
+         with nothing anywhere explaining the gap, is the question the owner
+         asked the first time he saw one. */
+
       /*
         OVERPAYMENT IS ACCEPTED, NOT REFUSED.
 
@@ -2024,10 +2104,31 @@ export async function recordPayment(
             the ledger. Saying the split here means the row can be read
             against the screenshot without opening the payment.
           */
+          /*
+            THE ROW HAS TO EXPLAIN ITSELF.
+
+            A ledger line reading TSh 36,000 against a bill of TSh 36,450, with
+            nothing anywhere saying where the 450 went, is the first question
+            anybody asks — and the register was silent. It cannot answer with a
+            second money line, because no money moved; it answers in words, on
+            the row somebody is already reading, exactly as the transport split
+            already does.
+
+            The write-off is stated in the money that ARRIVED, because that is
+            the money on this row and on the customer's message. A large one
+            says so, so it can be found by eye without opening the audit log.
+          */
           description:
             `${receipt.receiptNumber} — ${invoice.invoiceNumber} for ${invoice.shipment.trackingNumber}` +
             (transport > 0
               ? ` (${cargoTendered.toLocaleString()} cargo + ${transport.toLocaleString()} transport)`
+              : "") +
+            (clearing > 0
+              ? ` · ${tenderedCurrency} ${Math.round(clearedShown).toLocaleString()} written off the bill${
+                  isLargeAdjustment(clearing, total, invoice.currency)
+                    ? " — LARGE WRITE-OFF"
+                    : ""
+                }`
               : ""),
           sourceEntity: "Payment",
           sourceId: payment.id,
@@ -2078,58 +2179,6 @@ export async function recordPayment(
         });
       }
 
-      // In the invoice's currency, always. `input.amount` is what was handed
-      // over, which may be shillings; the bill is settled by `credited`.
-      const newPaid = paid + credited;
-
-      /*
-        CLEARING THE LAST OF IT WITHOUT LEAVING THE SCREEN.
-
-        A 36,450 bill answered by 36,000 leaves 450 that is not coming. The
-        desk used to record the payment here and then go to the bill's own page
-        to clear the difference — and the half that got forgotten left cargo
-        settled in everybody's head and unreleasable in the system.
-
-        The tick on the form does both in one transaction. WHAT IT DOES NOT DO
-        is change the payment: `credited` is still the money that actually
-        arrived, the receipt still says 36,000, and the ledger still shows
-        36,000. The remainder becomes an InvoiceAdjustment exactly as if it had
-        been cleared on the other screen — no ledger line, because no money
-        moved — and is reversible on its own.
-
-        Bounded by what is left owing after this payment, so the tick can never
-        clear more than the gap it is describing, and ignored outright when
-        there is no gap: a payment that covers the bill needs nothing written
-        off, and one that overpays it certainly does not.
-      */
-      const shortfall = Math.max(
-        0,
-        Math.round((total - newPaid - adjusted) * 100) / 100
-      );
-      /*
-        NEVER MORE THAN THE DESK WAS SHOWN.
-
-        `shortfall` is what the bill is short of NOW; the ceiling is what the
-        screen said when the button was pressed. They differ whenever the bill
-        moved in between — storage accruing overnight is the everyday case, and
-        it would otherwise be written off by a click that never saw it.
-
-        A cent of slack, because the screen converts shillings to the bill's
-        money to draw the figure and the two roundings need not land on the
-        same hundredth. More than a cent apart is a real change, not noise.
-      */
-      const agreed = input.clearShortfallUpTo;
-      const ceiling = agreed === null ? shortfall : agreed + 0.01;
-      const clearing =
-        input.clearShortfall && shortfall > 0.005
-          ? Math.min(shortfall, ceiling)
-          : 0;
-      if (clearing > 0 && !can(user.role, "ledger.adjust")) {
-        throw new Error(
-          "Writing off the difference is Finance's decision. Record what came in, and ask Finance to clear the rest."
-        );
-      }
-      const nextAdjusted = Math.round((adjusted + clearing) * 100) / 100;
 
       /*
         THE WRITE-OFF ALREADY ON THE BILL COUNTS TOWARDS SETTLING IT.

@@ -61,7 +61,7 @@ const invoice = await prisma.invoice.findFirst({
 });
 const rate = Number(invoice.exchangeRate);
 const billTsh = Math.round(Number(invoice.total) * rate);
-const SHORT = 350;
+const SHORT = Number(process.env.SHORT ?? 350);
 const paying = billTsh - SHORT;
 
 console.log(`${invoice.shipment.trackingNumber} / ${invoice.invoiceNumber}`);
@@ -97,7 +97,7 @@ await wait(6000);
 const afterPay = await prisma.invoice.findUnique({
   where: { id: invoice.id },
   select: { status: true, total: true, amountPaid: true, amountAdjusted: true,
-    payments: { orderBy: { paidAt: "desc" }, take: 1, select: { id: true, amount: true } },
+    payments: { where: { voidedAt: null }, orderBy: { createdAt: "desc" }, take: 1, select: { id: true, amount: true } },
     adjustments: { select: { id: true, amount: true, paymentId: true, reversedAt: true } },
     shipment: { select: { pickupNote: { select: { noteNumber: true, status: true } } } } },
 });
