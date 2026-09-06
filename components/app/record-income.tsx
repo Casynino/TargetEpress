@@ -178,15 +178,6 @@ export function RecordIncome({
   const [transportSourceId, setTransportSourceId] = useState("");
   /* The desk looked at a fare bigger than the cargo and said it was right. */
   const [fareConfirmed, setFareConfirmed] = useState(false);
-  /*
-    THE OTHER QUESTION THIS LIST IS ASKED.
-
-    The flight chips answer "which aircraft"; this answers "has somebody
-    already paid". Two different reasons to open this panel — banking a
-    payment that has just come in, and clearing the claims Support sent up —
-    and only the first had a way to narrow the list.
-  */
-  const [onlyClaimed, setOnlyClaimed] = useState(false);
   const [loadingQueue, startQueue] = useTransition();
   /*
     The currency the money actually arrived in, which is not always the
@@ -269,10 +260,27 @@ export function RecordIncome({
   */
   const searchTerm = query.trim();
   const found = searchTerm.length >= 2 ? hits : queue;
-  const shown = onlyClaimed ? found.filter((b) => b.claimed) : found;
-  /* Counted off the whole list, not the filtered one, or the chip would
-     always read the number it is about to show. */
-  const claimedCount = found.filter((b) => b.claimed).length;
+  /*
+    THE LIST IS WHAT NEEDS RECORDING, AND NOTHING ELSE.
+
+    A bill with a claim already waiting on Finance is not work for this screen:
+    the money has been reported, the next act is verifying it, and that happens
+    on the verify queue. Offered here it was a row the desk could open, fill in
+    and be refused at the last step — recordPayment stops a payment on a bill
+    that already carries a claim — and, worse, a row that made the list look
+    longer than the job actually is.
+
+    So the browse list is the bills waiting for somebody to record money, and
+    when there are none it is empty. That emptiness is the answer, not a
+    failure: nothing here needs doing.
+
+    SEARCH STILL FINDS THEM. Somebody typing a tracking number wants to know
+    what happened to it far more than they want a blank screen leaving them to
+    wonder whether they mistyped — so a searched bill is returned and wears its
+    badge, exactly as a settled one does.
+  */
+  const shown =
+    searchTerm.length >= 2 ? found : found.filter((b) => !b.claimed);
   const busy = searchTerm.length >= 2 ? searching : loadingQueue;
 
   /*
@@ -501,9 +509,11 @@ export function RecordIncome({
               works one arrival at a time — a plane lands and its customers are
               rung through in a sitting — so the list opens grouped the way the
               money actually comes in. */}
-          {/* Shown while browsing rather than searching. Either axis is enough
-              to be worth a row: a flight to narrow to, or claims to clear. */}
-          {searchTerm.length < 2 && (batches.length > 0 || claimedCount > 0) ? (
+          {/* Shown while browsing rather than searching. One axis now: which
+              flight. The claims chip went with the claims — this list is what
+              needs recording, and a filter for rows it no longer holds is a
+              filter for nothing. */}
+          {searchTerm.length < 2 && batches.length > 0 ? (
             <div className="mt-3 flex flex-wrap gap-1.5">
               <button
                 type="button"
@@ -512,23 +522,6 @@ export function RecordIncome({
               >
                 {t("Everyone who owes")}
               </button>
-              {/* Yellow, and only when there is something in it — the same
-                  colour a claim wears on every other screen. */}
-              {claimedCount > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => setOnlyClaimed((v) => !v)}
-                  className={
-                    onlyClaimed
-                      ? "focus-ring rounded-full border border-warning bg-warning px-2.5 py-1 text-xs font-semibold text-warning-foreground"
-                      : "focus-ring rounded-full border border-warning/40 bg-warning/10 px-2.5 py-1 text-xs font-semibold text-warning hover:bg-warning/20"
-                  }
-                >
-                  {t("Payment to verify")}
-                  <span className="ml-1.5 opacity-50">·</span>
-                  <span className="ml-1 opacity-80">{claimedCount}</span>
-                </button>
-              ) : null}
               {batches.map((b) => (
                 <button
                   key={b.id}
@@ -554,9 +547,14 @@ export function RecordIncome({
               </li>
             ) : shown.length === 0 ? (
               <li className="px-4 py-3 text-sm text-muted-foreground">
+                {/* An empty list is the answer, not a failure: every bill
+                    on this flight either has its money in or has a claim
+                    waiting on Finance, and neither is work for this screen. */}
                 {searchTerm.length >= 2
                   ? t("Nothing matches that. Try the tracking number.")
-                  : t("Nobody owes anything on this one.")}
+                  : batchId
+                    ? t("Nothing on this flight is waiting to be recorded.")
+                    : t("Nothing is waiting to be recorded.")}
               </li>
             ) : (
               shown.map((hit) => {
