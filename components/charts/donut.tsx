@@ -62,8 +62,15 @@ export function Donut({
   slices: DonutSlice[];
   size?: number;
   stroke?: number;
-  /** The figure in the middle. Usually the total. */
-  label: string;
+  /**
+     The figure in the middle. Usually the total.
+
+     Optional, because it does not always belong there: on a card where the
+     total is the headline, printing it inside the ring competes with the ring
+     for the same glance and crowds a small donut. Left out, nothing is drawn
+     in the hole and the caller places the figure where it reads better.
+  */
+  label?: string;
   /** Small text under it. */
   caption?: string;
   className?: string;
@@ -95,7 +102,7 @@ export function Donut({
         height={size}
         viewBox={`0 0 ${size} ${size}`}
         role="img"
-        aria-label={`${label}. ${slices
+        aria-label={`${label ? label + ". " : ""}${slices
           .filter((s) => s.value > 0)
           .map((s) => `${s.label}: ${s.value}`)
           .join(", ")}`}
@@ -126,16 +133,18 @@ export function Donut({
         </g>
       </svg>
 
-      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="font-display text-2xl font-bold leading-none tabular">
-          {label}
-        </span>
-        {caption ? (
-          <span className="mt-1 max-w-[70%] text-xs leading-tight text-muted-foreground">
-            {caption}
+      {label ? (
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+          <span className="font-display text-2xl font-bold leading-none tabular">
+            {label}
           </span>
-        ) : null}
-      </div>
+          {caption ? (
+            <span className="mt-1 max-w-[70%] text-xs leading-tight text-muted-foreground">
+              {caption}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

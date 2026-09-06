@@ -2285,14 +2285,22 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
 
             {cashUsd > 0 ? (
               <>
-                <div className="mt-3 flex justify-center">
-                  <Donut
-                    size={118}
-                    stroke={18}
-                    label={tsh(cashUsd).replace("TSh ", "")}
-                    caption={t(locale, "TSh in hand")}
-                    slices={cashSlices}
-                  />
+                {/* The figure sits beside the ring, not inside it. In the hole
+                    it fought the ring for the same glance and, at this size,
+                    a seven-digit shilling total crowded the middle until the
+                    slices were the smaller thing on a chart about slices. Out
+                    here it reads as the headline it is and the ring stays a
+                    shape. */}
+                <div className="mt-3 flex items-center gap-4">
+                  <Donut size={104} stroke={16} slices={cashSlices} />
+                  <div className="min-w-0">
+                    <p className="font-display text-2xl font-bold leading-none tabular-nums">
+                      {tsh(cashUsd).replace("TSh ", "")}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t(locale, "TSh in hand")}
+                    </p>
+                  </div>
                 </div>
                 <ul className="mt-3 space-y-1.5">
                   {cashSlices.map((slice, i) => (
