@@ -21,6 +21,11 @@ import {
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useLocale, useT } from "@/components/app/locale-provider";
 import { PhotoCapture } from "@/components/app/photo-capture";
+import {
+  gapOf,
+  WEIGH_BOX,
+  WeighFigures,
+} from "@/components/app/weigh-figures";
 import { ReceivingOutcomePanel } from "@/components/app/receiving-outcome-panel";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -960,70 +965,6 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
  *
  * Weigh · count · type · OK.
  */
-/*
-  Said the same way for both figures: the China record, what Dar found, and
-  the gap with its sign — so nobody has to work out which way it went.
-
-  DECLARED OUT HERE, AND IT HAS TO STAY OUT HERE.
-
-  Inside VerifyPanel this was a fresh function on every keystroke, so React
-  saw a different component each render, threw the subtree away and built it
-  again — carrying off the focused input with it. The desk got one digit per
-  click: type 9, land outside the box, click back in, type the next.
-*/
-function Figures({
-  label,
-  was,
-  unit,
-  delta,
-  moved,
-  children,
-}: {
-  label: string;
-  was: string;
-  unit: string;
-  delta: number;
-  moved: boolean;
-  children: React.ReactNode;
-}) {
-  const t = useT();
-  return (
-    <div className="grid grid-cols-3 items-end gap-3">
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-          {t("China")} {t(label)}
-        </p>
-        <p className="mt-1 font-display text-xl font-bold tabular-nums text-muted-foreground">
-          {was} <span className="text-sm font-medium">{t(unit)}</span>
-        </p>
-      </div>
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-brand">
-          {t("Dar")} {t(label)}
-        </p>
-        <div className="mt-1 flex items-baseline gap-1">
-          {children}
-          <span className="text-sm font-medium text-muted-foreground">
-            {t(unit)}
-          </span>
-        </div>
-      </div>
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-          {t("Difference")}
-        </p>
-        <p
-          className={`mt-1 font-display text-xl font-bold tabular-nums ${
-            moved ? "text-warning" : "text-muted-foreground"
-          }`}
-        >
-          {moved ? `${delta > 0 ? "+" : "−"}${Math.abs(delta)}` : "0"}{" "}
-          <span className="text-sm font-medium">{t(unit)}</span>
-        </p>
-      </div>
-    </div>
-  );
-}
 
 function VerifyPanel({
   batchId,
@@ -1051,16 +992,13 @@ function VerifyPanel({
 
   const nowKg = Number(kg);
   const kgValid = Number.isFinite(nowKg) && nowKg > 0;
-  const kgDelta = kgValid ? Math.round((nowKg - weightKg) * 100) / 100 : 0;
+  const kgDelta = kgValid ? gapOf(nowKg, weightKg) : 0;
   const kgMoved = kgValid && Math.abs(kgDelta) > 0.005;
 
   const nowCount = Number(count);
   const countValid = Number.isInteger(nowCount) && nowCount > 0;
   const countDelta = countValid ? nowCount - packages : 0;
   const countMoved = countValid && countDelta !== 0;
-
-  const box =
-    "focus-ring w-24 rounded-md border bg-background px-2 py-1 font-display text-xl font-bold tabular-nums outline-none";
 
   return (
     <form action={action} className="space-y-4 rounded-lg border bg-card p-4">
@@ -1075,7 +1013,7 @@ function VerifyPanel({
         <p className="font-mono text-xs text-muted-foreground">{trackingNumber}</p>
       </div>
 
-      <Figures label="weight" was={String(weightKg)} unit="kg" delta={kgDelta} moved={kgMoved}>
+      <WeighFigures label="weight" was={String(weightKg)} unit="kg" delta={kgDelta} moved={kgMoved}>
         <input
           name="weightKg"
           type="number"
@@ -1084,12 +1022,12 @@ function VerifyPanel({
           inputMode="decimal"
           value={kg}
           onChange={(event) => setKg(event.target.value)}
-          className={box}
+          className={WEIGH_BOX}
           aria-label={t("Weight in Dar")}
         />
-      </Figures>
+      </WeighFigures>
 
-      <Figures
+      <WeighFigures
         label="boxes"
         was={String(packages)}
         unit="boxes"
@@ -1104,10 +1042,10 @@ function VerifyPanel({
           inputMode="numeric"
           value={count}
           onChange={(event) => setCount(event.target.value)}
-          className={box}
+          className={WEIGH_BOX}
           aria-label={t("Boxes counted in Dar")}
         />
-      </Figures>
+      </WeighFigures>
 
       {/* Fewer boxes is a shortage, and the release counter has to know which
           cartons are actually on the floor — so the ones above the count are

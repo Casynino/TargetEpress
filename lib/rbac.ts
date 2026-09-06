@@ -423,6 +423,20 @@ const DAR: Permission[] = [
   "batch.view",
   "batch.receive",
   "batch.verify",
+  /*
+    THE FLIGHT THAT WAS NEVER HERE.
+
+    Marking a batch in is one press, and the wrong flight is one row away in
+    the list. The desk that made the mistake is the desk standing in front of
+    the manifest that proves it, and waiting on management to unwind it leaves
+    a storage clock running against customers whose cargo is still in the air.
+
+    Far narrower than it reads. undoBatchArrival refuses a flight with money
+    against it, with cargo already collected, with a standing pickup note or
+    with its books closed, so what this can undo is a check-in nobody has acted
+    on yet — which is exactly the mistake it exists for.
+  */
+  "batch.undoArrival",
   "exception.view",
   "exception.raise",
   "exception.resolve",

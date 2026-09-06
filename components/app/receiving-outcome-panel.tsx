@@ -19,6 +19,11 @@ import type { LucideIcon } from "lucide-react";
 import { SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
 import { PhotoCapture } from "@/components/app/photo-capture";
+import {
+  gapOf,
+  WEIGH_BOX,
+  WeighFigures,
+} from "@/components/app/weigh-figures";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
@@ -122,6 +127,15 @@ export function ReceivingOutcomePanel({
      when there are more cartons than the manifest knows about. */
   const [arrived, setArrived] = useState(packageList.length + 1);
 
+  /* The scale, on this path too. Held in state rather than left uncontrolled so
+     the difference beside it moves as the figure is typed — the same block the
+     tick path shows, because it is the same question. */
+  const [kg, setKg] = useState(String(weightKg));
+  const nowKg = Number(kg);
+  const kgValid = Number.isFinite(nowKg) && nowKg > 0;
+  const kgDelta = kgValid ? gapOf(nowKg, weightKg) : 0;
+  const kgMoved = kgValid && Math.abs(kgDelta) > 0.005;
+
   // A short count on a multi-box shipment that is not actually short is not a
   // short count. Naming which boxes is the entire content of the report.
   const blocked = ticker && manyBoxes && missingCount === 0;
@@ -180,23 +194,30 @@ export function ReceivingOutcomePanel({
 
           {/* A damaged carton is still weighed, and a wrong item is still
               weighed. The scale reading belongs to the check-in, not to the
-              fault — so it is offered on this path too and, exactly as on the
-              tick, changes nothing unless somebody types over it. */}
-          <label className="flex items-center justify-between gap-2 rounded-md border px-2.5 py-2 text-xs">
-            <span className="font-medium">{t("Weight in Dar")}</span>
-            <span className="inline-flex items-center gap-1">
+              fault — so it is offered on this path too, said in the same three
+              figures as the tick path, and changes nothing unless somebody
+              types over it. */}
+          <div className="rounded-md border bg-card p-3">
+            <WeighFigures
+              label="weight"
+              was={String(weightKg)}
+              unit="kg"
+              delta={kgDelta}
+              moved={kgMoved}
+            >
               <input
                 name="weightKg"
                 type="number"
                 step="0.01"
                 min="0"
                 inputMode="decimal"
-                defaultValue={weightKg}
-                className="focus-ring w-20 rounded border bg-card px-2 py-1 text-right tabular-nums outline-none"
+                value={kg}
+                onChange={(event) => setKg(event.target.value)}
+                className={WEIGH_BOX}
+                aria-label={t("Weight in Dar")}
               />
-              <span className="text-muted-foreground">{t("kg")}</span>
-            </span>
-          </label>
+            </WeighFigures>
+          </div>
 
           <p className="text-xs text-muted-foreground">
             {t(RECEIVING_OUTCOME_HINTS[outcome])}
