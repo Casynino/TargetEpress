@@ -42,7 +42,7 @@ export function VerifySubmission({
   billCurrency = "USD",
   billRate = null,
   clearShortfallClaimed = false,
-  canClearHere = true,
+  clearsOn = null,
 }: {
   submissionId: string;
   accounts: { id: string; name: string; currency: string }[];
@@ -73,14 +73,17 @@ export function VerifySubmission({
   /** Support ticked "the rest is not coming" when they raised it. */
   clearShortfallClaimed?: boolean;
   /**
-   * False on a claim covering several bills.
+   * The bill the write-off lands on, when this claim covers several.
    *
    * "The rest is not coming" does not say WHICH bill's rest when one transfer
-   * answers four, and the counter action refuses it there rather than invent a
-   * rule for spreading it. The gap is still stated; only the tick is withheld,
-   * with the reason said out loud so the desk is not left wondering.
+   * answers four — so the tick used to be withheld here and the desk sent to
+   * the bill's own page to do by hand what the tick exists to do. Support's
+   * screen already decides it (the largest of the ticked bills), and naming it
+   * here is what lets Finance simply confirm.
+   *
+   * Null on a single-bill claim, where there is nothing to name.
    */
-  canClearHere?: boolean;
+  clearsOn?: string | null;
 }) {
   const [mode, setMode] = useState<"idle" | "verify" | "reject">("idle");
   /*
@@ -178,19 +181,7 @@ export function VerifySubmission({
           is the BILL that closes, by an adjustment that moves no money and has
           its own reversible row.
         */}
-        {shortfall > 0.005 && !canClearHere ? (
-          <p className="rounded-md border border-warning/30 bg-warning/10 px-2.5 py-2 text-[11px] leading-relaxed text-warning">
-            <span className="font-semibold">
-              This leaves {gapShown} owing on the bill it is anchored to.
-            </span>
-            <span className="mt-0.5 block opacity-90">
-              This claim covers several bills, so it cannot say which one the
-              rest is not coming on. Verify it here and write the difference off
-              on the bill&rsquo;s own page.
-            </span>
-          </p>
-        ) : null}
-        {shortfall > 0.005 && canClearHere ? (
+        {shortfall > 0.005 ? (
           <label className="flex cursor-pointer items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-2.5 py-2 text-[11px] leading-relaxed text-warning">
             <input
               type="checkbox"
@@ -209,12 +200,20 @@ export function VerifySubmission({
                 The payment records what came in; the difference is written off
                 and moves no money.
               </span>
+              {/* Only when one transfer answers several bills, because then
+                  "the bill" is a question. Named so the desk confirms a
+                  decision rather than a shrug. */}
+              {clearsOn ? (
+                <span className="mt-0.5 block font-medium opacity-90">
+                  Taken off {clearsOn} — the largest of the bills it covers.
+                </span>
+              ) : null}
             </span>
           </label>
         ) : null}
         {/* Stated either way, so an untick here is a NO rather than a silence
             the action would read as Support's yes. */}
-        {shortfall > 0.005 && canClearHere ? (
+        {shortfall > 0.005 ? (
           <>
             <input
               type="hidden"

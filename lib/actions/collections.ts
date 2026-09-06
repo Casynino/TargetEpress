@@ -572,6 +572,7 @@ export async function verifyPaymentSubmission(
       /* Support's answer to the shortfall. Finance's own tick on this screen
          overrides it — see the handover below. */
       clearShortfall: true,
+      clearShortfallInvoiceId: true,
       reference: true,
       note: true,
       proofs: { select: { id: true } },
@@ -717,26 +718,43 @@ export async function verifyPaymentSubmission(
       ? submission.clearShortfall
       : String(shortfallSaid) === "1";
   /*
-    A WRITE-OFF ACROSS SEVERAL BILLS SAYS NOTHING.
+    A WRITE-OFF ACROSS SEVERAL BILLS HAS TO NAME ONE.
 
     "The rest is not coming" is an answer about one bill. On a claim covering
-    four, it does not say which one, and recordCustomerPayment refuses to
-    invent a rule for spreading it — so it would be silently dropped, after the
-    desk had been told the bill would be settled. Refused here instead, with
-    the door that does work named.
+    four it does not say which, so this was refused outright — after Support
+    had been shown a confirmation saying the bills would go out settled, and
+    with the manual door named as the remedy.
 
-    The verify screen already withholds the tick on these, so this is the
-    backstop for a claim ticked by Support and then merged, and for the action
-    being a public endpoint.
+    The claim now carries the answer its own screen made: the largest of the
+    ticked bills. A claim raised before that column existed carries nothing,
+    and the same rule is applied here to the allocations Finance is looking at
+    — the two agree because they are the same rule on the same figures.
+
+    Checked against the allocations either way, because a named bill that is
+    not in this claim would put a write-off somewhere nobody agreed to, and
+    this action is a public endpoint.
   */
+  let clearOn: string | null = null;
   if (clearRest && submission.allocations.length > 1) {
-    return fail(
-      `${submission.submissionNumber} covers ${submission.allocations.length} bills, so "the rest is not coming" does not say which one. Verify it, then write the difference off on the bill's own page.`
-    );
+    const named = submission.clearShortfallInvoiceId;
+    const inClaim = named
+      ? submission.allocations.some((a) => a.invoiceId === named)
+      : false;
+    clearOn = inClaim
+      ? named
+      : (submission.allocations.reduce((biggest, a) =>
+          toNumber(a.amount) > toNumber(biggest.amount) ? a : biggest
+        ).invoiceId ?? null);
+    if (!clearOn) {
+      return fail(
+        `${submission.submissionNumber} says the rest is not coming but names no bill it comes off. Verify it, then write the difference off on the bill's own page.`
+      );
+    }
   }
 
   if (clearRest) {
     handover.set("clearShortfall", "1");
+    if (clearOn) handover.set("clearShortfallInvoiceId", clearOn);
     /* The ceiling the verify screen printed, carried through so the counter
        action cannot write off more than Finance was shown. Absent when the
        claim is verified from a door that states no figure, and then
@@ -1098,12 +1116,15 @@ export async function submitCombinedPayment(
             be shown a confirmation saying so, and send Finance a claim that
             said nothing — the answer lost between the form and the row.
 
-            Verification refuses the tick on a claim covering several bills
-            (it does not say which bill's rest), and the verify screen
-            withholds it there — but a claim raised on the combined form
-            against ONE consignment is the ordinary case, and it works.
+            The tick alone does not say which bill's rest, so the screen's
+            answer travels with it: the largest of the ticked bills, named on
+            the row so what Finance confirms is what Support was shown.
           */
           clearShortfall: input.clearShortfall,
+          clearShortfallInvoiceId:
+            input.clearShortfall && input.clearShortfallInvoiceId
+              ? input.clearShortfallInvoiceId
+              : null,
           currency: input.currency,
           method: methodForKind(account.kind),
           accountId: account.id,

@@ -48,6 +48,7 @@ import { activeAccounts } from "@/lib/accounts";
 import { t } from "@/lib/i18n";
 import { composeMessage, whatsappLink } from "@/lib/messages";
 import { freightBasisOf } from "@/lib/support";
+import { shortfallBill } from "@/lib/collections";
 import { prisma } from "@/lib/prisma";
 import { shipmentQrDataUrl } from "@/lib/qr";
 import { can, canAmendCargo } from "@/lib/rbac";
@@ -118,9 +119,18 @@ export default async function ShipmentDetailPage({
               /* Where Support expects the fare to be paid from, so the panel
                  can offer it back to Finance already chosen. */
               transportSource: { select: { id: true, name: true } },
-              /* How many bills the claim covers — a write-off across several
-                 says nothing about which one, so the tick is withheld. */
+              /* Which bills the claim covers. A write-off across several has
+                 to name one, and the panel says which — see shortfallBill. */
               _count: { select: { allocations: true } },
+              allocations: {
+                select: {
+                  invoiceId: true,
+                  amount: true,
+                  invoice: {
+                    select: { shipment: { select: { trackingNumber: true } } },
+                  },
+                },
+              },
               proofs: { select: { id: true } },
             },
           },
@@ -225,7 +235,11 @@ export default async function ShipmentDetailPage({
         /* What Support was told about the gap, so the verify panel opens with
            their answer rather than making Finance work it out again. */
         clearShortfall: s.clearShortfall,
-        coversSeveralBills: s._count.allocations > 1,
+        /* Which bill the write-off lands on, when this one transfer answers
+           several. Null on the ordinary single-bill claim. */
+        clearsOn:
+          shortfallBill(s.allocations, s.clearShortfallInvoiceId)?.invoice
+            .shipment?.trackingNumber ?? null,
       }))
     : [];
   // Only for the desk that can take money. Nobody else is offered a question

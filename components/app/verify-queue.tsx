@@ -12,7 +12,7 @@ import {
 } from "@/components/app/bulk-select";
 import { verifySubmissions } from "@/lib/actions/submission-bulk";
 import { activeAccounts } from "@/lib/accounts";
-import { submissionQueue } from "@/lib/collections";
+import { shortfallBill, submissionQueue } from "@/lib/collections";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { outstandingOf } from "@/lib/invoice-balance";
 import { currentRateValue, formatLocal, formatUsd } from "@/lib/fx";
@@ -156,8 +156,26 @@ export async function VerifyQueue() {
           ) : null}
           <ul className="divide-y">
             {rows.map((row) => {
+              /*
+                WHAT THIS CLAIM LEAVES OWING — ACROSS EVERY BILL IT COVERS.
+
+                Read off the anchor alone, one transfer answering two
+                consignments looked like a large overpayment on the first: the
+                gap came out at zero, so the panel never offered to clear it
+                and Support's tick was honoured silently, without Finance ever
+                being shown the decision they were signing.
+
+                Every covered bill shares a currency — the form that raises
+                these filters by it — so the sum is a real figure in the
+                anchor's money.
+              */
               const outstanding =
-                outstandingOf(row.invoice);
+                row.allocations.length > 1
+                  ? row.allocations.reduce(
+                      (sum, a) => sum + outstandingOf(a.invoice),
+                      0
+                    )
+                  : outstandingOf(row.invoice);
               const claimed = toNumber(row.amount);
               /* The part of the claim that was the delivery, not the cargo.
                  Support writes it down at the counter because the customer is
@@ -400,10 +418,15 @@ export async function VerifyQueue() {
                         billCurrency={row.invoice.currency}
                         billRate={billRate}
                         clearShortfallClaimed={row.clearShortfall}
-                        /* One bill, or the claim's anchor with nothing
-                           allocated. Across several, the tick is withheld and
-                           the reason said on the panel. */
-                        canClearHere={(row._count?.allocations ?? 0) <= 1}
+                        /* Named only when one transfer answers several bills.
+                           On a single-bill claim there is no question, and the
+                           panel says nothing. */
+                        clearsOn={
+                          shortfallBill(
+                            row.allocations,
+                            row.clearShortfallInvoiceId
+                          )?.invoice.shipment?.trackingNumber ?? null
+                        }
                         /* Cash or the Lipa number, in the currency the money
                            came in. A driver is not paid out of a bank account,
                            and an account cannot give up money it is not

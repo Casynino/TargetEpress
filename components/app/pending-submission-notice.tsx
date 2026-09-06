@@ -27,7 +27,7 @@ export type PendingSubmission = {
   /** Support ticked "the rest is not coming" when they raised it. */
   clearShortfall?: boolean;
   /** One transfer against several bills — the tick is withheld there. */
-  coversSeveralBills?: boolean;
+  clearsOn?: string | null;
 };
 
 /**
@@ -177,7 +177,7 @@ export async function PendingSubmissionNotice({
                   billCurrency={billCurrency}
                   billRate={billRate}
                   clearShortfallClaimed={Boolean(s.clearShortfall)}
-                  canClearHere={!s.coversSeveralBills}
+                  clearsOn={s.clearsOn ?? null}
                 />
               </div>
             ) : null}

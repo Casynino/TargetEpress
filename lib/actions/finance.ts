@@ -4133,10 +4133,30 @@ export async function recordCustomerPayment(
         offer the tick on a multi-bill claim for the same reason, and
         verifyPaymentSubmission refuses it there.
       */
-      const clearOne =
-        input.clearShortfall && input.allocations.length === 1
-          ? input.allocations[0]!.invoiceId
-          : null;
+      /*
+        THE BILL THE SHORTFALL WAS TAKEN OFF.
+
+        One allocation needs no naming — there is only one answer. Across
+        several the screen says which, having reduced that bill's own share by
+        exactly the gap, so the allocations still sum to the money that
+        arrived and the write-off covers the rest of that one bill.
+
+        A named bill that is not among the allocations is refused rather than
+        ignored: it would mean the screen and the server disagree about what
+        this payment is, and the safe reading of that is neither.
+      */
+      const named = input.clearShortfallInvoiceId?.trim() || null;
+      if (named && !input.allocations.some((a) => a.invoiceId === named)) {
+        throw new Error(
+          "The bill the difference was to be cleared on is not among the ones this payment answers. Reload and try again."
+        );
+      }
+      const clearOne = !input.clearShortfall
+        ? null
+        : named ??
+          (input.allocations.length === 1
+            ? input.allocations[0]!.invoiceId
+            : null);
       if (clearOne && !can(user.role, "ledger.adjust")) {
         throw new Error(
           "Writing off the difference is Finance's decision. Record what came in, and ask Finance to clear the rest."

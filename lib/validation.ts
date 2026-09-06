@@ -274,6 +274,20 @@ export const customerPaymentSchema = z.object({
       (v) => v === null || (Number.isFinite(v) && v >= 0),
       "That write-off ceiling is not a number."
     ),
+  /*
+    WHICH BILL'S REST IS NOT COMING.
+
+    One transfer answering four consignments is short by 50 shillings, and the
+    50 has to land somewhere: "the rest is not coming" is an answer about ONE
+    bill, and spreading it across four would invent a decision nobody made and
+    leave four tiny write-offs where the desk agreed one.
+
+    So the screen names the bill it took the shortfall off — the largest of the
+    ticked ones, whose allocation it reduced by exactly that much — and the
+    action clears that bill's residue and no other. Absent on a single-bill
+    payment, where there is nothing to name.
+  */
+  clearShortfallInvoiceId: z.string().trim().optional(),
   currency: z.enum(["USD", "TZS"]),
   reference: z.string().trim().max(120).optional(),
   note: z.string().trim().max(500).optional(),

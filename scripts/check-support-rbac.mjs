@@ -39,6 +39,16 @@ const MUST_NOT = {
   "Change the rate book": "pricing.manage",
   "Publish exchange rates": "fx.manage",
   "Manage staff accounts": "user.manage",
+  /*
+    MOVED HERE FROM THE "CAN" LIST.
+
+    The spec this file was written against gave Support discounts, on the
+    reasoning that whoever agrees a price agrees the reduction. The owner drew
+    the line differently afterwards: giving money away is Finance's and the
+    manager's, and Support asks rather than decides. lib/rbac.ts says so in
+    full; this list is the gate that keeps it said.
+  */
+  "Apply discounts": "invoice.discount",
 };
 
 /** Straight from the spec's "Customer Support CAN" list. */
@@ -49,7 +59,10 @@ const MUST_HAVE = {
   "View pricing": "finance.view",
   "Generate invoices": "invoice.manage",
   "Edit invoices before payment": "invoice.edit",
-  "Apply discounts": "invoice.discount",
+  /* What this desk keeps instead of the discount: the rate on one bill, and
+     forgiving the storage clock. Both bounded, both audited. */
+  "Agree the rate on one bill": "invoice.rate",
+  "Waive storage": "invoice.storage.waive",
   "Send invoices": "invoice.send",
   "Manage support tickets": "ticket.manage",
   "Manage sourcing requests": "sourcing.manage",

@@ -114,6 +114,39 @@ export const REJECTED_NEEDING_A_CALL: Prisma.PaymentSubmissionWhereInput = {
 };
 
 /** One queue, filtered by where a claim has got to. */
+/**
+ * WHICH BILL A MERGED CLAIM'S SHORTFALL COMES OFF.
+ *
+ * Support's screen decides this when the claim is raised — the largest of the
+ * ticked bills, because a rounding belongs on the figure it is smallest
+ * against — and stores the answer on the row. A claim raised before that
+ * column existed stores nothing, and the same rule applied to the same
+ * allocations gives the same answer.
+ *
+ * Named here so the verify panel and verifyPaymentSubmission cannot disagree
+ * about it: a panel that says TX-000183 and an action that writes it off on
+ * TX-000182 would be a lie told at the moment of signing.
+ *
+ * Null when the claim covers one bill — there is no question then.
+ */
+export function shortfallBill<
+  T extends { invoiceId: string; amount: Prisma.Decimal | number | string },
+>(
+  allocations: T[],
+  named: string | null | undefined
+): T | null {
+  if (allocations.length < 2) return null;
+  const inClaim = named
+    ? (allocations.find((a) => a.invoiceId === named) ?? null)
+    : null;
+  return (
+    inClaim ??
+    allocations.reduce((biggest, a) =>
+      toNumber(a.amount) > toNumber(biggest.amount) ? a : biggest
+    )
+  );
+}
+
 export async function submissionQueue(
   status: "PENDING" | "VERIFIED" | "REJECTED" | "WITHDRAWN" | null,
   take = 60
@@ -158,10 +191,35 @@ export async function submissionQueue(
          not coming. The verify screen opens with this already ticked, and
          Finance's own answer is what actually travels. */
       clearShortfall: true,
-      /* How many bills this one claim covers. A write-off across several does
-         not say which bill's rest is not coming, so the tick is not offered
-         on a merged claim — see VerifySubmission. */
+      /* And which bill the rest comes off, when the claim covers several.
+         Support's screen decides it — the largest of the ticked bills — and
+         the verify panel names it so Finance confirms the bill Support was
+         shown rather than being asked a question with no answer. */
+      clearShortfallInvoiceId: true,
+      /* How many bills this one claim covers, and which — the panel names the
+         one the write-off lands on, and falls back to the same largest-bill
+         rule for a claim raised before the column above existed. */
       _count: { select: { allocations: true } },
+      allocations: {
+        select: {
+          invoiceId: true,
+          amount: true,
+          /* Enough of each covered bill to total what the claim leaves owing.
+             Measured against the ANCHOR alone, one transfer answering two
+             consignments looked like a large overpayment on the first — so the
+             gap read as zero and the panel never offered to clear it. */
+          invoice: {
+            select: {
+              total: true,
+              amountPaid: true,
+              amountAdjusted: true,
+              currency: true,
+              exchangeRate: true,
+              shipment: { select: { trackingNumber: true } },
+            },
+          },
+        },
+      },
       /* What answered this one, and what it answered. Both directions, so a
          refused claim can say it has been re-raised and the fresh one can say
          what it replaces. */

@@ -343,7 +343,6 @@ export function CustomerPaymentForm({
      back in the card below. */
   const received = Math.round((forBills + fare) * 100) / 100;
   const left = forBills - allocated;
-  const over = left < -0.005;
 
   /*
     ONE BILL, ANSWERED SHORT — THE QUESTION THIS SCREEN COULD NOT ASK.
@@ -361,16 +360,75 @@ export function CustomerPaymentForm({
     being handed over, from the bill's own frozen rate, so the figure on the
     button is the figure the desk was quoted.
   */
-  const soleAllocated =
-    soleBill && allocations.length === 1 ? allocations[0]!.amount : null;
-  const soleOwedInPay = soleBill ? inPay(soleBill) : null;
-  const soleGap =
-    soleOwedInPay !== null && soleAllocated !== null
-      ? Math.round((soleOwedInPay - soleAllocated) * 100) / 100
-      : 0;
-  const soleTolerance = payCurrency === LOCAL ? 0.5 : 0.005;
-  const soleShort = soleGap > soleTolerance;
-  const soleOver = soleGap < -soleTolerance;
+  const tol = payCurrency === LOCAL ? 0.5 : 0.005;
+  /* Lifted out of the notice because arming it changes what this form SENDS:
+     one bill's share drops by the gap so the allocations still total the money
+     that arrived. See the allocations sent below. */
+  const [clearArmed, setClearArmed] = useState(false);
+
+  /*
+    SHORT ACROSS ANY NUMBER OF BILLS, NOT JUST ONE.
+
+    The ticked bills come to 2,733,750 and the customer sent 2,733,700. Fifty
+    shillings — a rounding at the far end — and the screen's answer was a red
+    "you have put more against bills than the customer sent. Untick a bill, or
+    raise the amount received." Neither of those is what happened, and the desk
+    is left to invent a figure or abandon the transfer.
+
+    It is the same question the cargo page answers in one press. The only extra
+    part is WHERE the fifty lands, because "the rest is not coming" is an
+    answer about one bill: it comes off the largest ticked bill, whose share is
+    reduced by exactly the gap so the allocations still total the money that
+    arrived, and that bill is named to the server so the write-off lands on it
+    and no other.
+
+    Largest, because a rounding belongs on the figure it is smallest against —
+    and because the rule has to be one the desk can predict without reading it.
+  */
+  const gap = Math.round((allocated - forBills) * 100) / 100;
+  const short = gap > tol && allocations.length > 0;
+  const overpaid = allocations.length > 0 && gap < -tol;
+  const shortTarget =
+    short || overpaid
+      ? allocations.reduce((biggest, a) => (a.amount > biggest.amount ? a : biggest))
+      : null;
+  const shortBill = shortTarget
+    ? (payable.find((b) => b.invoiceId === shortTarget.invoiceId) ?? null)
+    : null;
+  /*
+    THE SHARES ARE TRIMMED WHETHER OR NOT THE GAP IS FORGIVEN.
+
+    The cargo screen takes a figure smaller than the bill and records it: the
+    bill stays part paid, and the button to write the rest off is an offer, not
+    a toll gate. This screen refused, because the shares still added up to the
+    bills rather than to the money — so a customer 50 short could not be
+    banked at all until somebody agreed to forgive the 50.
+
+    So the gap comes off the largest ticked bill either way, and arming only
+    decides whether the remainder is written off or left owing. The exception
+    is typed shares: there the desk has said what goes where, and shares
+    totalling more than arrived is a mistake to correct, not a gap to absorb.
+  */
+  const allocationsSent =
+    short && shortTarget && (clearArmed || !split)
+      ? allocations.map((a) =>
+          a.invoiceId === shortTarget.invoiceId
+            ? { ...a, amount: Math.round((a.amount - gap) * 100) / 100 }
+            : a
+        )
+      : allocations;
+
+  /*
+    OVER-ALLOCATED — MEASURED ON WHAT WILL ACTUALLY BE SENT.
+
+    Read off the raw shares, arming the write-off still looked like an error:
+    the bills came to more than arrived, which is the whole point, and the form
+    refused to submit the thing the desk had just agreed to. The sent
+    allocations already have the gap taken off the named bill, so they total
+    the money that came in and this is false the moment it is armed.
+  */
+  const allocatedSent = allocationsSent.reduce((sum, a) => sum + a.amount, 0);
+  const over = allocatedSent > forBills + 0.005;
   /*
     A FARE BIGGER THAN THE CARGO IS ALMOST ALWAYS AN EXTRA NOUGHT.
 
@@ -492,11 +550,26 @@ export function CustomerPaymentForm({
       <input type="hidden" name="customerId" value={customerId} />
       <input type="hidden" name="currency" value={payCurrency} />
       <input type="hidden" name="amount" value={received || ""} />
+      {/*
+        WHAT EACH BILL ACTUALLY RECEIVES.
+
+        The gap comes off the largest ticked bill's own share, so these always
+        total the money that actually arrived — which is what both actions
+        check. Arming decides only what happens to the remainder: written off
+        and the bill settled, or left owing on that one bill.
+      */}
       <input
         type="hidden"
         name="allocations"
-        value={JSON.stringify(allocations)}
+        value={JSON.stringify(allocationsSent)}
       />
+      {short && clearArmed && shortTarget ? (
+        <input
+          type="hidden"
+          name="clearShortfallInvoiceId"
+          value={shortTarget.invoiceId}
+        />
+      ) : null}
 
       {/* LEFT: the job. Which cargo is this customer paying for. */}
       <div className="space-y-5">
@@ -1155,23 +1228,41 @@ export function CustomerPaymentForm({
               wired for the tick on a single-bill payment; this is the screen
               catching up with its own server.
             */}
-            {soleBill && (soleShort || soleOver) ? (
+            {(short || overpaid) && shortBill ? (
               <div className="mb-3">
-                <PaymentDifference
-                  gap={soleGap}
-                  paid={soleAllocated ?? 0}
-                  tendered={payCurrency}
-                  billCurrency={soleBill.currency}
-                  gapInBill={
-                    payCurrency === soleBill.currency || !soleBill.exchangeRate
-                      ? soleGap
-                      : payCurrency === LOCAL
-                        ? soleGap / soleBill.exchangeRate
-                        : soleGap * soleBill.exchangeRate
-                  }
-                  canClear={canRecord ? Boolean(canAdjust) : true}
-                  submitting={!canRecord}
-                />
+                {(() => {
+                  const bill = shortBill;
+                  const g = gap; // signed: positive short, negative over
+                  return (
+                    <PaymentDifference
+                      gap={g}
+                      paid={forBills}
+                      tendered={payCurrency}
+                      billCurrency={bill.currency}
+                      gapInBill={
+                        payCurrency === bill.currency || !bill.exchangeRate
+                          ? g
+                          : payCurrency === LOCAL
+                            ? g / bill.exchangeRate
+                            : g * bill.exchangeRate
+                      }
+                      canClear={canRecord ? Boolean(canAdjust) : true}
+                      submitting={!canRecord}
+                      onArmedChange={setClearArmed}
+                    />
+                  );
+                })()}
+                {/* WHICH BILL CARRIES IT. With one bill ticked there is no
+                    question; with several there is, and the desk has to know
+                    before it presses whether TX-000178 goes out settled or
+                    still owing. */}
+                {short && picked.size > 1 ? (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {clearArmed ? t("Taken off") : t("Left owing on")}{" "}
+                    {shortBill.trackingNumber} —{" "}
+                    {t("the largest of the ticked bills.")}
+                  </p>
+                ) : null}
               </div>
             ) : null}
 

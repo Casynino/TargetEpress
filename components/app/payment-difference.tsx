@@ -46,6 +46,15 @@ export function PaymentDifference({
   canClear,
   /** This form submits a claim rather than recording money. */
   submitting = false,
+  /**
+   * Told when the desk arms or disarms the tick.
+   *
+   * The cargo panel needs nothing back — the flag rides on a hidden input and
+   * the payment is one bill. The merge screen does: arming it there reduces
+   * one bill's allocation by the gap, so the allocations still sum to the
+   * money that arrived, and the parent has to know in order to send them.
+   */
+  onArmedChange,
 }: {
   gap: number;
   paid: number;
@@ -54,9 +63,14 @@ export function PaymentDifference({
   gapInBill: number;
   canClear: boolean;
   submitting?: boolean;
+  onArmedChange?: (armed: boolean) => void;
 }) {
   const t = useT();
   const [clearRest, setClearRest] = useState(false);
+  const arm = (on: boolean) => {
+    setClearRest(on);
+    onArmedChange?.(on);
+  };
 
   const money = (value: number, currency: string) =>
     Math.abs(value).toLocaleString(undefined, {
@@ -86,7 +100,21 @@ export function PaymentDifference({
       ? { ring: "hsl(var(--warning) / 0.55)", cls: "border-warning/40 bg-warning/10 text-warning" }
       : { ring: "hsl(var(--success) / 0.55)", cls: "border-success/40 bg-success/[0.08] text-success" };
 
-  const shell = `money-notice flex w-full flex-wrap items-center gap-x-2.5 gap-y-1.5 rounded-md border px-2.5 py-2 text-xs ${tone.cls}`;
+  /*
+    ONE ROW THAT STAYS ONE ROW.
+
+    It wrapped: the figure on the first line and the button dropped beneath it,
+    pushed to the right by `ml-auto` and hanging there on its own. The panel it
+    sits in is a sidebar, so there was never much width to lose — and a wrapped
+    flex row puts the button wherever the leftovers land rather than anywhere
+    deliberate.
+
+    So no wrapping. The text takes the space that is left and wraps inside its
+    own column if it must; the button keeps its size and stays beside it, which
+    is the arrangement the eye expects — read the figure, press the thing next
+    to it.
+  */
+  const shell = `money-notice flex w-full items-center gap-2 rounded-md border px-2.5 py-2 text-xs ${tone.cls}`;
   const chip =
     "grid h-5 w-5 shrink-0 place-items-center rounded-full bg-current/15";
   const figure = "font-semibold tabular-nums";
@@ -101,7 +129,7 @@ export function PaymentDifference({
         <span className={chip}>
           <Check className="h-3 w-3" />
         </span>
-        <span>
+        <span className="min-w-0 flex-1">
           <span className={figure}>
             {t("Overpaid")} {both}
           </span>
@@ -121,7 +149,7 @@ export function PaymentDifference({
         <span className={chip}>
           <Check className="h-3 w-3" />
         </span>
-        <span>
+        <span className="min-w-0 flex-1">
           <span className={figure}>
             {submitting ? t("Finance clears") : t("Clearing")} {both}
           </span>
@@ -132,8 +160,8 @@ export function PaymentDifference({
         </span>
         <button
           type="button"
-          onClick={() => setClearRest(false)}
-          className="focus-ring ml-auto shrink-0 rounded px-1 underline underline-offset-2 opacity-80 transition-opacity hover:opacity-100"
+          onClick={() => arm(false)}
+          className="focus-ring shrink-0 rounded px-1 underline underline-offset-2 opacity-80 transition-opacity hover:opacity-100"
         >
           {t("Undo")}
         </button>
@@ -158,14 +186,14 @@ export function PaymentDifference({
       <span className={chip}>
         <TriangleAlert className="h-3 w-3" />
       </span>
-      <span className={figure}>
+      <span className={`min-w-0 flex-1 ${figure}`}>
         {t("Short")} {both}
       </span>
       {canClear ? (
         <button
           type="button"
-          onClick={() => setClearRest(true)}
-          className="focus-ring ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-md bg-warning px-2.5 py-1 font-semibold text-warning-foreground shadow-sm transition hover:opacity-90 active:scale-[0.98]"
+          onClick={() => arm(true)}
+          className="focus-ring inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md bg-warning px-2 py-1 font-semibold text-warning-foreground shadow-sm transition hover:opacity-90 active:scale-[0.98]"
         >
           <Scale className="h-3.5 w-3.5 shrink-0" />
           {t("Clear it")}

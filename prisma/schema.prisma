@@ -3067,6 +3067,18 @@ model PaymentSubmission {
   /// by them, under their name. This only carries what Support was told, so
   /// the verify screen opens with the right answer already filled in.
   clearShortfall Boolean @default(false)
+  /// WHICH BILL THE GAP COMES OFF, when the claim covers several.
+  ///
+  /// "The rest is not coming" is an answer about one bill. On a claim covering
+  /// four it does not say which, so verification used to refuse the tick
+  /// outright and Support was told to go and write it off by hand afterwards.
+  ///
+  /// The screen already decides — the largest of the ticked bills, because a
+  /// rounding belongs on the figure it is smallest against — and this carries
+  /// that decision to Finance, so what they confirm is the bill Support was
+  /// shown. Null on a single-bill claim, where there is no question, and on
+  /// every claim raised before this existed.
+  clearShortfallInvoiceId String?
 
   status SubmissionStatus @default(PENDING)
 
