@@ -118,6 +118,9 @@ export function ReceivingOutcomePanel({
   const ticker = outcome ? outcomeNeedsPackageTicker(outcome) : false;
   const manyBoxes = packageList.length > 1;
   const missingCount = packageList.length - present.length;
+  /* Only OVER_QUANTITY reads this — the figure the clerk counted on the floor
+     when there are more cartons than the manifest knows about. */
+  const [arrived, setArrived] = useState(packageList.length + 1);
 
   // A short count on a multi-box shipment that is not actually short is not a
   // short count. Naming which boxes is the entire content of the report.
@@ -215,6 +218,40 @@ export function ReceivingOutcomePanel({
                 />
               ))}
 
+              {/*
+                THE THREE FIGURES, SAID AS FIGURES.
+
+                The line under the ticker explains the consequence in a
+                sentence, which is the right thing to read once. This is what
+                the owner asked to see every time: what the manifest says, what
+                is on the floor, and the difference between them — in a shape a
+                clerk can check against the pallet without reading anything.
+              */}
+              {manyBoxes ? (
+                <dl className="mb-2 grid grid-cols-3 gap-2 rounded-md border bg-card px-2.5 py-2 text-center text-xs">
+                  <div>
+                    <dt className="text-muted-foreground">{t("Booked")}</dt>
+                    <dd className="font-semibold tabular-nums">
+                      {packageList.length}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">{t("Arrived")}</dt>
+                    <dd className="font-semibold tabular-nums">
+                      {present.length}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">{t("Difference")}</dt>
+                    <dd
+                      className={`font-semibold tabular-nums ${missingCount > 0 ? "text-warning" : "text-muted-foreground"}`}
+                    >
+                      {missingCount > 0 ? `−${missingCount}` : "0"}
+                    </dd>
+                  </div>
+                </dl>
+              ) : null}
+
               {manyBoxes ? (
                 <>
                   <p className="text-xs font-medium">
@@ -259,6 +296,56 @@ export function ReceivingOutcomePanel({
                   </p>
                 </>
               ) : null}
+            </div>
+          ) : null}
+
+          {/*
+            MORE THAN WAS BOOKED.
+
+            The ticker cannot ask this — there is no eleventh row to tick — so
+            this is the one outcome where a number is the honest control. What
+            it produces is boxes: a row and a QR each, minted on the server, so
+            the extra carton can be labelled, scanned and released like every
+            other. The booked figure stays in the shipment's history.
+          */}
+          {outcome === "OVER_QUANTITY" ? (
+            <div className="space-y-2 rounded-md border border-info/40 bg-info/5 p-2.5">
+              <label className="flex items-center justify-between gap-2 text-xs">
+                <span className="font-medium">{t("How many arrived?")}</span>
+                <span className="inline-flex items-center gap-1">
+                  <input
+                    name="packagesArrived"
+                    type="number"
+                    min={packageList.length + 1}
+                    step="1"
+                    inputMode="numeric"
+                    defaultValue={packageList.length + 1}
+                    onChange={(event) =>
+                      setArrived(Number(event.target.value) || 0)
+                    }
+                    className="focus-ring w-20 rounded border bg-card px-2 py-1 text-right tabular-nums outline-none"
+                  />
+                  <span className="text-muted-foreground">{t(unit.many)}</span>
+                </span>
+              </label>
+              <dl className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div>
+                  <dt className="text-muted-foreground">{t("Booked")}</dt>
+                  <dd className="font-semibold tabular-nums">
+                    {packageList.length}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">{t("Arrived")}</dt>
+                  <dd className="font-semibold tabular-nums">{arrived}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">{t("Difference")}</dt>
+                  <dd className="font-semibold tabular-nums text-info">
+                    +{Math.max(0, arrived - packageList.length)}
+                  </dd>
+                </div>
+              </dl>
             </div>
           ) : null}
 

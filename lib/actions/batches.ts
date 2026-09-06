@@ -34,7 +34,7 @@ import {
   routeFor,
 } from "@/lib/cargo";
 import { t } from "@/lib/i18n";
-import { nextBatchNumber } from "@/lib/ids";
+import { generateQrToken, nextBatchNumber, packageReference } from "@/lib/ids";
 import type { Locale } from "@/lib/locale";
 import { prisma, type TxClient } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -943,6 +943,25 @@ export async function verifyShipment(
     Empty means "China's figure stands" — which is the ordinary answer, and the
     reason this is not required.
   */
+  /*
+    HOW MANY BOXES ACTUALLY CAME OFF THE PLANE.
+
+    Fewer than booked is already answered properly, by ticking WHICH boxes
+    arrived — each carton carries its own QR and the release counter stays shut
+    until every one is scanned, so a bare count would be a worse answer than
+    the one the screen already collects.
+
+    MORE than booked has no answer at all: there is no eleventh row to tick,
+    and the carton is real, on the floor, and usually somebody else's. Counting
+    it is what this reads, and the boxes are minted below rather than a number
+    being nudged up — the warehouse handles boxes, not totals.
+  */
+  const countField = String(formData.get("packagesArrived") ?? "").trim();
+  const counted = countField === "" ? null : Number(countField);
+  if (counted !== null && (!Number.isInteger(counted) || counted < 1)) {
+    return fail(t(locale, "That is not a number of boxes."));
+  }
+
   const weightField = String(formData.get("weightKg") ?? "").trim();
   const weighed = weightField === "" ? null : Number(weightField);
   if (weighed !== null && (!Number.isFinite(weighed) || weighed <= 0)) {
@@ -1144,6 +1163,54 @@ export async function verifyShipment(
         A tenth of a kilo is the scale settling, not a correction, so it is not
         recorded as one.
       */
+      /*
+        AN EXTRA CARTON BECOMES AN EXTRA BOX, NOT A BIGGER NUMBER.
+
+        prisma/schema.prisma is explicit that the QR belongs to each physical
+        box, and lib/actions/delivery.ts keeps the counter shut until every one
+        of them has been scanned. Raising `packages` on its own would promise a
+        box the warehouse could never scan and could never hand over; minting
+        the row gives the carton the identity everything else already assumes
+        it has, and it can be labelled and released like any other.
+
+        Only upwards. Fewer boxes is the ticker's question, and lowering the
+        count here would let a short consignment be made to look complete —
+        which is exactly what the release gate exists to catch.
+      */
+      const arrivedCount =
+        counted !== null && counted > shipment.packageList.length ? counted : null;
+      const extra = arrivedCount === null ? 0 : arrivedCount - shipment.packageList.length;
+      if (arrivedCount !== null) {
+        const from = shipment.packageList.length;
+        await tx.package.createMany({
+          data: Array.from({ length: extra }, (_, i) => ({
+            shipmentId: shipmentId,
+            sequence: from + i + 1,
+            reference: packageReference(shipment.trackingNumber, from + i + 1),
+            qrToken: generateQrToken(),
+            /* Received the moment they are recorded: somebody is holding them
+               and has just said so. */
+            receivedAt: now,
+            receivedById: user.id,
+          })),
+        });
+        await tx.shipment.update({
+          where: { id: shipmentId },
+          data: { packages: arrivedCount },
+        });
+        await tx.fieldChange.create({
+          data: {
+            entity: "Shipment",
+            entityId: shipmentId,
+            field: "packages",
+            before: String(from),
+            after: String(arrivedCount),
+            actorId: user.id,
+            actorName: user.name,
+          },
+        });
+      }
+
       const before = toNumber(shipment.weightKg);
       const reweighed =
         weighed !== null && Math.abs(weighed - before) > 0.005 ? weighed : null;
@@ -1310,6 +1377,9 @@ export async function verifyShipment(
         ...(note ? { note } : {}),
         ...(reweighed !== null
           ? { weighedFrom: toNumber(shipment.weightKg), weighedTo: reweighed }
+          : {}),
+        ...(extra > 0
+          ? { boxesBooked: shipment.packageList.length, boxesArrived: extra + shipment.packageList.length }
           : {}),
       };
 
