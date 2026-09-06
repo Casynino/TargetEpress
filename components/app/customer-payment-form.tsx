@@ -428,6 +428,10 @@ export function CustomerPaymentForm({
     the money that came in and this is false the moment it is armed.
   */
   const allocatedSent = allocationsSent.reduce((sum, a) => sum + a.amount, 0);
+  /* The notice carries the gap in either direction and says the whole of it,
+     so nothing else on the page repeats it. */
+  const showDifference = (short || overpaid) && shortBill !== null;
+  const heldAsCredit = allocations.length === 0 && Math.abs(left) > 0.005;
   const over = allocatedSent > forBills + 0.005;
   /*
     A FARE BIGGER THAN THE CARGO IS ALMOST ALWAYS AN EXTRA NOUGHT.
@@ -1209,92 +1213,73 @@ export function CustomerPaymentForm({
           </label>
         ) : null}
 
-        {/* Shown only when the two figures differ, because in the ordinary case
-            they are the same and a row of matching numbers is just noise. */}
-        {Math.abs(left) > 0.005 ? (
-          <div
-            className={`rounded-lg border p-3 text-sm ${
-              over
-                ? "border-destructive/40 bg-destructive/5"
-                : "border-warning/40 bg-warning/5"
-            }`}
-          >
-            {/*
-              THE ONE BILL LEFT SHORT — and the press that closes it.
+        {/*
+          THE DIFFERENCE, SAID ONCE.
 
-              Rendered above the total notice because it answers the earlier
-              question: not "does the typed figure match the ticks" but "does
-              this bill go out settled". recordCustomerPayment is already
-              wired for the tick on a single-bill payment; this is the screen
-              catching up with its own server.
-            */}
-            {(short || overpaid) && shortBill ? (
-              <div className="mb-3">
-                {(() => {
-                  const bill = shortBill;
-                  const g = gap; // signed: positive short, negative over
-                  return (
-                    <PaymentDifference
-                      gap={g}
-                      paid={forBills}
-                      tendered={payCurrency}
-                      billCurrency={bill.currency}
-                      gapInBill={
-                        payCurrency === bill.currency || !bill.exchangeRate
-                          ? g
-                          : payCurrency === LOCAL
-                            ? g / bill.exchangeRate
-                            : g * bill.exchangeRate
-                      }
-                      canClear={canRecord ? Boolean(canAdjust) : true}
-                      submitting={!canRecord}
-                      onArmedChange={setClearArmed}
-                    />
-                  );
-                })()}
-                {/* WHICH BILL CARRIES IT. With one bill ticked there is no
-                    question; with several there is, and the desk has to know
-                    before it presses whether TX-000178 goes out settled or
-                    still owing. */}
-                {short && picked.size > 1 ? (
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {clearArmed ? t("Taken off") : t("Left owing on")}{" "}
-                    {shortBill.trackingNumber} —{" "}
-                    {t("the largest of the ticked bills.")}
-                  </p>
-                ) : null}
-              </div>
+          This used to be one box holding a notice AND a sentence, and the
+          sentence read the difference off `left` — which is the gap with its
+          sign the other way round. So a payment 25 short printed "Overpaid by
+          TSh -25 · that is fine, the bills are settled", directly underneath
+          the notice correctly calling it short, inside a border drawn around
+          another border.
+
+          Three situations, one message each, no nesting: the gap either way
+          (the notice, which says it in full and offers the press), typed
+          shares adding up to more than arrived, and money with no bill to sit
+          against.
+        */}
+        {showDifference ? (
+          <div>
+            <PaymentDifference
+              gap={gap}
+              paid={forBills}
+              tendered={payCurrency}
+              billCurrency={shortBill.currency}
+              gapInBill={
+                payCurrency === shortBill.currency || !shortBill.exchangeRate
+                  ? gap
+                  : payCurrency === LOCAL
+                    ? gap / shortBill.exchangeRate
+                    : gap * shortBill.exchangeRate
+              }
+              canClear={canRecord ? Boolean(canAdjust) : true}
+              submitting={!canRecord}
+              onArmedChange={setClearArmed}
+            />
+            {/* WHICH BILL CARRIES IT. With one bill ticked there is no
+                question; with several there is, and the desk has to know
+                before it presses whether TX-000178 goes out settled or
+                still owing. */}
+            {short && picked.size > 1 ? (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {clearArmed ? t("Taken off") : t("Left owing on")}{" "}
+                {shortBill.trackingNumber} —{" "}
+                {t("the largest of the ticked bills.")}
+              </p>
             ) : null}
+          </div>
+        ) : null}
 
-            {over ? (
-              t(
-                "You have put more against bills than the customer sent. Untick a bill, or raise the amount received."
-              )
-            ) : allocations.length > 0 ? (
-              /*
-                THEY OVERPAID THE BILLS THEY TICKED.
-
-                Said as an overpayment, not as credit. Calling it credit turns
-                a rounding into a running account somebody has to remember; the
-                owner's rule is to take the money, say plainly that they paid
-                more than the bills asked, settle them and let the cargo go.
-              */
-              <>
-                <span className="font-medium">
-                  {t("Overpaid by")} {money(left)}
-                </span>{" "}
-                {t("That is fine — the bills are settled and the cargo can go.")}
-              </>
-            ) : (
-              /* Nothing ticked at all, which is a different thing: money that
-                 arrived before there was a bill to put it against. */
-              <>
-                <span className="font-medium">
-                  {money(left)} {t("left over")}
-                </span>{" "}
-                {t("stays with the customer as credit until their cargo lands.")}
-              </>
+        {/* Typed shares only: the desk has said what goes where, and shares
+            totalling more than arrived is a mistake to correct rather than a
+            gap to absorb. Without typed shares the gap comes off the largest
+            bill on its own and this cannot happen. */}
+        {over ? (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
+            {t(
+              "You have put more against bills than the customer sent. Untick a bill, or raise the amount received."
             )}
+          </div>
+        ) : null}
+
+        {/* Nothing ticked at all, which is a different thing entirely: money
+            that arrived before there was a bill to put it against. */}
+        {heldAsCredit ? (
+          <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm">
+            <span className="font-medium">
+              {money(left)} {t("left over")}
+            </span>{" "}
+            {t("stays with the customer as credit until their cargo lands.")}
           </div>
         ) : null}
       </section>
