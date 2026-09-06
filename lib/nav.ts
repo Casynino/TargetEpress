@@ -561,6 +561,21 @@ const FINANCE_SECTIONS: NavSection[] = [
         icon: "ClipboardCheck",
         permission: "accounting.view",
       },
+      {
+        /*
+          WHAT EACH FLIGHT MADE, FOR THE DESK THAT RECORDED IT.
+
+          The manager has had this since the control desk was built. Finance,
+          which enters every figure on it, had no door to it at all — they
+          could see a payment, a cost and a bill one at a time and never the
+          aircraft they belong to. The permission was already held; only the
+          way in was missing.
+        */
+        href: "/app/finance/batches",
+        label: "Batch finances",
+        icon: "Boxes",
+        permission: "profit.view",
+      },
     ],
   },
   {

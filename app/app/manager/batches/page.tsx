@@ -541,8 +541,12 @@ export default async function ManagerBatches({
                     className={row.profitUsd < 0 ? "bg-destructive/5" : undefined}
                   >
                     <TableCell className="py-2">
+                      {/* Into the flight's own book, not its manifest. A
+                          manager reading these figures and wanting to know why
+                          one of them says that was being sent to a list of
+                          cargo; the answer is the payments and the costs. */}
                       <Link
-                        href={`/app/batches/${row.id}`}
+                        href={`/app/finance/batches/${row.id}`}
                         className="focus-ring rounded font-mono text-xs hover:text-brand"
                       >
                         {row.batchNumber}
