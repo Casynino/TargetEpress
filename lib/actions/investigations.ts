@@ -12,6 +12,7 @@ import { z } from "zod";
 
 import { methodForKind } from "@/lib/accounts";
 import { recordAudit } from "@/lib/audit";
+import { autoPriceShipments } from "@/lib/auto-price";
 import {
   EXCEPTION_OPEN_STATUSES,
   EXCEPTION_TERMINAL_STATUSES,
@@ -1198,6 +1199,33 @@ export async function resolveInvestigation(
   if (!isResolutionType(rawType)) {
     return fail(t(locale, "That is not a resolution type."));
   }
+  /*
+    FOUND IS NOT FILED HERE, IT IS DONE.
+
+    This panel writes an answer onto the case and touches nothing else. Filing
+    CARGO_FOUND through it left the consignment exactly where the search left
+    it — UNDER_INVESTIGATION with every carton un-ticked — while the hint beside
+    the button promised "the cargo goes back to its normal status".
+
+    Worse, it shut the door behind itself. Closing makes the case terminal, and
+    markCargoFound refuses a terminal case; the step panel that holds it stops
+    rendering; and there is no reopen for an exception anywhere. The box was
+    stranded in a state no screen could clear, counting on the owner's flagged
+    tile for ever.
+
+    So the outcome is refused here and the operator is sent to the step that
+    actually does it — which closes the case itself, as CARGO_FOUND, and puts
+    the boxes back on the floor. Refused in the action and not merely dropped
+    from the form: this endpoint is reachable without the screen.
+  */
+  if (rawType === "CARGO_FOUND") {
+    return fail(
+      t(
+        locale,
+        "Use the Cargo found step above to record this. Closing it here would file the answer and leave the cargo where the search left it."
+      )
+    );
+  }
   // Cargo Found is the one outcome that closes without an explanation. Every
   // other outcome closes a case that cost somebody something, and a year from
   // now the only record of why will be this sentence.
@@ -1246,15 +1274,18 @@ export async function resolveInvestigation(
     }
   }
 
-  // Optional extras, taken only where the outcome uses them.
-  if (rawType === "CARGO_FOUND") {
-    const where = String(formData.get("foundLocation") ?? "").trim();
-    if (where) detail.foundLocation = where;
-  }
+  /* Optional extras, taken only where the outcome uses them. foundLocation is
+     not among them any more — markCargoFound is where a found box is recorded,
+     and it asks for the same thing. */
   if (rawType === "CARGO_LOST") {
     detail.compensationOwed = formData.get("compensationOwed") === "yes";
     detail.financeNotified = formData.get("financeNotified") === "yes";
   }
+
+  /* Set inside the transaction, priced outside it — the same rule check-in
+     follows, so a pricing engine having a bad moment cannot undo a close that
+     already happened. */
+  let repriced: string | null = null;
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -1265,7 +1296,12 @@ export async function resolveInvestigation(
           status: true,
           shipmentId: true,
           type: true,
-          compensation: { select: { id: true } },
+          compensation: { select: { id: true, paidAt: true } },
+          /* Read for WEIGHT_CORRECTED, which writes the corrected figure
+             through to the cargo rather than filing it beside it. */
+          shipment: {
+            select: { id: true, trackingNumber: true, weightKg: true },
+          },
         },
       });
       if (!existing) throw new Error(t(locale, "Case not found."));
@@ -1284,6 +1320,38 @@ export async function resolveInvestigation(
             "This case has a compensation attached. Only Finance or the CEO can close it."
           )
         );
+      }
+
+      /*
+        A CASE THAT OWES MONEY CANNOT BE CLOSED BEFORE IT IS PAID.
+
+        Closing is terminal, approveCompensation refuses a terminal case and
+        recordCompensation refuses one that was never approved — so ticking
+        "customer compensation required" and pressing Confirm foreclosed the
+        payout on that case for good, with no reopen anywhere to undo it. The
+        customer's claim simply stopped being payable.
+
+        The order is approve, then Finance records the payment, then close. The
+        step-list route already refuses this in nearly these words; this door
+        did not, which is two doors to one decision with only one of them shut.
+      */
+      if (rawType === "CARGO_LOST" && detail.compensationOwed === true) {
+        if (!existing.compensation) {
+          throw new Error(
+            t(
+              locale,
+              "Approve the compensation before closing this case — a closed case can no longer be paid."
+            )
+          );
+        }
+        if (!existing.compensation.paidAt) {
+          throw new Error(
+            t(
+              locale,
+              "Finance has not recorded the payment yet — this case stays open until they have."
+            )
+          );
+        }
       }
 
       await tx.shipmentException.update({
@@ -1312,6 +1380,42 @@ export async function resolveInvestigation(
         },
       });
 
+      /*
+        THE CORRECTION REACHES THE CARGO.
+
+        "Weight corrected" wrote both figures onto the case and left the
+        shipment carrying the wrong one, so the record said corrected and the
+        bill went on quoting the figure the case had just disproved. The label
+        described an action nobody had taken.
+
+        Written here, in the same transaction as the close, and to the same
+        history every other weight edit writes to — so the cargo page shows the
+        move with the name of whoever made it, exactly as a Dar re-weigh does.
+        The bill follows outside the transaction; see below.
+      */
+      if (rawType === "WEIGHT_CORRECTED" && existing.shipment) {
+        const before = toNumber(existing.shipment.weightKg);
+        const after = Number(detail.weightNowKg);
+        if (Number.isFinite(after) && Math.abs(after - before) > 0.0005) {
+          await tx.shipment.update({
+            where: { id: existing.shipment.id },
+            data: { weightKg: new Prisma.Decimal(String(detail.weightNowKg)) },
+          });
+          await tx.fieldChange.create({
+            data: {
+              entity: "Shipment",
+              entityId: existing.shipment.id,
+              field: "weightKg",
+              before: String(before),
+              after: String(detail.weightNowKg),
+              actorId: user.id,
+              actorName: user.name,
+            },
+          });
+          repriced = existing.shipment.id;
+        }
+      }
+
       await tx.exceptionEvent.create({
         data: {
           exceptionId,
@@ -1338,9 +1442,30 @@ export async function resolveInvestigation(
     // implementation of "put the cargo back" is two things to keep in step.
     // The form points the operator at that action for this outcome; closing as
     // CARGO_FOUND here only records the answer.
+    /* Outside the transaction and never able to fail the close. autoPriceShipments
+       refuses anything past DRAFT, so a confirmed or paid bill is untouched and
+       stays Finance's to adjust — which is what the message below says. */
+    const billMoved =
+      repriced === null
+        ? null
+        : await autoPriceShipments([repriced], user.id).catch(() => null);
+
     revalidatePath("/app/exceptions");
     revalidatePath("/app/inventory");
     revalidatePath("/app/dashboard");
+    /* The counter reads its blocker list from the lock this close lifts, and
+       the cargo page is the only screen that renders the figures it files. */
+    revalidatePath("/app/pickup-queue");
+    revalidatePath("/app/cargo");
+
+    if (repriced !== null && !billMoved) {
+      return fail(
+        t(
+          locale,
+          "The case is closed and the weight corrected. Its bill could not be re-priced — ask Finance to adjust it."
+        )
+      );
+    }
     return ok();
   } catch (error) {
     return fail(t(locale, toActionError(error)));

@@ -27,8 +27,17 @@ import {
  * rule: the action is reachable without this form and does its own checking.
  */
 
+/*
+  CARGO_FOUND IS NOT OFFERED HERE.
+
+  This panel files an answer; it does not move cargo. Filing "found" through it
+  left the consignment where the search left it and, because closing is
+  terminal, took the step that actually restores it away for good. The step
+  above does both — puts the boxes back on the floor and closes the case — so
+  this points at it rather than competing with it. The action refuses the
+  outcome too; the form is not the guard.
+*/
 const ORDER: ResolutionType[] = [
-  "CARGO_FOUND",
   "WEIGHT_CORRECTED",
   "DAMAGE_SETTLED",
   "CARGO_LOST",
@@ -105,22 +114,18 @@ export function ResolveInvestigationForm({
             </label>
           ))}
         </div>
+        {/* The one answer this panel does not file, said where somebody looking
+            for it would look. Without it the option simply vanished, and the
+            clerk holding the box that just turned up has nowhere obvious to
+            go. */}
+        <p className="rounded-md border bg-muted/40 px-2.5 py-2 text-xs text-muted-foreground">
+          {t(
+            "Found the box? Use Cargo found in the steps above — it puts the cargo back on the floor and closes the case."
+          )}
+        </p>
       </div>
 
       {/* Only the chosen outcome's fields. */}
-      {type === "CARGO_FOUND" ? (
-        <div className="space-y-1.5">
-          <Label htmlFor={`found-${exceptionId}`} className="text-xs">
-            {t("Where was it found?")}{" "}
-            <span className="text-muted-foreground">({t("optional")})</span>
-          </Label>
-          <Input
-            id={`found-${exceptionId}`}
-            name="foundLocation"
-            placeholder={t("e.g. Shelf B-12, behind the Guangzhou pallet")}
-          />
-        </div>
-      ) : null}
 
       {type === "WEIGHT_CORRECTED" ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
