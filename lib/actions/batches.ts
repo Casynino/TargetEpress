@@ -985,6 +985,23 @@ export async function verifyShipment(
       "Photograph the damage before recording it. This is the only moment the picture can be taken, and without it there is nothing to show the customer or Finance."
     );
   }
+  /*
+    A CHANGED WEIGHT NEEDS THE SCALE IN A PHOTOGRAPH.
+
+    The bill is struck on this figure and the customer was quoted the other
+    one, so the difference is a conversation somebody will have to win weeks
+    later — with the cargo long gone and nothing to point at. The owner's
+    words: the kilos changing is a real issue and deserves the attention.
+
+    The same rule damage already follows, for the same reason: this is the only
+    moment the picture can be taken.
+
+    Enforced here rather than only in the browser, because the action is
+    reachable without the screen — and checked against what the shipment
+    actually says, further down, so a figure equal to the booked one asks for
+    nothing.
+  */
+  const weightPhotoNeeded = weighed !== null && photoFiles.length === 0;
 
   let uploaded: StoredImage[] = [];
   if (photoFiles.length > 0) {
@@ -1163,6 +1180,14 @@ export async function verifyShipment(
       const before = toNumber(shipment.weightKg);
       const reweighed =
         weighed !== null && Math.abs(weighed - before) > 0.005 ? weighed : null;
+      if (reweighed !== null && weightPhotoNeeded) {
+        throw new Error(
+          t(
+            locale,
+            "Photograph the scale before recording a different weight. The bill is struck on this figure and the customer was quoted the other one."
+          )
+        );
+      }
       if (reweighed !== null) {
         await tx.shipment.update({
           where: { id: shipmentId },
@@ -1504,6 +1529,35 @@ export async function verifyBatchAll(
   const batchId = String(formData.get("batchId") ?? "");
   if (!batchId) return fail("Missing batch.");
 
+  /*
+    THE SCALE READINGS THE CLERK TYPED AND DID NOT TICK.
+
+    Accepting the rest of a manifest used to be blind to the weight boxes: a
+    clerk could weigh forty cartons, type forty figures, press Finish check-in
+    and have every one of them priced on the weight Guangzhou booked. The
+    typing simply vanished, with nothing on screen to say so — the worst shape
+    a bug can take on a money screen.
+
+    Sent as a map of shipment id to kilos. Unparseable or absent means "leave
+    it as booked", which is the ordinary case and must never fail a check-in.
+  */
+  const weighed = new Map<string, number>();
+  const rawWeights = String(formData.get("weights") ?? "").trim();
+  if (rawWeights) {
+    try {
+      const parsed: unknown = JSON.parse(rawWeights);
+      if (parsed && typeof parsed === "object") {
+        for (const [id, value] of Object.entries(parsed as Record<string, unknown>)) {
+          const kg = Number(value);
+          if (Number.isFinite(kg) && kg > 0) weighed.set(id, kg);
+        }
+      }
+    } catch {
+      /* A malformed payload is not a reason to refuse a manifest. The booked
+         weights stand and the check-in goes through. */
+    }
+  }
+
   try {
     const checkedIn = await prisma.$transaction(async (tx) => {
       const batch = await tx.batch.findUnique({
@@ -1538,6 +1592,7 @@ export async function verifyBatchAll(
         select: {
           id: true,
           status: true,
+          weightKg: true,
           packageList: { select: { id: true } },
         },
       });
@@ -1582,6 +1637,35 @@ export async function verifyBatchAll(
             note: "Checked in with the rest of the manifest.",
             actorId: user.id,
           })),
+        });
+      }
+
+      /*
+        Written inside the same transaction as the acceptance, and before the
+        pricing it triggers, so a bill is never raised against a figure that is
+        about to change. Only where the scale actually disagrees — a tenth of a
+        kilo is the scale settling, not a correction, and a history line
+        claiming one would be noise on every carton.
+      */
+      for (const shipment of pending) {
+        const kg = weighed.get(shipment.id);
+        if (kg === undefined) continue;
+        const before = toNumber(shipment.weightKg);
+        if (Math.abs(kg - before) <= 0.005) continue;
+        await tx.shipment.update({
+          where: { id: shipment.id },
+          data: { weightKg: new Prisma.Decimal(kg) },
+        });
+        await tx.fieldChange.create({
+          data: {
+            entity: "Shipment",
+            entityId: shipment.id,
+            field: "weightKg",
+            before: String(before),
+            after: String(kg),
+            actorId: user.id,
+            actorName: user.name,
+          },
         });
       }
 

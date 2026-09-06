@@ -57,6 +57,19 @@ const typed = await page.evaluate((kg)=>{
   return true;
 }, WEIGHED);
 typed ? ok(process.env.UNCHANGED === "1" ? "left the box exactly as booked" : `typed ${WEIGHED} kg into the box on the row`) : bad("no weight box on the check-in row");
+await wait(700);
+if (process.env.UNCHANGED !== "1") {
+  /* A changed weight moves the bill, so the scale has to be photographed —
+     the same rule damage already follows. Refused without it. */
+  const shows = await page.evaluate(()=>{const el=[...document.querySelectorAll("p,span")].find(e=>/→/.test(e.innerText)&&/kg/.test(e.innerText));return el?el.innerText.replace(/\s+/g," "):null;});
+  shows ? ok(`the row shows the change: "${shows}"`) : bad("the row does not show before → after");
+  const asks = await page.evaluate(()=>/Photograph the scale/i.test(document.body.innerText));
+  asks ? ok("and asks for the scale to be photographed") : bad("no photo asked for");
+  const file = await page.$('input[type="file"][name="photos"]');
+  if (file) { await file.uploadFile("/tmp/scale.png"); ok("attached a photo of the scale"); }
+  else bad("no photo input on the row");
+  await wait(900);
+}
 await page.evaluate(()=>{const b=[...document.querySelectorAll("button")].find(x=>/Present & correct/i.test(x.innerText));b&&b.click();});
 await wait(9000);
 

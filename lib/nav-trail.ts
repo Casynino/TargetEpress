@@ -136,6 +136,27 @@ export function previous(trail: string[]): string | null {
   return trail.length >= 2 ? trail[trail.length - 2] : null;
 }
 
+/**
+ * THE PAGE BEFORE THIS ONE, WITHOUT ASSUMING THIS ONE IS RECORDED YET.
+ *
+ * `previous` takes the last-but-one entry, which is right only if the trail
+ * already knows where the reader is. It does not always: the control that
+ * renders Back and the effect that records the visit are two effects in one
+ * tree, and when Back reads first the trail still ends at the PREVIOUS page.
+ * Taking the last-but-one of that is taking the one before the one they came
+ * from — so Back skipped a level, and on a journey like
+ * receive → flight → consignment it offered to jump straight back to receive.
+ *
+ * Asked against where the reader actually is, both readings are right: if this
+ * page is on the trail, back is the entry before it; if it is not yet, the
+ * last entry IS the page they came from.
+ */
+export function previousFrom(trail: string[], here: string): string | null {
+  const at = trail.findIndex((entry) => samePage(entry, here));
+  if (at >= 0) return at >= 1 ? trail[at - 1] : null;
+  return trail.length > 0 ? trail[trail.length - 1] : null;
+}
+
 /** What every list in this app is called, longest prefix first. */
 const NAMES: { prefix: string; label: string }[] = [
   { prefix: "/app/collections/follow-up", label: "Payment follow-up" },

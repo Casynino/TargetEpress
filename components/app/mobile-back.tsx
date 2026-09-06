@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
-import { labelForPath, previous, readTrail } from "@/lib/nav-trail";
+import { labelForPath, previousFrom, readTrail } from "@/lib/nav-trail";
 
 /**
  * The way back, on a phone.
@@ -121,7 +121,9 @@ export function MobileBack() {
     null
   );
   useEffect(() => {
-    const back = previous(readTrail());
+    /* From where we are, not from the end of a trail that may not know yet
+       — see previousFrom. The phone control had the same one-level skip. */
+    const back = previousFrom(readTrail(), window.location.pathname);
     setWalked(back ? { href: back, label: labelForPath(back) ?? "Back" } : null);
   }, [pathname]);
 

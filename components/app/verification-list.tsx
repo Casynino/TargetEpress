@@ -19,6 +19,7 @@ import {
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useLocale, useT } from "@/components/app/locale-provider";
+import { PhotoCapture } from "@/components/app/photo-capture";
 import { ReceivingOutcomePanel } from "@/components/app/receiving-outcome-panel";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -136,6 +137,23 @@ export function VerificationList({
   ).length;
   const remaining = shipments.length - checked;
 
+  /*
+    WHAT THE CLERK HAS TYPED AND NOT YET TICKED.
+
+    Each row's tick posts its own form and carries its own weight. "Finish
+    check-in" is a different form entirely and used to be blind to the boxes —
+    so a clerk could weigh forty cartons, type forty figures, press Finish, and
+    have every one priced on the weight Guangzhou booked, with nothing on
+    screen to say the typing had been thrown away.
+
+    Held here because this is the component that owns both the rows and the
+    button. Keyed by consignment, so a row ticked on its own simply never
+    appears in the payload the bulk accept sends.
+  */
+  const [weights, setWeights] = useState<Record<string, string>>({});
+  const noteWeight = (id: string, kg: string) =>
+    setWeights((current) => ({ ...current, [id]: kg }));
+
   return (
     <div className="space-y-4">
       <div className="sticky top-14 z-20 flex flex-wrap items-center gap-3 rounded-xl border bg-card/95 p-4 shadow-soft backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:static sm:bg-card sm:backdrop-blur-none">
@@ -154,7 +172,11 @@ export function VerificationList({
           </div>
         </div>
         {batchStatus === "ARRIVED" ? (
-          <CompleteButton batchId={batchId} remaining={remaining} />
+          <CompleteButton
+            batchId={batchId}
+            remaining={remaining}
+            weights={weights}
+          />
         ) : null}
       </div>
 
@@ -168,6 +190,7 @@ export function VerificationList({
         {shipments.map((shipment) => (
           <li key={shipment.id}>
             <VerificationCard
+              onWeight={noteWeight}
               batchId={batchId}
               shipment={shipment}
               locked={batchStatus !== "ARRIVED"}
@@ -260,11 +283,14 @@ function VerificationCard({
   shipment,
   locked,
   photosDurable,
+  onWeight,
 }: {
   batchId: string;
   shipment: Row;
   locked: boolean;
   photosDurable: boolean;
+  /** Reports a typed scale reading up, so Finish check-in can carry it. */
+  onWeight?: (shipmentId: string, kg: string) => void;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -343,7 +369,9 @@ function VerificationCard({
             <WeightBox
               id={`w-${shipment.id}`}
               weightKg={shipment.weightKg}
-              className="w-full justify-between"
+              onTyped={(kg) => onWeight?.(shipment.id, kg)}
+              photosDurable={photosDurable}
+              className="w-full"
             />
             <SubmitButton
               variant={done ? "outline" : "brand"}
@@ -427,11 +455,14 @@ function VerificationRow({
   shipment,
   locked,
   photosDurable,
+  onWeight,
 }: {
   batchId: string;
   shipment: Row;
   locked: boolean;
   photosDurable: boolean;
+  /** Reports a typed scale reading up, so Finish check-in can carry it. */
+  onWeight?: (shipmentId: string, kg: string) => void;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -558,6 +589,8 @@ function VerificationRow({
                 <WeightBox
                   id={`wt-${shipment.id}`}
                   weightKg={shipment.weightKg}
+                  onTyped={(kg) => onWeight?.(shipment.id, kg)}
+                  photosDurable={photosDurable}
                   className="mr-1.5"
                 />
                 <SubmitButton
@@ -808,42 +841,102 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
 function WeightBox({
   id,
   weightKg,
+  onTyped,
+  photosDurable = true,
   className,
 }: {
   id: string;
   weightKg: number;
+  /** Reports a typed scale reading up, so Finish check-in can carry it. */
+  onTyped?: (kg: string) => void;
+  photosDurable?: boolean;
   className?: string;
 }) {
   const t = useT();
+  const [typed, setTyped] = useState(String(weightKg));
+  const now = Number(typed);
+  /*
+    A CHANGED WEIGHT IS NOT A QUIET EDIT.
+
+    It moves the bill. The owner's words: measure it again, show what it WAS
+    and what it IS, and photograph the scale — the fact that the kilos changed
+    is a real issue and deserves the attention.
+
+    So the moment the figure differs the row says both numbers and the
+    difference between them, and asks for the picture. Nothing appears while
+    the booked figure stands, which is the ordinary case and must stay one
+    press.
+  */
+  const moved = Number.isFinite(now) && now > 0 && Math.abs(now - weightKg) > 0.005;
+  const delta = now - weightKg;
+
   return (
-    <label
-      className={`inline-flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-xs ${className ?? ""}`}
-      title={t("What the scale in Dar says. Leave it if the booked weight is right.")}
-    >
-      <span className="sr-only">{t("Weight in Dar")}</span>
-      <input
-        id={id}
-        name="weightKg"
-        type="number"
-        step="0.01"
-        min="0"
-        inputMode="decimal"
-        defaultValue={weightKg}
-        /* Wide enough for 999.99 and no wider: this sits in a row a clerk
-           reads at arm's length with a carton in the other hand. */
-        className="focus-ring w-16 bg-transparent text-right tabular-nums outline-none"
-      />
-      <span className="text-muted-foreground">{t("kg")}</span>
-    </label>
+    <div className={`min-w-0 ${className ?? ""}`}>
+      <label
+        className="inline-flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-xs"
+        title={t("What the scale in Dar says. Leave it if the booked weight is right.")}
+      >
+        <span className="sr-only">{t("Weight in Dar")}</span>
+        <input
+          id={id}
+          name="weightKg"
+          type="number"
+          step="0.01"
+          min="0"
+          inputMode="decimal"
+          defaultValue={weightKg}
+          onChange={(event) => {
+            setTyped(event.target.value);
+            onTyped?.(event.target.value);
+          }}
+          /* Wide enough for 999.99 and no wider: this sits in a row a clerk
+             reads at arm's length with a carton in the other hand. */
+          className="focus-ring w-16 bg-transparent text-right tabular-nums outline-none"
+        />
+        <span className="text-muted-foreground">{t("kg")}</span>
+      </label>
+
+      {moved ? (
+        <div className="mt-1.5 space-y-1.5 rounded-md border border-warning/40 bg-warning/10 p-2 text-left">
+          <p className="text-[11px] font-semibold text-warning">
+            <span className="tabular-nums line-through opacity-70">
+              {weightKg} {t("kg")}
+            </span>{" "}
+            →{" "}
+            <span className="tabular-nums">
+              {now} {t("kg")}
+            </span>{" "}
+            <span className="opacity-90">
+              ({delta > 0 ? "+" : "−"}
+              {Math.abs(Math.round(delta * 100) / 100)} {t("kg")})
+            </span>
+          </p>
+          {/* The proof, at the only moment it can be taken. The bill is about
+              to be struck on this number and the customer was quoted the
+              other one. */}
+          <PhotoCapture
+            name="photos"
+            required
+            max={2}
+            label="Photograph the scale"
+            hint="The reading, with the label in shot if you can."
+            durable={photosDurable}
+          />
+        </div>
+      ) : null}
+    </div>
   );
 }
 
 function CompleteButton({
   batchId,
   remaining,
+  weights,
 }: {
   batchId: string;
   remaining: number;
+  /** Typed but not ticked — see `weights` above. */
+  weights: Record<string, string>;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -871,6 +964,12 @@ function CompleteButton({
     start(async () => {
       const body = new FormData();
       body.set("batchId", batchId);
+      /* Whatever the clerk typed travels with the acceptance, so the rows
+         nobody ticked are still priced on the scale rather than on Guangzhou's
+         figure. */
+      if (Object.keys(weights).length > 0) {
+        body.set("weights", JSON.stringify(weights));
+      }
       if (remaining > 0) {
         const accepted = await verifyBatchAll(undefined, body);
         if (!accepted.ok) {

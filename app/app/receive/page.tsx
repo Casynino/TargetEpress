@@ -188,7 +188,20 @@ export default async function ReceivePage() {
         </div>
       ) : null}
 
-      <ReceivingQueue rows={rows} />
+      {/*
+        THE WORK, AND ONLY THE WORK.
+
+        A finished flight was showing twice: once in this table, wearing a
+        green "Verified" badge with nothing left to do about it, and again in
+        "Flights already finished" below. The owner's rule is that the top
+        list holds cargo in the air or still to check — everything else is
+        history, and history has its own section three inches down.
+      */}
+      <ReceivingQueue
+        rows={rows.filter(
+          (r) => r.status === "IN_TRANSIT" || r.status === "ARRIVED"
+        )}
+      />
 
       {/*
         FLIGHTS THAT ARE DONE, FOR THE BOX THAT TURNS UP LATE.

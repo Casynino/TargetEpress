@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
-import { labelForPath, previous, readTrail } from "@/lib/nav-trail";
+import { labelForPath, previousFrom, readTrail } from "@/lib/nav-trail";
 import { cn } from "@/lib/utils";
 
 /**
@@ -28,7 +28,9 @@ export function useSmartBack(fallbackHref: string, fallbackLabel: string) {
   });
 
   useEffect(() => {
-    const back = previous(readTrail());
+    /* Asked against where we actually are, so it cannot matter whether the
+       visit has been recorded yet — see previousFrom. */
+    const back = previousFrom(readTrail(), window.location.pathname);
     if (!back) return;
     /*
       THE FALLBACK LABEL BELONGS TO THE FALLBACK HREF.

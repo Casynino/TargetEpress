@@ -308,6 +308,58 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
         .map((value) => ({ value, label: value })),
       match: (row, value) => row.batchNumber === value,
     },
+    {
+      /*
+        WHOSE IS IT.
+
+        The one question this floor asks more than any other, and the one thing
+        the table could not be narrowed by. A repeat customer has a dozen
+        consignments standing here at once; finding them meant typing the name
+        into search and losing every other filter that was set.
+
+        Built from the rows on screen rather than a customer list, so the
+        options are exactly the people whose cargo is actually here.
+      */
+      id: "customer",
+      label: t("Customer"),
+      options: Array.from(new Set(rows.map((row) => row.customerName).filter(Boolean)))
+        .sort((a, b) => a.localeCompare(b))
+        .map((value) => ({ value, label: value })),
+      match: (row, value) => row.customerName === value,
+    },
+    {
+      /* One carton is one carton. A consignment of six is the one that gets
+         split across two corners of the warehouse and turns up short. */
+      id: "boxes",
+      label: t("How many boxes"),
+      options: [
+        { value: "one", label: t("A single box") },
+        { value: "few", label: `2–5 ${t("boxes")}` },
+        { value: "many", label: `6+ ${t("boxes")}` },
+      ],
+      match: (row, value) => {
+        if (value === "one") return row.packages <= 1;
+        if (value === "few") return row.packages >= 2 && row.packages <= 5;
+        return row.packages >= 6;
+      },
+    },
+    {
+      /* What it takes to move it. The floor plans a morning around which
+         consignments need two people and which fit under an arm. */
+      id: "weight",
+      label: t("How heavy"),
+      options: [
+        { value: "light", label: `${t("Under")} 5 kg` },
+        { value: "mid", label: "5–50 kg" },
+        { value: "heavy", label: `${t("Over")} 50 kg` },
+      ],
+      match: (row, value) => {
+        const kg = row.weightHereKg || row.weightKg;
+        if (value === "light") return kg < 5;
+        if (value === "mid") return kg >= 5 && kg <= 50;
+        return kg > 50;
+      },
+    },
   ];
 
   const activeSegment = SEGMENTS.find((s) => s.id === segment) ?? SEGMENTS[0];
