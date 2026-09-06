@@ -16,6 +16,7 @@ import { toNumber } from "@/lib/format";
 import { outstandingOf } from "@/lib/invoice-balance";
 import { chinaProblems, floorSnapshot } from "@/lib/floor";
 import { t } from "@/lib/i18n";
+import type { ExceptionType } from "@prisma/client";
 import type { Locale } from "@/lib/locale";
 import { REJECTED_NEEDING_A_CALL } from "@/lib/collections";
 import { prisma } from "@/lib/prisma";
@@ -1289,12 +1290,52 @@ export async function attentionItems(
         : [],
     ]);
 
+/**
+ * WHICH OPEN CASES SHOUT ON THE ATTENTION FEED.
+ *
+ * This was two names in a line — MISSING_SHIPMENT and DAMAGED_CARGO — and
+ * everything else quietly fell through to "warning". A third hand-written
+ * classification of exception types, agreeing with neither of the other two,
+ * and silent about every type added after it was written.
+ *
+ * Exhaustive on purpose, like CARGO_PHYSICALLY_HERE and REPORTED_CARGO_ABSENT:
+ * a new ExceptionType stops this file compiling until somebody says how loudly
+ * it should be said.
+ *
+ * Critical means cargo is gone, harmed, or should never have been aboard.
+ * Warning means the paperwork disagrees with the floor, or somebody has to go
+ * and look — real work, but not a customer's goods at risk tonight.
+ */
+const SEVERE_EXCEPTION: Record<ExceptionType, boolean> = {
+  MISSING_SHIPMENT: true,
+  DAMAGED_CARGO: true,
+  // Not lost and not harmed: it is on the next flight, and the answer to the
+  // customer is a date. Loud enough to chase, not loud enough to alarm.
+  SHORT_LANDED: false,
+  // Somebody else's problem to release, ours to follow up. Same reasoning.
+  HELD_BY_CUSTOMS: false,
+  // A box nobody can put a name to is one hand-over away from being lost for
+  // good, and unlike the others nothing recovers it afterwards.
+  UNIDENTIFIED_CARGO: true,
+  // It flew when it should not have. The risk is to the next aircraft.
+  RESTRICTED_ITEM: true,
+  // An unaccounted carton usually means somebody else's cargo is in this pile.
+  OVER_SHIPPED: true,
+  // The floor and the paperwork disagree. Work to do, nothing at risk.
+  WEIGHT_MISMATCH: false,
+  PACKAGE_COUNT_MISMATCH: false,
+  WRONG_BATCH: false,
+  WRONG_ITEM: false,
+  HOLD_FOR_INVESTIGATION: false,
+  // Unclassified by whoever raised it, so no assumption either way.
+  OTHER: false,
+};
+
   const ageDays = (date: Date | null) =>
     date ? Math.floor((now - date.getTime()) / DAY) : 0;
 
   for (const exception of exceptions) {
-    const severe =
-      exception.type === "MISSING_SHIPMENT" || exception.type === "DAMAGED_CARGO";
+    const severe = SEVERE_EXCEPTION[exception.type];
     items.push({
       id: `exc-${exception.id}`,
       severity: severe ? "critical" : "warning",

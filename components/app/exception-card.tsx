@@ -6,13 +6,18 @@ import type {
 } from "@prisma/client";
 import {
   CircleHelp,
+  Landmark,
   PackageMinus,
   PackageOpen,
+  PackagePlus,
+  PackageSearch,
   PackageX,
   PauseCircle,
   Plane,
+  PlaneTakeoff,
   Replace,
   Scale,
+  ShieldAlert,
   Shuffle,
   User,
   Warehouse,
@@ -99,12 +104,26 @@ export type ExceptionGroupKey =
 const TYPE_GROUP = {
   MISSING_SHIPMENT: "missing",
   PACKAGE_COUNT_MISMATCH: "missing",
+  /* The pill asks one question — "cargo we do not have" — and both of these
+     answer yes. Left in China for weight, or standing behind a customs desk:
+     different sentences to the customer, same empty space on the floor, and
+     the same person chasing it. */
+  SHORT_LANDED: "missing",
+  HELD_BY_CUSTOMS: "missing",
   DAMAGED_CARGO: "damaged",
   WEIGHT_MISMATCH: "mismatch",
   WRONG_BATCH: "mismatch",
   // The box is here and intact; what is inside it is not what was booked. That
   // is a mismatch between the paperwork and the goods, not a shortage.
   WRONG_ITEM: "mismatch",
+  // The count disagrees with the booking, the other way round from a short
+  // one. The boxes are here; the paperwork does not explain all of them.
+  OVER_SHIPPED: "mismatch",
+  /* Here, and not to be handed over until somebody decides. A box nobody can
+     put a name to, and a box carrying something that should never have flown:
+     neither is a fault of the cargo, both stop at the counter. */
+  UNIDENTIFIED_CARGO: "hold",
+  RESTRICTED_ITEM: "hold",
   // A quarantine, not a fault — nothing is provably wrong, the box is simply
   // not to be released until somebody has looked at it. It gets its own pill
   // because "why is this not going out" has a different answer here.
@@ -141,6 +160,15 @@ export const TYPE_META = {
   WEIGHT_MISMATCH: { icon: Scale, stripe: "border-l-info" },
   WRONG_BATCH: { icon: Shuffle, stripe: "border-l-info" },
   WRONG_ITEM: { icon: Replace, stripe: "border-l-warning" },
+  // Amber, not red: it is late, not lost, and the stripe should not read like
+  // a search when the answer is "Friday".
+  SHORT_LANDED: { icon: PlaneTakeoff, stripe: "border-l-warning" },
+  HELD_BY_CUSTOMS: { icon: Landmark, stripe: "border-l-warning" },
+  UNIDENTIFIED_CARGO: { icon: PackageSearch, stripe: "border-l-warning" },
+  // Red. Everything else on this list is cargo behaving badly; this is cargo
+  // that should never have been in the aircraft.
+  RESTRICTED_ITEM: { icon: ShieldAlert, stripe: "border-l-destructive" },
+  OVER_SHIPPED: { icon: PackagePlus, stripe: "border-l-info" },
   HOLD_FOR_INVESTIGATION: { icon: PauseCircle, stripe: "border-l-warning" },
   OTHER: { icon: CircleHelp, stripe: "border-l-muted-foreground/40" },
 } as const satisfies Record<

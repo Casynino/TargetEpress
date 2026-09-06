@@ -6,7 +6,12 @@ import {
   Check,
   CircleHelp,
   Hash,
+  Landmark,
+  PackagePlus,
+  PackageSearch,
   PackageX,
+  PlaneTakeoff,
+  ShieldAlert,
   Shuffle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -33,19 +38,30 @@ import {
 
 const OUTCOME_ICONS: Record<ReceivingOutcome, LucideIcon> = {
   RECEIVED: Check,
-  MISSING: PackageX,
   DAMAGED: AlertTriangle,
   WRONG_ITEM: Shuffle,
   WRONG_QUANTITY: Hash,
+  OVER_QUANTITY: PackagePlus,
+  MISSING: PackageX,
+  SHORT_LANDED: PlaneTakeoff,
+  AT_CUSTOMS: Landmark,
+  NO_LABEL: PackageSearch,
+  RESTRICTED: ShieldAlert,
   HOLD: CircleHelp,
 };
 
 const NOTE_PLACEHOLDERS: Record<ReceivingOutcome, string> = {
   RECEIVED: "",
-  MISSING: "e.g. nothing with this label came off the flight; not on any pallet",
   DAMAGED: "e.g. one carton crushed down one side, contents wet",
   WRONG_ITEM: "e.g. label says phone cases, the box holds shoes",
   WRONG_QUANTITY: "e.g. manifest says five cartons, three on the floor",
+  /* The ticker is off for this one, so the count lives here or nowhere. */
+  OVER_QUANTITY: "e.g. manifest says three cartons, four on the floor — the fourth has no label",
+  MISSING: "e.g. nothing with this label came off the flight; not on any pallet",
+  SHORT_LANDED: "e.g. offloaded in Guangzhou for weight, booked on Friday GZ-33",
+  AT_CUSTOMS: "e.g. held by TRA for inspection, reference and who is following it up",
+  NO_LABEL: "e.g. label torn off, matched to this booking by contents and weight",
+  RESTRICTED: "e.g. two lithium power banks packed loose inside the carton",
   HOLD: "e.g. label unreadable and no paperwork — held until checked",
 };
 

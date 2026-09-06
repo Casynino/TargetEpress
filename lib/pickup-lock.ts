@@ -77,6 +77,21 @@ const TYPE_LOCKS_PICKUP = {
   PACKAGE_COUNT_MISMATCH: true,
   // A deliberate quarantine. Releasing quarantined cargo defeats the point.
   HOLD_FOR_INVESTIGATION: true,
+  // Not here to release. Both of these say the cargo is somewhere else — on
+  // the next flight, or behind a customs desk — and the counter must not be
+  // able to hand over what the building does not hold.
+  SHORT_LANDED: true,
+  HELD_BY_CUSTOMS: true,
+  // Handing over a box nobody can prove is theirs is how cargo is lost for
+  // good. It is here; whose it is has to be settled first.
+  UNIDENTIFIED_CARGO: true,
+  // Whether a battery or an aerosol may leave this building at all is not a
+  // question for whoever is standing at the counter.
+  RESTRICTED_ITEM: true,
+  // The customer's own boxes may all be present, but an unaccounted carton in
+  // the pile usually belongs to somebody else — and released by mistake it is
+  // somebody else's cargo gone. Held until the count is explained.
+  OVER_SHIPPED: true,
 
   // Paperwork, not cargo. The right box is on the floor for the right
   // customer, and the pickup note already settled the money — a disagreement

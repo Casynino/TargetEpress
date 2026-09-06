@@ -66,10 +66,23 @@ export async function desksHolding(
  */
 const OUTCOME_AUDIENCE: Record<ReceivingOutcome, Permission[]> = {
   RECEIVED: [],
-  MISSING: ["ticket.manage", "exception.approve"],
   DAMAGED: ["ticket.manage", "exception.compensate"],
   WRONG_ITEM: ["ticket.manage", "exception.approve"],
   WRONG_QUANTITY: ["ticket.manage", "exception.approve"],
+  /* A carton nobody booked is somebody's cargo about to be handed to the
+     wrong person, so the desk that talks to customers hears it with the
+     desk that decides. */
+  OVER_QUANTITY: ["ticket.manage", "exception.approve"],
+  MISSING: ["ticket.manage", "exception.approve"],
+  /* Both of these are answered by telling the customer WHEN, not by deciding
+     anything — so Support is told, and the approving desk with them because
+     a flight that keeps short-landing is a thing the office must see. */
+  SHORT_LANDED: ["ticket.manage", "exception.approve"],
+  AT_CUSTOMS: ["ticket.manage", "exception.approve"],
+  NO_LABEL: ["ticket.manage", "exception.approve"],
+  /* Compensation as well: something that should never have flown is the case
+     most likely to end in cargo destroyed rather than delivered. */
+  RESTRICTED: ["ticket.manage", "exception.approve", "exception.compensate"],
   HOLD: ["ticket.manage", "exception.approve"],
 };
 

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Scale, TriangleAlert, Undo2 } from "lucide-react";
 
+import { LARGE_WRITE_OFF_OVER } from "@/lib/constants";
 import { useT } from "@/components/app/locale-provider";
 
 /**
@@ -67,10 +68,26 @@ export function PaymentDifference({
 }) {
   const t = useT();
   const [clearRest, setClearRest] = useState(false);
-  const arm = (on: boolean) => {
-    setClearRest(on);
-    onArmedChange?.(on);
-  };
+  const arm = (on: boolean) => setClearRest(on);
+
+  /*
+    A BIG ONE GETS A SECOND LOOK, NEVER A LOCKED DOOR.
+
+    Twenty-five shillings is a rounding and nobody should think twice about it.
+    Two hundred thousand is not — it is either a genuine decision or a digit
+    typed wrong, and the difference is invisible on a screen where both wear
+    the same amber and the same button.
+
+    So above this figure the notice says so, in one line, before the press. The
+    owner's rule from the start: large adjustments are FLAGGED, never blocked.
+    Whoever is standing there may still be right, and the system does not get
+    to decide they are not.
+
+    Measured in the bill's own money, because that is what the adjustment is
+    written in.
+  */
+  const large =
+    gap > 0 && Math.abs(gapInBill) >= (LARGE_WRITE_OFF_OVER[billCurrency] ?? Infinity);
 
   const money = (value: number, currency: string) =>
     Math.abs(value).toLocaleString(undefined, {
@@ -94,9 +111,38 @@ export function PaymentDifference({
     silently. Keying on the state remounts the row, and each new answer arrives
     the way the first one did.
   */
+  /*
+    AGREEING TO TWENTY-FIVE IS NOT AGREEING TO FORTY THOUSAND.
+
+    The press used to stick to the form rather than to the figure: clear 25,
+    notice the amount was typed wrong, correct it to something forty thousand
+    short — and the write-off was still armed, for a number nobody had looked
+    at. Crossing the line in either direction takes the agreement back, so a
+    large one is always pressed while its own reminder is on screen.
+
+    Derived during render rather than in an effect: the alternative renders one
+    frame claiming an agreement that has already been withdrawn.
+  */
+  const [wasLarge, setWasLarge] = useState(large);
+  if (wasLarge !== large) {
+    setWasLarge(large);
+    if (clearRest) setClearRest(false);
+  }
+
+  /* The merge screen reduces one bill's share by the gap while this is armed,
+     so it has to be told — including when the line above disarmed it rather
+     than a press. Reported on change only, never on every render. */
+  const told = useRef(clearRest);
+  useEffect(() => {
+    if (told.current !== clearRest) {
+      told.current = clearRest;
+      onArmedChange?.(clearRest);
+    }
+  }, [clearRest, onArmedChange]);
+
   const state = gap < 0 ? "over" : clearRest ? "armed" : "short";
   const tone =
-    state === "short"
+    state === "short" || (state === "armed" && large)
       ? {
           ring: "hsl(var(--warning) / 0.55)",
           cls: "border-warning/40 bg-warning/10 text-warning",
@@ -135,6 +181,14 @@ export function PaymentDifference({
      amber — a button that shouted about a rounding error. */
   const press =
     "focus-ring inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[11px] font-semibold transition active:scale-[0.97]";
+  /* One line, and only when the figure earns it. Said the same way before and
+     after the press, so the record of a large write-off reads like the warning
+     that preceded it. */
+  const reminder = large ? (
+    <span className="mt-0.5 block font-medium opacity-90">
+      {t("That is a lot to clear — check it is right.")}
+    </span>
+  ) : null;
 
   if (state === "over") {
     return (
@@ -182,6 +236,7 @@ export function PaymentDifference({
             <span className="block opacity-80">
               {tendered} {money(paid, tendered)} {t("recorded")}
             </span>
+            {reminder}
           </span>
         </div>
         <div className="mt-2 flex justify-center">
@@ -216,8 +271,11 @@ export function PaymentDifference({
         <span className={disc}>
           <TriangleAlert className="h-3 w-3" />
         </span>
-        <span className={`min-w-0 ${figure}`}>
-          {t("Short")} {both}
+        <span className="min-w-0">
+          <span className={figure}>
+            {t("Short")} {both}
+          </span>
+          {reminder}
         </span>
       </div>
       {canClear ? (

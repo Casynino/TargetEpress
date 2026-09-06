@@ -16,6 +16,7 @@
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "../lib/prisma";
+import { ExceptionType } from "@prisma/client";
 import { REPORTED_CARGO_ABSENT, restoredStatus } from "../lib/investigations";
 import { EXCEPTION_OPEN_STATUSES, EXCEPTION_TERMINAL_STATUSES } from "../lib/constants";
 
@@ -58,18 +59,30 @@ async function main() {
     )
   );
 
-  // Only the case types that reported cargo absent put boxes back on the
-  // manifest. A damage case must never tick a package nobody has seen.
+  /*
+    Only the case types that reported cargo absent put boxes back on the
+    manifest. A damage case must never tick a package nobody has seen.
+
+    Asserted as a SET rather than as a run of named keys. Written out by name it
+    said nothing at all about a type added afterwards: five new ones arrived and
+    this check went on passing, green and blind, which is worse than not being
+    here. Comparing the whole map means an unanswered type fails it.
+  */
+  const absentTypes = Object.entries(REPORTED_CARGO_ABSENT)
+    .filter(([, yes]) => yes)
+    .map(([type]) => type)
+    .sort();
   check(
     "only absence cases check packages in",
-    REPORTED_CARGO_ABSENT.MISSING_SHIPMENT &&
-      REPORTED_CARGO_ABSENT.PACKAGE_COUNT_MISMATCH &&
-      REPORTED_CARGO_ABSENT.WRONG_BATCH &&
-      !REPORTED_CARGO_ABSENT.DAMAGED_CARGO &&
-      !REPORTED_CARGO_ABSENT.WRONG_ITEM &&
-      !REPORTED_CARGO_ABSENT.HOLD_FOR_INVESTIGATION &&
-      !REPORTED_CARGO_ABSENT.WEIGHT_MISMATCH &&
-      !REPORTED_CARGO_ABSENT.OTHER
+    absentTypes.join(",") ===
+      ["HELD_BY_CUSTOMS", "MISSING_SHIPMENT", "PACKAGE_COUNT_MISMATCH", "SHORT_LANDED", "WRONG_BATCH"].join(",")
+  );
+  /* And that the map answers for every type the schema has — the guard the
+     one above cannot make on its own, since a missing key reads as false. */
+  check(
+    "every exception type has an answer about absence",
+    Object.keys(REPORTED_CARGO_ABSENT).length ===
+      Object.keys(ExceptionType).length
   );
 
   // CARGO_FOUND has to be terminal, or a found box stays in the queue for ever

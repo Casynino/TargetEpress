@@ -1,6 +1,10 @@
 import { Role } from "@prisma/client";
 import { z } from "zod";
 
+import type { ExceptionType } from "@prisma/client";
+
+import { EXCEPTION_TYPE_LABELS } from "@/lib/constants";
+
 const GOODS_TYPES = [
   "GENERAL_MERCHANDISE",
   "ELECTRONICS",
@@ -551,14 +555,23 @@ export const releaseSchema = z.object({
 
 export const exceptionSchema = z.object({
   shipmentId: z.string().min(1),
-  type: z.enum([
-    "MISSING_SHIPMENT",
-    "DAMAGED_CARGO",
-    "WEIGHT_MISMATCH",
-    "PACKAGE_COUNT_MISMATCH",
-    "WRONG_BATCH",
-    "OTHER",
-  ]),
+  /*
+    EVERY TYPE THE SCHEMA HAS, NOT A LIST SOMEBODY REMEMBERED TO EXTEND.
+
+    Hand-typed, this list fell two behind without a word: WRONG_ITEM and
+    HOLD_FOR_INVESTIGATION were added to the enum and never here, so raising
+    either through this action failed the parse and handed the desk a raw
+    validation message instead of a case. Nothing failed to compile, because a
+    short list of literals is a perfectly good subset of the enum.
+
+    Read off EXCEPTION_TYPE_LABELS, which IS Record<ExceptionType, string> and
+    which the compiler therefore forces complete — the same argument the role
+    field below makes, after a hand-typed list of five roles refused to create
+    a Manager.
+  */
+  type: z.enum(
+    Object.keys(EXCEPTION_TYPE_LABELS) as [ExceptionType, ...ExceptionType[]]
+  ),
   description: z.string().trim().min(3, "Describe what is wrong."),
 });
 

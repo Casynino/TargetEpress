@@ -664,6 +664,20 @@ const CARGO_PHYSICALLY_HERE: Record<ExceptionType, boolean> = {
   // receive it would leave a real carton the warehouse is holding invisible to
   // Inventory — the exact failure this table was written to stop.
   WRONG_ITEM: true,
+  // Left in China for weight. Nothing came off this plane either — what
+  // separates it from MISSING_SHIPMENT is the sentence the customer is told,
+  // not anything on the warehouse floor.
+  SHORT_LANDED: false,
+  // In Dar, and not ours to touch. It is honestly not in the warehouse, and
+  // saying otherwise would put it in front of the release counter.
+  HELD_BY_CUSTOMS: false,
+  // A box with no readable marking is still a box on the floor, and pretending
+  // otherwise loses a real carton the warehouse is holding.
+  UNIDENTIFIED_CARGO: true,
+  // It flew and it landed. Whether it may be handed over is the case.
+  RESTRICTED_ITEM: true,
+  // More arrived than was booked, so what arrived is certainly here.
+  OVER_SHIPPED: true,
   // A quarantine, and you cannot quarantine something you do not have. It is
   // received, and the open case is what keeps it off the pickup counter.
   HOLD_FOR_INVESTIGATION: true,

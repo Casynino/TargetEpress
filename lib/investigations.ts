@@ -37,11 +37,23 @@ export const REPORTED_CARGO_ABSENT: Record<ExceptionType, boolean> = {
   PACKAGE_COUNT_MISMATCH: true,
   // The cargo travelled on a batch it did not belong to and turned up there.
   WRONG_BATCH: true,
+  // Left behind and arriving on the next flight: the boxes were never on the
+  // floor, and it is that flight landing which puts them there.
+  SHORT_LANDED: true,
+  // Released by the authority is the same event as found, for these boxes.
+  HELD_BY_CUSTOMS: true,
   // All of these were raised on cargo standing in the warehouse. The boxes were
   // never absent, so finding them is not what resolves the case.
   DAMAGED_CARGO: false,
   WEIGHT_MISMATCH: false,
   WRONG_ITEM: false,
+  // These three were raised on boxes already standing in the warehouse.
+  // Naming the owner, clearing the item, or working out whose the spare box is
+  // settles the question — none of them puts a carton on the floor that was
+  // not already there, and ticking one as received would be a lie.
+  UNIDENTIFIED_CARGO: false,
+  RESTRICTED_ITEM: false,
+  OVER_SHIPPED: false,
   HOLD_FOR_INVESTIGATION: false,
   // Unknown problem, so no assumption about boxes. Ticking a package on a guess
   // is worse than leaving the shipment short.

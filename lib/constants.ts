@@ -753,6 +753,29 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   CHEQUE: "Cheque",
 };
 
+/**
+ * ABOVE THIS, CLEARING A DIFFERENCE DESERVES A SECOND LOOK.
+ *
+ * A customer who sends 3,196,100 against 3,196,125 has paid; the 25 is the
+ * bank's fee or their own rounding, and it is cleared without anybody thinking
+ * about it. Two hundred thousand is a different thing entirely — either a real
+ * decision somebody has taken, or a digit typed wrong — and on screen the two
+ * wear the same amber and the same button.
+ *
+ * So above this figure the notice says so before the press. FLAGGED, NEVER
+ * BLOCKED, which is the owner's rule: whoever is standing at the counter may
+ * well be right, and the system does not get to decide they are not.
+ *
+ * Measured in the BILL's own money, because that is what the adjustment is
+ * written in. Two dollars is a shade over five thousand shillings at the rates
+ * this business runs on — near enough, and both are figures the office can
+ * hold in its head.
+ */
+export const LARGE_WRITE_OFF_OVER: Record<string, number> = {
+  TZS: 5_000,
+  USD: 2,
+};
+
 export const EXCEPTION_TYPE_LABELS: Record<ExceptionType, string> = {
   MISSING_SHIPMENT: "Missing cargo",
   DAMAGED_CARGO: "Damaged cargo",
@@ -760,6 +783,11 @@ export const EXCEPTION_TYPE_LABELS: Record<ExceptionType, string> = {
   PACKAGE_COUNT_MISMATCH: "Package count mismatch",
   WRONG_BATCH: "Wrong batch",
   WRONG_ITEM: "Wrong item",
+  SHORT_LANDED: "Short-landed — on the next flight",
+  HELD_BY_CUSTOMS: "Held by customs",
+  UNIDENTIFIED_CARGO: "No label — owner unknown",
+  RESTRICTED_ITEM: "Restricted item",
+  OVER_SHIPPED: "More boxes than booked",
   HOLD_FOR_INVESTIGATION: "Hold for investigation",
   OTHER: "Other",
 };

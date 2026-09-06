@@ -121,6 +121,7 @@ import { requireUser } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 import { percentDelta as delta } from "@/lib/format";
 import { ExecutiveDashboard } from "./executive";
+import { groupOf } from "@/components/app/exception-card";
 
 /** Midnight where the cargo is, in the server's local zone. */
 function startOfToday() {
@@ -867,13 +868,17 @@ async function darFloorStats() {
   const tally = (rows: typeof exceptions) =>
     rows.reduce((sum, row) => sum + row._count._all, 0);
 
-  const missing = tally(
-    exceptions.filter(
-      (row) =>
-        row.type === "MISSING_SHIPMENT" || row.type === "PACKAGE_COUNT_MISMATCH"
-    )
-  );
-  const damaged = tally(exceptions.filter((row) => row.type === "DAMAGED_CARGO"));
+  /*
+    THE SAME GROUPING THE REST OF THE APP USES.
+
+    These two tiles kept their own private copy of "what counts as missing" —
+    the literal pair MISSING_SHIPMENT and PACKAGE_COUNT_MISMATCH — while the
+    exceptions page and the investigation queue both read TYPE_GROUP. So a new
+    kind of absent cargo landed in the total and in neither tile, and the
+    supervisor's Missing count read low with nothing on screen to say why.
+  */
+  const missing = tally(exceptions.filter((row) => groupOf(row.type) === "missing"));
+  const damaged = tally(exceptions.filter((row) => groupOf(row.type) === "damaged"));
   const openExceptions = tally(exceptions);
 
   return {

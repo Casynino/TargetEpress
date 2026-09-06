@@ -287,6 +287,25 @@ enum ExceptionType {
   WRONG_BATCH
   /// The box is here and intact — what is inside it is not what was booked.
   WRONG_ITEM
+  /// Left behind in China for weight and coming on the next flight. NOT lost:
+  /// the difference matters, because the customer is told "Friday" rather than
+  /// "we are searching", and because it closes itself when the cargo lands.
+  SHORT_LANDED
+  /// Landed in Dar and the authority is holding it. Nothing is wrong with the
+  /// cargo and nothing was done wrong — it is simply not ours to hand over
+  /// yet, which is a different sentence from every other one on this list.
+  HELD_BY_CUSTOMS
+  /// A box on the floor with no readable marking. Raised against the
+  /// consignment the desk believes it belongs to, and it holds that
+  /// consignment shut until somebody can say so for certain.
+  UNIDENTIFIED_CARGO
+  /// Something aboard that should never have flown — a battery, a liquid, an
+  /// aerosol. The box is here; whether it may be handed over at all is not
+  /// the counter's call.
+  RESTRICTED_ITEM
+  /// More boxes than were booked. The opposite of a short count, and usually
+  /// means somebody else's cargo is in this pile.
+  OVER_SHIPPED
   /// Nothing is provably wrong yet, but the box is not to be released until
   /// somebody has looked at it. A quarantine, not a fault.
   HOLD_FOR_INVESTIGATION
