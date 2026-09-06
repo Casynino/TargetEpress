@@ -117,7 +117,7 @@ const SECTIONS: NavSection[] = [
       },
       {
         href: "/app/receive",
-        label: "Receive & verify",
+        label: "Receiving Dock",
         icon: "ClipboardCheck",
         permission: "batch.receive",
       },
@@ -306,9 +306,9 @@ const SECTIONS: NavSection[] = [
  * Dar warehouse gets its own menu rather than a filtered slice of the shared
  * one.
  *
- * Filtering produced a menu in the wrong words: "Receive & verify" is two jobs
- * to that floor, "Arrived batches" is everything ever flown when what they want is
- * what is landing this week, and "Batches" is a door into work that is China's.
+ * Filtering produced a menu in the wrong words: "Arrived batches" is everything
+ * ever flown when what they want is what is landing this week, and "Batches" is a
+ * door into work that is China's.
  * The floor works a line — arrivals, receive, verify, store, hand over — so the
  * menu is that line, in that order.
  *
@@ -365,7 +365,7 @@ const DAR_SECTIONS: NavSection[] = [
       },
       {
         href: "/app/receive",
-        label: "Receive & verify",
+        label: "Receiving Dock",
         icon: "PackagePlus",
         permission: "batch.receive",
       },
@@ -908,7 +908,7 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/app/search", label: "Search", icon: "Package", permission: "shipment.view" },
       { href: "/app/requests", label: "Requests", icon: "Inbox", permission: "shipment.create" },
       { href: "/app/cargo/new", label: "Receive cargo", icon: "PackagePlus", permission: "shipment.create" },
-      { href: "/app/receive", label: "Receive & verify", icon: "ClipboardCheck", permission: "batch.receive" },
+      { href: "/app/receive", label: "Receiving Dock", icon: "ClipboardCheck", permission: "batch.receive" },
     ],
   },
   {
