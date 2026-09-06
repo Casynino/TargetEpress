@@ -2954,6 +2954,20 @@ export type BillableHit = {
   outstanding: number;
   /** The rate frozen on the bill, so a shilling payment converts at what was quoted. */
   rate: number | null;
+  /*
+    THE FIGURES THE DESK'S OWN CONTROLS NEED.
+
+    The Record Payment dialog offered a money box and nothing else — no
+    discount, no write-off, no rate, no storage waiver — while the panel on the
+    cargo page offered all four. The same person, the same bill, the same
+    permissions, two different amounts of power depending on which door they
+    came through. Those controls open on what is already on the bill, so they
+    have to travel with it.
+  */
+  discount: number;
+  amountAdjusted: number;
+  storage: number;
+  storageWaived: number;
   status: string;
   /** The flight it came in on, for the desk working one arrival at a time. */
   batchId: string | null;
@@ -3047,6 +3061,10 @@ export async function searchBillable(query: string): Promise<BillableHit[]> {
       amountAdjusted: true,
       status: true,
       exchangeRate: true,
+      /* The figures the desk's own controls open on — see BillableHit. */
+      discount: true,
+      storageCharge: true,
+      storageWaivedUsd: true,
       customer: { select: { name: true } },
       shipment: {
         select: {
@@ -3077,6 +3095,10 @@ function toBillable(
     amountPaid: Prisma.Decimal;
     status: string;
     exchangeRate: Prisma.Decimal | null;
+    amountAdjusted: Prisma.Decimal;
+    discount: Prisma.Decimal;
+    storageCharge: Prisma.Decimal;
+    storageWaivedUsd: Prisma.Decimal;
     customer: { name: string };
     shipment: {
       trackingNumber: string;
@@ -3096,8 +3118,14 @@ function toBillable(
     currency: inv.currency,
     total,
     paid,
-    outstanding: Math.max(0, total - paid),
+    /* Through the helper: subtracting only the money leaves every bill whose
+       last shillings were written off looking like it still owes them. */
+    outstanding: outstandingOf(inv),
     rate: inv.exchangeRate === null ? null : toNumber(inv.exchangeRate),
+    discount: toNumber(inv.discount),
+    amountAdjusted: toNumber(inv.amountAdjusted),
+    storage: toNumber(inv.storageCharge),
+    storageWaived: toNumber(inv.storageWaivedUsd),
     status: inv.status,
     batchId: inv.shipment.batch?.id ?? null,
     batchNumber: inv.shipment.batch?.batchNumber ?? null,
@@ -3163,6 +3191,10 @@ export async function billableQueue(
         amountAdjusted: true,
         status: true,
         exchangeRate: true,
+        /* The figures the desk's own controls open on — see BillableHit. */
+        discount: true,
+        storageCharge: true,
+        storageWaivedUsd: true,
         customer: { select: { name: true } },
         shipment: {
           select: {

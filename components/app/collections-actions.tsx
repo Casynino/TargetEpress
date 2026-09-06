@@ -28,6 +28,9 @@ export function CollectionsActions({
   rate,
   canRecord,
   canAdjust,
+  canDiscount,
+  canChangeRate,
+  canWaiveStorage,
   canAskForCredit,
   canDecideCredit,
 }: {
@@ -36,6 +39,11 @@ export function CollectionsActions({
   canRecord: boolean;
   /** ledger.adjust — may clear a difference that will never arrive. */
   canAdjust?: boolean;
+  /** invoice.discount / invoice.rate / invoice.storage.waive — the same power
+      the cargo page gives this desk, offered wherever they record money. */
+  canDiscount?: boolean;
+  canChangeRate?: boolean;
+  canWaiveStorage?: boolean;
   canAskForCredit: boolean;
   canDecideCredit: boolean;
 }) {
@@ -62,6 +70,9 @@ export function CollectionsActions({
         rate={rate}
         canRecord={canRecord}
         canAdjust={canAdjust}
+        canDiscount={canDiscount}
+        canChangeRate={canChangeRate}
+        canWaiveStorage={canWaiveStorage}
         autoOpen={params.get("record") === "1"}
       />
     </>

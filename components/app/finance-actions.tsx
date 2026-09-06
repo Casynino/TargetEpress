@@ -32,6 +32,9 @@ export function FinanceActions({
   canTakeMoney,
   canRecordCost,
   canAdjust,
+  canDiscount,
+  canChangeRate,
+  canWaiveStorage,
   canAskForCredit,
   canDecideCredit,
 }: {
@@ -42,6 +45,11 @@ export function FinanceActions({
   canRecordCost: boolean;
   /** ledger.adjust — may clear a difference that will never arrive. */
   canAdjust?: boolean;
+  /** invoice.discount / invoice.rate / invoice.storage.waive — the same power
+      the cargo page gives this desk, offered wherever they record money. */
+  canDiscount?: boolean;
+  canChangeRate?: boolean;
+  canWaiveStorage?: boolean;
   canAskForCredit: boolean;
   canDecideCredit: boolean;
 }) {
@@ -56,6 +64,9 @@ export function FinanceActions({
           accounts={accounts}
           rate={rate}
           canAdjust={canAdjust}
+          canDiscount={canDiscount}
+          canChangeRate={canChangeRate}
+          canWaiveStorage={canWaiveStorage}
           autoOpen={params.get("income") === "1"}
         />
       ) : null}

@@ -441,6 +441,9 @@ export default async function SupportHome() {
                   rate={rate}
                   canRecord={canBankIt}
                   canAdjust={can(user.role, "ledger.adjust")}
+                  canDiscount={can(user.role, "invoice.discount")}
+                  canChangeRate={can(user.role, "invoice.rate")}
+                  canWaiveStorage={can(user.role, "invoice.storage.waive")}
                 />
               ) : null}
               {/* Asking for credit is an action too, and it was the one thing

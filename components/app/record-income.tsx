@@ -15,7 +15,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { MoneyInput } from "@/components/ui/money-input";
+import { AdjustDifference } from "@/components/app/adjust-difference";
+import { ChangeRate } from "@/components/app/change-rate";
+import { GiveDiscount } from "@/components/app/give-discount";
 import { PaymentDifference } from "@/components/app/payment-difference";
+import { WaiveStorage } from "@/components/app/waive-storage";
 import { submitPaymentForVerification } from "@/lib/actions/collections";
 import {
   billableQueue,
@@ -78,6 +82,9 @@ export function RecordIncome({
   autoOpen = false,
   canRecord = true,
   canAdjust = false,
+  canDiscount = false,
+  canChangeRate = false,
+  canWaiveStorage = false,
   compact = false,
 }: {
   accounts: ExpenseAccount[];
@@ -107,6 +114,12 @@ export function RecordIncome({
   canRecord?: boolean;
   /** ledger.adjust — may decide a difference is never arriving. */
   canAdjust?: boolean;
+  /** invoice.discount — may take money off the bill before it is paid. */
+  canDiscount?: boolean;
+  /** invoice.rate — may re-quote the bill's frozen rate. */
+  canChangeRate?: boolean;
+  /** invoice.storage.waive — may forgive the storage clock. */
+  canWaiveStorage?: boolean;
   /**
    * One word instead of two.
    *
@@ -792,6 +805,79 @@ export function RecordIncome({
             {/* Named for what it is and why, not shrugged off as "(optional)",
                 and carrying the same amber every other proof field carries. */}
             <PaymentProofField compact />
+
+            {/*
+              THE SAME POWER, WHICHEVER DOOR THE DESK CAME THROUGH.
+
+              This dialog offered a money box and nothing else, while the panel
+              on the cargo page offered a discount, a write-off, the rate and
+              the storage waiver — the same person, the same bill, the same
+              permissions, two different amounts of power depending on which
+              button they happened to press. A desk that opened this one and
+              found the customer disputing a figure had to abandon what they
+              had typed and go looking for the other screen.
+
+              Each is gated on the reader's OWN permission, so Support sees only
+              what Support may do and nothing is offered that the action would
+              refuse afterwards. All four portal themselves out of this form —
+              a form inside a form is dropped by the browser — which is why
+              they can sit here at all.
+            */}
+            <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+              {canDiscount ? (
+                <GiveDiscount
+                  invoiceId={picked.invoiceId}
+                  currency={picked.currency}
+                  current={picked.discount}
+                  rate={billRate}
+                />
+              ) : null}
+              {canAdjust && picked.outstanding > 0.005 ? (
+                <AdjustDifference
+                  invoiceId={picked.invoiceId}
+                  currency={picked.currency}
+                  balance={picked.outstanding}
+                  total={picked.total}
+                  rate={billRate}
+                  money={(v) =>
+                    `${picked.currency} ${v.toLocaleString(undefined, {
+                      minimumFractionDigits: picked.currency === "TZS" ? 0 : 2,
+                      maximumFractionDigits: picked.currency === "TZS" ? 0 : 2,
+                    })}`
+                  }
+                  /* What is typed above, in the bill's own money — so the
+                     dialog asks before writing off a balance that a payment
+                     nobody has saved yet would have settled. */
+                  pendingCargo={
+                    cargoHalf <= 0
+                      ? 0
+                      : tendered === picked.currency
+                        ? cargoHalf
+                        : billRate
+                          ? tendered === "TZS"
+                            ? cargoHalf / billRate
+                            : cargoHalf * billRate
+                          : 0
+                  }
+                />
+              ) : null}
+              {canChangeRate && picked.currency !== "TZS" ? (
+                <ChangeRate
+                  invoiceId={picked.invoiceId}
+                  currency={picked.currency}
+                  current={billRate}
+                  total={picked.total}
+                />
+              ) : null}
+              {canWaiveStorage && picked.storage > 0.005 ? (
+                <WaiveStorage
+                  invoiceId={picked.invoiceId}
+                  currency={picked.currency}
+                  storage={picked.storage}
+                  rate={billRate}
+                />
+              ) : null}
+            </div>
 
             {/* The same three lines every other money screen shows. */}
             <div className="w-full">
