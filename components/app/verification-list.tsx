@@ -960,57 +960,34 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
  *
  * Weigh · count · type · OK.
  */
-function VerifyPanel({
-  batchId,
-  shipmentId,
-  trackingNumber,
-  weightKg,
-  packages,
-  photosDurable,
-  action,
-  onDone,
+/*
+  Said the same way for both figures: the China record, what Dar found, and
+  the gap with its sign — so nobody has to work out which way it went.
+
+  DECLARED OUT HERE, AND IT HAS TO STAY OUT HERE.
+
+  Inside VerifyPanel this was a fresh function on every keystroke, so React
+  saw a different component each render, threw the subtree away and built it
+  again — carrying off the focused input with it. The desk got one digit per
+  click: type 9, land outside the box, click back in, type the next.
+*/
+function Figures({
+  label,
+  was,
+  unit,
+  delta,
+  moved,
+  children,
 }: {
-  batchId: string;
-  shipmentId: string;
-  trackingNumber: string;
-  weightKg: number;
-  packages: number;
-  photosDurable: boolean;
-  action: (formData: FormData) => void;
-  onDone: () => void;
+  label: string;
+  was: string;
+  unit: string;
+  delta: number;
+  moved: boolean;
+  children: React.ReactNode;
 }) {
   const t = useT();
-  const [kg, setKg] = useState(String(weightKg));
-  const [count, setCount] = useState(String(packages));
-  const [photo, setPhoto] = useState(false);
-
-  const nowKg = Number(kg);
-  const kgValid = Number.isFinite(nowKg) && nowKg > 0;
-  const kgDelta = kgValid ? Math.round((nowKg - weightKg) * 100) / 100 : 0;
-  const kgMoved = kgValid && Math.abs(kgDelta) > 0.005;
-
-  const nowCount = Number(count);
-  const countValid = Number.isInteger(nowCount) && nowCount > 0;
-  const countDelta = countValid ? nowCount - packages : 0;
-  const countMoved = countValid && countDelta !== 0;
-
-  /* Said the same way for both figures: the China record, what Dar found, and
-     the gap with its sign — so nobody has to work out which way it went. */
-  const Figures = ({
-    label,
-    was,
-    unit,
-    delta,
-    moved,
-    children,
-  }: {
-    label: string;
-    was: string;
-    unit: string;
-    delta: number;
-    moved: boolean;
-    children: React.ReactNode;
-  }) => (
+  return (
     <div className="grid grid-cols-3 items-end gap-3">
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -1046,6 +1023,41 @@ function VerifyPanel({
       </div>
     </div>
   );
+}
+
+function VerifyPanel({
+  batchId,
+  shipmentId,
+  trackingNumber,
+  weightKg,
+  packages,
+  photosDurable,
+  action,
+  onDone,
+}: {
+  batchId: string;
+  shipmentId: string;
+  trackingNumber: string;
+  weightKg: number;
+  packages: number;
+  photosDurable: boolean;
+  action: (formData: FormData) => void;
+  onDone: () => void;
+}) {
+  const t = useT();
+  const [kg, setKg] = useState(String(weightKg));
+  const [count, setCount] = useState(String(packages));
+  const [photo, setPhoto] = useState(false);
+
+  const nowKg = Number(kg);
+  const kgValid = Number.isFinite(nowKg) && nowKg > 0;
+  const kgDelta = kgValid ? Math.round((nowKg - weightKg) * 100) / 100 : 0;
+  const kgMoved = kgValid && Math.abs(kgDelta) > 0.005;
+
+  const nowCount = Number(count);
+  const countValid = Number.isInteger(nowCount) && nowCount > 0;
+  const countDelta = countValid ? nowCount - packages : 0;
+  const countMoved = countValid && countDelta !== 0;
 
   const box =
     "focus-ring w-24 rounded-md border bg-background px-2 py-1 font-display text-xl font-bold tabular-nums outline-none";
