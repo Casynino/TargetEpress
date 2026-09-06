@@ -121,6 +121,51 @@ export const RECEIVABLE_SQL = `
   COALESCE(SUM(GREATEST(0, "total" - "amountPaid" - "amountAdjusted")), 0)
 `;
 
+/**
+ * THE BILL, WHAT ARRIVED AND WHAT WAS LET GO — ALL IN SHILLINGS.
+ *
+ * A dollar bill settled in shillings cannot be restated by multiplying its
+ * dollar columns back out. TSh 36,000 against a USD 13.50 bill stores
+ * amountPaid 13.33 and amountAdjusted 0.17; multiply those by 2,700 and you
+ * get 35,991 paid and 459 cleared — neither of which anybody handed over or
+ * agreed to, and which the desk sees beside a button that said 450.
+ *
+ * So the shillings come from the shilling figures: the bill at its own frozen
+ * rate, the payments at their face value, and the write-off as the remainder.
+ * The three then add up exactly, and both of the first two are true.
+ *
+ * Returns nulls when it cannot be done honestly — no rate, or money that came
+ * in denominations other than the local one — and the caller falls back to the
+ * bill's own currency rather than inventing a shilling figure.
+ */
+export function localSplit(invoice: {
+  total: Numeric;
+  amountAdjusted: Numeric;
+  exchangeRate?: Numeric | null;
+  payments?: { amount: Numeric; currency: string }[] | null;
+}): { billLocal: number | null; paidLocal: number | null; clearedLocal: number | null } {
+  const rate = invoice.exchangeRate == null ? 0 : toNumber(invoice.exchangeRate);
+  if (!(rate > 0)) return { billLocal: null, paidLocal: null, clearedLocal: null };
+
+  const billLocal = Math.round(toNumber(invoice.total) * rate);
+  const rows = invoice.payments ?? [];
+  const allLocal = rows.length > 0 && rows.every((p) => p.currency === "TZS");
+  if (!allLocal) {
+    /* Mixed or dollar payments: the bill converts, the rest cannot be restated
+       without inventing figures, so say so. */
+    return { billLocal, paidLocal: null, clearedLocal: null };
+  }
+
+  const paidLocal = rows.reduce((sum, p) => sum + toNumber(p.amount), 0);
+  /* The remainder, never the stored cents multiplied out — and never below
+     zero, because an overpayment is not a write-off. */
+  const clearedLocal =
+    toNumber(invoice.amountAdjusted) > 0.005
+      ? Math.max(0, billLocal - paidLocal)
+      : 0;
+  return { billLocal, paidLocal, clearedLocal };
+}
+
 export function outstandingOf(invoice: BalanceInput): number {
   return invoiceBalance(invoice).balance;
 }

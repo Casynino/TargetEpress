@@ -10,7 +10,7 @@ import { shipmentQrDataUrl } from "@/lib/qr";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
-import { outstandingOf } from "@/lib/invoice-balance";
+import { localSplit, outstandingOf } from "@/lib/invoice-balance";
 
 /**
  * The pickup slip as a file.
@@ -124,21 +124,17 @@ export async function GET(
   const billUsd = toNumber(inv?.total ?? 0);
   const paidUsd = toNumber(inv?.amountPaid ?? 0);
   const clearedUsd = toNumber(inv?.amountAdjusted ?? 0);
-  /* The shillings that actually came in, when they all did. See the select. */
-  const shillingsIn =
-    noteRate &&
-    (inv?.payments.length ?? 0) > 0 &&
-    inv!.payments.every((p) => p.currency === "TZS")
-      ? inv!.payments.reduce((sum, p) => sum + toNumber(p.amount), 0)
-      : null;
-  const billTsh = noteRate ? Math.round(billUsd * noteRate) : null;
+  /* The three shilling figures that add up — see localSplit. */
+  const split = inv
+    ? localSplit(inv)
+    : { billLocal: null, paidLocal: null, clearedLocal: null };
   const paidShown =
-    shillingsIn !== null
-      ? `TSh ${shillingsIn.toLocaleString("en-US")}`
+    split.paidLocal !== null
+      ? `TSh ${split.paidLocal.toLocaleString("en-US")}`
       : tsh(paidUsd) ?? formatMoney(paidUsd, "USD");
   const clearedShown =
-    shillingsIn !== null && billTsh !== null
-      ? `TSh ${Math.max(0, billTsh - shillingsIn).toLocaleString("en-US")}`
+    split.clearedLocal !== null
+      ? `TSh ${split.clearedLocal.toLocaleString("en-US")}`
       : tsh(clearedUsd) ?? formatMoney(clearedUsd, "USD");
   const settledLabel = tsh(billUsd) ?? formatMoney(billUsd, "USD");
   const settledNote =

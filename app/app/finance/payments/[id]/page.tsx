@@ -8,6 +8,7 @@ import {
   Package,
   Paperclip,
   Receipt,
+  Scale,
   User,
 } from "lucide-react";
 
@@ -16,7 +17,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { activeAccounts } from "@/lib/accounts";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
-import { outstandingOf } from "@/lib/invoice-balance";
+import { localSplit, outstandingOf } from "@/lib/invoice-balance";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -104,7 +105,27 @@ export default async function PaymentDetailPage({
           total: true,
           amountPaid: true,
           amountAdjusted: true,
+          exchangeRate: true,
           status: true,
+          /* What actually arrived, in the money it arrived in — see
+             localSplit. Without it the shilling figures are the dollar
+             columns multiplied back out, and they do not match the button
+             the desk pressed. */
+          payments: { where: { voidedAt: null }, select: { amount: true, currency: true } },
+          /* The write-offs on this bill, so the page can say how a payment
+             short of the total nevertheless settled it. */
+          adjustments: {
+            where: { reversedAt: null },
+            orderBy: { createdAt: "asc" },
+            select: {
+              amount: true,
+              currency: true,
+              reason: true,
+              createdAt: true,
+              paymentId: true,
+              createdBy: { select: { name: true } },
+            },
+          },
           customer: { select: { id: true, name: true, phone: true } },
           shipment: {
             select: { trackingNumber: true, ...selectText("description") },
@@ -127,6 +148,32 @@ export default async function PaymentDetailPage({
   const owing = invoice
     ? outstandingOf(invoice)
     : 0;
+
+  /*
+    WHAT WAS CLEARED RATHER THAN PAID.
+
+    A payment of TSh 36,000 settling a bill of TSh 36,450 read "Paid to date
+    13.33 · Still owing 0" with nothing between them, so the page could not say
+    why 13.33 settles 13.50. The owner's question, twice.
+
+    It is NOT money and must never be added to one: it reaches no account, no
+    ledger line and no total the business counts. It is a decision, recorded so
+    the boss can see the customer was let off a figure too small to chase and
+    the cargo went out honestly.
+  */
+  const cleared = invoice ? toNumber(invoice.amountAdjusted) : 0;
+  const split = invoice
+    ? localSplit(invoice)
+    : { billLocal: null, paidLocal: null, clearedLocal: null };
+  const clearedTsh =
+    split.clearedLocal !== null
+      ? `TSh ${split.clearedLocal.toLocaleString("en-US")}`
+      : null;
+  /* Only the ones decided with THIS payment — an adjustment made later on the
+     bill's own page belongs to that page, not to this receipt. */
+  const clearedHere = (invoice?.adjustments ?? []).filter(
+    (a) => a.paymentId === payment.id
+  );
 
   /* No "Method" row. It said "Mobile money" directly above a row naming the
      mobile-money account it went into — the same fact twice, the second time
@@ -375,6 +422,62 @@ export default async function PaymentDetailPage({
             ) : null}
           </section>
 
+          {/*
+            THE DIFFERENCE THAT WAS LET GO — ON THE RECORD, COUNTED NOWHERE.
+
+            The whole point of clearing a small difference is that the customer
+            gets their cargo and nobody chases 450 shillings. The point of THIS
+            panel is that the decision is not invisible afterwards: the boss can
+            see what was let go, who let it go and when, on the same page as the
+            money that did arrive.
+
+            It is deliberately not money. It reaches no account, writes no
+            ledger line, and is not a part payment of anything — the bill is
+            settled, not partly settled. This is a reference, and it says so.
+          */}
+          {clearedHere.length > 0 ? (
+            <section className="rounded-2xl border border-warning/40 bg-warning/[0.06] p-5">
+              <h2 className="flex items-center gap-2 font-semibold text-warning">
+                <Scale className="h-4 w-4" />
+                {t(locale, "Cleared with this payment")}
+              </h2>
+              <dl className="mt-4 space-y-3 text-sm">
+                {clearedHere.map((a, i) => {
+                  const amount = toNumber(a.amount);
+                  return (
+                    <div
+                      key={i}
+                      className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1"
+                    >
+                      <dt className="text-muted-foreground">
+                        {t(locale, "Written off the bill")}
+                        <span className="mt-0.5 block text-xs">
+                          {t(locale, "by")} {a.createdBy?.name ?? "—"} ·{" "}
+                          {formatDateTime(a.createdAt, locale)}
+                          {a.reason ? ` · ${a.reason}` : ""}
+                        </span>
+                      </dt>
+                      <dd className="font-mono font-semibold tabular-nums text-warning">
+                        {clearedHere.length === 1 && clearedTsh
+                          ? clearedTsh
+                          : formatMoney(amount, a.currency)}
+                        <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
+                          {formatMoney(amount, a.currency)}
+                        </span>
+                      </dd>
+                    </div>
+                  );
+                })}
+              </dl>
+              <p className="mt-4 border-t border-warning/25 pt-3 text-xs text-muted-foreground">
+                {t(
+                  locale,
+                  "This is a record, not money. It reached no account, wrote no ledger line, and counts towards no total — the bill is settled, not part paid. It is here so the decision can be found."
+                )}
+              </p>
+            </section>
+          ) : null}
+
           {/* The evidence. Shown, not counted — it existed in the database and
               was reachable from nowhere once uploaded. */}
           <section className="rounded-2xl border bg-card">
@@ -481,6 +584,19 @@ export default async function PaymentDetailPage({
                     {formatMoney(toNumber(invoice.amountPaid), invoice.currency)}
                   </dd>
                 </div>
+                {cleared > 0.005 ? (
+                  <div className="flex items-baseline justify-between gap-3">
+                    <dt className="text-muted-foreground">
+                      {t(locale, "Cleared, not paid")}
+                    </dt>
+                    <dd className="font-mono tabular-nums text-warning">
+                      {clearedTsh ?? formatMoney(cleared, invoice.currency)}
+                      <span className="ml-1.5 text-[11px] text-muted-foreground">
+                        {formatMoney(cleared, invoice.currency)}
+                      </span>
+                    </dd>
+                  </div>
+                ) : null}
                 <div className="flex items-baseline justify-between gap-3 border-t pt-3">
                   <dt className="font-medium">{t(locale, "Still owing")}</dt>
                   <dd
