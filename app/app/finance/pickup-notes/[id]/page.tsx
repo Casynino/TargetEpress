@@ -59,6 +59,23 @@ export default async function PickupNotePage({
               total: true,
               amountPaid: true,
               amountAdjusted: true,
+              /* The card leads in shillings — that is the money the customer
+                 handed over and the money they remember. */
+              exchangeRate: true,
+              /*
+                WHAT ACTUALLY ARRIVED, IN THE MONEY IT ARRIVED IN.
+
+                The bill is written in dollars, so amountPaid is 145,300
+                shillings rounded to 53.81 — and 53.81 multiplied back out is
+                145,287. Thirteen shillings the customer never lost, printed on
+                the card they keep. Where every live payment came in shillings
+                the card states those shillings, and what was cleared is the
+                remainder of the bill, so the two figures add up to it exactly.
+              */
+              payments: {
+                where: { voidedAt: null },
+                select: { amount: true, currency: true },
+              },
             },
           },
         },
@@ -128,6 +145,39 @@ export default async function PickupNotePage({
   const moneyIn = note.shipment.invoice !== null && outstanding <= 0.005;
   const settled = note.status !== "CANCELLED" && moneyIn;
 
+  /* Same figures the PDF builds — see the route. */
+  const inv = note.shipment.invoice;
+  const noteRate = inv?.exchangeRate ? toNumber(inv.exchangeRate) : null;
+  const tsh = (usd: number) =>
+    noteRate ? `TSh ${Math.round(usd * noteRate).toLocaleString("en-US")}` : null;
+  const billUsd = toNumber(inv?.total ?? 0);
+  const paidUsd = toNumber(inv?.amountPaid ?? 0);
+  const clearedUsd = toNumber(inv?.amountAdjusted ?? 0);
+  /* The shillings that actually came in, when they all did. See the select. */
+  const shillingsIn =
+    noteRate &&
+    (inv?.payments.length ?? 0) > 0 &&
+    inv!.payments.every((p) => p.currency === "TZS")
+      ? inv!.payments.reduce((sum, p) => sum + toNumber(p.amount), 0)
+      : null;
+  const billTsh = noteRate ? Math.round(billUsd * noteRate) : null;
+  const paidShown =
+    shillingsIn !== null
+      ? `TSh ${shillingsIn.toLocaleString("en-US")}`
+      : tsh(paidUsd) ?? formatMoney(paidUsd, "USD");
+  const clearedShown =
+    shillingsIn !== null && billTsh !== null
+      ? `TSh ${Math.max(0, billTsh - shillingsIn).toLocaleString("en-US")}`
+      : tsh(clearedUsd) ?? formatMoney(clearedUsd, "USD");
+  const settledNote =
+    clearedUsd > 0.005
+      ? [
+          `${paidShown} paid`,
+          `${clearedShown} cleared`,
+          formatMoney(billUsd, "USD"),
+        ].join(" \u00b7 ")
+      : formatMoney(billUsd, "USD");
+
   const data: PickupSlipData = {
     noteNumber: note.noteNumber,
     status: note.status,
@@ -175,10 +225,19 @@ export default async function PickupNotePage({
       figure. And it comes off the invoice rather than off the note, whose
       `amountPaid` froze at nothing on the day the cargo left.
     */
+    /*
+      THE BILL, IN SHILLINGS — not the dollars that happened to arrive.
+
+      This printed "USD 13.33" beside PAID IN FULL on a bill of USD 13.50,
+      which is both the wrong currency for the counter and a figure that
+      cannot explain itself. The bill's own total leads, in the money the
+      customer counted out, and the line beneath says what was paid and what
+      was cleared. Same builder as the PDF, so the two copies agree.
+    */
     amountLabel:
       credit === null
         ? can(user.role, "finance.view")
-          ? formatMoney(note.amountPaid, note.currency)
+          ? tsh(billUsd) ?? formatMoney(billUsd, "USD")
           : null
         : waived
           ? null
@@ -188,6 +247,14 @@ export default async function PickupNotePage({
               pendingCredit === null ? credit.paidUsd : credit.outstandingUsd,
               credit.exchangeRate
             ),
+    amountNote:
+      credit === null
+        ? can(user.role, "finance.view")
+          ? settledNote
+          : null
+        : waived
+          ? null
+          : formatMoney(credit.outstandingUsd, "USD"),
     credit:
       pendingCredit === null
         ? null

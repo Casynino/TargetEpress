@@ -55,6 +55,23 @@ export async function GET(
               total: true,
               amountPaid: true,
               amountAdjusted: true,
+              /* The card leads in shillings — that is the money the customer
+                 handed over and the money they remember. */
+              exchangeRate: true,
+              /*
+                WHAT ACTUALLY ARRIVED, IN THE MONEY IT ARRIVED IN.
+
+                The bill is written in dollars, so amountPaid is 145,300
+                shillings rounded to 53.81 — and 53.81 multiplied back out is
+                145,287. Thirteen shillings the customer never lost, printed on
+                the card they keep. Where every live payment came in shillings
+                the card states those shillings, and what was cleared is the
+                remainder of the bill, so the two figures add up to it exactly.
+              */
+              payments: {
+                where: { voidedAt: null },
+                select: { amount: true, currency: true },
+              },
             },
           },
         },
@@ -87,6 +104,51 @@ export async function GET(
   const credit = note.shipment.invoice
     ? await invoiceCredit(note.shipment.invoice.id)
     : null;
+
+  /*
+    THE CARD LEADS IN SHILLINGS, AND SAYS WHAT WAS CLEARED.
+
+    It showed "USD 13.33" — the dollars actually received — beside the words
+    PAID IN FULL on a bill of USD 13.50. Two problems in one line: the money
+    the customer counted out was shillings, and the 450 that was written off
+    appeared nowhere, so the card could not explain why 13.33 settles 13.50.
+
+    The bill's own figure leads, in shillings. Underneath, when something was
+    written off, the split: what was paid, what was cleared, and the dollars
+    the bill is denominated in.
+  */
+  const inv = note.shipment.invoice;
+  const noteRate = inv?.exchangeRate ? toNumber(inv.exchangeRate) : null;
+  const tsh = (usd: number) =>
+    noteRate ? `TSh ${Math.round(usd * noteRate).toLocaleString("en-US")}` : null;
+  const billUsd = toNumber(inv?.total ?? 0);
+  const paidUsd = toNumber(inv?.amountPaid ?? 0);
+  const clearedUsd = toNumber(inv?.amountAdjusted ?? 0);
+  /* The shillings that actually came in, when they all did. See the select. */
+  const shillingsIn =
+    noteRate &&
+    (inv?.payments.length ?? 0) > 0 &&
+    inv!.payments.every((p) => p.currency === "TZS")
+      ? inv!.payments.reduce((sum, p) => sum + toNumber(p.amount), 0)
+      : null;
+  const billTsh = noteRate ? Math.round(billUsd * noteRate) : null;
+  const paidShown =
+    shillingsIn !== null
+      ? `TSh ${shillingsIn.toLocaleString("en-US")}`
+      : tsh(paidUsd) ?? formatMoney(paidUsd, "USD");
+  const clearedShown =
+    shillingsIn !== null && billTsh !== null
+      ? `TSh ${Math.max(0, billTsh - shillingsIn).toLocaleString("en-US")}`
+      : tsh(clearedUsd) ?? formatMoney(clearedUsd, "USD");
+  const settledLabel = tsh(billUsd) ?? formatMoney(billUsd, "USD");
+  const settledNote =
+    clearedUsd > 0.005
+      ? [
+          `${paidShown} paid`,
+          `${clearedShown} cleared`,
+          formatMoney(billUsd, "USD"),
+        ].join(" \u00b7 ")
+      : formatMoney(billUsd, "USD");
 
   const pdf = renderPickupSlipPdf({
     noteNumber: note.noteNumber,
@@ -151,9 +213,17 @@ export async function GET(
     amountLabel: credit
       ? credit.state === "WAIVED"
         ? null
-        : formatMoney(credit.outstandingUsd, "USD")
+        : tsh(credit.outstandingUsd) ?? formatMoney(credit.outstandingUsd, "USD")
       : can(user.role, "finance.view")
-        ? formatMoney(note.amountPaid, note.currency)
+        ? settledLabel
+        : null,
+    /* The second line under the band. Only where there is something the top
+       line cannot say on its own — the dollars behind the shillings, and the
+       part of the bill that was cleared rather than paid. */
+    amountNote: credit
+      ? formatMoney(credit.outstandingUsd, "USD")
+      : can(user.role, "finance.view")
+        ? settledNote
         : null,
     officeLines: [...COMPANY.offices[0].lines],
     // 620px into 43mm is ~366dpi; a phone locks onto it off a screen or paper.

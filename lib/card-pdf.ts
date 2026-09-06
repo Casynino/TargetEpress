@@ -237,6 +237,9 @@ export type SlipPdfInput = {
    */
   credit?: { dueOn: string | null; overdue: boolean } | null;
   amountLabel: string | null;
+  /** The smaller line under it — the dollars behind the shillings, and what
+      was cleared rather than paid. See the pickup-note route. */
+  amountNote?: string | null;
   officeLines: string[];
   qr: string;
 };
@@ -368,6 +371,16 @@ export function renderPickupSlipPdf(data: SlipPdfInput): ArrayBuffer {
     doc.setFontSize(10);
     doc.text(winAnsi(data.amountLabel), W - PAD - 2.4, y + 5.4, { align: "right" });
   }
+  if (data.amountNote) {
+    /* Under the band, not inside it: the band is sized for one line and the
+       colour behind it is the fact, not the arithmetic. */
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(110, 110, 110);
+    doc.text(winAnsi(data.amountNote), W - PAD - 2.4, y + (onCredit ? 11.5 : 8) + 3.6, {
+      align: "right",
+    });
+  }
   if (data.credit) {
     /* The date, never a countdown: "due in 12 days" is wrong by tomorrow on a
        card somebody folds into a pocket. */
@@ -386,7 +399,9 @@ export function renderPickupSlipPdf(data: SlipPdfInput): ArrayBuffer {
       y + 9.6
     );
   }
-  y += onCredit ? 15.5 : 12;
+  /* Room for the line under the band when there is one, so it does not sit on
+     top of "Collect from". */
+  y += onCredit ? 15.5 : data.amountNote ? 14.5 : 12;
 
   fieldLabel(doc, "Collect from", PAD, y);
   y += 4;

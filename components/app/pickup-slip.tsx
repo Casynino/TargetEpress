@@ -31,6 +31,8 @@ export type PickupSlipData = {
    */
   settled: boolean;
   amountLabel: string | null;
+  /** The smaller line under the band — see the pickup-note route. */
+  amountNote?: string | null;
   /**
    * Set when this cargo left on credit and the bill is not settled.
    *
@@ -327,6 +329,14 @@ export async function PickupSlip({ data }: { data: PickupSlipData }) {
             </p>
           ) : null}
         </div>
+        {data.amountNote ? (
+          <p
+            className="mt-1 text-right font-mono tabular"
+            style={{ fontSize: "7pt", color: "#6E6E6E" }}
+          >
+            {data.amountNote}
+          </p>
+        ) : null}
 
         {/* The due date, on the same block rather than a row of its own — one
             line, and only the credit that actually has a date to give. */}
