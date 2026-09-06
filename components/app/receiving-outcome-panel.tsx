@@ -515,25 +515,45 @@ export function ReceivingOutcomePanel({
                 : `${t("Open a case —")} ${t(RECEIVING_OUTCOME_LABELS[outcome]).toLowerCase()}`}
             </SubmitButton>
             {outcome !== "RECEIVED" ? (
-              <p className="text-xs text-muted-foreground">
-                {t("Tracking will read")}{" "}
-                <span className="font-medium">
-                  {staysHere
-                    ? t(SHIPMENT_STATUS_META.RECEIVED_AT_DAR.label)
-                    : t("Under investigation")}
-                </span>
-                {!staysHere
-                  ? t(", not Ready for pickup.")
-                  : holdsIt
-                    ? t(", and the case holds it off the pickup counter.")
-                    : t(". The case is recorded against it and does not hold it.")}
+              /*
+                TWO READERS, TWO ANSWERS.
+
+                This said "Tracking will read" and then named the staff status.
+                Tracking is the customer's page, and it never shows that word
+                while a case is open — it shows the hold. So a clerk on the
+                phone read the internal record aloud and told the customer
+                something the customer's own screen contradicts.
+
+                Said as two lines because they genuinely differ, and the one
+                that matters on the phone is the second.
+              */
+              <div className="text-xs text-muted-foreground">
+                <p>
+                  {t("Cargo record:")}{" "}
+                  <span className="font-medium">
+                    {staysHere
+                      ? t(SHIPMENT_STATUS_META.RECEIVED_AT_DAR.label)
+                      : t("Under investigation")}
+                  </span>
+                </p>
+                <p className="mt-0.5">
+                  {t("Customer sees:")}{" "}
+                  <span className="font-medium">
+                    {staysHere && !holdsIt
+                      ? t(SHIPMENT_STATUS_META.RECEIVED_AT_DAR.publicLabel)
+                      : t("Under investigation")}
+                  </span>
+                  {" — "}
+                  {holdsIt || !staysHere
+                    ? t("cannot be collected until the case is closed.")
+                    : t("can still be collected.")}
+                </p>
                 {/* The split, in the owner's words: what goes on the shelf and
                     what somebody has to go looking for. Only where boxes were
                     actually named, because everywhere else there is no split
                     to state. */}
                 {ticker && missingCount > 0 ? (
-                  <>
-                    {" "}
+                  <p className="mt-0.5">
                     <span className="font-medium text-foreground">
                       {t("Into the warehouse:")} {present.length}
                     </span>
@@ -541,9 +561,9 @@ export function ReceivingOutcomePanel({
                     <span className="font-medium text-warning">
                       {t("To the case:")} {missingCount}
                     </span>
-                  </>
+                  </p>
                 ) : null}
-              </p>
+              </div>
             ) : null}
           </div>
         </form>

@@ -450,6 +450,35 @@ export default async function ShipmentDetailPage({
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
+          {/*
+            CHECKED IN, AND NEVER PRICED.
+
+            Check-in commits the arrival and then prices outside the
+            transaction, deliberately, so a pricing failure cannot lose the fact
+            that the boxes are on the floor. The action says so when it happens
+            — but on this page the card carrying that message is rendered only
+            while the cargo is still unchecked, so it unmounted in the same
+            commit and the sentence was never painted. The clerk saw the card
+            disappear, which is what a clean success looks like.
+
+            So the page states the condition instead of relaying the message.
+            It is read from the database, it survives a reload, and it stays up
+            until somebody actually raises the bill.
+          */}
+          {shipment.arrivedAt !== null &&
+          shipment.invoice === null &&
+          shipment.status !== "CANCELLED" ? (
+            <p className="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
+              <span className="font-semibold">
+                {t(locale, "Checked in, but no bill was raised.")}
+              </span>{" "}
+              {t(
+                locale,
+                "Ask Finance to raise it — the cargo cannot be released without one."
+              )}
+            </p>
+          ) : null}
+
           {showCheckIn ? (
             <CargoCheckIn
               batchId={shipment.batch!.id}

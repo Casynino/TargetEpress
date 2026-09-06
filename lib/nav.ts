@@ -1062,16 +1062,18 @@ const MANAGER_SECTIONS: NavSection[] = [
          behind those figures, and last the check that the figures agree. */
       { href: "/app/finance", label: "Overview", icon: "Wallet" },
       { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
+      { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp" },
+      { href: "/app/finance/transactions", label: "General ledger", icon: "ArrowLeftRight" },
+      { href: "/app/manager/reconciliation", label: "Reconciliation", icon: "Scale" },
       {
-        /* The same row every other money desk carries. */
+        /* The same row every other money desk carries, and on this desk it sits
+           last: the rows above are what the manager comes here to read, and
+           taking a payment is the one thing on the list that writes. */
         href: "/app/collections/follow-up?record=1",
         label: "Record Payment",
         icon: "Banknote",
         permission: "payment.record",
       },
-      { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp" },
-      { href: "/app/finance/transactions", label: "General ledger", icon: "ArrowLeftRight" },
-      { href: "/app/manager/reconciliation", label: "Reconciliation", icon: "Scale" },
       /* No "Company accounts" or "Review transactions" rows. They were this
          desk's own copies of the accounts list and the ledger, and the owner
          took them out: "i dont need these two pages, the boss will see on the
@@ -1096,17 +1098,16 @@ const MANAGER_SECTIONS: NavSection[] = [
     title: "Decisions",
     group: { label: "Decisions", icon: "BadgeCheck" },
     items: [
-      /* "payroll then control room". Its own row rather than a line in the
-         approvals list, because agreeing a month's salaries is not a queue item
-         to clear — it is read name by name against a table before it is signed
-         — and now the first of them, because it is the one that has a deadline.
-         Pending approvals kept its place between the two. */
+      /* Payroll first: its own row rather than a line in the approvals list,
+         because agreeing a month's salaries is read name by name against a
+         table before it is signed, and it is the one here with a deadline. */
       { href: "/app/manager/payroll", label: "Payroll", icon: "Wallet", permission: "payroll.approve" },
-      /* The screen that answers "what needs me today" without the manager
-         having to guess which queue to open. */
-      { href: "/app/manager/control", label: "Control room", icon: "ShieldCheck" },
-      /* Last, at the owner's instruction. */
+      /* Then the queue with things waiting in it. */
       { href: "/app/manager/approvals", label: "Approvals", icon: "BadgeCheck" },
+      /* And last the screen that answers "what needs me today" — a place to
+         look rather than a queue to clear, so it sits under the two that hold
+         work with somebody waiting on the other end. */
+      { href: "/app/manager/control", label: "Control room", icon: "ShieldCheck" },
     ],
   },
   {
