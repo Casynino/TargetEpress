@@ -3455,6 +3455,8 @@ const ZH: Record<string, string> = {
   "Booked": "预报",
   "How many arrived?": "实际到货多少件？",
   "That is not a number of boxes.": "这不是有效的件数。",
+  "Cargo present": "货在仓库",
+  "Not in the warehouse": "不在仓库",
   "Bill settled, cargo can go": "账单已结清，货物可放行",
   "Finance clears": "由财务核销",
   "Clearing": "核销",

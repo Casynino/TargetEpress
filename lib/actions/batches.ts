@@ -34,6 +34,7 @@ import {
   routeFor,
 } from "@/lib/cargo";
 import { t } from "@/lib/i18n";
+import { CARGO_PHYSICALLY_HERE } from "@/lib/cargo-presence";
 import { generateQrToken, nextBatchNumber, packageReference } from "@/lib/ids";
 import type { Locale } from "@/lib/locale";
 import { prisma, type TxClient } from "@/lib/prisma";
@@ -649,58 +650,6 @@ export async function receiveBatch(
   */
   redirect(`/app/receive/${batchId}`);
 }
-
-/**
- * Does this kind of problem mean the cargo is standing in the Dar warehouse?
- *
- * A damaged carton is still a carton on the floor. Somebody has to store it,
- * find it again, and answer the customer asking where it is — and none of that
- * is possible if flagging the damage is what keeps it out of the system. The
- * old code refused to receive anything flagged, so a torn box sat on a shelf in
- * Dar while the record said it was in the air: invisible to Warehouse
- * Inventory, invisible to the counter, and invisible on the customer's
- * tracking. That is exactly how a box goes missing while nobody has moved it.
- *
- * So the flag no longer decides whether the cargo enters the warehouse. Only
- * this table does, and it answers one physical question: did anything arrive?
- * MISSING_SHIPMENT is the single case where the answer is no.
- *
- * Written as an exhaustive Record on purpose. Add an ExceptionType to the
- * schema and this file stops compiling until somebody says where that cargo
- * physically is. The answer is not guessable and the cost of guessing it wrong
- * is a lost carton.
- */
-const CARGO_PHYSICALLY_HERE: Record<ExceptionType, boolean> = {
-  // Nothing came off the plane. There is no cargo to receive.
-  MISSING_SHIPMENT: false,
-  // All of these arrived. They arrived wrong, which is a different problem.
-  DAMAGED_CARGO: true,
-  WEIGHT_MISMATCH: true,
-  PACKAGE_COUNT_MISMATCH: true,
-  WRONG_BATCH: true,
-  // The box is on the floor; its contents are not what was booked. Refusing to
-  // receive it would leave a real carton the warehouse is holding invisible to
-  // Inventory — the exact failure this table was written to stop.
-  WRONG_ITEM: true,
-  // Left in China for weight. Nothing came off this plane either — what
-  // separates it from MISSING_SHIPMENT is the sentence the customer is told,
-  // not anything on the warehouse floor.
-  SHORT_LANDED: false,
-  // In Dar, and not ours to touch. It is honestly not in the warehouse, and
-  // saying otherwise would put it in front of the release counter.
-  HELD_BY_CUSTOMS: false,
-  // A box with no readable marking is still a box on the floor, and pretending
-  // otherwise loses a real carton the warehouse is holding.
-  UNIDENTIFIED_CARGO: true,
-  // It flew and it landed. Whether it may be handed over is the case.
-  RESTRICTED_ITEM: true,
-  // More arrived than was booked, so what arrived is certainly here.
-  OVER_SHIPPED: true,
-  // A quarantine, and you cannot quarantine something you do not have. It is
-  // received, and the open case is what keeps it off the pickup counter.
-  HOLD_FOR_INVESTIGATION: true,
-  OTHER: true,
-};
 
 const isExceptionType = (value: string): value is ExceptionType =>
   Object.prototype.hasOwnProperty.call(CARGO_PHYSICALLY_HERE, value);

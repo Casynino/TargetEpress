@@ -12,6 +12,7 @@ import {
   InvestigationActions,
   type InvestigationAllowances,
 } from "@/components/app/investigation-actions";
+import { PresenceBadge } from "@/components/app/presence-badge";
 import { InvestigationTimeline } from "@/components/app/investigation-timeline";
 import {
   ApproveCompensationForm,
@@ -216,6 +217,8 @@ function ExceptionCard({
           <Badge variant={closed ? "muted" : "destructive"}>
             {t(EXCEPTION_TYPE_LABELS[exception.type])}
           </Badge>
+          {/* Where the box is, beside what is wrong with it. */}
+          {closed ? null : <PresenceBadge type={exception.type} />}
         </span>
         {/* Labelled with the column heading the desk table uses, so the two
             views cannot drift into two different words for the same figure —
@@ -367,6 +370,7 @@ function ExceptionRow({
             <Badge variant={closed ? "muted" : "destructive"}>
               {t(EXCEPTION_TYPE_LABELS[exception.type])}
             </Badge>
+            {closed ? null : <PresenceBadge type={exception.type} />}
           </span>
         </td>
 

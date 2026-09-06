@@ -23,6 +23,7 @@ import {
   Warehouse,
 } from "lucide-react";
 
+import { PresenceBadge } from "@/components/app/presence-badge";
 import { ResolveExceptionForm } from "@/components/app/resolve-exception-form";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -234,6 +235,12 @@ export function ExceptionCard({
               <Badge variant={open ? "destructive" : "muted"}>
                 {t(locale, EXCEPTION_TYPE_LABELS[exception.type])}
               </Badge>
+              {/* The fault says what is wrong; this says whether anybody
+                  should be out looking for the box. Only while the case is
+                  live — once it is closed the question is answered. */}
+              {open ? (
+                <PresenceBadge type={exception.type} />
+              ) : null}
               <Link
                 href={`/app/cargo/${shipment.trackingNumber}`}
                 className="focus-ring rounded font-mono text-sm font-semibold tabular hover:text-brand"

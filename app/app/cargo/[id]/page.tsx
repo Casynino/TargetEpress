@@ -13,6 +13,7 @@ import {
   Truck,
 } from "lucide-react";
 
+import { PresenceBadge } from "@/components/app/presence-badge";
 import { PageHeader } from "@/components/app/page-header";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { CargoDeleteButton, DeleteCargoForm } from "@/components/app/cargo-delete";
@@ -319,10 +320,17 @@ export default async function ShipmentDetailPage({
                 with it. Damaged cargo is still "Received at Dar", so the two
                 have to be read together or a broken box looks healthy. */}
             {openExceptions.map((exception) => (
-              <Badge key={exception.id} variant="destructive">
-                <AlertTriangle className="mr-1 h-3 w-3" />
-                {t(locale, EXCEPTION_TYPE_LABELS[exception.type])}
-              </Badge>
+              <span key={exception.id} className="inline-flex items-center gap-1.5">
+                <Badge variant="destructive">
+                  <AlertTriangle className="mr-1 h-3 w-3" />
+                  {t(locale, EXCEPTION_TYPE_LABELS[exception.type])}
+                </Badge>
+                {/* And whether the box is in the building. The two badges
+                    beside the status were being read as one thing — a dented
+                    carton on a shelf in Kariakoo looked the same as a
+                    consignment nobody can find. */}
+                <PresenceBadge type={exception.type} />
+              </span>
             ))}
             {/* Offered only while the record can actually be changed — a
                 disabled button that explains itself on click is worse than no
@@ -600,6 +608,7 @@ export default async function ShipmentDetailPage({
                         <Badge variant={open ? "destructive" : "muted"}>
                           {t(locale, EXCEPTION_TYPE_LABELS[exception.type])}
                         </Badge>
+                        {open ? <PresenceBadge type={exception.type} /> : null}
                         {exception.severity ? (
                           <Badge variant="muted" className="text-xs">
                             {t(locale, DAMAGE_SEVERITY_LABELS[exception.severity])}
