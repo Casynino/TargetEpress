@@ -41,6 +41,7 @@ export function AdjustDifference({
   money,
   rate,
   pendingCargo = 0,
+  onSaved,
 }: {
   invoiceId: string;
   currency: string;
@@ -79,6 +80,18 @@ export function AdjustDifference({
    * and thought better of it.
    */
   pendingCargo?: number;
+  /**
+   * Called once the change has actually saved.
+   *
+   * A screen holding the bill in SERVER props gets the new figures for free —
+   * these actions revalidate the pages that render them. A screen holding it
+   * in CLIENT state does not: the dialog closes, the bill has moved, and every
+   * figure around it is still the old one. The Record Payment dialog is that
+   * second kind, and its money box follows the outstanding balance — so a
+   * discount agreed inside it would be followed by a payment for the
+   * pre-discount amount.
+   */
+  onSaved?: () => void;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -106,6 +119,7 @@ export function AdjustDifference({
     if (state.ok && state.data) {
       setOpen(false);
       setWarned(false);
+      onSaved?.();
     }
   }, [state]);
 

@@ -138,6 +138,31 @@ export function RecordIncome({
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<BillableHit[]>([]);
   const [picked, setPicked] = useState<BillableHit | null>(null);
+
+  /*
+    RE-READ THE BILL AFTER A CONTROL CHANGES IT.
+
+    `picked` is a client snapshot taken when the desk chose the bill. The four
+    controls beside it — discount, write-off, rate, storage — save on the
+    SERVER and revalidate the pages that render a bill from server props; they
+    cannot touch state inside this open dialog. So the dialog would sit there
+    showing the pre-discount balance, and the money box, which follows that
+    balance, would record a payment for a figure the bill no longer asks for.
+
+    The invoice number is unique, so searching it returns this bill and only
+    this bill. If the search comes back empty — a bill voided under us — the
+    snapshot is left alone rather than blanked, because blanking it mid-form
+    loses everything the desk has typed.
+  */
+  const refreshPicked = () => {
+    const current = picked;
+    if (!current) return;
+    startSearch(async () => {
+      const again = await searchBillable(current.invoiceNumber);
+      const fresh = again.find((h) => h.invoiceId === current.invoiceId);
+      if (fresh) setPicked(fresh);
+    });
+  };
   /*
     Who has not paid, before anybody types.
 
@@ -830,6 +855,7 @@ export function RecordIncome({
                   currency={picked.currency}
                   current={picked.discount}
                   rate={billRate}
+                  onSaved={refreshPicked}
                 />
               ) : null}
               {canAdjust && picked.outstanding > 0.005 ? (
@@ -859,6 +885,7 @@ export function RecordIncome({
                             : cargoHalf * billRate
                           : 0
                   }
+                  onSaved={refreshPicked}
                 />
               ) : null}
               {canChangeRate && picked.currency !== "TZS" ? (
@@ -867,6 +894,7 @@ export function RecordIncome({
                   currency={picked.currency}
                   current={billRate}
                   total={picked.total}
+                  onSaved={refreshPicked}
                 />
               ) : null}
               {canWaiveStorage && picked.storage > 0.005 ? (
@@ -875,6 +903,7 @@ export function RecordIncome({
                   currency={picked.currency}
                   storage={picked.storage}
                   rate={billRate}
+                  onSaved={refreshPicked}
                 />
               ) : null}
             </div>

@@ -30,6 +30,7 @@ export function GiveDiscount({
   current,
   across = 1,
   rate,
+  onSaved,
 }: {
   invoiceId: string;
   currency: string;
@@ -43,6 +44,18 @@ export function GiveDiscount({
    * own currency.
    */
   rate?: number | null;
+  /**
+   * Called once the change has actually saved.
+   *
+   * A screen holding the bill in SERVER props gets the new figures for free —
+   * these actions revalidate the pages that render them. A screen holding it
+   * in CLIENT state does not: the dialog closes, the bill has moved, and every
+   * figure around it is still the old one. The Record Payment dialog is that
+   * second kind, and its money box follows the outstanding balance — so a
+   * discount agreed inside it would be followed by a payment for the
+   * pre-discount amount.
+   */
+  onSaved?: () => void;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -106,7 +119,10 @@ export function GiveDiscount({
   /* Closes itself once the bill has moved — the panel around it re-renders
      with the new figure, and leaving the form open invites a second one. */
   useEffect(() => {
-    if (state.ok && state.data) setOpen(false);
+    if (state.ok && state.data) {
+      setOpen(false);
+      onSaved?.();
+    }
   }, [state]);
 
   if (!open) {

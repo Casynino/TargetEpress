@@ -33,6 +33,7 @@ export function WaiveStorage({
   rate,
   across = 1,
   freeDaysLeft,
+  onSaved,
 }: {
   /** One id, or the comma-separated set ticked on the merge screen. */
   invoiceId: string;
@@ -51,6 +52,9 @@ export function WaiveStorage({
    * owes nothing — and then somebody checks the cargo page to be sure.
    */
   freeDaysLeft?: number | null;
+  /** Called once the waiver has saved — see the note on GiveDiscount. A screen
+      holding the bill in client state has to re-read it. */
+  onSaved?: () => void;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -62,7 +66,10 @@ export function WaiveStorage({
   /* Closes once the bill has moved; the panel around it re-renders without the
      fee, and leaving the form open invites a second attempt at nothing. */
   useEffect(() => {
-    if (state?.ok) setOpen(false);
+    if (state?.ok) {
+      setOpen(false);
+      onSaved?.();
+    }
   }, [state]);
 
   if (!(storage > 0)) {
