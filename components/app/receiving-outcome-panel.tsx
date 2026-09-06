@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   AlertTriangle,
+  Camera,
   Check,
   CircleHelp,
   Hash,
@@ -24,10 +25,12 @@ import {
   WEIGH_BOX,
   WeighFigures,
 } from "@/components/app/weigh-figures";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { CARGO_PHYSICALLY_HERE } from "@/lib/cargo-presence";
+import { typeLocksPickup } from "@/lib/pickup-lock";
 import {
   DAMAGE_SEVERITY_LABELS,
   PACKAGE_TYPE_LABELS,
@@ -121,6 +124,12 @@ export function ReceivingOutcomePanel({
   const [present, setPresent] = useState<string[]>(
     packageList.map((pkg) => pkg.id)
   );
+  /* The same figure as present.length, held as text so the box can be cleared
+     and retyped without snapping back to a number mid-keystroke. */
+  const [boxText, setBoxText] = useState(String(packageList.length));
+  /* Shut until asked for. Damage demands a photograph; every other fault only
+     offers one. */
+  const [photo, setPhoto] = useState(false);
 
   const unit = PACKAGE_TYPE_LABELS[packageType] ?? PACKAGE_TYPE_LABELS.PACKAGE;
   const ticker = outcome ? outcomeNeedsPackageTicker(outcome) : false;
@@ -153,6 +162,11 @@ export function ReceivingOutcomePanel({
   */
   const fault = outcome ? RECEIVING_OUTCOME_EXCEPTION[outcome] : null;
   const staysHere = fault !== null && CARGO_PHYSICALLY_HERE[fault];
+  /* And whether the case actually stops a handover. Not every open case does —
+     a wrong description and a disputed weight are both recorded against cargo
+     the customer is still entitled to collect. typeLocksPickup is the same
+     table the release counter itself reads. */
+  const holdsIt = fault !== null && typeLocksPickup(fault);
 
   // A short count on a multi-box shipment that is not actually short is not a
   // short count. Naming which boxes is the entire content of the report.
@@ -266,30 +280,50 @@ export function ReceivingOutcomePanel({
                 is on the floor, and the difference between them — in a shape a
                 clerk can check against the pallet without reading anything.
               */}
-              {manyBoxes ? (
-                <dl className="mb-2 grid grid-cols-3 gap-2 rounded-md border bg-card px-2.5 py-2 text-center text-xs">
-                  <div>
-                    <dt className="text-muted-foreground">{t("Booked")}</dt>
-                    <dd className="font-semibold tabular-nums">
-                      {packageList.length}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">{t("Arrived")}</dt>
-                    <dd className="font-semibold tabular-nums">
-                      {present.length}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">{t("Difference")}</dt>
-                    <dd
-                      className={`font-semibold tabular-nums ${missingCount > 0 ? "text-warning" : "text-muted-foreground"}`}
-                    >
-                      {missingCount > 0 ? `−${missingCount}` : "0"}
-                    </dd>
-                  </div>
-                </dl>
-              ) : null}
+              {/* Counted the way the scale is read: what China sent, what is on
+                  the floor, and the gap. A typed number rather than a figure
+                  the clerk has to assemble by unticking — the owner asked for
+                  the same control the weight has, and a single-carton
+                  consignment showed no figures at all before. */}
+              <div className="mb-2 rounded-md border bg-card p-3">
+                <WeighFigures
+                  label="boxes"
+                  was={String(packageList.length)}
+                  unit={unit.many}
+                  delta={-missingCount}
+                  moved={missingCount > 0}
+                >
+                  <input
+                    type="number"
+                    min="0"
+                    max={packageList.length}
+                    step="1"
+                    inputMode="numeric"
+                    value={boxText}
+                    onChange={(event) => {
+                      const typed = event.target.value;
+                      setBoxText(typed);
+                      const n = Number(typed);
+                      if (
+                        Number.isInteger(n) &&
+                        n >= 0 &&
+                        n <= packageList.length
+                      ) {
+                        /* The first n cartons stand for the ones on the floor.
+                           Which n is only a guess until somebody unticks the
+                           real ones below, and the server is told the ids
+                           either way — a count alone would leave the release
+                           counter unable to say which box it is waiting for. */
+                        setPresent(
+                          packageList.slice(0, n).map((pkg) => pkg.id)
+                        );
+                      }
+                    }}
+                    className={WEIGH_BOX}
+                    aria-label={t("Boxes counted in Dar")}
+                  />
+                </WeighFigures>
+              </div>
 
               {manyBoxes ? (
                 <>
@@ -309,11 +343,13 @@ export function ReceivingOutcomePanel({
                           aria-pressed={on}
                           aria-label={`${t(unit.one)} ${pkg.sequence} — ${on ? t("on the floor") : t("did not arrive")}`}
                           onClick={() =>
-                            setPresent((current) =>
-                              current.includes(pkg.id)
+                            setPresent((current) => {
+                              const next = current.includes(pkg.id)
                                 ? current.filter((id) => id !== pkg.id)
-                                : [...current, pkg.id]
-                            )
+                                : [...current, pkg.id];
+                              setBoxText(String(next.length));
+                              return next;
+                            })
                           }
                           className={`inline-flex h-11 min-w-11 items-center justify-center rounded-md border px-3 text-sm font-semibold tabular transition-colors ${
                             on
@@ -437,6 +473,36 @@ export function ReceivingOutcomePanel({
             />
           ) : null}
 
+          {/* WHAT IS ACTUALLY IN THE CARTON.
+
+              The owner asked for it on a wrong item, and it is the same
+              argument as the damage photograph: the box is open, the clerk is
+              holding it, and this is the only moment the picture exists. It is
+              offered, never demanded — a corrected description is not a claim,
+              and a mandatory picture on every fault is the step that stops the
+              work. */}
+          {outcome !== "RECEIVED" && outcome !== "DAMAGED" ? (
+            photo ? (
+              <PhotoCapture
+                name="photos"
+                max={4}
+                label="Photo (optional)"
+                hint="What is actually in the carton, and the label beside it."
+                durable={photosDurable}
+              />
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setPhoto(true)}
+              >
+                <Camera className="mr-1.5 h-4 w-4" />
+                {t("Add a photo (optional)")}
+              </Button>
+            )
+          ) : null}
+
           <div className="flex flex-wrap items-center gap-3">
             <SubmitButton
               variant={outcome === "RECEIVED" ? "brand" : "destructive"}
@@ -456,9 +522,11 @@ export function ReceivingOutcomePanel({
                     ? t(SHIPMENT_STATUS_META.RECEIVED_AT_DAR.label)
                     : t("Under investigation")}
                 </span>
-                {staysHere
-                  ? t(", and the case holds it off the pickup counter.")
-                  : t(", not Ready for pickup.")}
+                {!staysHere
+                  ? t(", not Ready for pickup.")
+                  : holdsIt
+                    ? t(", and the case holds it off the pickup counter.")
+                    : t(". The case is recorded against it and does not hold it.")}
                 {/* The split, in the owner's words: what goes on the shelf and
                     what somebody has to go looking for. Only where boxes were
                     actually named, because everywhere else there is no split

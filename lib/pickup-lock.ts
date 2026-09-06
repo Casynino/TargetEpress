@@ -71,8 +71,19 @@ const TYPE_LOCKS_PICKUP = {
   // Whether damaged cargo is released, replaced or returned is the
   // investigation's decision, not the counter's. Until it is made, it is held.
   DAMAGED_CARGO: true,
-  // The box is here; what is inside it is not what the customer bought.
-  WRONG_ITEM: true,
+  /*
+    The box is here, on this customer's tracking number, under this customer's
+    label. What is wrong is the DESCRIPTION Guangzhou typed against it, and at
+    the owner's instruction that is paperwork rather than cargo: confirm the
+    weight, photograph what is actually in the carton, and let it go to the
+    counter carrying the badge that says so.
+
+    It changes what the cargo is priced as, which is Finance's to correct on
+    the bill — the same reasoning that has always released WEIGHT_MISMATCH.
+    Cargo whose OWNER is genuinely unknown is a different answer and keeps its
+    lock: that is UNIDENTIFIED_CARGO below.
+  */
+  WRONG_ITEM: false,
   // Short. Handing over four of five boxes is how a claim starts.
   PACKAGE_COUNT_MISMATCH: true,
   // A deliberate quarantine. Releasing quarantined cargo defeats the point.

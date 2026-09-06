@@ -351,16 +351,19 @@ const DAR_SECTIONS: NavSection[] = [
         icon: "Package",
         permission: "shipment.view",
       },
-      {
-        href: "/app/release",
-        label: "Scan & release",
-        icon: "ScanLine",
-        permission: "shipment.release",
-      },
+      /* The list comes before the scanner. A handover starts by looking up who
+         is at the counter, and the scan is what finishes it — the menu reads in
+         the order the job is done. */
       {
         href: "/app/pickup-queue",
         label: "Pickup list",
         icon: "Truck",
+        permission: "shipment.release",
+      },
+      {
+        href: "/app/release",
+        label: "Scan & release",
+        icon: "ScanLine",
         permission: "shipment.release",
       },
       {
