@@ -15,7 +15,7 @@ import {
 } from "@/lib/investigation-lifecycle";
 import type { InvestigationAllowances } from "@/components/app/investigation-actions";
 import type { ActionResult } from "@/lib/actions/types";
-import type { ExceptionStatus } from "@prisma/client";
+import type { ExceptionStatus, ExceptionType } from "@prisma/client";
 
 /**
  * The desk a step belongs to, in the words the owner uses for it.
@@ -60,12 +60,70 @@ const TONES: Record<LifecycleStep["tone"], string> = {
  * payout are reached from the same list as everything else rather than from
  * separate panels that would each be a second way to do one thing.
  */
+/*
+  THE SAME STEP, IN THE WORDS THAT FIT THE FAULT.
+
+  Every case reaching CARGO_FOUND was offered "Cargo found — the boxes are back
+  on the floor and count as received again". True of a consignment that was
+  lost and turned up. Nonsense on a carton with the wrong contents, which was
+  never anywhere else; and wrong on a customs hold, where the sentence a clerk
+  needs is "customs released it".
+
+  What the step DOES is unchanged — the same status, the same server action,
+  the same package handling, all still decided by REPORTED_CARGO_ABSENT. This
+  only says it in the words of the fault in front of the reader. Anything not
+  named here keeps the general wording.
+*/
+const STEP_WORDS: Partial<
+  Record<ExceptionType, Record<string, { label: string; hint: string }>>
+> = {
+  HELD_BY_CUSTOMS: {
+    CARGO_FOUND: {
+      label: "Cargo released",
+      hint: "Customs has let it go. It comes onto the floor and counts as received.",
+    },
+  },
+  SHORT_LANDED: {
+    CARGO_FOUND: {
+      label: "It arrived",
+      hint: "The later flight brought it. It counts as received from now.",
+    },
+  },
+  WRONG_ITEM: {
+    CARGO_FOUND: {
+      label: "Contents sorted out",
+      hint: "The right goods are with the right customer.",
+    },
+  },
+  UNIDENTIFIED_CARGO: {
+    CARGO_FOUND: {
+      label: "Owner identified",
+      hint: "The box has a name against it and can be handed over.",
+    },
+  },
+  RESTRICTED_ITEM: {
+    CARGO_FOUND: {
+      label: "Cleared to release",
+      hint: "A decision has been taken and the cargo may leave the building.",
+    },
+  },
+  OVER_SHIPPED: {
+    CARGO_FOUND: {
+      label: "Extra box accounted for",
+      hint: "Whose the spare carton is has been settled.",
+    },
+  },
+};
+
 export function LifecycleSteps({
   exceptionId,
+  type,
   status,
   allow,
 }: {
   exceptionId: string;
+  /** The fault, so the step can be named in its own words. */
+  type: ExceptionType;
   status: ExceptionStatus;
   allow: InvestigationAllowances;
 }) {
@@ -76,8 +134,12 @@ export function LifecycleSteps({
   );
   const t = useT();
 
-  const steps = LIFECYCLE_STEPS[status] ?? [];
-  if (steps.length === 0) return null;
+  const raw = LIFECYCLE_STEPS[status] ?? [];
+  if (raw.length === 0) return null;
+  const words = STEP_WORDS[type];
+  const steps = words
+    ? raw.map((step) => ({ ...step, ...(words[step.to] ?? {}) }))
+    : raw;
 
   const may = (permission: string) =>
     permission === "exception.investigate"

@@ -657,6 +657,7 @@ function CaseRecord({
           ) ? (
             <LifecycleSteps
               exceptionId={exception.id}
+              type={exception.type}
               status={exception.status}
               allow={allow}
             />
