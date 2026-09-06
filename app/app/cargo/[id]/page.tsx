@@ -17,7 +17,7 @@ import { PresenceBadge } from "@/components/app/presence-badge";
 import { PageHeader } from "@/components/app/page-header";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { CargoCheckIn } from "@/components/app/cargo-check-in";
-import { CargoDeleteButton, DeleteCargoForm } from "@/components/app/cargo-delete";
+import { CargoDeleteButton } from "@/components/app/cargo-delete";
 import { PendingSubmissionNotice } from "@/components/app/pending-submission-notice";
 import { ReleaseUndo } from "@/components/app/release-undo";
 import { ShipmentActions } from "@/components/app/shipment-actions";
@@ -1228,19 +1228,6 @@ export default async function ShipmentDetailPage({
               {t(locale, "Registered by")} {shipment.createdBy?.name ?? "—"}{" "}
               {t(locale, "on")} {formatDateTime(shipment.registeredAt, locale)}.
             </p>
-          ) : null}
-
-          {/* The same pair the header button asks. It read shipment.cancel,
-              which was management-only and so needed no window; both warehouses
-              hold cancelling now, and a delete door with no custody rule would
-              let Guangzhou remove a consignment standing on Dar's floor. */}
-          {can(user.role, "shipment.delete") &&
-          canAmendCargo(user.role, shipment.status) ? (
-            <DeleteCargoForm
-              shipmentId={shipment.id}
-              trackingNumber={shipment.trackingNumber}
-              photoCount={shipment.photos.length}
-            />
           ) : null}
         </div>
       </div>
