@@ -76,6 +76,20 @@ export function PaymentDifference({
       maximumFractionDigits: currency === "TZS" ? 0 : 2,
     });
 
+  /*
+    ONE DIFFERENCE, ONE FIGURE — IN BOTH MONIES WHEN THEY DIFFER.
+
+    The sentence said "This leaves USD 0.19 still owing" and the button under
+    it said "Clear the last TZS 500". The same gap, twice, in two currencies,
+    two lines apart — leaving the desk to satisfy itself by dividing in its
+    head that the two agree. Shillings lead, because that is the money on the
+    counter and the house style everywhere else.
+  */
+  const gapBothWays =
+    tendered === billCurrency
+      ? `${billCurrency} ${money(gapInBill, billCurrency)}`
+      : `${tendered} ${money(gap, tendered)} · ${billCurrency} ${money(gapInBill, billCurrency)}`;
+
   /* Sent too much. There is nothing to arm and nothing to ask — the figures
      below are already right, and this only says so out loud before the clerk
      presses Confirm on what looks like the wrong number. */
@@ -84,7 +98,7 @@ export function PaymentDifference({
       <div className="w-full space-y-1 rounded-md border border-success/40 bg-success/[0.08] px-3 py-2.5 text-xs text-success">
         <p className="flex items-start gap-1.5 font-semibold">
           <Check className="mt-px h-3.5 w-3.5 shrink-0" />
-          {t("Overpaid by")} {billCurrency} {money(gapInBill, billCurrency)} —{" "}
+          {t("Overpaid by")} {gapBothWays} —{" "}
           {t("the bill is settled in full and the cargo can go.")}
         </p>
         <p className="opacity-90">
@@ -100,8 +114,7 @@ export function PaymentDifference({
     <div className="w-full space-y-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs text-warning">
       <p>
         {t("The customer sent less than the bill.")}{" "}
-        {t("This leaves")} {billCurrency} {money(gapInBill, billCurrency)}{" "}
-        {t("still owing on the bill.")}
+        {t("This leaves")} {gapBothWays} {t("still owing on the bill.")}
       </p>
 
       {canClear ? (

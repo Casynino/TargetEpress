@@ -175,6 +175,7 @@ export async function PendingSubmissionNotice({
                           : (s.amount - (s.transport ?? 0)) * billRate)
                   )}
                   billCurrency={billCurrency}
+                  billRate={billRate}
                   clearShortfallClaimed={Boolean(s.clearShortfall)}
                   canClearHere={!s.coversSeveralBills}
                 />

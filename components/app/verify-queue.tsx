@@ -398,6 +398,7 @@ export async function VerifyQueue() {
                            tick is the figure the adjustment will write. */
                         shortfall={Math.max(0, outstanding - forBillInvoiceMoney)}
                         billCurrency={row.invoice.currency}
+                        billRate={billRate}
                         clearShortfallClaimed={row.clearShortfall}
                         /* One bill, or the claim's anchor with nothing
                            allocated. Across several, the tick is withheld and

@@ -40,6 +40,7 @@ export function VerifySubmission({
   transportAccounts = [],
   shortfall = 0,
   billCurrency = "USD",
+  billRate = null,
   clearShortfallClaimed = false,
   canClearHere = true,
 }: {
@@ -60,6 +61,15 @@ export function VerifySubmission({
       bill's own money. Zero when it settles or overpays. */
   shortfall?: number;
   billCurrency?: string;
+  /**
+   * The rate frozen on the bill, so this panel can lead in shillings.
+   *
+   * Support presses a button reading "Clear the last TZS 500" and Finance was
+   * shown "USD 0.19" for the same gap — two figures for one difference, and
+   * the desk checking one against the other doing the division in its head.
+   * Money leads in shillings everywhere else in this app; it leads here too.
+   */
+  billRate?: number | null;
   /** Support ticked "the rest is not coming" when they raised it. */
   clearShortfallClaimed?: boolean;
   /**
@@ -83,6 +93,18 @@ export function VerifySubmission({
     to the claim's own yes.
   */
   const [clearRest, setClearRest] = useState(clearShortfallClaimed);
+
+  /* Shillings first, the bill's own money beside it — the house style, and
+     what makes this figure comparable with the one Support pressed. */
+  const gapShown = (() => {
+    const inBill = shortfall.toLocaleString(undefined, {
+      maximumFractionDigits: billCurrency === "TZS" ? 0 : 2,
+    });
+    if (!billRate || billRate <= 0 || billCurrency === "TZS") {
+      return `${billCurrency} ${inBill}`;
+    }
+    return `TSh ${Math.round(shortfall * billRate).toLocaleString()} · ${billCurrency} ${inBill}`;
+  })();
   const [verifyState, verify] = useActionState<
     ActionResult<{ receiptNumber: string }>,
     FormData
@@ -159,11 +181,7 @@ export function VerifySubmission({
         {shortfall > 0.005 && !canClearHere ? (
           <p className="rounded-md border border-warning/30 bg-warning/10 px-2.5 py-2 text-[11px] leading-relaxed text-warning">
             <span className="font-semibold">
-              This leaves {billCurrency}{" "}
-              {shortfall.toLocaleString(undefined, {
-                maximumFractionDigits: billCurrency === "TZS" ? 0 : 2,
-              })}{" "}
-              owing on the bill it is anchored to.
+              This leaves {gapShown} owing on the bill it is anchored to.
             </span>
             <span className="mt-0.5 block opacity-90">
               This claim covers several bills, so it cannot say which one the
@@ -182,11 +200,7 @@ export function VerifySubmission({
             />
             <span>
               <span className="font-semibold">
-                Clear the last {billCurrency}{" "}
-                {shortfall.toLocaleString(undefined, {
-                  maximumFractionDigits: billCurrency === "TZS" ? 0 : 2,
-                })}{" "}
-                and settle the bill
+                Clear the last {gapShown} and settle the bill
               </span>
               <span className="mt-0.5 block opacity-90">
                 {clearShortfallClaimed
