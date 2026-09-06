@@ -3475,6 +3475,8 @@ const ZH: Record<string, string> = {
   "This case is about cargo that is already in Dar. Only a case saying the cargo did not arrive can be answered from China.": "该案件的货物已在达港。只有记录为未到货的案件才能由中国方处理。",
   "That case is already finished.": "该案件已结案。",
   "That step has no handler. Tell whoever runs the system.": "该步骤没有对应处理程序，请联系系统管理员。",
+  "The customer agreed to take what arrived.": "客户同意先领取已到的部分。",
+  "The rest stays owed and the case stays open. They collect it on this same note.": "其余件数仍然欠付，案件保持开启。客户可凭同一张提货单再来领取。",
   "Bill settled, cargo can go": "账单已结清，货物可放行",
   "Finance clears": "由财务核销",
   "Clearing": "核销",

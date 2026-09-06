@@ -895,6 +895,56 @@ function ReleaseForm({
         <div className="space-y-3">
           <h3 className="text-sm font-semibold">{t("Who is collecting?")}</h3>
 
+          {/*
+            SHORT, AND THE CUSTOMER IS STANDING THERE.
+
+            The three figures first, because the clerk has to say them out loud
+            to the person in front of them, and then the one thing that makes
+            it lawful to hand anything over: that the customer agreed to take
+            what arrived. Unticked, the server refuses exactly as it always
+            did — this is not a warning, it is the decision.
+          */}
+          {!target.progress.complete ? (
+            <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/10 p-3">
+              <dl className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div>
+                  <dt className="text-warning/80">{t("Booked")}</dt>
+                  <dd className="font-semibold tabular-nums text-warning">
+                    {target.progress.total}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-warning/80">{t("Arrived")}</dt>
+                  <dd className="font-semibold tabular-nums text-warning">
+                    {target.progress.received}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-warning/80">{t("Difference")}</dt>
+                  <dd className="font-semibold tabular-nums text-warning">
+                    −{target.progress.total - target.progress.received}
+                  </dd>
+                </div>
+              </dl>
+              <label className="flex cursor-pointer items-start gap-2 text-xs text-warning">
+                <input
+                  type="checkbox"
+                  name="partialAccepted"
+                  value="1"
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                />
+                <span>
+                  <span className="font-semibold">
+                    {t("The customer agreed to take what arrived.")}
+                  </span>{" "}
+                  {t(
+                    "The rest stays owed and the case stays open. They collect it on this same note."
+                  )}
+                </span>
+              </label>
+            </div>
+          ) : null}
+
           <div className="space-y-1.5">
             <Label htmlFor="receiverName" className="text-xs">
               {t("Receiver name")}

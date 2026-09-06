@@ -312,7 +312,21 @@ export async function releaseShipment(
       // answers that. The lock lifts by itself when the case reaches
       // CARGO_FOUND or is closed; nobody has to remember to unlock anything.
       const lock = await findPickupLock(tx, note.shipment.id);
-      if (lock) {
+      /*
+        A SHORT COUNT IS THE ONE LOCK THE COUNTER MAY ANSWER.
+
+        Every other lock says the box in front of the customer is not the box
+        they are owed — damaged, wrong contents, nobody's name on it, something
+        that should not have flown — and none of those is a decision for
+        whoever is standing at the counter. A short count is different: the
+        cartons that DID arrive are the customer's own goods, correct and
+        undamaged, and the owner's decision is that they should not sit in
+        Kariakoo waiting on two boxes in China.
+
+        Only with the tick, and only for this one type.
+      */
+      const shortCountOnly = lock?.type === "PACKAGE_COUNT_MISMATCH";
+      if (lock && !(shortCountOnly && input.partialAccepted)) {
         throw new Error(pickupLockMessage(lock, note.shipment.trackingNumber, locale));
       }
 
@@ -323,7 +337,17 @@ export async function releaseShipment(
         note.shipment.packageList,
         note.shipment.packageType
       , locale);
-      if (!progress.complete) {
+      /*
+        A PART DELIVERY IS RECORDED, NOT WAIVED.
+
+        The refusal below stands untouched for anybody who has not said the
+        customer agreed to take what arrived. With the tick, the boxes on the
+        floor go home and the missing ones stay owed — the consignment does NOT
+        become DELIVERED, the case stays open, and the note stays open so the
+        rest can be collected on the same paperwork.
+      */
+      const partial = !progress.complete && input.partialAccepted && progress.received > 0;
+      if (!progress.complete && !partial) {
         // Built from fragments with the counts between them, because "3 of 5"
         // and the sentence around it do not sit in the same order in Chinese.
         // The boxes are named the way the sticker names them — TX-000125-P2 is
@@ -336,6 +360,35 @@ export async function releaseShipment(
 
       const now = new Date();
 
+      /*
+        THE RETURN VISIT SIGNS THE SAME RECORD.
+
+        DeliveryRecord is unique per consignment — one handover, one signature —
+        which is right when a consignment leaves in one go. A part delivery
+        means the customer comes back for the rest, and creating a second
+        record is not possible and not wanted: what changes is that the last
+        boxes have now gone, and the one record should say so rather than there
+        being two half-records of one collection.
+      */
+      const already = await tx.deliveryRecord.findUnique({
+        where: { shipmentId: note.shipment.id },
+        select: { id: true, note: true },
+      });
+      if (already) {
+        await tx.deliveryRecord.update({
+          where: { id: already.id },
+          data: {
+            note: [
+              already.note,
+              `Remaining box(es) collected by ${input.receiverName} — ${progress.received} of ${progress.total} now handed over.`,
+            ]
+              .filter(Boolean)
+              .join(" "),
+            releasedById: user.id,
+            releasedAt: now,
+          },
+        });
+      } else
       await tx.deliveryRecord.create({
         data: {
           shipmentId: note.shipment.id,
@@ -353,9 +406,21 @@ export async function releaseShipment(
             thing a claim turns on.
           */
           note: provedByScan
-            ? input.note || null
+            ? [
+                /* On the signature itself, because this is the document a
+                   claim turns on months later. */
+                partial
+                  ? `Part delivery: ${progress.received} of ${progress.total} boxes. ${progress.total - progress.received} still owed.`
+                  : null,
+                input.note?.trim(),
+              ]
+                .filter(Boolean)
+                .join(" ") || null
             : [
                 "Released without scanning the label (label unreadable).",
+                partial
+                  ? `Part delivery: ${progress.received} of ${progress.total} boxes. ${progress.total - progress.received} still owed.`
+                  : null,
                 input.note?.trim(),
               ]
                 .filter(Boolean)
@@ -375,29 +440,48 @@ export async function releaseShipment(
         })),
       });
 
-      await tx.pickupNote.update({
-        where: { id: note.id },
-        data: { status: "USED", usedAt: now },
-      });
+      /* The note is spent only when the consignment is. Left open on a part
+         delivery so the customer collects the rest on the same paperwork —
+         there is one pickup note per consignment and there is no second one
+         to issue. */
+      if (!partial) {
+        await tx.pickupNote.update({
+          where: { id: note.id },
+          data: { status: "USED", usedAt: now },
+        });
+      }
 
-      await tx.shipment.update({
-        where: { id: note.shipment.id },
-        data: { status: "DELIVERED", deliveredAt: now },
-      });
-
-      // Every box left with the customer, so every box is marked handed over.
+      /* Only the cartons that were actually on the floor. A part delivery that
+         marked all twenty handed over would be the system asserting the
+         customer has boxes nobody has ever seen — the same lie the release
+         gate exists to prevent, told from the other side. */
       await tx.package.updateMany({
-        where: { shipmentId: note.shipment.id, deliveredAt: null },
+        where: {
+          shipmentId: note.shipment.id,
+          deliveredAt: null,
+          ...(partial ? { receivedAt: { not: null } } : {}),
+        },
         data: { deliveredAt: now },
       });
+
+      if (!partial) {
+        await tx.shipment.update({
+          where: { id: note.shipment.id },
+          data: { status: "DELIVERED", deliveredAt: now },
+        });
+      }
 
       await tx.shipmentStatusHistory.create({
         data: {
           shipmentId: note.shipment.id,
           fromStatus: "READY_FOR_PICKUP",
-          toStatus: "DELIVERED",
-          location: "Collected by customer",
-          note: `Released to ${input.receiverName} against ${note.noteNumber}.`,
+          toStatus: partial ? "READY_FOR_PICKUP" : "DELIVERED",
+          location: partial
+            ? "Part collected by customer"
+            : "Collected by customer",
+          note: partial
+            ? `${progress.received} of ${progress.total} released to ${input.receiverName} against ${note.noteNumber}. ${progress.total - progress.received} still owed.`
+            : `Released to ${input.receiverName} against ${note.noteNumber}.`,
           actorId: user.id,
         },
       });

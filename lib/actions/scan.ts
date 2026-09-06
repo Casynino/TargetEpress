@@ -242,13 +242,25 @@ async function describe(
     ? formatDate(shipment.deliveredAt, locale)
     : null;
 
+  /*
+    SHORT, BUT THE BOXES THAT CAME ARE THE CUSTOMER'S OWN GOODS.
+
+    A missing box used to shut the counter outright, so eighteen cartons sat in
+    Kariakoo while two were chased across China and the customer went home with
+    nothing. The owner's decision is to hand over what arrived and keep chasing
+    the rest, so the counter opens — and the form there asks for it to be
+    agreed before anything moves.
+
+    Only a short count. Every other lock says the box in front of the customer
+    is not the box they are owed, and none of those is the counter's call.
+  */
+  const shortCountOnly = !lock || lock.type === "PACKAGE_COUNT_MISMATCH";
   const canRelease =
     mayRelease &&
     shipment.status === "READY_FOR_PICKUP" &&
     noteActive &&
-    !lock &&
-    // A shipment missing a box is not releasable, however well it is paid for.
-    progress.complete;
+    shortCountOnly &&
+    (progress.complete || progress.received > 0);
 
   let verdict: ScanResult["verdict"];
 

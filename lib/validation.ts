@@ -547,6 +547,24 @@ export const releaseSchema = z.object({
   receiverIdNumber: z.string().trim().optional(),
   relationship: z.enum(["SELF", "AGENT", "EMPLOYEE", "FAMILY"]),
   note: z.string().trim().optional(),
+  /*
+    THE CUSTOMER AGREED TO TAKE WHAT ARRIVED.
+
+    Eighteen of twenty boxes on the floor, two still being chased. The counter
+    refused the lot — everything the customer paid for had to be present — so a
+    customer whose goods were sitting in Kariakoo went home with nothing while
+    the system waited on two cartons in China.
+
+    The owner's decision is to hand over what arrived and keep chasing the
+    rest. This is the tick that says so, and it is not a formality: without it
+    the old refusal stands word for word, so a part delivery only ever happens
+    because somebody at the counter deliberately said it was agreed.
+  */
+  partialAccepted: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => v === "1" || v === "true" || v === "on"),
 })
   .refine((v) => Boolean(v.shipmentQr || v.pickupNoteId), {
     message: "Scan the cargo label to confirm.",
