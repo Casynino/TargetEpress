@@ -4791,6 +4791,7 @@ const ZH: Record<string, string> = {
   "This cargo is on a flight that has landed and has not been checked in yet.": "该货物所在航班已抵达，尚未办理入库。",
   ". The case is recorded against it and does not hold it.": "。问题单已记录在案，但不会阻止提货。",
   "What is actually in the carton, and the label beside it.": "纸箱内的实际物品，以及旁边的标签。",
+  "Checked in the wrong flight?": "入库了错误的航班？",
   "Tracking will read": "查件状态将显示为",
   "Tracking, note number or name": "运单号、提货单号或姓名",
   "Trader name or the mark on the packages": "商户名称或箱唛",

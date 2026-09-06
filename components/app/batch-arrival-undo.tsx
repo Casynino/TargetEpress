@@ -60,7 +60,7 @@ export function BatchArrivalUndo({
         <span>
           <span className="flex items-center gap-2 font-medium text-warning">
             <PlaneTakeoff className="h-4 w-4" />
-            {t("This flight has not landed yet")}
+            {t("Checked in the wrong flight?")}
           </span>
           <span className="mt-0.5 block text-xs text-muted-foreground">
             {t(
