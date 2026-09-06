@@ -108,6 +108,21 @@ export default async function VerifyBatchPage({
                 {t(locale, "Manifest")}
               </Link>
             </Button>
+            {/* Checked in the wrong flight. In the header rather than under
+                the manifest, because the clerk who has just opened the wrong
+                one is at the top of the page and should not have to scroll
+                eighty-seven rows to get out of it. The press only opens a
+                dialog; nothing moves until it is confirmed there. */}
+            {(batch.status === "ARRIVED" || batch.status === "VERIFIED") &&
+            !batch.closedAt &&
+            can(user.role, "batch.undoArrival") ? (
+              <BatchArrivalUndo
+                compact
+                batchId={batch.id}
+                batchNumber={batch.batchNumber}
+                consignments={batch.shipments.length}
+              />
+            ) : null}
             <BackLinkButton fallbackHref="/app/receive" fallbackLabel="Receive" />
           </>
         }
@@ -154,21 +169,6 @@ export default async function VerifyBatchPage({
         })}
       />
 
-      {/* Checked in the wrong flight. Offered here as well as on the dispatch
-          page, because this screen is where somebody realises it — they are
-          looking at a manifest that does not match the pallet in front of
-          them. Shut until opened; the ordinary day never touches it. */}
-      {(batch.status === "ARRIVED" || batch.status === "VERIFIED") &&
-      !batch.closedAt &&
-      can(user.role, "batch.undoArrival") ? (
-        <div className="mt-6">
-          <BatchArrivalUndo
-            batchId={batch.id}
-            batchNumber={batch.batchNumber}
-            consignments={batch.shipments.length}
-          />
-        </div>
-      ) : null}
     </>
   );
 }

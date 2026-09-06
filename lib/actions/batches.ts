@@ -2205,6 +2205,36 @@ export async function undoBatchArrival(
         );
       }
 
+      /*
+        THE CASES THIS ARRIVAL OPENED.
+
+        A flight that never landed cannot have a damaged carton, a short count
+        or a box nobody could find: every case raised against it describes an
+        arrival that did not happen. Left standing they sit in Issues & Claims
+        for ever, about consignments the system now says are in the air.
+
+        Compensation is the one thing that stops this. It is money agreed with
+        a customer, it cascades off the case, and a decision to pay somebody is
+        not a by-product of the wrong batch being clicked.
+      */
+      const cases = await tx.shipmentException.findMany({
+        where: { batchId },
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          shipment: { select: { trackingNumber: true } },
+          compensation: { select: { id: true } },
+        },
+      });
+
+      const owed = cases.find((c) => c.compensation !== null);
+      if (owed) {
+        throw new Error(
+          `${owed.shipment.trackingNumber} ${t(locale, "has compensation agreed on its case. Answer that first.")}`
+        );
+      }
+
       const shipmentIds = batch.shipments.map((s) => s.id);
 
       /* Every bill on the flight, not only the drafts. None of them has money
@@ -2231,10 +2261,9 @@ export async function undoBatchArrival(
       });
 
       await tx.batchVerification.deleteMany({ where: { batchId } });
+      await tx.shipmentException.deleteMany({ where: { batchId } });
 
-      /* Only the ones this arrival moved. A consignment sitting UNDER
-         INVESTIGATION is a case somebody is working, and quietly closing it by
-         putting the box back on a plane would erase that.
+      /* Only the ones this arrival moved.
 
          READY_FOR_PICKUP counts as moved too: a flight that never landed
          cannot have cargo waiting at a counter for it. In practice one only
@@ -2247,6 +2276,36 @@ export async function undoBatchArrival(
         },
         data: { status: "IN_TRANSIT", arrivedAt: null, readyForPickup: null },
       });
+
+      /*
+        AND THE ONES IT LEFT UNDER INVESTIGATION.
+
+        Reporting a box absent at check-in parks the consignment here rather
+        than leaving it in the air, which is honest while the flight is on the
+        ground. With the case that put it here now gone, the state has nothing
+        left to clear it, so the box would sit under investigation for ever
+        over an arrival that never happened.
+
+        Scoped to consignments with no case still open, so a shipment carrying
+        an older problem of its own — one raised on a different flight, or with
+        no flight against it — keeps the status that problem earned it.
+      */
+      const stranded = await tx.shipment.findMany({
+        where: {
+          id: { in: shipmentIds },
+          status: "UNDER_INVESTIGATION",
+          exceptions: {
+            none: { status: { in: [...EXCEPTION_OPEN_STATUSES] } },
+          },
+        },
+        select: { id: true },
+      });
+      if (stranded.length > 0) {
+        await tx.shipment.updateMany({
+          where: { id: { in: stranded.map((s) => s.id) } },
+          data: { status: "IN_TRANSIT", arrivedAt: null, readyForPickup: null },
+        });
+      }
 
       await tx.batch.update({
         where: { id: batchId },
@@ -2263,9 +2322,17 @@ export async function undoBatchArrival(
           metadata: {
             reason,
             consignments: batch.shipments.length,
-            returnedToTransit: returned.count,
+            returnedToTransit: returned.count + stranded.length,
             invoicesRemoved: removedInvoices.length,
             invoices: removedInvoices,
+            /* Named, not counted: a case that vanishes without the record
+               saying which one is a case nobody can ask about later. */
+            casesRemoved: cases.length,
+            cases: cases.map((c) => ({
+              trackingNumber: c.shipment.trackingNumber,
+              type: c.type,
+              status: c.status,
+            })),
           },
         },
         tx
