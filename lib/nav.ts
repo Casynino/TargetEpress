@@ -1058,13 +1058,15 @@ const MANAGER_SECTIONS: NavSection[] = [
     group: { label: "Finance", icon: "ReceiptText" },
     items: [
       /* The order the owner asked for, in his own list: what the department
-         holds, who owes on terms, who owes now, what it earned, every line
-         behind those figures, and last the check that the figures agree. */
+         holds, who owes, what it earned, the check that those figures agree,
+         and then every line behind them. The ledger reads last of the four
+         because it is where somebody goes once a figure above has raised a
+         question — the answer, not the summary. */
       { href: "/app/finance", label: "Overview", icon: "Wallet" },
       { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
       { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp" },
-      { href: "/app/finance/transactions", label: "General ledger", icon: "ArrowLeftRight" },
       { href: "/app/manager/reconciliation", label: "Reconciliation", icon: "Scale" },
+      { href: "/app/finance/transactions", label: "General ledger", icon: "ArrowLeftRight" },
       {
         /* The same row every other money desk carries, and on this desk it sits
            last: the rows above are what the manager comes here to read, and
