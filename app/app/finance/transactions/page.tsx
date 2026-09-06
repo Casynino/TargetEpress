@@ -34,6 +34,50 @@ import { requirePermission } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
+/**
+ * WHAT WAS WRITTEN OFF ALONGSIDE A PAYMENT, FOR ITS ROW IN THE REGISTER.
+ *
+ * A row reading TSh 36,000 against a bill of TSh 36,450, with nothing anywhere
+ * saying where the 450 went, is the first question anybody asks — and this list
+ * was silent. It cannot answer with a second money line, because no money
+ * moved; it answers in words on the row somebody is already reading.
+ *
+ * Read off the adjustments STAMPED WITH THIS PAYMENT, not off the bill: one
+ * decided later on the bill's own page belongs to that page, not to this
+ * receipt. The stored entry description carries the same sentence, but this
+ * list composes its own line for a payment — customer, cargo, references — and
+ * never renders it.
+ *
+ * Said in the money that ARRIVED, converted from the bill's own frozen rate.
+ * The bill stores 0.17; multiplying that back out gives 459 where the desk
+ * pressed a button reading 450 — so the shillings are taken as the remainder
+ * of the bill, which is what makes the two figures add up.
+ */
+function writtenOffOnRow(entry: {
+  currency: string;
+  amount: Prisma.Decimal | number;
+  payment: {
+    adjustments: { amount: Prisma.Decimal; currency: string }[];
+    invoice: { total: Prisma.Decimal; exchangeRate: Prisma.Decimal | null } | null;
+  } | null;
+}): string | null {
+  const rows = entry.payment?.adjustments ?? [];
+  if (rows.length === 0) return null;
+  const cleared = rows.reduce((sum, a) => sum + toNumber(a.amount), 0);
+  if (cleared <= 0.005) return null;
+
+  const invoice = entry.payment?.invoice ?? null;
+  const rate = invoice?.exchangeRate ? toNumber(invoice.exchangeRate) : null;
+  if (entry.currency === "TZS" && rate && invoice) {
+    const billLocal = Math.round(toNumber(invoice.total) * rate);
+    const arrived = toNumber(entry.amount);
+    const gap = Math.max(0, billLocal - arrived);
+    if (gap > 0) return `TSh ${gap.toLocaleString("en-US")}`;
+  }
+  return formatMoney(cleared, rows[0]!.currency);
+}
+
+
 export async function generateMetadata(): Promise<Metadata> {
   return { title: t(await viewerLocale(), "General ledger") };
 }
@@ -306,7 +350,31 @@ export default async function LedgerPage({
                       ...selectText("description"),
                     },
                   },
+                  /* The bill and its own frozen rate, so a write-off stored
+                     in dollars can be said in the shillings on this row. */
+                  total: true,
+                  exchangeRate: true,
                 },
+              },
+              /*
+                WHAT WAS WRITTEN OFF ALONGSIDE THIS PAYMENT.
+
+                A row reading TSh 36,000 against a bill of TSh 36,450, with
+                nothing anywhere saying where the 450 went, is the first
+                question anybody asks — and this list was silent. It cannot
+                answer with a second money line, because no money moved; it
+                answers in words on the row somebody is already reading.
+
+                Read off the adjustments STAMPED WITH THIS PAYMENT, not off the
+                bill: a write-off decided later on the bill's own page belongs
+                to that page, not to this receipt. The entry's stored
+                description carries the same sentence, but this list composes
+                its own line for a payment — customer, cargo, references — and
+                never renders it.
+              */
+              adjustments: {
+                where: { reversedAt: null },
+                select: { amount: true, currency: true },
               },
             },
           },
@@ -858,6 +926,7 @@ export default async function LedgerPage({
 
             let title = entry.description;
             let purpose: string | null = null;
+            const clearedOnRow = writtenOffOnRow(entry);
             if (entry.payment) {
               title =
                 entry.payment.invoice?.customer.name ??
@@ -932,9 +1001,14 @@ export default async function LedgerPage({
                         ) : null}
                         {title}
                       </p>
-                      {purpose ? (
+                      {purpose || clearedOnRow ? (
                         <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                           {purpose}
+                        {clearedOnRow ? (
+                          <span className="ml-0.5 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-[11px] font-medium text-warning">
+                            {clearedOnRow} {t(locale, "written off")}
+                          </span>
+                        ) : null}
                         </p>
                       ) : null}
                     </div>
@@ -1076,6 +1150,7 @@ export default async function LedgerPage({
                  */
                 let title = entry.description;
                 let purpose: string | null = null;
+                const clearedOnRow = writtenOffOnRow(entry);
 
                 if (entry.payment) {
                   /* A deposit names the customer who handed the money over;
@@ -1225,6 +1300,11 @@ export default async function LedgerPage({
                             </span>{" "}
                           </span>
                         ))}
+                        {clearedOnRow ? (
+                          <span className="ml-0.5 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-[11px] font-medium text-warning">
+                            {clearedOnRow} {t(locale, "written off")}
+                          </span>
+                        ) : null}
                       </span>
                     </TableCell>
 

@@ -790,11 +790,25 @@ function PaymentPanel({
         settled ? "p-5" : "border-l-2 border-brand bg-brand/5 px-4 py-3.5"
       }
     >
+      {/*
+        A SETTLED BILL IS STILL A BILL SOMEBODY CAN HAVE GOT WRONG.
+
+        This toggle was disabled the moment the balance reached zero, and the
+        whole body unmounted with it — so every bill control on the richest
+        screen in the app disappeared the instant the money arrived. A rate
+        quoted wrong, a discount that should have been given, storage charged
+        on days the warehouse was shut: all of them are discovered AFTER the
+        customer pays, and none of them could be corrected from here by anyone,
+        including the owner.
+
+        The money form stays shut on a settled bill — there is nothing to
+        collect and a second box invites a second payment. What opens instead
+        is the row of corrections underneath.
+      */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center gap-2 text-left font-medium"
-        disabled={settled}
       >
         <Wallet
           className={settled ? "h-4 w-4 text-success" : "h-5 w-5 text-brand"}
@@ -808,6 +822,51 @@ function PaymentPanel({
           </span>
         ) : null}
       </button>
+
+      {/*
+        THE CORRECTIONS, ON A BILL THAT IS ALREADY PAID.
+
+        The same three controls the open form carries, and nothing else: no
+        money box, no account, no submit. Each is still gated on the reader's
+        own permission, and each acts on the bill rather than on a payment, so
+        they are exactly as safe here as they are above.
+      */}
+      {open && settled ? (
+        <div className="mt-3 space-y-2 border-t pt-3">
+          <p className="text-xs text-muted-foreground">
+            {t(
+              "This bill is settled. These change the bill itself — use them to correct a price, a rate or a storage charge that was wrong."
+            )}
+          </p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+            {props.canDiscount && props.invoiceId ? (
+              <GiveDiscount
+                invoiceId={props.invoiceId}
+                currency={props.currency}
+                current={props.invoiceDiscount ?? 0}
+                rate={props.invoiceRate}
+              />
+            ) : null}
+            {props.canChangeRate && props.invoiceId ? (
+              <ChangeRate
+                invoiceId={props.invoiceId}
+                currency={props.currency}
+                current={props.invoiceRate}
+                total={props.invoiceTotal ?? 0}
+              />
+            ) : null}
+            {props.canWaiveStorage && props.invoiceId ? (
+              <WaiveStorage
+                invoiceId={props.invoiceId}
+                currency={props.currency}
+                storage={props.invoiceStorage ?? 0}
+                rate={props.invoiceRate}
+                freeDaysLeft={props.invoiceStorageFreeDays}
+              />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {open && !settled ? (
         <form action={action} className="mt-4 space-y-3">
@@ -1047,19 +1106,32 @@ function PaymentPanel({
           {converted ? (
             <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
               {converted}
-              {props.canChangeRate && props.invoiceId ? (
-                <>
-                  {" "}
-                  <ChangeRate
-                    invoiceId={props.invoiceId}
-                    currency={props.currency}
-                    current={props.invoiceRate}
-                    total={props.invoiceTotal ?? 0}
-                  />
-                </>
-              ) : null}
-
             </p>
+          ) : null}
+
+          {/*
+            A CONTROL OF ITS OWN, NOT A LINK INSIDE A SENTENCE.
+
+            Change the rate lived inside the conversion sentence, which renders
+            only when the payment crosses currencies AND a figure has been
+            typed. So on a shilling payment against a shilling bill — or with
+            the money box momentarily empty — the control simply was not there,
+            for anybody, however plainly they held invoice.rate.
+
+            The rate is a fact about the BILL, not about this payment: it
+            decides what a shilling figure credits and what the customer was
+            quoted. It belongs beside the other bill controls, visible whenever
+            the desk may change it.
+          */}
+          {props.canChangeRate && props.invoiceId ? (
+            <div className="text-xs">
+              <ChangeRate
+                invoiceId={props.invoiceId}
+                currency={props.currency}
+                current={props.invoiceRate}
+                total={props.invoiceTotal ?? 0}
+              />
+            </div>
           ) : null}
 
           {/*
@@ -1197,7 +1269,27 @@ function PaymentPanel({
                 ))}
               </NativeSelect>
             </div>
-          ) : null}
+          ) : (
+            /*
+              NO ACCOUNT CAN HOLD THIS MONEY — SAID BEFORE THE FORM IS FILLED.
+
+              The picker hides itself when no active account is denominated in
+              the tendered currency, and accountId is REQUIRED by both schemas.
+              So the desk filled in the amount, the transport, the proof and
+              the date, pressed Confirm, and got "Say which account the money
+              landed in" — pointing at a field that was never on the screen.
+              A dead end reached only after all the work.
+
+              Said up front instead, with the way out: switch the money, or
+              open the account.
+            */
+            <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+              {t("No open account can hold")} {currency}.{" "}
+              {t(
+                "Switch the money above to one that has an account, or open an account for it first — a payment cannot be recorded without saying where it landed."
+              )}
+            </p>
+          )}
 
           <PaymentProofField />
           {/*
