@@ -3,7 +3,9 @@ import Link from "next/link";
 import { Search, Undo2 } from "lucide-react";
 
 import { IncomeSheetTable } from "@/components/app/income-sheet";
-import { FinanceWorkspaceHeader } from "@/components/app/finance-workspace-header";
+import { BatchesNav } from "@/components/app/batches-nav";
+import { PageHeader } from "@/components/app/page-header";
+import { batchTabs } from "@/lib/batch-tabs";
 import { Input } from "@/components/ui/input";
 import { currentRateValue } from "@/lib/fx";
 import { incomeSheet } from "@/lib/income";
@@ -81,18 +83,27 @@ export default async function ClosedBatchesPage({
 
   return (
     <>
-      {/* Its own name, because this is not one of the tabs. Wearing "Finance"
-          while the row lit General ledger read as "closed batches are inside
-          the general ledger" — two different things, and the sidebar files
-          this one under Batches. */}
-      <FinanceWorkspaceHeader
-        role={user.role}
+      {/*
+        A BATCH PAGE THAT LOOKS LIKE ONE.
+
+        It lives under /app/finance because that is where the figures are
+        computed, and it was wearing the Finance tab row to prove it — a page
+        about flights sitting under Overview, Accounts, Collections, General
+        ledger. The owner read that the only way it can be read: that closed
+        batches are part of the ledger. They are not; they are what a flight
+        earned, and the sidebar had it right all along under Batches.
+
+        The route has not moved and no figure has changed. Only the row above
+        it now says where the reader actually is.
+      */}
+      <PageHeader
         title={t(locale, "Closed batches")}
         description={t(
           locale,
           "What each closed batch made. The figures are worked out when Finance shuts the books and frozen there — then the boss reviews them."
         )}
       />
+      <BatchesNav tabs={batchTabs(user.role)} />
 
       {/*
         Sent back, and said first.

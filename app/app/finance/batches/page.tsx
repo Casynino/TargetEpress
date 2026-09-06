@@ -3,7 +3,9 @@ import Link from "next/link";
 import { ChevronRight, Plane } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
-import { FinanceWorkspaceHeader } from "@/components/app/finance-workspace-header";
+import { BatchesNav } from "@/components/app/batches-nav";
+import { PageHeader } from "@/components/app/page-header";
+import { batchTabs } from "@/lib/batch-tabs";
 import { SectionLabel } from "@/components/app/section-label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -58,14 +60,17 @@ export default async function FinanceBatchesPage() {
 
   return (
     <>
-      <FinanceWorkspaceHeader
-        role={user.role}
+      {/* A batch page, wearing the batch row — see the note on Closed
+          batches. It is under /app/finance because the figures are, not
+          because it belongs to the ledger. */}
+      <PageHeader
         title={t(locale, "Batch finances")}
         description={t(
           locale,
           "What every flight earned and what it cost. Open one to read its whole book — every payment, every cost, and everything still owed on it."
         )}
       />
+      <BatchesNav tabs={batchTabs(user.role)} />
 
       <SectionLabel>{t(locale, "Every flight, worst margin first")}</SectionLabel>
 

@@ -200,7 +200,7 @@ const NAMES: { prefix: string; label: string }[] = [
   { prefix: "/app/admin/markets", label: "Markets" },
   { prefix: "/app/admin/settings", label: "Settings" },
   { prefix: "/app/admin", label: "Administration" },
-  { prefix: "/app/pickup-queue", label: "Pickup queue" },
+  { prefix: "/app/pickup-queue", label: "Pickup list" },
   { prefix: "/app/inventory", label: "In the warehouse" },
   { prefix: "/app/deliveries", label: "Deliveries" },
   { prefix: "/app/incoming", label: "Incoming" },

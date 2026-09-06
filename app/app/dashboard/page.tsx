@@ -296,15 +296,24 @@ export default async function DashboardPage() {
               : t(locale, "Dar es Salaam Warehouse")
           }
           emphasis={inChina ? "CN" : "TZ"}
-          // Where this desk's day starts.
-          //
-          // China registers cargo, so their day begins at the registration
-          // form. Dar's begins at the scanner: checking a batch in, finding a
-          // box, handing it over — every one of those starts by reading a
-          // label China already printed. "Receive cargo" was borrowed from the
-          // China desk and named the wrong action for Dar.
+          /*
+            WHERE THIS DESK'S DAY STARTS.
+
+            China registers cargo, so their day begins at the registration
+            form. Dar's begins at the scanner: checking a flight in, finding a
+            box, handing it over — every one of those starts by reading a label
+            China already printed.
+
+            THE CONDITION SAID shipment.create, WHICH BOTH WAREHOUSES HOLD, so
+            Dar was offered "Receive cargo" — the owner's words: their job is
+            to scan and release, and registering a consignment belongs inside
+            a flight, where the button already exists and is already called
+            Add cargo. Dar keeps the permission, because a box that turns up
+            after a flight was closed is added there; it is simply not how
+            their morning begins.
+          */
           action={
-            can(user.role, "shipment.create")
+            inChina && can(user.role, "shipment.create")
               ? { href: "/app/cargo/new", label: t(locale, "Receive cargo") }
               : { href: "/app/release", label: t(locale, "Scan & release") }
           }
@@ -911,7 +920,7 @@ async function darFloorStats() {
  */
 const DAR_QUICK_ACTIONS: ActionPill[] = [
   { href: "/app/receive", label: "Receiving Dock", icon: PackagePlus, weight: "primary", tone: "brand" },
-  { href: "/app/pickup-queue", label: "Pickup Queue", icon: Truck, weight: "secondary", tone: "signal" },
+  { href: "/app/pickup-queue", label: "Pickup list", icon: Truck, weight: "secondary", tone: "signal" },
   // No Find cargo. The banner's own search box sits directly above this row,
   // and a pill pointing at the same page is a second control for one action.
   { href: "/app/inventory", label: "Available Cargo", icon: Boxes, tone: "violet" },

@@ -52,6 +52,7 @@ import { freightBasisOf } from "@/lib/support";
 import { shortfallBill } from "@/lib/collections";
 import { prisma } from "@/lib/prisma";
 import { shipmentQrDataUrl } from "@/lib/qr";
+import { FIELD_LABELS, changeHistory } from "@/lib/change-history";
 import { can, canAmendCargo } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { StorageStatusCard } from "@/components/app/storage-status-card";
@@ -227,6 +228,11 @@ export default async function ShipmentDetailPage({
   const qr = canSeeCode
     ? await shipmentQrDataUrl(shipment.qrToken, 200)
     : null;
+  /* Written on every correction since editing existed and shown nowhere, so
+     the record that answers "who changed the weight, and what was it before"
+     was being kept and never read. */
+  const edits = showInternal ? await changeHistory(shipment.id) : [];
+
   const showMoney = can(user.role, "finance.view");
   const canVerifyPayments = can(user.role, "payment.verify");
   /**
@@ -1083,6 +1089,44 @@ export default async function ShipmentDetailPage({
                   </Link>
                 </Button>
               ) : null}
+            </section>
+          ) : null}
+
+          {/*
+            WHAT WAS CHANGED, AND WHY.
+
+            The owner's ask: show what was edited. before and after have been
+            recorded on every correction since editing existed and shown on no
+            screen at all. The reason beside them needs a column and follows
+            separately — this is the half that needs nothing.
+
+            Internal only. A customer is told where their cargo is, never that
+            somebody corrected its weight.
+          */}
+          {edits.length > 0 ? (
+            <section className="rounded-xl border bg-card p-4 shadow-soft">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                {t(locale, "What was changed")}
+              </p>
+              <ul className="mt-3 space-y-3">
+                {edits.map((edit) => (
+                  <li key={edit.id} className="text-xs">
+                    <p className="font-medium">
+                      {t(locale, FIELD_LABELS[edit.field] ?? edit.field)}
+                    </p>
+                    <p className="mt-0.5 tabular-nums">
+                      <span className="text-muted-foreground line-through">
+                        {edit.before ?? "—"}
+                      </span>{" "}
+                      <span className="text-muted-foreground">→</span>{" "}
+                      <span className="font-semibold">{edit.after ?? "—"}</span>
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {edit.actorName ?? "—"} · {formatDateTime(edit.at, locale)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
             </section>
           ) : null}
 

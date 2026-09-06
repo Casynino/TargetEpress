@@ -5,7 +5,7 @@ import { Clock, MessageCircle, Phone, QrCode } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { IconHint } from "@/components/app/icon-hint";
 import { FilterChip } from "@/components/app/filter-chip";
-import { FinanceWorkspaceHeader } from "@/components/app/finance-workspace-header";
+import { PageHeader } from "@/components/app/page-header";
 import { SearchBox } from "@/components/app/search-box";
 import { CancelNoteButton } from "@/components/app/cancel-note-button";
 import { Badge } from "@/components/ui/badge";
@@ -164,7 +164,24 @@ export default async function PickupNotesPage({
 
   return (
     <>
-      <FinanceWorkspaceHeader role={user.role} />
+      {/*
+        A PAGE IS THE PAGE YOU PRESSED.
+
+        This wore the department's name and lit a tab it is not, so pressing
+        "Pickup notes" in the sidebar landed on a screen headed Finance with
+        General ledger glowing. The owner's rule, and the obvious one: when I
+        go to a page, the heading and everything should be that page.
+
+        The tab row is for the tabs. This is a destination of its own and says
+        its own name.
+      */}
+      <PageHeader
+        title={t(locale, "Pickup notes")}
+        description={t(
+          locale,
+          "The warehouse's authority to hand cargo over. Issued by Finance the moment a bill is settled — everyone else prints it and rings the customer."
+        )}
+      />
 
       {/* What THIS tab is for. The department's name and its
           actions are in the shared header above; this is the one

@@ -276,7 +276,7 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
       }
       searchPlaceholder={t("Customer, phone, tracking or pickup note")}
       emptyTitle={t("Nothing matches")}
-      emptyDescription={t("No cargo in the pickup queue matches those filters.")}
+      emptyDescription={t("No cargo in the pickup list matches those filters.")}
       renderExpanded={(row) => (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
           <div className="space-y-1.5">

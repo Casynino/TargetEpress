@@ -213,7 +213,7 @@ export function ReportMissingCargoForm({
       trigger={t("Report missing cargo")}
       heading={t("Report this cargo missing")}
       blurb={t(
-        "This takes the cargo out of the pickup queue and prevents delivery until the case is closed. Admin and Customer Support are notified, and the customer sees “Under investigation” instead of “Ready for pickup”."
+        "This takes the cargo out of the pickup list and prevents delivery until the case is closed. Admin and Customer Support are notified, and the customer sees “Under investigation” instead of “Ready for pickup”."
       )}
       placeholder={t(
         "e.g. Bay C is empty, checked the whole aisle and the returns shelf. Last seen at check-in on Tuesday."

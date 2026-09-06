@@ -74,16 +74,18 @@ const SECTIONS: NavSection[] = [
         // the desk that rings these people back.
         permission: "shipment.create",
       },
-      {
-        href: "/app/shipments",
-        label: "Arrived batches",
-        icon: "PlaneTakeoff",
-        permission: "batch.view",
-      },
+      /* Loaded, then landed — the order the flight lives, as on every other
+         menu. */
       {
         href: "/app/batches",
         label: "Loading batches",
         icon: "Boxes",
+        permission: "batch.view",
+      },
+      {
+        href: "/app/shipments",
+        label: "Arrived batches",
+        icon: "PlaneTakeoff",
         permission: "batch.view",
       },
       {
@@ -357,7 +359,7 @@ const DAR_SECTIONS: NavSection[] = [
       },
       {
         href: "/app/pickup-queue",
-        label: "Pickup queue",
+        label: "Pickup list",
         icon: "Truck",
         permission: "shipment.release",
       },
@@ -448,8 +450,9 @@ const SUPPORT_SECTIONS: NavSection[] = [
     title: "Cargo",
     group: { label: "Batches", icon: "Boxes" },
     items: [
-      { href: "/app/shipments", label: "Arrived batches", icon: "PlaneTakeoff" },
+      /* Loaded, then landed — the flight's own order, as everywhere else. */
       { href: "/app/batches", label: "Loading batches", icon: "Boxes" },
+      { href: "/app/shipments", label: "Arrived batches", icon: "PlaneTakeoff" },
     ],
   },
   {
@@ -541,12 +544,14 @@ const FINANCE_SECTIONS: NavSection[] = [
     title: "Batches",
     group: { label: "Batches", icon: "Boxes" },
     items: [
-      {
-        href: "/app/shipments",
-        label: "Arrived batches",
-        icon: "PlaneTakeoff",
-        permission: "batch.view",
-      },
+      /*
+        THE ORDER A FLIGHT LIVES, SMALLEST STEP FIRST.
+
+        Loaded in Guangzhou, landed in Dar, signed off by Finance, and then
+        read for what it made. The owner asked for these four in that order —
+        a menu that runs the way the work runs needs no explaining, and these
+        four are one subject now that Batch finances has joined them.
+      */
       {
         href: "/app/batches",
         label: "Loading batches",
@@ -554,8 +559,12 @@ const FINANCE_SECTIONS: NavSection[] = [
         permission: "batch.view",
       },
       {
-        /* Below Loading batches, at the owner's instruction — the life of a
-           flight in order on this menu too: landed, loading, signed off. */
+        href: "/app/shipments",
+        label: "Arrived batches",
+        icon: "PlaneTakeoff",
+        permission: "batch.view",
+      },
+      {
         href: "/app/finance/income",
         label: "Closed batches",
         icon: "ClipboardCheck",

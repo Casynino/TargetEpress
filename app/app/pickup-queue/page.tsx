@@ -29,7 +29,7 @@ import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Pickup queue" };
+export const metadata: Metadata = { title: "Pickup list" };
 
 const DAY = 86_400_000;
 
@@ -51,7 +51,7 @@ function waitLabel(locale: Locale, ms: number): string {
 }
 
 /**
- * The pickup queue — everyone who may collect today.
+ * The pickup list — everyone who may collect today.
  *
  * A row exists here because Finance issued a pickup note and has not cancelled
  * it: the money question is already answered and is shown as a fact, not as
@@ -203,7 +203,7 @@ export default async function PickupQueuePage() {
   return (
     <>
       <PageHeader
-        title="Pickup queue"
+        title="Pickup list"
         description="Cargo Finance has cleared for collection. Open a row to release it — the pickup note itself is issued and cancelled by Finance."
       />
 

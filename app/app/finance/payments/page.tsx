@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { EmptyState } from "@/components/app/empty-state";
-import { FinanceWorkspaceHeader } from "@/components/app/finance-workspace-header";
+import { PageHeader } from "@/components/app/page-header";
 import { AttributePayment } from "@/components/app/attribute-payment";
 import { MoneyTile } from "@/components/app/money-tile";
 import {
@@ -88,7 +88,24 @@ export default async function PaymentsPage() {
 
   return (
     <>
-      <FinanceWorkspaceHeader role={user.role} />
+      {/*
+        A PAGE IS THE PAGE YOU PRESSED.
+
+        This wore the department's name and lit a tab it is not, so pressing
+        "Payments" in the sidebar landed on a screen headed Finance with
+        General ledger glowing. The owner's rule, and the obvious one: when I
+        go to a page, the heading and everything should be that page.
+
+        The tab row is for the tabs. This is a destination of its own and says
+        its own name.
+      */}
+      <PageHeader
+        title={t(locale, "Payments")}
+        description={t(
+          locale,
+          "Every payment recorded, newest first — what came in, from whom, and which account it landed in."
+        )}
+      />
 
       {/* What THIS tab is for. The department's name and its
           actions are in the shared header above; this is the one

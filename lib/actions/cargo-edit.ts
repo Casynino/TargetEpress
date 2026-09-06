@@ -135,7 +135,12 @@ export async function updateCargo(
         cargoTypeId: true,
         cargoType: { select: { name: true } },
         customer: { select: { id: true, name: true, phone: true } },
-        packageList: { select: { sequence: true }, orderBy: { sequence: "asc" } },
+        packageList: {
+          /* receivedAt and deliveredAt, because a scanned box is not deleted
+             by lowering a number — see the guard below. */
+          select: { sequence: true, receivedAt: true, deliveredAt: true },
+          orderBy: { sequence: "asc" },
+        },
       },
     });
     if (!before) return fail(t(locale, "That cargo no longer exists."));
@@ -282,6 +287,35 @@ export async function updateCargo(
             ),
           });
         } else {
+          /*
+            A BOX THAT HAS BEEN SCANNED IS NOT DELETED BY A NUMBER.
+
+            Removing from the top down is right for a booking Guangzhou is
+            correcting before it flies: package 5 of 5 is the one that was
+            never there. It is wrong the moment a carton has been checked in or
+            handed over — the row carries the proof that somebody scanned it,
+            and lowering a count would erase that quietly, which is exactly how
+            a warehouse ends up unable to say what it received.
+
+            So the count may come down over boxes nobody has touched, and stops
+            at the first one that has. A count that disagrees with cartons
+            already scanned is a mis-scan, and that is a case to raise, not a
+            row to delete.
+          */
+          const doomed = before.packageList.filter(
+            (pkg) => pkg.sequence > input.packages
+          );
+          const scanned = doomed.filter(
+            (pkg) => pkg.receivedAt !== null || pkg.deliveredAt !== null
+          );
+          if (scanned.length > 0) {
+            throw new Error(
+              t(
+                locale,
+                "Some of those boxes have already been checked in or handed over, so the count cannot be lowered past them. Raise a case instead."
+              )
+            );
+          }
           await tx.package.deleteMany({
             where: { shipmentId: before.id, sequence: { gt: input.packages } },
           });

@@ -1665,7 +1665,7 @@ const ZH: Record<string, string> = {
   "No batches are in the air or waiting to be checked in.":
     "没有在飞或等待入库核对的批次。",
   "No batches yet": "暂无批次",
-  "No cargo in the pickup queue matches those filters.":
+  "No cargo in the pickup list matches those filters.":
     "提货队列中没有符合筛选条件的货物。",
   "No cargo is cleared for collection yet — run the Finance scenario above first, then come back.":
     "还没有货物放行可提——先做上面财务那一步，再回来。",
@@ -2278,8 +2278,9 @@ const ZH: Record<string, string> = {
   "Pickup note not found.": "未找到该提货单。",
   "Pickup notes": "提货单",
   "Pickup QR for": "提货二维码",
-  "Pickup Queue": "提货队列",
-  "Pickup queue": "提货队列",
+  "Pickup list": "提货清单",
+  "Pickup Queue": "提货清单",
+  "Pickup queue": "提货清单",
   "Pickup requests": "上门取货申请",
   "pickup(s) waiting for a call.": "件上门取货申请等待致电。",
   "PickupNote": "提货单",
@@ -3503,6 +3504,9 @@ const ZH: Record<string, string> = {
   "Booked in China": "中国预报",
   "On the Dar bench": "达港实称",
   "and check in": "并入库",
+  "Some of those boxes have already been checked in or handed over, so the count cannot be lowered past them. Raise a case instead.": "其中部分件数已入库或已交付，因此件数不能下调到低于这些件。请改为提交案件。",
+  "What was changed": "修改记录",
+  "Every payment recorded, newest first — what came in, from whom, and which account it landed in.": "所有已记录的收款，最新在前 — 收到什么、来自谁、入账到哪个账户。",
   "Bill settled, cargo can go": "账单已结清，货物可放行",
   "Finance clears": "由财务核销",
   "Clearing": "核销",
@@ -4725,7 +4729,7 @@ const ZH: Record<string, string> = {
     "这票货在当前视图下没有案件。请点上方其他卡片。",
   "This table is permanent — it empties when you dispatch it, then fills again.":
     "这张装货台是常设的——发运后清空，然后重新装货。",
-  "This takes the cargo out of the pickup queue and prevents delivery until the case is closed. Admin and Customer Support are notified, and the customer sees “Under investigation” instead of “Ready for pickup”.":
+  "This takes the cargo out of the pickup list and prevents delivery until the case is closed. Admin and Customer Support are notified, and the customer sees “Under investigation” instead of “Ready for pickup”.":
     "这会把货物移出提货队列，结案前不得放货。管理员和客服会收到通知，客户看到的状态会从“可提货”变成“调查中”。",
   "This week": "本周",
   "This year": "本年",
