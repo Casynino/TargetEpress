@@ -2053,6 +2053,21 @@ export async function undoBatchArrival(
                   amountPaid: true,
                   amountAdjusted: true,
                   total: true,
+                  /* Everything below is read by the guards under "MONEY". The
+                     balance is derived, so a bill can be settled, promised or
+                     claimed with amountPaid still at zero. */
+                  creditStatus: true,
+                  _count: { select: { payments: true, paymentAllocations: true } },
+                  submissions: {
+                    where: { status: "PENDING" },
+                    select: { submissionNumber: true },
+                    take: 1,
+                  },
+                  submissionAllocations: {
+                    where: { submission: { status: "PENDING" } },
+                    select: { submission: { select: { submissionNumber: true } } },
+                    take: 1,
+                  },
                 },
               },
               pickupNote: { select: { status: true, noteNumber: true } },
@@ -2117,6 +2132,76 @@ export async function undoBatchArrival(
       if (writtenOff) {
         throw new Error(
           `${writtenOff.invoice!.invoiceNumber} ${t(locale, "was written off, which is a decision about a customer. Answer it on the bill first.")}`
+        );
+      }
+
+      /*
+        AND EVERY OTHER WAY A BILL STOPS BEING A BY-PRODUCT OF A CHECK-IN.
+
+        The test above was written as "did money arrive", and read only
+        amountPaid. But the balance on this model is derived — total less what
+        was paid AND what was adjusted — so a bill can be settled, promised or
+        claimed with amountPaid still at zero, and every one of those is a
+        decision somebody made about a customer rather than an artefact of the
+        arrival. Deleting the row deletes the decision with it: there is no
+        stored receivable, and InvoiceAdjustment, SubmissionAllocation and the
+        customer's uploaded proof all cascade off the invoice.
+
+        Written off is refused above on exactly this reasoning. These are the
+        same argument, and they were missing.
+      */
+      const onCredit = batch.shipments.find(
+        (s) =>
+          s.invoice &&
+          (s.invoice.creditStatus === "APPROVED" ||
+            s.invoice.creditStatus === "REQUESTED")
+      );
+      if (onCredit) {
+        throw new Error(
+          `${onCredit.invoice!.invoiceNumber} ${t(locale, "is on credit terms, which two people signed off. Answer it on the bill first.")}`
+        );
+      }
+
+      const adjusted = batch.shipments.find(
+        (s) => s.invoice && toNumber(s.invoice.amountAdjusted) > 0.005
+      );
+      if (adjusted) {
+        throw new Error(
+          `${adjusted.invoice!.invoiceNumber} ${t(locale, "had a difference cleared against it. Answer it on the bill first.")}`
+        );
+      }
+
+      /* Any payment row at all, voided included. A cancelled payment is still
+         a line on the register, and the delete below cannot remove the invoice
+         under it — so without this the clerk met a database error instead of a
+         sentence, and the flight could never be unwound by anybody. */
+      const registered = batch.shipments.find(
+        (s) =>
+          s.invoice &&
+          (s.invoice._count.payments > 0 ||
+            s.invoice._count.paymentAllocations > 0)
+      );
+      if (registered) {
+        throw new Error(
+          `${registered.invoice!.invoiceNumber} ${t(locale, "has a payment on the register, cancelled or not. Answer it on the bill first.")}`
+        );
+      }
+
+      /* Money the customer says they have sent, sitting with Finance. The proof
+         they uploaded hangs off the submission, and a combined claim can name
+         bills on other flights that this delete would quietly re-open. */
+      const claimed = batch.shipments.find(
+        (s) =>
+          s.invoice &&
+          (s.invoice.submissions.length > 0 ||
+            s.invoice.submissionAllocations.length > 0)
+      );
+      if (claimed) {
+        const number =
+          claimed.invoice!.submissions[0]?.submissionNumber ??
+          claimed.invoice!.submissionAllocations[0]?.submission.submissionNumber;
+        throw new Error(
+          `${number} ${t(locale, "is with Finance for this bill. Withdraw or verify it first.")}`
         );
       }
 
