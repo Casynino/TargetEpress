@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useId, useState } from "react";
+import { useActionState, useId, useState, useTransition } from "react";
 import type {
   BatchStatus,
   GoodsType,
@@ -22,6 +22,15 @@ import { useLocale, useT } from "@/components/app/locale-provider";
 import { ReceivingOutcomePanel } from "@/components/app/receiving-outcome-panel";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   completeVerification,
   verifyBatchAll,
@@ -145,22 +154,9 @@ export function VerificationList({
           </div>
         </div>
         {batchStatus === "ARRIVED" ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {remaining > 0 ? (
-              <AcceptAllButton batchId={batchId} remaining={remaining} />
-            ) : null}
-            <CompleteButton batchId={batchId} disabled={remaining > 0} />
-          </div>
+          <CompleteButton batchId={batchId} remaining={remaining} />
         ) : null}
       </div>
-
-      {batchStatus === "ARRIVED" && remaining > 0 ? (
-        <p className="text-xs text-muted-foreground">
-          {t(
-            "Everything normally arrives as sent. Accept the whole manifest, then flag only what is missing or damaged."
-          )}
-        </p>
-      ) : null}
 
       {/*
         Eleven columns. This is the screen a receiving clerk holds in one hand
@@ -232,37 +228,6 @@ export function VerificationList({
   );
 }
 
-/**
- * Accept everything still unruled on.
- *
- * Sized and coloured as the primary action because it is the one taken almost
- * every time. The count is in the label so nobody presses it without seeing
- * how many lines it covers.
- */
-function AcceptAllButton({
-  batchId,
-  remaining,
-}: {
-  batchId: string;
-  remaining: number;
-}) {
-  const t = useT();
-  const [state, action] = useActionState<ActionResult, FormData>(
-    verifyBatchAll,
-    { ok: true }
-  );
-
-  return (
-    <form action={action} className="flex items-center gap-2">
-      <input type="hidden" name="batchId" value={batchId} />
-      <SubmitButton variant="signal" className="rounded-lg" size="sm">
-        <CheckCheck className="mr-2 h-4 w-4" />
-        {t("All")} {remaining} {t("present & undamaged")}
-      </SubmitButton>
-      <FormError state={state} />
-    </form>
-  );
-}
 
 /**
  * What the row and the card both read the shipment's look from.
@@ -814,30 +779,119 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
 
 function CompleteButton({
   batchId,
-  disabled,
+  remaining,
 }: {
   batchId: string;
-  disabled: boolean;
+  remaining: number;
 }) {
   const t = useT();
-  const [state, action] = useActionState<ActionResult, FormData>(
-    completeVerification,
-    { ok: true }
-  );
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [running, start] = useTransition();
+
+  /*
+    ONE PRESS, ONE QUESTION.
+
+    This was two buttons and two presses: "All 9 present & undamaged" ruled on
+    the untouched rows, the page revalidated, and only then did "Finish
+    check-in" come out of its disabled state to be pressed again. Two clicks
+    for one decision, and a clerk who pressed the first and walked away left
+    the flight open with every carton ruled on.
+
+    So the second press is gone and the first is what the dialog asks about.
+    Both server actions still run, in the same order and unchanged: verifying
+    the rest only ever touches rows nobody has ruled on (`verifications: none`),
+    which is what keeps a flagged carton from being overwritten by a clerk
+    accepting the remainder. Sequential rather than merged, so neither action's
+    own guards move.
+  */
+  function finish() {
+    setError(null);
+    start(async () => {
+      const body = new FormData();
+      body.set("batchId", batchId);
+      if (remaining > 0) {
+        const accepted = await verifyBatchAll(undefined, body);
+        if (!accepted.ok) {
+          setError(accepted.error ?? null);
+          return;
+        }
+      }
+      const closed = await completeVerification(undefined, body);
+      if (!closed.ok) {
+        setError(closed.error ?? null);
+        return;
+      }
+      setOpen(false);
+    });
+  }
 
   return (
-    <form action={action} className="flex flex-col items-end gap-2">
-      <input type="hidden" name="batchId" value={batchId} />
-      <SubmitButton
-        variant="brand"
-        size="sm"
-        disabled={disabled}
-        pendingLabel={t("Closing…")}
-      >
-        <CheckCheck className="mr-1.5 h-4 w-4" />
-        {t("Finish check-in")}
-      </SubmitButton>
-      <FormError state={state} />
-    </form>
+    <>
+      <div className="flex flex-col items-end gap-2">
+        <Button
+          type="button"
+          variant="brand"
+          size="sm"
+          onClick={() => setOpen(true)}
+        >
+          <CheckCheck className="mr-1.5 h-4 w-4" />
+          {t("Finish check-in")}
+        </Button>
+        {error ? (
+          <p className="text-xs font-medium text-destructive">{error}</p>
+        ) : null}
+      </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("Are you sure?")}</DialogTitle>
+            <DialogDescription>
+              {t(
+                "Confirm that the cargo and packages you have checked are correct and safe to proceed."
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Said plainly, because this is the half a clerk forgets: the rows
+              nobody touched are being ruled on too, and that is a statement
+              about real cartons. Anything already flagged keeps its flag. */}
+          {remaining > 0 ? (
+            <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+              <span className="font-semibold">
+                {remaining} {t("not yet checked")}
+              </span>{" "}
+              {t("will be recorded as present and undamaged.")}
+            </p>
+          ) : null}
+
+          {error ? (
+            <p className="text-xs font-medium text-destructive">{error}</p>
+          ) : null}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpen(false)}
+              disabled={running}
+            >
+              {t("Cancel")}
+            </Button>
+            <Button
+              type="button"
+              variant="brand"
+              size="sm"
+              onClick={finish}
+              disabled={running}
+            >
+              {running ? t("Closing…") : t("Yes, confirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

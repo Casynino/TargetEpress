@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { Prisma, type DamageSeverity, type ExceptionType } from "@prisma/client";
@@ -626,10 +627,27 @@ export async function receiveBatch(
     revalidatePath(`/app/receive/${batchId}`);
     revalidatePath("/app/receive");
     revalidatePath("/app/dashboard");
-    return ok();
   } catch (error) {
     return fail(toActionError(error));
   }
+
+  /*
+    STRAIGHT INTO THE CHECK, NOT BACK TO THE QUEUE.
+
+    Marking a flight arrived and checking its cargo off are one job done by one
+    person standing in front of the pallets, and the screen made them two: the
+    button revalidated the queue in place, so the clerk landed back on the list
+    they had just come from and had to find the same row again to press Check
+    in. The header shortcut only appears when a flight is already ARRIVED with
+    work outstanding, and the "Open now" callout waits a full day — so on the
+    ordinary same-day arrival neither was there and the hunt was real.
+
+    OUTSIDE THE TRY, DELIBERATELY. Next signals a redirect by throwing, and the
+    catch above turns a throw into fail(). Inside, this would tell the clerk
+    the arrival had not happened seconds after it committed — the exact bug
+    priceAfterCheckIn was written to stop, and the reason its comment exists.
+  */
+  redirect(`/app/receive/${batchId}`);
 }
 
 /**
@@ -1314,16 +1332,35 @@ export async function completeVerification(
           id: true,
           status: true,
           batchNumber: true,
-          _count: { select: { shipments: { where: { deletedAt: null } }, verifications: true } },
         },
       });
       if (!batch) throw new Error("Batch not found.");
       if (batch.status !== "ARRIVED") {
         throw new Error("This batch is not being checked in.");
       }
-      if (batch._count.verifications < batch._count.shipments) {
+
+      /*
+        COUNT THE CONSIGNMENTS NOBODY HAS RULED ON, not two aggregates.
+
+        This compared the batch's shipment count against its verification
+        count, and the two answer different questions the moment a box moves
+        between flights: the verification travels with the box and keeps its
+        old batchId, so the flight it is on now is one short and stays one
+        short. GZ-59 could not be closed by anybody — the message said "1
+        consignment(s) still unchecked" about a carton that had been checked.
+
+        Asked directly, the answer is about the cargo actually standing on this
+        flight, and it names the tracking number so whoever reads it can go and
+        look at the right box.
+      */
+      const unchecked = await tx.shipment.findMany({
+        where: { batchId, deletedAt: null, verifications: { none: { batchId } } },
+        select: { trackingNumber: true },
+        take: 5,
+      });
+      if (unchecked.length > 0) {
         throw new Error(
-          `${batch._count.shipments - batch._count.verifications} consignment(s) still unchecked.`
+          `${unchecked.length} consignment(s) still unchecked: ${unchecked.map((s) => s.trackingNumber).join(", ")}.`
         );
       }
 
@@ -1397,10 +1434,24 @@ export async function verifyBatchAll(
         );
       }
 
-      // Only the lines nobody has ruled on. `verifications: none` is what
-      // protects an already-raised exception from being overwritten.
+      /*
+        Only the lines nobody has ruled on FOR THIS FLIGHT.
+
+        `verifications: { none: {} }` asked a different question — has this
+        consignment ever been ruled on, anywhere — and a box moved between
+        flights carries the answer with it. TX-000165 was checked in on GZ-56,
+        moved to GZ-59, and from then on accept-all stepped over it while the
+        closing check counted it as outstanding: a flight that could never be
+        finished, by anybody, ever. BatchVerification is unique on
+        (batchId, shipmentId) precisely so a box can be ruled on once per
+        flight it travels on.
+
+        Scoped, this still protects what it was written to protect: a carton
+        flagged on THIS flight is not overwritten by a clerk accepting the
+        remainder of THIS flight.
+      */
       const pending = await tx.shipment.findMany({
-        where: { batchId, verifications: { none: {} } },
+        where: { batchId, verifications: { none: { batchId } } },
         select: {
           id: true,
           status: true,

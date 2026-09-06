@@ -60,7 +60,10 @@ export default async function VerifyBatchPage({
           },
         },
       },
-      verifications: true,
+      /* This flight's rulings only. Unfiltered, a box moved from another
+         flight arrived here wearing that flight's answer — the row read as
+         already checked while the server counted it outstanding. */
+      verifications: { where: { batchId: id } },
     },
   });
 

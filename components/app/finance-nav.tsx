@@ -59,11 +59,25 @@ export function FinanceNav({ tabs }: { tabs: FinanceTab[] }) {
           pathname.startsWith("/app/collections")
             ? "/app/collections/follow-up"
             : pathname.startsWith("/app/finance/payments") ||
-                pathname.startsWith("/app/finance/income") ||
                 pathname.startsWith("/app/finance/pickup-notes") ||
                 pathname.startsWith("/app/finance/receipts")
               ? "/app/finance/transactions"
               : null;
+
+        /*
+          CLOSED BATCHES IS NOT THE LEDGER, AND THE TAB SAID IT WAS.
+
+          It was listed above, so opening Closed batches lit General ledger —
+          and the owner read the lit tab the way a lit tab is meant to be read:
+          "closed batches are inside the general ledger". They are not. One is
+          what each flight earned once Finance shut its books; the other is
+          every movement of money the company has made. The sidebar agrees with
+          me and not with the tab: it files Closed batches under BATCHES.
+
+          A payment, a receipt and a pickup note genuinely are ledger lines
+          seen one at a time, so those keep the highlight. This one gets its
+          own name in the heading above instead.
+        */
 
         const active =
           pathname === tab.href ||

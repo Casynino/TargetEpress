@@ -81,14 +81,18 @@ export default async function ClosedBatchesPage({
 
   return (
     <>
-      <FinanceWorkspaceHeader role={user.role} />
-
-      {/* What THIS tab is for. The department's name and its
-          actions are in the shared header above; this is the one
-          sentence that belongs to the list below. */}
-      <p className="mb-4 -mt-2 max-w-3xl text-sm text-muted-foreground">
-        {t(locale, "What each closed batch made. The figures are worked out when Finance shuts the books and frozen there — then the boss reviews them.")}
-      </p>
+      {/* Its own name, because this is not one of the tabs. Wearing "Finance"
+          while the row lit General ledger read as "closed batches are inside
+          the general ledger" — two different things, and the sidebar files
+          this one under Batches. */}
+      <FinanceWorkspaceHeader
+        role={user.role}
+        title={t(locale, "Closed batches")}
+        description={t(
+          locale,
+          "What each closed batch made. The figures are worked out when Finance shuts the books and frozen there — then the boss reviews them."
+        )}
+      />
 
       {/*
         Sent back, and said first.

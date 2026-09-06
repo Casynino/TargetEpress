@@ -32,7 +32,26 @@ import { viewerLocale } from "@/lib/viewer";
  * than one screen. What each tab is for is said by the tab itself, which is
  * lit, and by the caption each page keeps above its own content.
  */
-export async function FinanceWorkspaceHeader({ role }: { role: Role }) {
+export async function FinanceWorkspaceHeader({
+  role,
+  /*
+    A PAGE THAT IS NOT ONE OF THE TABS SAYS ITS OWN NAME.
+
+    The rule above holds for the tabs: nine of them under one department
+    heading, because a tab promises to change only the list below it. Closed
+    batches is not a tab — the sidebar files it under BATCHES — so wearing
+    "Finance" while an unrelated tab lit up left the owner asking whether
+    closed batches live inside the general ledger. They do not.
+
+    Given only where the row would otherwise light nothing and mean nothing.
+  */
+  title,
+  description,
+}: {
+  role: Role;
+  title?: string;
+  description?: string;
+}) {
   const locale = await viewerLocale();
   const [accounts, rateRow] = await Promise.all([
     activeAccounts(),
@@ -48,11 +67,14 @@ export async function FinanceWorkspaceHeader({ role }: { role: Role }) {
   return (
     <>
       <PageHeader
-        title={t(locale, "Finance")}
-        description={t(
-          locale,
-          "What the business holds, what it is owed, what it has spent, and every movement between them."
-        )}
+        title={title ?? t(locale, "Finance")}
+        description={
+          description ??
+          t(
+            locale,
+            "What the business holds, what it is owed, what it has spent, and every movement between them."
+          )
+        }
         actions={
           anyAction ? (
             <Suspense fallback={null}>
