@@ -2328,6 +2328,18 @@ model FieldChange {
   actor     User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
   actorName String?
 
+  /// WHY, in the words of whoever changed it.
+  ///
+  /// before and after say what moved; they never said what for. A weight going
+  /// from 5 to 5.4 reads as a typo six weeks later unless the person who
+  /// changed it wrote "re-weighed in Dar, China's figure was 5" — and that
+  /// sentence is what a customer disputing the bill is actually answered with.
+  ///
+  /// Null on almost every row, and that is correct rather than missing: the Dar
+  /// bench is never asked to type one — weigh, count, OK, and nothing else, at
+  /// the owner's instruction — so only a deliberate edit carries a reason.
+  reason String?
+
   createdAt DateTime @default(now())
 
   @@index([entity, entityId, createdAt])

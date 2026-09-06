@@ -229,6 +229,26 @@ export function CargoEditForm({
         </div>
       </section>
 
+      {/* One field, not a panel of its own.
+
+          before and after already say what moved; this says what for, and it is
+          the half a customer disputing a bill six weeks later is actually
+          answered with. Directly above Save because it describes the edit being
+          made rather than any one field in it, and left optional because plenty
+          of corrections are their own explanation. */}
+      <div className="space-y-1.5">
+        <Label htmlFor="reason">{t("Why (optional)")}</Label>
+        <Input
+          id="reason"
+          name="reason"
+          maxLength={300}
+          placeholder={t("e.g. Re-weighed in Dar — China's figure was wrong")}
+        />
+        <p className="text-xs text-muted-foreground">
+          {t("Kept with this change, on the record.")}
+        </p>
+      </div>
+
       <SubmitButton variant="brand" pendingLabel="Saving…">
         <Save className="mr-2 h-4 w-4" />
         {t("Save changes")}

@@ -78,6 +78,25 @@ const editSchemaFor = (locale: Locale) =>
     .max(1000)
     .optional()
     .transform((v) => (v?.length ? v : null)),
+  /*
+    WHY THE FIGURE MOVED.
+
+    before and after say what changed and never said what for. A weight going
+    from 5 to 5.4 reads as a typo six weeks later unless whoever changed it
+    wrote "re-weighed in Dar" — and that sentence is what answers a customer
+    disputing the bill.
+
+    Optional, and offered only here. The Dar bench types a weight and presses
+    OK; adding a box to that path is the step the owner refused. `transform` so
+    a blank box stores null rather than an empty string, which would render an
+    empty reason line under every edit.
+  */
+  reason: z
+    .string()
+    .trim()
+    .max(300, t(locale, "Keep the note under 300 characters."))
+    .optional()
+    .transform((v) => (v?.length ? v : null)),
 });
 
 /**
@@ -344,6 +363,9 @@ export async function updateCargo(
             after: change.after,
             actorId: user.id,
             actorName: user.name,
+            /* One sentence for the edit, carried onto every field it moved —
+               the person explained the change, not each column of it. */
+            reason: input.reason,
           })),
         });
       }
@@ -423,10 +445,22 @@ export async function cargoHistory(shipmentId: string) {
     actually refuse.
   */
   await authorize("audit.view");
+  /* Named columns rather than a bare findMany: this model gained a column
+     once, and a query that lists none starts selecting whatever is added next
+     with no edit at this line to say so. */
   const rows = await prisma.fieldChange.findMany({
     where: { entity: "Shipment", entityId: shipmentId },
     orderBy: { createdAt: "desc" },
     take: 100,
+    select: {
+      id: true,
+      field: true,
+      before: true,
+      after: true,
+      actorName: true,
+      reason: true,
+      createdAt: true,
+    },
   });
   return rows.map((row) => ({
     id: row.id,
@@ -434,6 +468,8 @@ export async function cargoHistory(shipmentId: string) {
     before: humanise(row.field, row.before),
     after: humanise(row.field, row.after),
     actorName: row.actorName ?? t(locale, "Unknown"),
+    /* Raw. Somebody typed this; it is not a dictionary key. */
+    reason: row.reason,
     createdAt: row.createdAt,
   }));
 }

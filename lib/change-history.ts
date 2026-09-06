@@ -25,6 +25,11 @@ export type FieldEdit = {
   before: string | null;
   after: string | null;
   actorName: string | null;
+  /* Typed by a person, so it is rendered raw and never through t(): a sentence
+     that happened to collide with a dictionary key would otherwise be silently
+     rewritten into Chinese. Null is the ordinary case — the Dar bench is never
+     asked for one. */
+  reason: string | null;
   at: Date;
 };
 
@@ -54,6 +59,7 @@ export async function changeHistory(
       before: true,
       after: true,
       actorName: true,
+      reason: true,
       createdAt: true,
     },
   });
@@ -63,6 +69,7 @@ export async function changeHistory(
     before: row.before,
     after: row.after,
     actorName: row.actorName,
+    reason: row.reason,
     at: row.createdAt,
   }));
 }

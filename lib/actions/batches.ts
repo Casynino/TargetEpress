@@ -2730,6 +2730,15 @@ export async function moveShipmentToBatch(
           after: target.batchNumber,
           actorId: user.id,
           actorName: user.name ?? user.email ?? null,
+          /* The form has always asked for this and spent it only on the audit
+             summary. It belongs on the change itself: "scanned onto the wrong
+             pallet" is the whole answer to why this box moved flights.
+
+             Not copied onto the Origin line written beside it — that moved
+             because the schema requires the airport to follow the flight, and
+             attributing the operator's sentence to it would be a claim they
+             never made. */
+          reason: reason || null,
         },
       });
 

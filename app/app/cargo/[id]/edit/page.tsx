@@ -163,6 +163,11 @@ export default async function EditCargoPage({
                     <span aria-hidden>→</span>{" "}
                     <span className="font-medium">{entry.after}</span>
                   </p>
+                  {entry.reason ? (
+                    <p className="mt-1 border-l-2 border-border pl-2 text-sm italic text-muted-foreground">
+                      {entry.reason}
+                    </p>
+                  ) : null}
                 </li>
               ))}
             </ol>

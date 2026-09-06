@@ -1246,6 +1246,13 @@ export default async function ShipmentDetailPage({
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
                       {edit.actorName ?? "—"} · {formatDateTime(edit.at, locale)}
                     </p>
+                    {/* Rendered only where somebody wrote one, so the column of
+                        edits a check-in produced stays as tight as it is. */}
+                    {edit.reason ? (
+                      <p className="mt-1 border-l-2 border-border pl-2 text-[11px] italic text-muted-foreground">
+                        {edit.reason}
+                      </p>
+                    ) : null}
                   </li>
                 ))}
               </ul>
