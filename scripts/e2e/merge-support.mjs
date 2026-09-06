@@ -67,12 +67,16 @@ if (err) console.log(`   screen says: ${err.replace(/\s+/g," ").slice(0,200)}`);
 
 const sub = await prisma.paymentSubmission.findFirst({ where:{ status:"PENDING", customerId, allocations: { some: { invoiceId: { in: two.map((b)=>b.id) } } } },
   orderBy:{ submittedAt:"desc" },
-  select:{ id:true, submissionNumber:true, amount:true, clearShortfall:true, clearShortfallInvoiceId:true,
-    allocations:{ select:{ invoiceId:true, amount:true } } } });
+  select:{ id:true, submissionNumber:true, amount:true, clearShortfall:true,
+    allocations:{ select:{ invoiceId:true, amount:true,
+      invoice:{ select:{ total:true, amountPaid:true, amountAdjusted:true } } } } } });
 if (!sub) { bad("no claim was raised"); await browser.close(); await prisma.$disconnect(); process.exit(1); }
 console.log(`\n   claim ${sub.submissionNumber} for ${sub.amount}, covers ${sub.allocations.length} bills`);
 sub.clearShortfall ? ok("the claim carries the tick") : bad("tick lost between form and row");
-sub.clearShortfallInvoiceId === bigger.id ? ok("and names the largest bill it comes off") : bad(`names ${sub.clearShortfallInvoiceId}`);
+/* Nothing is stored — the bill is worked out from what each still owes, the
+   same rule the screen used. Check the rule lands on the same bill. */
+const derived = sub.allocations.reduce((m,a)=> (Number(a.invoice.total)-Number(a.invoice.amountPaid)-Number(a.invoice.amountAdjusted)) > (Number(m.invoice.total)-Number(m.invoice.amountPaid)-Number(m.invoice.amountAdjusted)) ? a : m);
+derived.invoiceId === bigger.id ? ok("the rule lands on the largest bill it covers") : bad(`the rule picked ${derived.invoiceId}`);
 const allocSum = sub.allocations.reduce((s,a)=>s+Number(a.amount),0);
 Math.abs(allocSum - Number(sub.amount)) < 0.01 ? ok(`its allocations total ${allocSum} = what arrived`) : bad(`allocations ${allocSum} vs ${sub.amount}`);
 
@@ -109,8 +113,12 @@ else {
   }
   await fin.evaluate(()=>{const sel=[...document.querySelectorAll("select")].find(s=>/account/i.test(s.name));if(sel&&!sel.value)window.__set(sel,[...sel.options].find(o=>o.value).value);});
   await wait(400);
-  await fin.evaluate(()=>window.__click("^Verify|^Confirm|^Agree"));
+  const acct = await fin.evaluate(()=>{const sel=[...document.querySelectorAll("select")].find(s=>/account/i.test(s.name));return sel?{name:sel.name,value:sel.value}:null;});
+  console.log(`   account: ${JSON.stringify(acct)}`);
+  console.log(`   pressed: ${await fin.evaluate(()=>window.__click("Confirm and record"))}`);
   await wait(7000);
+  const err = await fin.evaluate(()=>[...document.querySelectorAll("p,div")].map(e=>e.innerText).find(t=>t&&/could not|cannot|refus|already|does not/i.test(t)&&t.length<300) ?? null);
+  if (err) console.log(`   screen says: ${err.replace(/\s+/g," ").slice(0,220)}`);
 }
 
 const after = await prisma.invoice.findMany({ where:{ id:{ in: two.map(b=>b.id) } },

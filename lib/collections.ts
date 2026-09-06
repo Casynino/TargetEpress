@@ -117,33 +117,38 @@ export const REJECTED_NEEDING_A_CALL: Prisma.PaymentSubmissionWhereInput = {
 /**
  * WHICH BILL A MERGED CLAIM'S SHORTFALL COMES OFF.
  *
- * Support's screen decides this when the claim is raised — the largest of the
- * ticked bills, because a rounding belongs on the figure it is smallest
- * against — and stores the answer on the row. A claim raised before that
- * column existed stores nothing, and the same rule applied to the same
- * allocations gives the same answer.
+ * The rule is the screen's own: the largest of the bills the claim covers,
+ * because a rounding belongs on the figure it is smallest against, and because
+ * a rule the desk can predict without reading it is worth more than a cleverer
+ * one.
  *
- * Named here so the verify panel and verifyPaymentSubmission cannot disagree
- * about it: a panel that says TX-000183 and an action that writes it off on
- * TX-000182 would be a lie told at the moment of signing.
+ * DERIVED, NOT STORED — like every other figure in this system. Support's form
+ * applies this rule to decide which share to take the gap off; this applies the
+ * same rule to the same bills, so the panel Finance reads, the action that
+ * writes the adjustment, and the screen Support pressed all reach the same
+ * answer without a column to carry it between them.
  *
- * Null when the claim covers one bill — there is no question then.
+ * MEASURED ON WHAT EACH BILL STILL OWES, not on the shares the claim stored.
+ * The stored shares already have the gap taken off one of them, so the largest
+ * of THOSE can be a different bill — 100 and 99 with a gap of 5 is stored as 95
+ * and 99 — and the write-off would land on a bill with no shortfall to clear,
+ * settling nothing while the desk was told it had.
+ *
+ * Null when the claim covers one bill: there is no question then.
  */
 export function shortfallBill<
-  T extends { invoiceId: string; amount: Prisma.Decimal | number | string },
->(
-  allocations: T[],
-  named: string | null | undefined
-): T | null {
+  T extends {
+    invoiceId: string;
+    invoice: {
+      total: Prisma.Decimal | number | string;
+      amountPaid: Prisma.Decimal | number | string;
+      amountAdjusted: Prisma.Decimal | number | string;
+    };
+  },
+>(allocations: T[]): T | null {
   if (allocations.length < 2) return null;
-  const inClaim = named
-    ? (allocations.find((a) => a.invoiceId === named) ?? null)
-    : null;
-  return (
-    inClaim ??
-    allocations.reduce((biggest, a) =>
-      toNumber(a.amount) > toNumber(biggest.amount) ? a : biggest
-    )
+  return allocations.reduce((biggest, a) =>
+    outstandingOf(a.invoice) > outstandingOf(biggest.invoice) ? a : biggest
   );
 }
 
@@ -191,14 +196,9 @@ export async function submissionQueue(
          not coming. The verify screen opens with this already ticked, and
          Finance's own answer is what actually travels. */
       clearShortfall: true,
-      /* And which bill the rest comes off, when the claim covers several.
-         Support's screen decides it — the largest of the ticked bills — and
-         the verify panel names it so Finance confirms the bill Support was
-         shown rather than being asked a question with no answer. */
-      clearShortfallInvoiceId: true,
-      /* How many bills this one claim covers, and which — the panel names the
-         one the write-off lands on, and falls back to the same largest-bill
-         rule for a claim raised before the column above existed. */
+      /* How many bills this one claim covers, and which. A write-off across
+         several has to name one, and the panel says which — see
+         shortfallBill, which works it out from what the bills still owe. */
       _count: { select: { allocations: true } },
       allocations: {
         select: {

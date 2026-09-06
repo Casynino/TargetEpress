@@ -14,6 +14,7 @@ import {
 } from "@/lib/idempotency";
 import { prisma, type TxClient } from "@/lib/prisma";
 import { pendingClaimWhere } from "@/lib/claimed";
+import { shortfallBill } from "@/lib/collections";
 import { isCollectable, notPayableMessage } from "@/lib/payable";
 import { filesFrom, putDocument } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -572,7 +573,6 @@ export async function verifyPaymentSubmission(
       /* Support's answer to the shortfall. Finance's own tick on this screen
          overrides it — see the handover below. */
       clearShortfall: true,
-      clearShortfallInvoiceId: true,
       reference: true,
       note: true,
       proofs: { select: { id: true } },
@@ -581,7 +581,17 @@ export async function verifyPaymentSubmission(
       /* Which bills the claim covers. Empty on a single-bill claim, and then
          invoiceId above is the answer — the shape the backfill gave every
          existing PENDING row, so both read the same here. */
-      allocations: { select: { invoiceId: true, amount: true } },
+      /* Enough of each covered bill to answer "which one is largest" — the
+         rule that decides where a merged write-off lands. */
+      allocations: {
+        select: {
+          invoiceId: true,
+          amount: true,
+          invoice: {
+            select: { total: true, amountPaid: true, amountAdjusted: true },
+          },
+        },
+      },
     },
   });
   if (!submission) return fail("That submission no longer exists.");
@@ -725,32 +735,17 @@ export async function verifyPaymentSubmission(
     had been shown a confirmation saying the bills would go out settled, and
     with the manual door named as the remedy.
 
-    The claim now carries the answer its own screen made: the largest of the
-    ticked bills. A claim raised before that column existed carries nothing,
-    and the same rule is applied here to the allocations Finance is looking at
-    — the two agree because they are the same rule on the same figures.
+    The rule answers it: the largest of the bills the claim covers. Worked out
+    here from those bills rather than read off the claim, so the panel Finance
+    read, the screen Support pressed and this all reach the same bill — and
+    the name can only ever be one of the bills in this claim, which matters
+    because this action is a public endpoint.
 
-    Checked against the allocations either way, because a named bill that is
-    not in this claim would put a write-off somewhere nobody agreed to, and
-    this action is a public endpoint.
+    Null on a single-bill claim, and recordPayment answers that one itself.
   */
-  let clearOn: string | null = null;
-  if (clearRest && submission.allocations.length > 1) {
-    const named = submission.clearShortfallInvoiceId;
-    const inClaim = named
-      ? submission.allocations.some((a) => a.invoiceId === named)
-      : false;
-    clearOn = inClaim
-      ? named
-      : (submission.allocations.reduce((biggest, a) =>
-          toNumber(a.amount) > toNumber(biggest.amount) ? a : biggest
-        ).invoiceId ?? null);
-    if (!clearOn) {
-      return fail(
-        `${submission.submissionNumber} says the rest is not coming but names no bill it comes off. Verify it, then write the difference off on the bill's own page.`
-      );
-    }
-  }
+  const clearOn = clearRest
+    ? (shortfallBill(submission.allocations)?.invoiceId ?? null)
+    : null;
 
   if (clearRest) {
     handover.set("clearShortfall", "1");
@@ -1116,15 +1111,13 @@ export async function submitCombinedPayment(
             be shown a confirmation saying so, and send Finance a claim that
             said nothing — the answer lost between the form and the row.
 
-            The tick alone does not say which bill's rest, so the screen's
-            answer travels with it: the largest of the ticked bills, named on
-            the row so what Finance confirms is what Support was shown.
+            The tick alone does not say which bill's rest. It does not need
+            to: the rule is the largest of the bills the claim covers, and
+            verification works it out from those bills — see shortfallBill —
+            so what Finance confirms is the bill Support was shown without a
+            column carrying the answer between them.
           */
           clearShortfall: input.clearShortfall,
-          clearShortfallInvoiceId:
-            input.clearShortfall && input.clearShortfallInvoiceId
-              ? input.clearShortfallInvoiceId
-              : null,
           currency: input.currency,
           method: methodForKind(account.kind),
           accountId: account.id,

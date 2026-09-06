@@ -422,10 +422,8 @@ export async function VerifyQueue() {
                            On a single-bill claim there is no question, and the
                            panel says nothing. */
                         clearsOn={
-                          shortfallBill(
-                            row.allocations,
-                            row.clearShortfallInvoiceId
-                          )?.invoice.shipment?.trackingNumber ?? null
+                          shortfallBill(row.allocations)?.invoice.shipment
+                            ?.trackingNumber ?? null
                         }
                         /* Cash or the Lipa number, in the currency the money
                            came in. A driver is not paid out of a bank account,

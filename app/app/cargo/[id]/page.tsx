@@ -127,7 +127,12 @@ export default async function ShipmentDetailPage({
                   invoiceId: true,
                   amount: true,
                   invoice: {
-                    select: { shipment: { select: { trackingNumber: true } } },
+                    select: {
+                      total: true,
+                      amountPaid: true,
+                      amountAdjusted: true,
+                      shipment: { select: { trackingNumber: true } },
+                    },
                   },
                 },
               },
@@ -238,8 +243,8 @@ export default async function ShipmentDetailPage({
         /* Which bill the write-off lands on, when this one transfer answers
            several. Null on the ordinary single-bill claim. */
         clearsOn:
-          shortfallBill(s.allocations, s.clearShortfallInvoiceId)?.invoice
-            .shipment?.trackingNumber ?? null,
+          shortfallBill(s.allocations)?.invoice.shipment?.trackingNumber ??
+          null,
       }))
     : [];
   // Only for the desk that can take money. Nobody else is offered a question

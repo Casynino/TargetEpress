@@ -38,7 +38,10 @@ const ARM = process.env.ARM !== "0";
 const rate = Number(two[0].exchangeRate);
 const owed = two.reduce((s,b)=>s + Math.round((Number(b.total)-Number(b.amountPaid)-Number(b.amountAdjusted))*rate), 0);
 const SHORT = 50; const sending = owed - SHORT;
-const bigger = two.reduce((m,b)=> Number(b.total) > Number(m.total) ? b : m);
+/* The rule is the largest OUTSTANDING, not the largest bill — a bill mostly
+   paid already is not the one a rounding belongs on. */
+const due = (b) => Number(b.total) - Number(b.amountPaid) - Number(b.amountAdjusted);
+const bigger = two.reduce((m,b)=> due(b) > due(m) ? b : m);
 console.log(`two bills for one customer: ${two.map(b=>b.shipment.trackingNumber).join(" + ")}`);
 console.log(`they come to TSh ${owed.toLocaleString()}, customer sends TSh ${sending.toLocaleString()} (${SHORT} short)`);
 console.log(`the larger is ${bigger.shipment.trackingNumber} — the 50 should land there\n`);
