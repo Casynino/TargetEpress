@@ -4847,6 +4847,8 @@ const ZH: Record<string, string> = {
   "Released on credit — the bill is still open. Pickup note": "已按赊账放行——账单尚未结清。提货单",
   "This difference has just been cleared. Reload the page — clearing it again would write off twice.": "该差额刚刚已核销。请刷新页面——重复核销会导致两次冲销。",
   "This cargo has just been handed over. Reload the page before releasing it again.": "该货物刚刚已完成交接。请刷新页面后再操作。",
+  "We could not search just now.": "暂时无法搜索。",
+  "Try again in a moment before registering a new customer.": "请稍后重试，先不要新建客户。",
   "Tracking will read": "查件状态将显示为",
   "Tracking, note number or name": "运单号、提货单号或姓名",
   "Trader name or the mark on the packages": "商户名称或箱唛",

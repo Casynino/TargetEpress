@@ -43,6 +43,13 @@ export function CustomerPicker({
   const [mode, setMode] = useState<"search" | "new">("search");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PickedCustomer[]>([]);
+  /* A search that FAILED is not a search that found nothing.
+
+     Both rendered "No customer matches" with a Create button underneath, so a
+     dropped connection invited the desk to register a second record for a
+     customer who is already on file — and the duplicate then has to be merged
+     by hand. */
+  const [searchFailed, setSearchFailed] = useState(false);
   const [searching, setSearching] = useState(false);
   const [picked, setPicked] = useState<PickedCustomer | null>(null);
   const [touched, setTouched] = useState(false);
@@ -70,6 +77,7 @@ export function CustomerPicker({
     }
 
     setSearching(true);
+    setSearchFailed(false);
     const controller = new AbortController();
     // Debounced: the desk types fast and every keystroke would otherwise be a
     // query against the whole customer book.
@@ -79,11 +87,17 @@ export function CustomerPicker({
           `/api/customers/search?q=${encodeURIComponent(term)}`,
           { signal: controller.signal }
         );
-        if (!res.ok) return;
+        if (!res.ok) {
+          setSearchFailed(true);
+          return;
+        }
         const data = (await res.json()) as { customers: PickedCustomer[] };
         setResults(data.customers);
-      } catch {
-        // Aborted or offline. The clerk can still record a new customer.
+      } catch (error) {
+        /* An abort is this effect cleaning up after itself, not a failure. */
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setSearchFailed(true);
+        }
       } finally {
         setSearching(false);
       }
@@ -310,7 +324,21 @@ export function CustomerPicker({
             </ul>
           ) : null}
 
-          {query.trim().length >= 2 && !searching && results.length === 0 ? (
+          {/* A failed search says so, and offers nothing. Registering a second
+              record for a customer already on file is the expensive mistake
+              here — it has to be merged by hand afterwards. */}
+          {query.trim().length >= 2 && !searching && searchFailed ? (
+            <div className="rounded-lg border border-dashed border-warning/50 p-4 text-center">
+              <p className="text-sm text-warning">
+                {t(locale, "We could not search just now.")}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t(locale, "Try again in a moment before registering a new customer.")}
+              </p>
+            </div>
+          ) : null}
+
+          {query.trim().length >= 2 && !searching && !searchFailed && results.length === 0 ? (
             <div className="rounded-lg border border-dashed p-4 text-center">
               <p className="text-sm">
                 {t(locale, "No customer matches")} &ldquo;{query.trim()}&rdquo;

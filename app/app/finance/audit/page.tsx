@@ -8,6 +8,7 @@ import { FinanceWorkspaceHeader } from "@/components/app/finance-workspace-heade
 import { Badge } from "@/components/ui/badge";
 import { auditSentence } from "@/lib/audit-humanise";
 import { formatDateTime } from "@/lib/format";
+import { auditActionLabel } from "@/lib/audit-humanise";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
@@ -204,8 +205,16 @@ export default async function FinanceAuditPage({
                     {formatDateTime(entry.createdAt, locale)}
                   </p>
                 </div>
-                <Badge variant="outline" className="shrink-0 font-normal">
-                  {entry.action}
+                <Badge
+                  variant="outline"
+                  className="shrink-0 font-normal"
+                  title={entry.action}
+                >
+                  {/* The words, not the code. This printed payment.void and
+                      ledger.cancel straight at whoever opened the page, in
+                      English, on a screen the manager reads in Chinese. The
+                      code stays on hover for anyone who wants it. */}
+                  {auditActionLabel(locale, entry.action)}
                 </Badge>
               </li>
             ))}
