@@ -34,7 +34,7 @@ export default async function BatchStickersPage({
 }) {
   // The whole-batch sticker sheet. Same rule as a single label: the desk that
   // packs the cargo prints for it. /app/batches resolves to batch.view in
-  // ROUTE_PERMISSIONS, which Dar and Finance both hold, so this guard is what
+  // batch.view, which Dar and Finance both hold, so this guard is what
   // actually keeps them out.
   await requirePermission("label.print");
   const locale = await viewerLocale();

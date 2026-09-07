@@ -62,7 +62,8 @@ function maintenanceGate(req: NextRequest): NextResponse | null {
 
 /**
  * First line of defence. Every /app route needs a session, and routes listed
- * in ROUTE_PERMISSIONS additionally need the permission. Server actions and
+ * in ROUTE_PERMISSIONS are NOT additionally checked here — that table has no
+ * runtime caller; each page re-asserts its own permission. Server actions and
  * page loaders re-check independently — middleware alone is never the gate.
  */
 /**

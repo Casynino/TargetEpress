@@ -63,7 +63,23 @@ export const metadata: Metadata = { title: "Operations" };
  * may this person see the cargo pipeline.
  */
 export default async function ManagerOperationsPage() {
-  const user = await requirePermission("batch.view");
+  /*
+    THE SAME KEY ITS EIGHT SIBLINGS ASK FOR.
+
+    This asked for batch.view, which China, Dar, Finance and Support all hold —
+    so both warehouses and the support desk could open the manager's operations
+    board and read the company's receivables off the Finance row. Confirmed
+    live: warehouse@ and support@ both got HTTP 200 with the unpaid figure on
+    the page.
+
+    It read as guarded because a comment here said the prefix guard in
+    lib/rbac.ts asked for report.view "before the route opens at all". That
+    guard does not run: ROUTE_PERMISSIONS and permissionForPath have no runtime
+    caller anywhere in the app, and middleware stopped enforcing them
+    deliberately. Every /app route's only real lock is the one its own page
+    calls, which makes this line the whole of it.
+  */
+  const user = await requirePermission("report.view");
   // Before the Promise.all. deskPulse() below reads `locale` from inside a
   // callback, and a const referenced by a closure that runs first is a temporal
   // dead zone TypeScript cannot see — the page then dies at runtime.
