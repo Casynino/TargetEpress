@@ -346,6 +346,30 @@ function buildTimeline(
 
   if (!hold) {
     const currentIndex = SHIPMENT_FLOW.indexOf(shipment.status);
+    /*
+      A STATUS OFF THE FLOW STILL HAS A JOURNEY BEHIND IT.
+
+      The stamp-driven fallback below was written for exactly this — indexOf
+      returns -1 for UNDER_INVESTIGATION and every step comes back neither done
+      nor current, greying the whole journey out — but it only ran when a hold
+      was derived. A case that CLOSES removes the hold and, until this morning,
+      left the shipment at UNDER_INVESTIGATION, so the customer's page reverted
+      to an all-grey timeline reading "waiting in Guangzhou" for cargo standing
+      in Dar.
+
+      The stranding itself is fixed at the source now. This is the second lock:
+      the stamps cannot lie about where a box has been, so any status the flow
+      does not name reads from them instead of from nothing.
+    */
+    if (currentIndex < 0 && shipment.status !== "CANCELLED") {
+      const reachedOff = SHIPMENT_FLOW.reduce(
+        (last, status, index) => (stamps[status] ? index : last),
+        -1
+      );
+      return SHIPMENT_FLOW.map((status, index) =>
+        step(status, index <= reachedOff, false)
+      );
+    }
     return SHIPMENT_FLOW.map((status, index) =>
       // A cancelled shipment has no current step at all.
       step(status, currentIndex >= 0 && index < currentIndex, currentIndex >= 0 && index === currentIndex)

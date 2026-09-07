@@ -507,6 +507,11 @@ export async function markCargoFound(
         where: { id: exception.id },
         data: {
           status: "CARGO_FOUND",
+          /* The outcome, not only the status. The cargo page renders its
+             "how it ended" block off resolutionType, so a case closed by this
+             door showed nothing at all — while its China twin, which writes
+             the same outcome, showed it correctly. */
+          resolutionType: "CARGO_FOUND",
           resolvedById: user.id,
           resolvedAt: now,
           resolutionNote: input.note,

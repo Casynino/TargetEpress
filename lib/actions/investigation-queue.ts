@@ -295,6 +295,12 @@ export async function advanceInvestigation(
             ? {
                 resolvedById: user.id,
                 resolvedAt: new Date(),
+                /* Something for the cargo page to name. It renders the outcome
+                   block off resolutionType, so a case finished from the queue
+                   showed no outcome, no resolver and no date — the three
+                   things somebody opens that block to read. */
+                resolutionType:
+                  target === "CARGO_FOUND" ? ("CARGO_FOUND" as const) : ("OTHER" as const),
                 ...(note ? { resolutionNote: note } : {}),
               }
             : { resolvedById: null, resolvedAt: null }),
