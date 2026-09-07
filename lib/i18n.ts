@@ -4843,6 +4843,8 @@ const ZH: Record<string, string> = {
   "Tracking number, customer, phone, carton or batch…": "运单号、客户、电话、纸箱编号或批次……",
   "Payment cancelled. Held until the balance is settled again.": "付款已取消。在余额重新结清前暂扣。",
   "Storage charged. Held until the new balance is settled; the pickup note it holds stands.": "已收取仓储费。在新余额结清前暂扣；其持有的提货单继续有效。",
+  "This pickup note was re-issued a moment ago. Reload the page before issuing another.": "该提货单刚刚已被重新开具。请刷新页面后再操作。",
+  "Released on credit — the bill is still open. Pickup note": "已按赊账放行——账单尚未结清。提货单",
   "Tracking will read": "查件状态将显示为",
   "Tracking, note number or name": "运单号、提货单号或姓名",
   "Trader name or the mark on the packages": "商户名称或箱唛",

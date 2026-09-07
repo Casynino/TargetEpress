@@ -191,6 +191,7 @@ async function describe(
           total: true,
           amountPaid: true,
           amountAdjusted: true,
+          creditStatus: true,
           currency: true,
           status: true,
         },
@@ -367,7 +368,15 @@ async function describe(
       verdict = {
         tone: "ok",
         headline: t(locale, "Cleared — hand it over"),
-        detail: `${t(locale, "Paid in full and pickup note")} ${shipment.pickupNote.noteNumber} ${t(locale, "is open. Check who is collecting, photograph the handover, release.")}`,
+        /* "Paid in full" is not what happened on a credit release, and this is
+           the sentence the clerk reads to the person at the counter. The bill
+           may still be open on agreed terms; the status-history line has always
+           said so and this one did not. */
+        detail: `${
+          shipment.invoice && outstandingOf(shipment.invoice) > 0.005
+            ? t(locale, "Released on credit — the bill is still open. Pickup note")
+            : t(locale, "Paid in full and pickup note")
+        } ${shipment.pickupNote.noteNumber} ${t(locale, "is open. Check who is collecting, photograph the handover, release.")}`,
       };
     }
   } else if (showMoney) {

@@ -2514,6 +2514,7 @@ export async function issuePickupNote(
   } catch (error) {
     return fail(toActionError(error));
   }
+  const locale = await viewerLocale();
 
   const shipmentId = String(formData.get("shipmentId") ?? "");
   if (!shipmentId) return fail("Missing shipment.");
@@ -2631,6 +2632,30 @@ export async function issuePickupNote(
       const releasedUnpaid = onCredit && outstanding > 0.005;
 
       const noteNumber = await nextPickupNoteNumber(tx);
+      /*
+        CLAIMED ON THE CANCELLATION, NOT JUST ADDRESSED BY ID.
+
+        Two clerks pressing Issue at the same moment both drew a fresh number
+        and both wrote it to the same row: one number burned, and the slip the
+        first clerk printed names a note that no longer exists. Conditioned on
+        the status this transaction read, the second update matches nothing and
+        throws — the idiom the rest of this file uses wherever a row is claimed.
+      */
+      if (reissuing) {
+        const claimed = await tx.pickupNote.updateMany({
+          where: { id: reissuing.id, status: "CANCELLED" },
+          data: { status: "ACTIVE" },
+        });
+        if (claimed.count === 0) {
+          throw new Error(
+            t(
+              locale,
+              "This pickup note was re-issued a moment ago. Reload the page before issuing another."
+            )
+          );
+        }
+      }
+
       const note = reissuing
         ? await tx.pickupNote.update({
             where: { id: reissuing.id },
