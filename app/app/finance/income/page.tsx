@@ -9,6 +9,7 @@ import { batchTabs } from "@/lib/batch-tabs";
 import { Input } from "@/components/ui/input";
 import { currentRateValue } from "@/lib/fx";
 import { incomeSheet } from "@/lib/income";
+import { figureSize } from "@/lib/figure-size";
 import { t } from "@/lib/i18n";
 import { formatLocal } from "@/lib/money";
 import { can } from "@/lib/rbac";
@@ -348,7 +349,9 @@ export default async function ClosedBatchesPage({
                 <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {cell.k} · {p.label}
                 </dt>
-                <dd className="mt-1 whitespace-nowrap font-display text-2xl font-bold leading-tight tabular-nums">
+                <dd
+                  className={`mt-1 whitespace-nowrap font-display font-bold leading-tight tabular-nums ${figureSize(cell.v)}`}
+                >
                   {cell.v}
                 </dd>
                 {/* The dollar figure the shillings were priced from. */}

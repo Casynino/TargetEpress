@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { BadgeCheck, X } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -108,6 +109,9 @@ export function VerifySubmission({
     }
     return `TSh ${Math.round(shortfall * billRate).toLocaleString()} · ${billCurrency} ${inBill}`;
   })();
+  /* Finance and Support both work this panel, and the Guangzhou desk reads it
+     in Chinese when a claim comes back to them. */
+  const t = useT();
   const [verifyState, verify] = useActionState<
     ActionResult<{ receiptNumber: string }>,
     FormData
@@ -126,14 +130,14 @@ export function VerifySubmission({
           className="focus-ring inline-flex items-center gap-1.5 rounded-full bg-success px-3.5 py-1.5 text-xs font-semibold text-success-foreground transition-colors hover:bg-success/90"
         >
           <BadgeCheck className="h-3.5 w-3.5" />
-          Verify payment
+          {t("Verify payment")}
         </button>
         <button
           type="button"
           onClick={() => setMode("reject")}
           className="focus-ring inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
         >
-          Send it back
+          {t("Send it back")}
         </button>
       </div>
     );
@@ -159,7 +163,7 @@ export function VerifySubmission({
         {transport > 0 ? (
           <div className="rounded-md border border-warning/30 bg-warning/10 px-2.5 py-2 text-[11px] leading-relaxed text-warning">
             <p className="font-semibold uppercase tracking-wide">
-              Cargo plus transport
+              {t("Cargo plus transport")}
             </p>
             <p className="mt-0.5 font-medium">
               {currency} {cargo.toLocaleString()} to the bill · {currency}{" "}
@@ -191,21 +195,24 @@ export function VerifySubmission({
             />
             <span>
               <span className="font-semibold">
-                Clear the last {gapShown} and settle the bill
+                {t("Clear the last")} {gapShown}{" "}
+                {t("and settle the bill")}
               </span>
               <span className="mt-0.5 block opacity-90">
                 {clearShortfallClaimed
-                  ? "Support was told the rest is not coming. "
-                  : "This claim is short of the bill. "}
-                The payment records what came in; the difference is written off
-                and moves no money.
+                  ? `${t("Support was told the rest is not coming.")} `
+                  : `${t("This claim is short of the bill.")} `}
+                {t(
+                  "The payment records what came in; the difference is written off and moves no money."
+                )}
               </span>
               {/* Only when one transfer answers several bills, because then
                   "the bill" is a question. Named so the desk confirms a
                   decision rather than a shrug. */}
               {clearsOn ? (
                 <span className="mt-0.5 block font-medium opacity-90">
-                  Taken off {clearsOn} — the largest of the bills it covers.
+                  {t("Taken off")} {clearsOn}{" "}
+                  {t("— the largest of the bills it covers.")}
                 </span>
               ) : null}
             </span>
@@ -230,7 +237,7 @@ export function VerifySubmission({
         ) : null}
         <div className="space-y-1">
           <Label htmlFor={`account-${submissionId}`} className="text-xs">
-            Where it landed
+            {t("Where it landed")}
           </Label>
           {/* Finance names the account, never Support — that desk does not know
               and must not guess. */}
@@ -256,7 +263,7 @@ export function VerifySubmission({
               htmlFor={`transport-source-${submissionId}`}
               className="text-xs"
             >
-              Transport settled from
+              {t("Transport settled from")}
             </Label>
             <NativeSelect
               id={`transport-source-${submissionId}`}
@@ -266,7 +273,7 @@ export function VerifySubmission({
               required
             >
               <option value="" disabled>
-                Cash or the Lipa number
+                {t("Cash or the Lipa number")}
               </option>
               {transportAccounts.map((account) => (
                 <option key={account.id} value={account.id}>
@@ -284,13 +291,13 @@ export function VerifySubmission({
         <FormError state={verifyState} />
         <div className="flex items-center gap-2">
           <SubmitButton size="sm" variant="brand" pendingLabel="Recording…">
-            Confirm and record
+            {t("Confirm and record")}
           </SubmitButton>
           <button
             type="button"
             onClick={() => setMode("idle")}
             className="focus-ring rounded-md p-1.5 text-muted-foreground hover:text-foreground"
-            aria-label="Cancel"
+            aria-label={t("Cancel")}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -324,13 +331,13 @@ export function VerifySubmission({
       <FormError state={rejectState} />
       <div className="flex items-center gap-2">
         <SubmitButton size="sm" variant="outline" pendingLabel="Sending back…">
-          Send it back
+          {t("Send it back")}
         </SubmitButton>
         <button
           type="button"
           onClick={() => setMode("idle")}
           className="focus-ring rounded-md p-1.5 text-muted-foreground hover:text-foreground"
-          aria-label="Cancel"
+          aria-label={t("Cancel")}
         >
           <X className="h-3.5 w-3.5" />
         </button>

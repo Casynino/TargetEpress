@@ -964,16 +964,16 @@ export async function verifyShipment(
 
   if (outcomeField) {
     if (!isReceivingOutcome(outcomeField)) {
-      return fail("That is not one of the six check-in outcomes.");
+      return fail(t(locale, "That is not one of the six check-in outcomes."));
     }
     outcome = outcomeField;
     problem = RECEIVING_OUTCOME_EXCEPTION[outcome];
   } else {
     if (legacyResult !== "VERIFIED" && legacyResult !== "EXCEPTION") {
-      return fail("Say what happened to this cargo.");
+      return fail(t(locale, "Say what happened to this cargo."));
     }
     if (legacyResult === "EXCEPTION" && !isExceptionType(exceptionType)) {
-      return fail("That is not a kind of problem this system records.");
+      return fail(t(locale, "That is not a kind of problem this system records."));
     }
     problem =
       legacyResult === "EXCEPTION" && isExceptionType(exceptionType)
@@ -984,7 +984,7 @@ export async function verifyShipment(
   const result: "VERIFIED" | "EXCEPTION" = problem ? "EXCEPTION" : "VERIFIED";
 
   if (problem && note.length < 3) {
-    return fail("Describe the problem before flagging an exception.");
+    return fail(t(locale, "Describe the problem before flagging an exception."));
   }
 
   // Severity is only meaningful on damage, and on damage it is not optional:
@@ -995,7 +995,7 @@ export async function verifyShipment(
     ? severityField
     : null;
   if (problem === "DAMAGED_CARGO" && !severity) {
-    return fail("How bad is the damage? Choose a severity.");
+    return fail(t(locale, "How bad is the damage? Choose a severity."));
   }
 
   // Evidence. Uploaded before the transaction opens — a phone photo over a
@@ -1004,7 +1004,10 @@ export async function verifyShipment(
   const photoFiles = filesFrom(formData, "photos");
   if (problem === "DAMAGED_CARGO" && photoFiles.length === 0) {
     return fail(
-      "Photograph the damage before recording it. This is the only moment the picture can be taken, and without it there is nothing to show the customer or Finance."
+      t(
+        locale,
+        "Photograph the damage before recording it. This is the only moment the picture can be taken, and without it there is nothing to show the customer or Finance."
+      )
     );
   }
   /*
