@@ -215,7 +215,12 @@ export async function submissionQueue(
               amountAdjusted: true,
               currency: true,
               exchangeRate: true,
-              shipment: { select: { trackingNumber: true } },
+              shipment: {
+                select: {
+                  trackingNumber: true,
+                  batch: { select: { batchNumber: true } },
+                },
+              },
             },
           },
         },
@@ -268,11 +273,49 @@ export async function submissionQueue(
              hundred shillings off the balance it is meant to settle. */
           exchangeRate: true,
           customer: { select: { id: true, name: true, phone: true } },
-          shipment: { select: { trackingNumber: true, description: true } },
+          /* The flight, because one customer sends on several of them and the
+             desk has to know which consignment a transfer answers. Without it
+             on the row every verification meant opening the batch report in
+             another tab to cross-check. */
+          shipment: {
+            select: {
+              trackingNumber: true,
+              description: true,
+              batch: { select: { batchNumber: true } },
+            },
+          },
         },
       },
     },
   });
+}
+
+/**
+ * The flights a claim answers, in the order the row should read them.
+ *
+ * One customer sends on several batches, and until this was on the row Finance
+ * had no way to tell two of that customer's claims apart without opening the
+ * batch report beside them. A merged claim covers more than one bill and so can
+ * touch more than one flight; every one it touches is named, de-duplicated,
+ * because "which batch is this" has no single answer then.
+ *
+ * A consignment can sit outside any batch — moved off one, or not yet loaded —
+ * so this can come back empty, and the row simply says nothing rather than
+ * inventing a flight for it.
+ */
+export function claimBatches(claim: {
+  invoice: { shipment: { batch: { batchNumber: string } | null } };
+  allocations: {
+    invoice: { shipment: { batch: { batchNumber: string } | null } };
+  }[];
+}): string[] {
+  return Array.from(
+    new Set(
+      [claim.invoice, ...claim.allocations.map((a) => a.invoice)]
+        .map((invoice) => invoice.shipment.batch?.batchNumber)
+        .filter((batchNumber): batchNumber is string => Boolean(batchNumber))
+    )
+  );
 }
 
 /**

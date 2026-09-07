@@ -13,7 +13,7 @@ import {
   SelectAllTick,
 } from "@/components/app/bulk-select";
 import { withdrawSubmissions } from "@/lib/actions/submission-bulk";
-import { submissionQueue } from "@/lib/collections";
+import { claimBatches, submissionQueue } from "@/lib/collections";
 import { SUBMISSION_STATUS_LABELS } from "@/lib/constants";
 import { currentRateValue } from "@/lib/fx";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
@@ -162,6 +162,7 @@ export default async function SubmissionsPage({
             row.submissionNumber,
             row.invoice.invoiceNumber,
             row.invoice.shipment.trackingNumber,
+            claimBatches(row).join(" "),
             row.reference ?? "",
             row.note ?? "",
           ]
@@ -181,6 +182,11 @@ export default async function SubmissionsPage({
   const takeable = visible.filter(
     (row) => row.status === "PENDING" || row.status === "REJECTED"
   );
+
+  /* The flights each claim answers, read once and used twice — on the row and
+     in the dialog it opens. A customer with cargo on three batches was
+     otherwise three identical-looking lines. */
+  const batchesOf = new Map(visible.map((row) => [row.id, claimBatches(row)]));
 
   /* One line per way a person knows a claim — the component de-duplicates by
      value, so a customer who has sent up six payments is one line, not six. */
@@ -377,6 +383,14 @@ export default async function SubmissionsPage({
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">
                       {row.invoice.customer.name}
+                      {batchesOf.get(row.id)?.length ? (
+                        <span
+                          className="ml-2 rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] font-normal text-muted-foreground"
+                          title={t(locale, "Batch")}
+                        >
+                          {batchesOf.get(row.id)?.join(" · ")}
+                        </span>
+                      ) : null}
                       {/* No status badge. It existed for the mixed list, and
                           both chips left are a single status — so it said, on
                           every row of a page called Sent back, that the row
@@ -571,6 +585,7 @@ export default async function SubmissionsPage({
                         invoiceId: row.invoice.id,
                         invoiceNumber: row.invoice.invoiceNumber,
                         trackingNumber: row.invoice.shipment.trackingNumber,
+                        batchNumbers: batchesOf.get(row.id) ?? [],
                         customerName: row.invoice.customer.name,
                         customerPhone: row.invoice.customer.phone,
                         amount: toNumber(row.amount),

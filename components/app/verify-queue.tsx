@@ -12,7 +12,7 @@ import {
 } from "@/components/app/bulk-select";
 import { verifySubmissions } from "@/lib/actions/submission-bulk";
 import { activeAccounts } from "@/lib/accounts";
-import { shortfallBill, submissionQueue } from "@/lib/collections";
+import { claimBatches, shortfallBill, submissionQueue } from "@/lib/collections";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { outstandingOf } from "@/lib/invoice-balance";
 import { currentRateValue, formatLocal, formatUsd } from "@/lib/fx";
@@ -212,6 +212,11 @@ export async function VerifyQueue() {
                       : forBill * billRate
                     : forBill;
 
+              /* Which flight this money is about. The desk was cross-checking
+                 the batch report to tell one claim of a repeat customer's from
+                 the next; the answer belongs on the row. */
+              const batches = claimBatches(row);
+
               return (
                 <li
                   key={row.id}
@@ -227,6 +232,14 @@ export async function VerifyQueue() {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium">
                         {row.invoice.customer.name}
+                        {batches.length ? (
+                          <span
+                            className="ml-2 rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] font-normal text-muted-foreground"
+                            title={t(locale, "Batch")}
+                          >
+                            {batches.join(" · ")}
+                          </span>
+                        ) : null}
                         {mismatch ? (
                           <span className="ml-2 rounded bg-warning/15 px-1.5 py-0.5 text-[11px] font-normal text-warning">
                             {t(locale, "does not match the balance")}
@@ -376,6 +389,7 @@ export async function VerifyQueue() {
                           invoiceId: row.invoice.id,
                           invoiceNumber: row.invoice.invoiceNumber,
                           trackingNumber: row.invoice.shipment.trackingNumber,
+                          batchNumbers: batches,
                           customerName: row.invoice.customer.name,
                           customerPhone: row.invoice.customer.phone,
                           amount: claimed,

@@ -33,6 +33,8 @@ export type SubmissionSubject = {
   invoiceId: string;
   invoiceNumber: string;
   trackingNumber: string;
+  /** Every flight the claim touches — more than one only on a merged claim. */
+  batchNumbers: string[];
   customerName: string;
   customerPhone: string | null;
   amount: number;
@@ -285,6 +287,14 @@ export function SubmissionCorrection({
         >
           {subject.trackingNumber}
         </a>
+        {subject.batchNumbers.length ? (
+          <>
+            <span aria-hidden>·</span>
+            <span className="font-mono" title={t("Batch")}>
+              {subject.batchNumbers.join(" · ")}
+            </span>
+          </>
+        ) : null}
         <span aria-hidden>·</span>
         <a
           href={`/app/finance/invoices/${subject.invoiceId}`}
