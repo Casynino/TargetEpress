@@ -18,6 +18,7 @@ import {
   formatShillingTotal,
   formatUsd,
 } from "@/lib/fx";
+import { figureSize } from "@/lib/figure-size";
 import { t } from "@/lib/i18n";
 import { financeDashboard } from "@/lib/finance-dashboard";
 import { profitAndLoss, profitByDispatch, windowFor } from "@/lib/profit";
@@ -429,7 +430,7 @@ export default async function FinanceReportsPage({
                 {t(locale, cell.k)}
               </dt>
               <dd
-                className={`mt-1 whitespace-nowrap font-display text-xl font-bold leading-tight tabular-nums ${cell.tone}`}
+                className={`mt-1 whitespace-nowrap font-display font-bold leading-tight tabular-nums ${figureSize(cell.v)} ${cell.tone}`}
               >
                 {cell.v}
               </dd>

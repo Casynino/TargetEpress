@@ -27,6 +27,7 @@ import {
 } from "@/lib/expenses";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
+import { figureSize } from "@/lib/figure-size";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -765,7 +766,7 @@ export default async function LedgerPage({
               {cell.k}
             </dt>
             <dd
-              className={`mt-1 whitespace-nowrap font-display text-2xl font-bold leading-tight tabular-nums ${cell.tone}`}
+              className={`mt-1 whitespace-nowrap font-display font-bold leading-tight tabular-nums ${figureSize(cell.v)} ${cell.tone}`}
             >
               {cell.v}
             </dd>

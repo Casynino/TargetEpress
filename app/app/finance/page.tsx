@@ -39,6 +39,7 @@ import { outstandingOf } from "@/lib/invoice-balance";
 import { sumShillings, sumUsd } from "@/lib/money-totals";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { formatShillingTotal, LOCAL_CURRENCY } from "@/lib/money";
+import { figureSize } from "@/lib/figure-size";
 import { t } from "@/lib/i18n";
 import { accountBalances } from "@/lib/ledger";
 import {
@@ -428,13 +429,6 @@ export default async function FinanceOverviewPage() {
    * Millions and a minus sign step down one notch; billions step down two, and
    * still read as the same row.
    */
-  const figureSize = (value: string) => {
-    const n = value.length;
-    if (n <= 11) return "text-xl 2xl:text-2xl";
-    if (n <= 14) return "text-lg 2xl:text-xl";
-    if (n <= 17) return "text-base 2xl:text-lg";
-    return "text-sm 2xl:text-base";
-  };
 
   /* For figures already in shillings — nothing is multiplied a second time. */
   const shillings = (value: number, usdFallback: number) =>

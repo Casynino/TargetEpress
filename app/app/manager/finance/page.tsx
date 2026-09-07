@@ -31,6 +31,7 @@ import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 import { financeDashboard, type BatchPerformance } from "@/lib/finance-dashboard";
 import { formatDate, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
+import { figureSizeSmall } from "@/lib/figure-size";
 import { t } from "@/lib/i18n";
 import { formatShillings, formatShillingTotal, formatUsd } from "@/lib/money";
 import { windowFor, type PeriodKey } from "@/lib/profit";
@@ -426,7 +427,7 @@ export default async function ManagerFinance({
               {t(locale, cell.k)}
             </dt>
             <dd
-              className={`tabular mt-0.5 whitespace-nowrap font-display text-lg font-bold leading-tight ${cell.tone}`}
+              className={`tabular mt-0.5 whitespace-nowrap font-display font-bold leading-tight ${figureSizeSmall(cell.v)} ${cell.tone}`}
             >
               {cell.v}
             </dd>
