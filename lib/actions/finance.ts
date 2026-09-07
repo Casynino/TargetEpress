@@ -3609,6 +3609,29 @@ export async function recordCustomerPayment(
   }
 
   try {
+    /*
+      A DEPOSIT HAS NO BILL TO TAKE A RATE FROM.
+
+      Every other payment on this path converts at the rate frozen onto the
+      bill it answers. Money arriving against NO bill has none, so it is valued
+      at the rate published today — the rate the customer was quoted at the
+      counter and the rate their next invoice will carry. Read before the
+      transaction opens, as every other rate lookup here is.
+    */
+    const depositRate =
+      input.allocations.length === 0 && input.currency !== "USD"
+        ? await currentRateValue()
+        : null;
+    if (
+      input.allocations.length === 0 &&
+      input.currency !== "USD" &&
+      !depositRate
+    ) {
+      return fail(
+        "No exchange rate is published, so this deposit cannot be valued against the bills it will settle. Publish today's rate first."
+      );
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       const customer = await tx.customer.findUnique({
         where: { id: input.customerId },
@@ -3724,7 +3747,21 @@ export async function recordCustomerPayment(
             `bills in one currency — take them separately.`
         );
       }
-      const billCurrency = [...billCurrencies][0] ?? input.currency;
+      /*
+        NO BILLS MEANS A DEPOSIT, AND A DEPOSIT IS STILL WORTH DOLLARS.
+
+        This fell back to the payment's OWN currency, which made crossCurrency
+        false and wrote the shilling figure straight into creditedAmount — a
+        column whose whole contract is "the same money in the BILL's currency".
+        Every collected and revenue total reads it through
+        COALESCE("creditedAmount", "amount") and takes it for dollars, so a
+        shilling deposit counted as 2,700 times itself.
+
+        The merge screen offers exactly this: nothing ticked, money held as the
+        customer's credit until their cargo lands. Bills are written in USD, so
+        that is what the deposit has to be stored in.
+      */
+      const billCurrency = [...billCurrencies][0] ?? "USD";
       const crossCurrency = billCurrency !== input.currency;
 
       /*
@@ -3755,14 +3792,18 @@ export async function recordCustomerPayment(
       /* Quoted on the receipt and in the audit line when there is one figure to
          quote; null when the bills genuinely disagree, and then the allocation
          notes carry the rate each one used. */
-      const rateUsed = crossCurrency
-        ? (() => {
-            const rates = new Set(
-              allocatedInvoices.map((i) => toNumber(i.exchangeRate))
-            );
-            return rates.size === 1 ? ([...rates][0] as number) : null;
-          })()
-        : null;
+      const rateUsed = !crossCurrency
+        ? null
+        : allocatedInvoices.length === 0
+          ? /* A deposit, at today's published rate — resolved above the
+               transaction, and refused there if none is published. */
+            depositRate
+          : (() => {
+              const rates = new Set(
+                allocatedInvoices.map((i) => toNumber(i.exchangeRate))
+              );
+              return rates.size === 1 ? ([...rates][0] as number) : null;
+            })();
 
       /*
         What one tendered figure is worth against the bill.
