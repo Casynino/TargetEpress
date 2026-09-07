@@ -39,6 +39,10 @@ export type InventoryRow = {
   packageType: string;
   /** Packages on the manifest that have not been ticked off in Dar. */
   packagesPending: number;
+  /** Cartons ticked off the manifest — the scalar above has already been
+      written down by a short check-in, so it is not the figure to subtract
+      from. See lib/floor.ts. */
+  packagesHere: number;
   weightKg: number;
   /** Kilos actually on the floor — declared weight minus what never arrived. */
   weightHereKg: number;

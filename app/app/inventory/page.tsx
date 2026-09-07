@@ -104,6 +104,9 @@ export default async function InventoryPage() {
       packageType: shipment.packageType,
       packagesPending: shipment.packageList.filter((pkg) => !pkg.receivedAt)
         .length,
+      /* Cartons actually ticked. The scalar has already been written down by a
+         short check-in, so it is not the figure to subtract from. */
+      packagesHere: shipment.packageList.filter((pkg) => pkg.receivedAt).length,
       weightKg: toNumber(shipment.weightKg),
       // Weight of what is actually standing here.
       //
@@ -139,8 +142,12 @@ export default async function InventoryPage() {
   // shipment checked in short — or flagged on a count mismatch — is on the
   // floor with fewer cartons than its paperwork claims, and this hint says
   // what is standing there.
+  /* Off the cartons, not the scalar. A short check-in writes Shipment.packages
+     down to what arrived while leaving the rows alone, so subtracting the
+     pending ones from it removed the shortfall twice — see the same correction
+     in lib/floor.ts. */
   const totalPackages = rows.reduce(
-    (sum, row) => sum + row.packages - row.packagesPending,
+    (sum, row) => sum + row.packagesHere,
     0
   );
   const totalWeight = rows.reduce((sum, row) => sum + row.weightHereKg, 0);

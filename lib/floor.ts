@@ -124,9 +124,22 @@ export async function floorSnapshot(): Promise<FloorSnapshot> {
   let flagged = 0;
 
   for (const shipment of held) {
-    const pending = shipment.packageList.filter((pkg) => !pkg.receivedAt).length;
-    declaredPackages += shipment.packages;
-    packages += shipment.packages - pending;
+    /*
+      BOTH FIGURES OFF THE CARTONS, NOT OFF THE SCALAR.
+
+      A short check-in writes Shipment.packages down to what actually arrived
+      while deliberately leaving the rows alone, so the missing cartons keep
+      their identity and their QR. After that path the scalar is the boxes that
+      ARE here — and this subtracted the shortfall from it a second time, so a
+      consignment 3 short of 10 reported 4 on the floor and claimed the
+      paperwork said 7.
+
+      The rows are the physical truth the release counter already reads, so
+      both figures come off them: what was booked is how many rows there are,
+      what is here is how many carry a receivedAt.
+    */
+    declaredPackages += shipment.packageList.length;
+    packages += shipment.packageList.filter((pkg) => pkg.receivedAt).length;
     weightKg += weightOnFloor(toNumber(shipment.weightKg), shipment.packageList);
 
     // The note is the source of truth for "paid", not the shipment status:

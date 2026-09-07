@@ -36,6 +36,30 @@ const unpaidPosition = cache(() =>
   })
 );
 
+/**
+ * WHAT THE COMPANY IS OWED — ONE ANSWER, CLAMPED PER BILL.
+ *
+ * There were three live implementations of this and the owner's dashboard
+ * rendered all of them on one screen: a clamped SQL sum in
+ * lib/finance-dashboard.ts, `outstandingOf` over an aggregate here (adjustment
+ * aware, but clamped once over the whole pile so one customer's overpayment
+ * cancelled another's debt), and a bare Σtotal − ΣamountPaid that ignored every
+ * shilling Finance had written off — on the same cached aggregate that was
+ * already selecting amountAdjusted for it.
+ *
+ * A hundred customers each owing a thousand and one who overpaid by a hundred
+ * thousand read as a company owed nothing. The clamp has to happen per bill,
+ * which SQL will do and an aggregate will not — see RECEIVABLE_SQL.
+ */
+const receivableUsd = cache(async () => {
+  const [row] = await prisma.$queryRaw<{ owed: number }[]>`
+    SELECT COALESCE(SUM(GREATEST(0, "total" - "amountPaid" - "amountAdjusted")), 0)::float8 AS "owed"
+      FROM "Invoice"
+     WHERE "status" IN ('UNPAID', 'PARTIALLY_PAID')
+  `;
+  return row?.owed ?? 0;
+});
+
 /** The same population, counted. Shares the same reason and the same scope. */
 const unpaidBillCount = cache(() =>
   prisma.invoice.count({ where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } } })
@@ -489,8 +513,7 @@ export async function deskPulse(
     prisma.shipment.count({ where: { deletedAt: null, status: "READY_FOR_PICKUP" } }),
   ]);
 
-  const owedUsd =
-    toNumber(unpaidValue._sum.total ?? 0) - toNumber(unpaidValue._sum.amountPaid ?? 0);
+  const owedUsd = await receivableUsd();
 
   // A sentence with a count in it can never be looked up whole — the number is
   // baked in before anything sees the string. Composed from a translated
@@ -615,8 +638,7 @@ export async function ownerAttention(
         unpaidBillCount(),
         unpaidPosition(),
       ]);
-      const owedUsd =
-        toNumber(unpaidValue._sum.total ?? 0) - toNumber(unpaidValue._sum.amountPaid ?? 0);
+      const owedUsd = await receivableUsd();
       return { drafts, unattributed, unpaid, owedUsd };
     })(),
     (async () => {
@@ -911,7 +933,7 @@ export async function financeStats() {
 
   const collected = toNumber(paidAgg._sum.amountPaid);
   const outstanding =
-    outstandingOf(outstandingAgg._sum);
+    await receivableUsd();
 
   return {
     unpaid,
@@ -997,7 +1019,7 @@ export const executiveStats = cache(async function executiveStats() {
     revenueThisMonth: toNumber(collectedAgg[0]?.month ?? 0),
     allTimeCollected: toNumber(collectedAgg[0]?.allTime ?? 0),
     outstanding:
-      outstandingOf(outstandingAgg._sum),
+      await receivableUsd(),
   };
 });
 
@@ -1374,8 +1396,9 @@ const SEVERE_EXCEPTION: Record<ExceptionType, boolean> = {
   }
 
   for (const shipment of staleUnpaid) {
-    const outstanding =
-      toNumber(shipment.invoice?.total) - toNumber(shipment.invoice?.amountPaid);
+    const outstanding = shipment.invoice
+      ? outstandingOf(shipment.invoice)
+      : 0;
     items.push({
       id: `unpaid-${shipment.id}`,
       severity: "critical",

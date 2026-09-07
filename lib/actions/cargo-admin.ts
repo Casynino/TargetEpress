@@ -78,7 +78,15 @@ export async function deleteCargo(
         description: true,
         weightKg: true,
         customer: { select: { name: true } },
-        invoice: { select: { invoiceNumber: true, amountPaid: true, amountAdjusted: true } },
+        invoice: {
+          select: {
+            id: true,
+            invoiceNumber: true,
+            status: true,
+            amountPaid: true,
+            amountAdjusted: true,
+          },
+        },
         _count: { select: { photos: true } },
       },
     });
@@ -103,7 +111,13 @@ export async function deleteCargo(
     // Money already taken against it makes this an accounting event, not a
     // typo. Refusing here is safer than leaving a paid invoice pointing at a
     // record that has vanished from every screen.
-    if (cargo.invoice && Number(cargo.invoice.amountPaid) > 0) {
+    /* A cleared difference is a decision somebody made about this customer, the
+       same as money arriving — see the write-off guards on undoBatchArrival. */
+    if (
+      cargo.invoice &&
+      (Number(cargo.invoice.amountPaid) > 0 ||
+        Number(cargo.invoice.amountAdjusted) > 0.005)
+    ) {
       // The invoice number is data and stays put; the sentence around it is
       // composed from a translated fragment.
       return fail(
@@ -120,6 +134,29 @@ export async function deleteCargo(
           deleteReason: input.reason || null,
         },
       });
+
+      /*
+        THE BILL GOES WITH THE CARGO.
+
+        The soft-delete extension in lib/prisma.ts intercepts top-level
+        operations on `shipment` only, and every receivable query reads the
+        shipment as a NESTED relation — so it never filters. A deleted
+        consignment's invoice went on standing in the accounts-receivable
+        report, the finance dashboard's owed figure, the owner's unpaid
+        position and the collections call list, and a customer was chased for
+        cargo that appears on no screen.
+
+        Voided here rather than filtered in the four queries, because voiding
+        is what actually happened and it also answers the readers nobody has
+        written yet. Nothing with money or a cleared difference against it
+        reaches this line — both are refused above.
+      */
+      if (cargo.invoice && cargo.invoice.status !== "VOID") {
+        await tx.invoice.update({
+          where: { id: cargo.invoice.id },
+          data: { status: "VOID" },
+        });
+      }
 
       await recordAudit(
         {

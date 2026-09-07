@@ -899,13 +899,19 @@ export async function creditCandidates(
     },
     _sum: { total: true, amountPaid: true, amountAdjusted: true },
   });
+  /* Through outstandingOf, like the invoice figure rendered beside it. The
+     aggregate already selects amountAdjusted and this subtraction ignored it,
+     so the desk deciding a credit limit was shown a debt that included every
+     shilling Finance had already cleared — while the very next field on the
+     same row did the arithmetic correctly. */
   const owedByCustomer = new Map(
     standing.map((row) => [
       row.customerId,
-      Math.max(
-        0,
-        toNumber(row._sum.total ?? 0) - toNumber(row._sum.amountPaid ?? 0)
-      ),
+      outstandingOf({
+        total: row._sum.total ?? 0,
+        amountPaid: row._sum.amountPaid ?? 0,
+        amountAdjusted: row._sum.amountAdjusted ?? 0,
+      }),
     ])
   );
 
@@ -1076,9 +1082,11 @@ export async function creditContextFor(
       inv.customer.creditLimitUsd === null
         ? null
         : toNumber(inv.customer.creditLimitUsd),
-    alreadyOwesUsd: Math.max(
-      0,
-      toNumber(standing._sum.total ?? 0) - toNumber(standing._sum.amountPaid ?? 0)
-    ),
+    /* Same subtraction, same one place — see owedByCustomer above. */
+    alreadyOwesUsd: outstandingOf({
+      total: standing._sum.total ?? 0,
+      amountPaid: standing._sum.amountPaid ?? 0,
+      amountAdjusted: standing._sum.amountAdjusted ?? 0,
+    }),
   };
 }
