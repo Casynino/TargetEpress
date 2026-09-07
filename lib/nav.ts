@@ -689,31 +689,13 @@ const FINANCE_SECTIONS: NavSection[] = [
     group: { label: "Batches", icon: "Boxes" },
     items: [
       /*
-        THE ORDER A FLIGHT LIVES, SMALLEST STEP FIRST.
+        BIGGEST FIRST ON THIS DESK, at the owner's instruction.
 
-        Loaded in Guangzhou, landed in Dar, signed off by Finance, and then
-        read for what it made. The owner asked for these four in that order —
-        a menu that runs the way the work runs needs no explaining, and these
-        four are one subject now that Batch finances has joined them.
+        The other sidebars run these four the way a flight lives — loaded in
+        Guangzhou, landed in Dar, signed off, then read for what it made. Finance
+        reads them the other way round: the money a flight made is the row they
+        open, and the loading table in Guangzhou is the one they almost never do.
       */
-      {
-        href: "/app/batches",
-        label: "Loading batches",
-        icon: "Boxes",
-        permission: "batch.view",
-      },
-      {
-        href: "/app/shipments",
-        label: "Arrived batches",
-        icon: "PlaneTakeoff",
-        permission: "batch.view",
-      },
-      {
-        href: "/app/finance/income",
-        label: "Closed batches",
-        icon: "ClipboardCheck",
-        permission: "accounting.view",
-      },
       {
         /*
           WHAT EACH FLIGHT MADE, FOR THE DESK THAT RECORDED IT.
@@ -728,6 +710,24 @@ const FINANCE_SECTIONS: NavSection[] = [
         label: "Batch finances",
         icon: "Boxes",
         permission: "profit.view",
+      },
+      {
+        href: "/app/finance/income",
+        label: "Closed batches",
+        icon: "ClipboardCheck",
+        permission: "accounting.view",
+      },
+      {
+        href: "/app/shipments",
+        label: "Arrived batches",
+        icon: "PlaneTakeoff",
+        permission: "batch.view",
+      },
+      {
+        href: "/app/batches",
+        label: "Loading batches",
+        icon: "Boxes",
+        permission: "batch.view",
       },
     ],
   },
