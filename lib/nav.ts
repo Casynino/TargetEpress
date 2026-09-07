@@ -539,58 +539,6 @@ const FINANCE_SECTIONS: NavSection[] = [
     ],
   },
   {
-    // Batches lead this menu, above the money.
-    //
-    // Finance opens a batch to answer a money question — what GZ-0028 made,
-    // what is still owed on it — so the batch is the thing being looked up and
-    // the finance screens are what gets done about it.
-    title: "Batches",
-    group: { label: "Batches", icon: "Boxes" },
-    items: [
-      /*
-        THE ORDER A FLIGHT LIVES, SMALLEST STEP FIRST.
-
-        Loaded in Guangzhou, landed in Dar, signed off by Finance, and then
-        read for what it made. The owner asked for these four in that order —
-        a menu that runs the way the work runs needs no explaining, and these
-        four are one subject now that Batch finances has joined them.
-      */
-      {
-        href: "/app/batches",
-        label: "Loading batches",
-        icon: "Boxes",
-        permission: "batch.view",
-      },
-      {
-        href: "/app/shipments",
-        label: "Arrived batches",
-        icon: "PlaneTakeoff",
-        permission: "batch.view",
-      },
-      {
-        href: "/app/finance/income",
-        label: "Closed batches",
-        icon: "ClipboardCheck",
-        permission: "accounting.view",
-      },
-      {
-        /*
-          WHAT EACH FLIGHT MADE, FOR THE DESK THAT RECORDED IT.
-
-          The manager has had this since the control desk was built. Finance,
-          which enters every figure on it, had no door to it at all — they
-          could see a payment, a cost and a bill one at a time and never the
-          aircraft they belong to. The permission was already held; only the
-          way in was missing.
-        */
-        href: "/app/finance/batches",
-        label: "Batch finances",
-        icon: "Boxes",
-        permission: "profit.view",
-      },
-    ],
-  },
-  {
     title: "Finance",
     // The order the day runs in: chase what is owed, record what came in, then
     // release the cargo it paid for.
@@ -721,6 +669,65 @@ const FINANCE_SECTIONS: NavSection[] = [
         label: "Price configuration",
         icon: "Tags",
         permission: "pricing.view",
+      },
+    ],
+  },
+  {
+    /*
+      BATCHES SIT UNDER THE MONEY ON THIS DESK.
+
+      Every other sidebar leads with the flights, because every other desk works
+      them. Finance does not: they read what a flight earned and answer the bills
+      on it, so these four are a reference they reach for rather than the work
+      they open the app to do. The owner's words — this is finance, they do not
+      really do batches, they deal with numbers.
+
+      The four keep their own order, which is the order a flight lives: loaded in
+      Guangzhou, landed in Dar, signed off, then read for what it made.
+    */
+    title: "Batches",
+    group: { label: "Batches", icon: "Boxes" },
+    items: [
+      /*
+        THE ORDER A FLIGHT LIVES, SMALLEST STEP FIRST.
+
+        Loaded in Guangzhou, landed in Dar, signed off by Finance, and then
+        read for what it made. The owner asked for these four in that order —
+        a menu that runs the way the work runs needs no explaining, and these
+        four are one subject now that Batch finances has joined them.
+      */
+      {
+        href: "/app/batches",
+        label: "Loading batches",
+        icon: "Boxes",
+        permission: "batch.view",
+      },
+      {
+        href: "/app/shipments",
+        label: "Arrived batches",
+        icon: "PlaneTakeoff",
+        permission: "batch.view",
+      },
+      {
+        href: "/app/finance/income",
+        label: "Closed batches",
+        icon: "ClipboardCheck",
+        permission: "accounting.view",
+      },
+      {
+        /*
+          WHAT EACH FLIGHT MADE, FOR THE DESK THAT RECORDED IT.
+
+          The manager has had this since the control desk was built. Finance,
+          which enters every figure on it, had no door to it at all — they
+          could see a payment, a cost and a bill one at a time and never the
+          aircraft they belong to. The permission was already held; only the
+          way in was missing.
+        */
+        href: "/app/finance/batches",
+        label: "Batch finances",
+        icon: "Boxes",
+        permission: "profit.view",
       },
     ],
   },
