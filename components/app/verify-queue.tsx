@@ -528,6 +528,10 @@ export async function VerifyQueue() {
                            onto the bill, never today's, so the figure on the
                            tick is the figure the adjustment will write. */
                         shortfall={shortfallOnBill}
+                        /* What the covered bills are owed, so the panel can
+                           work the difference out from whatever Finance types
+                           rather than from the figure Support raised. */
+                        owed={outstanding}
                         billCurrency={receiving.currency}
                         billRate={receivingRate}
                         clearShortfallClaimed={row.clearShortfall}

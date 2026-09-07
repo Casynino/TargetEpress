@@ -179,6 +179,9 @@ export async function PendingSubmissionNotice({
                           ? (s.amount - (s.transport ?? 0)) / billRate
                           : (s.amount - (s.transport ?? 0)) * billRate)
                   )}
+                  /* What the bill is owed, so the panel derives the
+                     difference from whatever Finance types. */
+                  owed={billOutstanding}
                   billCurrency={billCurrency}
                   billRate={billRate}
                   clearShortfallClaimed={Boolean(s.clearShortfall)}

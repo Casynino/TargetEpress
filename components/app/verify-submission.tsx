@@ -48,6 +48,7 @@ export function VerifySubmission({
   transportSourceName = null,
   transportAccounts = [],
   shortfall = 0,
+  owed = 0,
   billCurrency = "USD",
   billRate = null,
   clearShortfallClaimed = false,
@@ -114,6 +115,16 @@ export function VerifySubmission({
   /** What this claim leaves owing on the bill once it is recorded, in the
       bill's own money. Zero when it settles or overpays. */
   shortfall?: number;
+  /**
+   * WHAT THE BILLS THIS CLAIM ANSWERS ARE STILL OWED, IN THEIR OWN MONEY.
+   *
+   * The difference has to follow the box, not the claim. `shortfall` is the
+   * gap at the figures SUPPORT raised — read off that, the panel went quiet
+   * the moment Finance typed a different cargo charge, which is exactly when
+   * the desk most needs to be told the bill is short. The counter derives it
+   * from what is on its screen; so does this.
+   */
+  owed?: number;
   billCurrency?: string;
   /**
    * The rate frozen on the bill, so this panel can lead in shillings.
@@ -196,9 +207,9 @@ export function VerifySubmission({
   const owedInTender =
     billRate && billCurrency !== currency
       ? currency === "TZS"
-        ? shortfall * billRate + cargoNow
-        : shortfall / billRate + cargoNow
-      : shortfall + cargoNow;
+        ? owed * billRate
+        : owed / billRate
+      : owed;
   const gapInTender = Math.round((owedInTender - cargoNow) * 100) / 100;
   const gapInBill =
     billRate && billCurrency !== currency
@@ -256,7 +267,10 @@ export function VerifySubmission({
       carries: what came in, the split between the bill and the driver, where
       each half goes, the difference and whether to clear it, and the date.
     */
-    const cargoNow = Math.max(0, claimed - (Number(fare) || 0));
+    /* No local cargoNow here: the one above follows the typed box, and a
+       second copy shadowing it left the conversion sentence and the split
+       quoting the claim's original figure while the difference beside them
+       moved. Two figures for one number, on a screen that agrees to money. */
     const body = (
       <form action={verify} className="space-y-3">
         <input type="hidden" name="submissionId" value={submissionId} />
@@ -400,6 +414,23 @@ export function VerifySubmission({
               total={bill.total}
             />
           </div>
+        ) : null}
+
+        {/* WHAT THIS SETTLES, AT THE RATE FROZEN ON THE BILL.
+
+            The counter prints this sentence and the desk reads it back to the
+            customer. Without it a shilling figure sat on the screen with no
+            statement of what it does to a dollar bill, and the only way to
+            know was to divide in your head. */}
+        {billRate && billCurrency !== currency && cargoNow > 0 ? (
+          <p className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            {currency} {cargoNow.toLocaleString()} {t("settles")} {billCurrency}{" "}
+            {(currency === "TZS" ? cargoNow / billRate : cargoNow * billRate).toLocaleString(
+              undefined,
+              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+            )}{" "}
+            {t("at")} {billRate.toLocaleString()}.
+          </p>
         ) : null}
 
         {/* The split in words, so the figure on the screen can be laid beside
