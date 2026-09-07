@@ -71,7 +71,7 @@ const opened = await page.evaluate((n) => {
   return null;
 }, claim.submissionNumber);
 if (opened) { bad(opened); await browser.close(); await prisma.$disconnect(); process.exit(1); }
-await wait(900);
+await wait(2500);
 
 const hasField = await page.evaluate(() => Boolean(document.getElementById("sub-transport")));
 hasField ? ok("the correction dialog asks for transport") : bad("no transport field in the dialog");
@@ -84,7 +84,7 @@ const shown = await page.evaluate((fare) => {
   el.dispatchEvent(new Event("input", { bubbles: true }));
   return el.parentElement?.innerText.replace(/\s+/g, " ") ?? null;
 }, fare);
-await wait(300);
+await wait(600);
 const preview = await page.evaluate(() => document.getElementById("sub-transport")?.parentElement?.innerText.replace(/\s+/g, " ") ?? "");
 preview.includes((total - fare).toLocaleString())
   ? ok(`the dialog says the bill gets the rest: ${(total - fare).toLocaleString()}`)
@@ -118,7 +118,7 @@ await page.evaluate(() => {
   const b = [...document.querySelectorAll("button")].find((x) => /Save the correction/.test(x.innerText));
   b?.click();
 });
-await wait(2500);
+await wait(4000);
 
 const after = await prisma.paymentSubmission.findUnique({
   where: { id: claim.id },

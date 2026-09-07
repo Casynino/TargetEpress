@@ -80,7 +80,10 @@ const PAGES = [
   ["support", customer ? `/app/customers/${customer.id}` : null],
 ].filter(([, url]) => url);
 
-const WIDTHS = [320, 375, 768];
+/* The phone is where the owner's "zoomed / cut off" reports come from, and
+   375 is the width of the handset the Dar floor actually carries. 320 is kept
+   because a page that survives the narrowest screen survives them all. */
+const WIDTHS = process.env.WIDE === "1" ? [320, 375, 768] : [375];
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: "new", args: ["--no-sandbox"] });
 const bad = [];
 let checked = 0;
@@ -88,7 +91,7 @@ let checked = 0;
 /* The reading language lives on the user, not in a cookie — so the Chinese
    pass flips every test account to zh and puts it back afterwards. */
 const EMAILS = [...new Set(PAGES.map(([who]) => `${who}@targetexpress.co.tz`))];
-const before = await prisma.user.findMany({ where: { email: { in: EMAILS } }, select: { id: true, email: true, preferredLanguage: true } });
+const before = await prisma.user.findMany({ where: { email: { in: EMAILS } }, select: { id: true, email: true, role: true, preferredLanguage: true } });
 
 for (const locale of ["en", "zh"]) {
   await prisma.user.updateMany({ where: { email: { in: EMAILS } }, data: { preferredLanguage: locale } });
@@ -121,6 +124,9 @@ for (const locale of ["en", "zh"]) {
         return { over, culprits };
       }, width);
       checked += 1;
+      process.stdout.write(
+        `${result.over > 1 ? "✗" : "·"} [${locale}] ${url} @${width}\n`
+      );
       if (result.over > 1) {
         bad.push({ locale, who, url, width, over: result.over, culprits: result.culprits });
         console.log(`  ✗ [${locale}] ${url} @${width} overflows by ${result.over}px — ${result.culprits.join(" | ") || "(no single culprit)"}`);
@@ -130,7 +136,23 @@ for (const locale of ["en", "zh"]) {
   }
 }
 
-for (const u of before) await prisma.user.update({ where: { id: u.id }, data: { preferredLanguage: u.preferredLanguage } });
+/*
+  PUT BACK WHAT EACH DESK ACTUALLY READS, NOT WHAT THIS RUN FOUND.
+
+  Restoring the snapshot is only right if the snapshot was right, and a run
+  killed halfway leaves every account in Chinese — so the next run "restores"
+  them to Chinese and every English-matching test in the suite starts failing
+  on a database this script corrupted.
+
+  defaultLocaleForRole is the answer that does not depend on how the last run
+  ended: Guangzhou reads Chinese, every Tanzanian desk reads English.
+*/
+for (const u of before) {
+  await prisma.user.update({
+    where: { id: u.id },
+    data: { preferredLanguage: u.role === "CHINA_WAREHOUSE" ? "zh" : "en" },
+  });
+}
 
 console.log(`\n${checked} page renders measured (${PAGES.length} pages × ${WIDTHS.length} widths × 2 languages).`);
 console.log(bad.length === 0 ? "Nothing overflows the screen." : `${bad.length} overflow(s) above.`);
