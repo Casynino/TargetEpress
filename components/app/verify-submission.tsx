@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { BadgeCheck, X } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
@@ -8,6 +9,8 @@ import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { MoneyInput } from "@/components/ui/money-input";
+import { PaymentDateField } from "@/components/app/payment-date-field";
 import {
   rejectPaymentSubmission,
   verifyPaymentSubmission,
@@ -44,9 +47,34 @@ export function VerifySubmission({
   billRate = null,
   clearShortfallClaimed = false,
   clearsOn = null,
+  subject = null,
+  today,
 }: {
   submissionId: string;
+  /** Today, yyyy-mm-dd from the server, so the date picker and the action
+      agree about what day it is. */
+  today: string;
   accounts: { id: string; name: string; currency: string }[];
+  /**
+   * WHOSE MONEY, AGAINST WHAT — READ BACK BEFORE THE DECISION.
+   *
+   * Finance was agreeing to a figure with the customer's name and the bill it
+   * answers only on the row behind the panel. The dialog puts the claim's own
+   * header inside it, the way the correction dialog does, so the decision and
+   * the facts it rests on are on one surface.
+   */
+  subject?: {
+    submissionNumber: string;
+    customerName: string;
+    customerPhone: string | null;
+    trackingNumber: string;
+    invoiceNumber: string;
+    batchNumbers: string[];
+    amount: number;
+    outstanding: number;
+    submittedByName: string | null;
+    submittedAtLabel: string;
+  } | null;
   /** The currency the customer sent it in — what the split below is quoted in. */
   currency?: string;
   /** The delivery half of the claim, as Support wrote it down. */
@@ -112,6 +140,16 @@ export function VerifySubmission({
   /* Finance and Support both work this panel, and the Guangzhou desk reads it
      in Chinese when a claim comes back to them. */
   const t = useT();
+  /* The fare Finance states, seeded from what Support wrote down. Kept as a
+     string like every other money box, so clearing it to retype is not a
+     fight with a zero. */
+  const [fare, setFare] = useState(transport > 0 ? String(transport) : "");
+  /* What the customer handed over: the two halves as the claim states them. */
+  const claimed = cargo + transport;
+  /* Portalled, so it waits for the document. */
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const [verifyState, verify] = useActionState<
     ActionResult<{ receiptNumber: string }>,
     FormData
@@ -144,132 +182,115 @@ export function VerifySubmission({
   }
 
   if (mode === "verify") {
-    return (
-      <form action={verify} className="space-y-2 rounded-lg border bg-card p-3">
+    /*
+      A DIALOG, NOT A PANEL WEDGED INTO THE ROW.
+
+      The decision used to unfold inside the row itself, in the width left over
+      beside the figures — which on the one screen where Finance agrees to
+      money meant a cramped column, the claim's own details out of sight behind
+      it, and everything the counter offers left off for want of room. The
+      owner's words: the design here is bad, we should get a pop-up like the way
+      when I edit.
+
+      So it is the same dialog the correction opens, carrying what the counter
+      carries: what came in, the split between the bill and the driver, where
+      each half goes, the difference and whether to clear it, and the date.
+    */
+    const cargoNow = Math.max(0, claimed - (Number(fare) || 0));
+    const body = (
+      <form action={verify} className="space-y-3">
         <input type="hidden" name="submissionId" value={submissionId} />
-        {/*
-          THE CLAIM ALREADY SAYS THE CUSTOMER PAID CARGO PLUS TRANSPORT.
 
-          Finance's job here is to check a slip against a figure. When the
-          customer sent one transfer covering the freight and the delivery, the
-          figure on the slip is LARGER than the bill — and without this panel
-          the only way to know why was to ask the person who took the call.
-
-          So the split Support wrote down is read back before the decision:
-          this much settles the bill, this much is the fare. Nothing is being
-          asked of Finance except to see it — the split travels into the
-          payment on its own.
-        */}
-        {transport > 0 ? (
-          <div className="rounded-md border border-warning/30 bg-warning/10 px-2.5 py-2 text-[11px] leading-relaxed text-warning">
-            <p className="font-semibold uppercase tracking-wide">
-              {t("Cargo plus transport")}
+        {subject ? (
+          <div className="space-y-1.5 rounded-lg border bg-muted/30 p-3 text-sm">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <span className="font-medium">{subject.customerName}</span>
+              <span className="font-mono text-xs text-muted-foreground">
+                {subject.submissionNumber}
+              </span>
+            </div>
+            {subject.customerPhone ? (
+              <p className="text-xs text-muted-foreground">{subject.customerPhone}</p>
+            ) : null}
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <span className="font-mono">{subject.trackingNumber}</span>
+              {subject.batchNumbers.length ? (
+                <>
+                  <span aria-hidden>·</span>
+                  <span className="font-mono">{subject.batchNumbers.join(" · ")}</span>
+                </>
+              ) : null}
+              <span aria-hidden>·</span>
+              <span className="font-mono">{subject.invoiceNumber}</span>
+              <span aria-hidden>·</span>
+              <span>
+                {t("owed")} {billCurrency} {subject.outstanding.toLocaleString()}
+              </span>
             </p>
-            <p className="mt-0.5 font-medium">
-              {currency} {cargo.toLocaleString()} to the bill · {currency}{" "}
-              {transport.toLocaleString()} transport
+            <p className="text-xs text-muted-foreground">
+              {t("Submitted by")}{" "}
+              <span className="text-brand">{subject.submittedByName ?? "—"}</span> ·{" "}
+              {subject.submittedAtLabel}
             </p>
           </div>
         ) : null}
-        {/*
-          THE CUSTOMER SENT LESS THAN THE BILL, AND SOMEBODY HAS TO SAY SO.
 
-          The other half of the split above. A claim short of the bill leaves
-          the consignment settled in everybody's head and unreleasable in the
-          system until somebody remembers to go and clear the difference on the
-          bill's own page — so it is asked here, where the decision is already
-          being made, and the adjustment is written by the same transaction
-          that records the money.
+        {/* WHAT CAME IN, AND WHAT OF IT WAS THE COMPANY'S.
 
-          Ticked, the payment still records exactly what the customer sent. It
-          is the BILL that closes, by an adjustment that moves no money and has
-          its own reversible row.
-        */}
-        {shortfall > 0.005 ? (
-          <label className="flex cursor-pointer items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-2.5 py-2 text-[11px] leading-relaxed text-warning">
-            <input
-              type="checkbox"
-              checked={clearRest}
-              onChange={(event) => setClearRest(event.target.checked)}
-              className="mt-0.5 h-3.5 w-3.5 shrink-0"
-            />
-            <span>
-              <span className="font-semibold">
-                {t("Clear the last")} {gapShown}{" "}
-                {t("and settle the bill")}
-              </span>
-              <span className="mt-0.5 block opacity-90">
-                {clearShortfallClaimed
-                  ? `${t("Support was told the rest is not coming.")} `
-                  : `${t("This claim is short of the bill.")} `}
-                {t(
-                  "The payment records what came in; the difference is written off and moves no money."
-                )}
-              </span>
-              {/* Only when one transfer answers several bills, because then
-                  "the bill" is a question. Named so the desk confirms a
-                  decision rather than a shrug. */}
-              {clearsOn ? (
-                <span className="mt-0.5 block font-medium opacity-90">
-                  {t("Taken off")} {clearsOn}{" "}
-                  {t("— the largest of the bills it covers.")}
-                </span>
-              ) : null}
+            Read back rather than asked for: the figure is the customer's, and
+            correcting it is what the Edit door is for. The fare is the half
+            Finance often learns about on the phone, so that one IS asked. */}
+        <div className="rounded-lg border px-3 py-2">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">
+              {t("How much came in")}
             </span>
-          </label>
-        ) : null}
-        {/* Stated either way, so an untick here is a NO rather than a silence
-            the action would read as Support's yes. */}
-        {shortfall > 0.005 ? (
-          <>
-            <input
-              type="hidden"
-              name="clearShortfall"
-              value={clearRest ? "1" : "0"}
-            />
-            {/* The figure printed on the tick above — see PaymentDifference. */}
-            <input
-              type="hidden"
-              name="clearShortfallUpTo"
-              value={shortfall.toFixed(2)}
-            />
-          </>
-        ) : null}
-        <div className="space-y-1">
-          <Label htmlFor={`account-${submissionId}`} className="text-xs">
-            {t("Where it landed")}
-          </Label>
-          {/* Finance names the account, never Support — that desk does not know
-              and must not guess. */}
-          <NativeSelect
-            id={`account-${submissionId}`}
-            name="accountId"
-            className="h-9 text-sm"
-          >
-            <option value="">Not said yet</option>
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-              </option>
-            ))}
-          </NativeSelect>
+            <span className="font-mono text-sm font-semibold tabular">
+              {currency} {claimed.toLocaleString()}
+            </span>
+          </div>
+          <div className="mt-1 flex items-baseline justify-between gap-3">
+            <span className="text-xs text-muted-foreground">
+              {t("To the bill")}
+            </span>
+            <span className="font-mono text-sm tabular">
+              {currency} {cargoNow.toLocaleString()}
+            </span>
+          </div>
         </div>
-        {/* Where the fare leaves from. Support's answer is pre-filled because
-            they usually know, and Finance can change it because they are the
-            desk that actually hands it over. Cash and the Lipa number only. */}
-        {transport > 0 ? (
-          <div className="space-y-1">
-            <Label
-              htmlFor={`transport-source-${submissionId}`}
-              className="text-xs"
-            >
+
+        <div className="space-y-1.5">
+          <Label htmlFor={`fare-${submissionId}`} className="text-xs">
+            {t("Of that, transport")}
+          </Label>
+          <MoneyInput
+            id={`fare-${submissionId}`}
+            name="transportAmount"
+            decimals={currency === "TZS" ? 0 : 2}
+            value={fare}
+            onValueChange={(raw) => setFare(raw)}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            {t("Leave it empty when the whole amount is freight.")}{" "}
+            {transportSourceName
+              ? `${t("Support said")} ${transportSourceName}.`
+              : t("The bill is credited with the rest.")}
+          </p>
+        </div>
+
+        {Number(fare) > 0 ? (
+          <div className="space-y-1.5">
+            <Label htmlFor={`transport-source-${submissionId}`} className="text-xs">
               {t("Transport settled from")}
             </Label>
+            {/* Cash and the Lipa number only — a driver is not paid out of a
+                bank account. Support's answer is pre-filled because they
+                usually know; Finance may change it because they are the desk
+                that actually hands it over. */}
             <NativeSelect
               id={`transport-source-${submissionId}`}
               name="transportSourceId"
               defaultValue={transportSourceId ?? ""}
-              className="h-9 text-sm"
               required
             >
               <option value="" disabled>
@@ -281,29 +302,112 @@ export function VerifySubmission({
                 </option>
               ))}
             </NativeSelect>
-            {transportSourceName ? (
-              <p className="text-[11px] text-muted-foreground">
-                Support said {transportSourceName}.
-              </p>
-            ) : null}
           </div>
         ) : null}
+
+        {shortfall > 0.005 ? (
+          <>
+            <label className="flex cursor-pointer items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-2.5 py-2 text-[11px] leading-relaxed text-warning">
+              <input
+                type="checkbox"
+                checked={clearRest}
+                onChange={(event) => setClearRest(event.target.checked)}
+                className="mt-0.5 h-3.5 w-3.5 shrink-0"
+              />
+              <span>
+                <span className="font-semibold">
+                  {t("Clear the last")} {gapShown} {t("and settle the bill")}
+                </span>
+                <span className="mt-0.5 block opacity-90">
+                  {clearShortfallClaimed
+                    ? `${t("Support was told the rest is not coming.")} `
+                    : `${t("This claim is short of the bill.")} `}
+                  {t(
+                    "The payment records what came in; the difference is written off and moves no money."
+                  )}
+                </span>
+                {clearsOn ? (
+                  <span className="mt-0.5 block font-medium opacity-90">
+                    {t("Taken off")} {clearsOn}{" "}
+                    {t("— the largest of the bills it covers.")}
+                  </span>
+                ) : null}
+              </span>
+            </label>
+            {/* Stated either way, so an untick is a NO rather than a silence
+                the action would read as Support's yes. */}
+            <input type="hidden" name="clearShortfall" value={clearRest ? "1" : "0"} />
+            <input
+              type="hidden"
+              name="clearShortfallUpTo"
+              value={shortfall.toFixed(2)}
+            />
+          </>
+        ) : null}
+
+        <div className="space-y-1.5">
+          <Label htmlFor={`account-${submissionId}`} className="text-xs">
+            {t("Where it landed")}
+          </Label>
+          {/* Finance names the account, never Support — that desk does not know
+              and must not guess. */}
+          <NativeSelect id={`account-${submissionId}`} name="accountId" required>
+            <option value="">{t("Not said yet")}</option>
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+
+        {/* The day the money actually arrived, when it was not today. The same
+            control the counter uses, so a claim agreed on Monday for a transfer
+            that landed on Friday is dated Friday. */}
+        <PaymentDateField id={`paid-${submissionId}`} today={today} />
+
         <FormError state={verifyState} />
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <SubmitButton size="sm" variant="brand" pendingLabel="Recording…">
             {t("Confirm and record")}
           </SubmitButton>
           <button
             type="button"
             onClick={() => setMode("idle")}
-            className="focus-ring rounded-md p-1.5 text-muted-foreground hover:text-foreground"
-            aria-label={t("Cancel")}
+            className="focus-ring rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground"
           >
-            <X className="h-3.5 w-3.5" />
+            {t("Leave it")}
           </button>
         </div>
       </form>
     );
+
+    return mounted
+      ? createPortal(
+          /* Portalled to the body for the same reason the correction dialog is:
+             the queue sits inside an overflow-x-auto ancestor, and that ancestor
+             clips even a position:fixed child. */
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
+            <div className="max-h-[85vh] w-full max-w-lg space-y-3 overflow-y-auto rounded-xl border bg-card p-5 text-left shadow-lg">
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="font-display font-semibold">
+                  {t("Confirm this payment")}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setMode("idle")}
+                  aria-label={t("Close")}
+                  className="focus-ring rounded p-1 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              {body}
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
   }
 
   return (

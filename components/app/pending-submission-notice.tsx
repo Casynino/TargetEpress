@@ -47,6 +47,10 @@ export type PendingSubmission = {
  * customer where it has got to, and the CEO can see why cargo that looks unpaid
  * is not being chased.
  */
+/* The server states the day, so the picker and the action cannot disagree
+   about what "today" is across a timezone. */
+const TODAY = new Date().toISOString().slice(0, 10);
+
 export async function PendingSubmissionNotice({
   submissions,
   canVerify,
@@ -155,6 +159,7 @@ export async function PendingSubmissionNotice({
             {canVerify ? (
               <div className="mt-3">
                 <VerifySubmission
+                  today={TODAY}
                   submissionId={s.id}
                   accounts={accounts}
                   currency={s.currency}

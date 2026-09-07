@@ -691,7 +691,32 @@ export async function verifyPaymentSubmission(
     Finance can name a different transport account on the verify form; theirs
     wins, because they are the desk that actually pays the driver.
   */
-  const transport = toNumber(submission.transportAmount);
+  /*
+    THE FARE FINANCE FOUND OUT ABOUT.
+
+    Support writes down what the customer told them at the counter. Finance
+    rings the customer to check the slip and is often the desk that learns a
+    part of the transfer was the driver's — and until now there was nowhere on
+    this screen to say so. The whole figure was then verified as freight, and
+    the bill was credited with money already on its way out.
+
+    Finance's figure wins where they state one, for the same reason theirs wins
+    on the transport account: they are the desk that actually pays the driver.
+    It is written back onto the claim as well as handed to recordPayment, so
+    the claim and the payment it produced say the same thing afterwards.
+  */
+  const saidFare = String(formData.get("transportAmount") ?? "").trim();
+  const financeFare = saidFare === "" ? null : Number(saidFare);
+  if (financeFare !== null && (!Number.isFinite(financeFare) || financeFare < 0)) {
+    return fail("That transport figure is not valid.");
+  }
+  const transport = financeFare ?? toNumber(submission.transportAmount);
+  if (transport > toNumber(submission.amount) + 0.001) {
+    return fail(
+      `${submission.currency} ${transport.toLocaleString()} of transport is more than the ` +
+        `${submission.currency} ${toNumber(submission.amount).toLocaleString()} that came in.`
+    );
+  }
   if (transport > 0) {
     handover.set("transport", transport.toString());
     /*
@@ -810,7 +835,21 @@ export async function verifyPaymentSubmission(
   */
   const claimed = await prisma.paymentSubmission.updateMany({
     where: { id: submission.id, status: "PENDING" },
-    data: { status: "VERIFIED", reviewedById: user.id, reviewedAt: new Date() },
+    data: {
+      status: "VERIFIED",
+      reviewedById: user.id,
+      reviewedAt: new Date(),
+      /* Written onto the claim as well as handed to recordPayment, so the two
+         say the same thing afterwards. A claim that reads 46,450 of freight
+         beside a payment that settled 36,450 is a question nobody can answer
+         a month later. */
+      ...(financeFare === null
+        ? {}
+        : { transportAmount: new Prisma.Decimal(transport) }),
+      ...(financeFare !== null && transport > 0 && formData.get("transportSourceId")
+        ? { transportSourceId: String(formData.get("transportSourceId")) }
+        : {}),
+    },
   });
   if (claimed.count === 0) {
     return fail(`${submission.submissionNumber} has already been dealt with.`);

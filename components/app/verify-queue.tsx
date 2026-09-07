@@ -43,6 +43,10 @@ import { viewerLocale } from "@/lib/viewer";
  * payment taken at the desk would. Nothing about recording a payment is
  * reimplemented for this queue.
  */
+/* The server states the day, so the picker and the action cannot disagree
+   about what "today" is across a timezone. */
+const TODAY = new Date().toISOString().slice(0, 10);
+
 export async function VerifyQueue() {
   const locale = await viewerLocale();
   const [rows, accounts, rate] = await Promise.all([
@@ -469,6 +473,22 @@ export async function VerifyQueue() {
                       />
                       <VerifySubmission
                         submissionId={row.id}
+                        today={TODAY}
+                        /* The same header the correction dialog carries, so
+                           the decision and the facts it rests on are on one
+                           surface rather than one behind the other. */
+                        subject={{
+                          submissionNumber: row.submissionNumber,
+                          customerName: row.invoice.customer.name,
+                          customerPhone: row.invoice.customer.phone,
+                          trackingNumber: row.invoice.shipment.trackingNumber,
+                          invoiceNumber: row.invoice.invoiceNumber,
+                          batchNumbers: batches,
+                          amount: claimed,
+                          outstanding,
+                          submittedByName: row.submittedBy?.name ?? null,
+                          submittedAtLabel: formatDateTime(row.submittedAt, locale),
+                        }}
                         accounts={accounts.map((a) => ({
                           id: a.id,
                           name: a.name,
