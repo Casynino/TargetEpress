@@ -144,7 +144,7 @@ async function main() {
       method: "FIXED_PER_ITEM",
       price: new Prisma.Decimal(product.price!),
       currency: USD,
-    minChargeableKg: new Prisma.Decimal(1),
+      minChargeableKg: new Prisma.Decimal(1),
       notes: "Per item, any weight.",
     });
   }
@@ -157,6 +157,12 @@ async function main() {
     method: "WEIGHT_BASED",
     price: new Prisma.Decimal(13.5),
     currency: USD,
+    /* The minimum every other weight rule carries, and the one the live rate
+       book has. It was the only weight-priced rule seeded without it, so
+       rebuilding the rate book would have quietly reintroduced sub-1 kg
+       billing on exactly the cargo that is most often under a kilo — a
+       charger, a pair of earphones. */
+    minChargeableKg: new Prisma.Decimal(1),
     notes: "Electronics not on the fixed-price list — charged by weight.",
   });
 

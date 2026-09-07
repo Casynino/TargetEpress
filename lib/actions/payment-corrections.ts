@@ -86,6 +86,15 @@ type Settlement = {
   } | null;
 };
 
+/**
+ * The mark a cancellation leaves on the write-off it takes back.
+ *
+ * Written by the void and read by the restore, so reinstating a payment puts
+ * back exactly the rows that cancelling it reversed — and nothing else that
+ * happens to be reversed on the same bill.
+ */
+const VOID_REVERSAL_REASON = "The payment it was decided with was cancelled.";
+
 function settlementsOf(payment: {
   amount: Money;
   creditedAmount: Money;
@@ -365,7 +374,7 @@ export async function voidPayment(
           data: {
             reversedAt: new Date(),
             reversedById: user.id,
-            reversalReason: "The payment it was decided with was cancelled.",
+            reversalReason: VOID_REVERSAL_REASON,
           },
         });
       }
@@ -681,14 +690,48 @@ export async function restorePayment(
       const invoice = payment.invoice;
       const settlements = settlementsOf(payment);
       const gave = settlements.reduce((sum, s) => sum + s.amount, 0);
+
+      /*
+        THE WRITE-OFF COMES BACK WITH THE PAYMENT.
+
+        Cancelling a payment takes back the difference that was cleared
+        alongside it — it has to, or a bill would sit settled on a write-off
+        made against money that has since been unwound. Reinstating the
+        payment put the money back and left the write-off reversed, so a bill
+        that had been settled 36,000 paid and 450 cleared came back owing 450
+        that Finance had already decided not to collect. Its cargo stopped
+        being releasable over it.
+
+        Found by the mark the cancellation itself leaves, so only the rows THIS
+        void took back are restored — a write-off reversed for any other reason
+        is somebody else's decision and stays reversed.
+      */
+      const takenBack = await tx.invoiceAdjustment.findMany({
+        where: {
+          paymentId: payment.id,
+          reversedAt: { not: null },
+          reversalReason: VOID_REVERSAL_REASON,
+        },
+        select: { id: true, invoiceId: true, amount: true },
+      });
+      const clearedAgain = new Map<string, number>();
+      for (const row of takenBack) {
+        clearedAgain.set(
+          row.invoiceId,
+          (clearedAgain.get(row.invoiceId) ?? 0) + toNumber(row.amount)
+        );
+      }
+
       const redone = settlements.map((s) => {
         const paid = toNumber(s.amountPaid) + s.amount;
         /* Whatever is still written off counts towards settling it, the same
-           way it does at the counter. */
+           way it does at the counter — including what is being put back. */
+        const adjusted = s.amountAdjusted + (clearedAgain.get(s.invoiceId) ?? 0);
         return {
           ...s,
           newPaid: paid,
-          newStatus: invoiceStatusFor(s.status, paid, s.total, s.amountAdjusted),
+          restoredAdjustment: clearedAgain.get(s.invoiceId) ?? 0,
+          newStatus: invoiceStatusFor(s.status, paid, s.total, adjusted),
         };
       });
 
@@ -700,6 +743,14 @@ export async function restorePayment(
         throw new Error("That payment was reinstated by somebody else a moment ago.");
       }
 
+      /* Un-stamped, so the row reads as the live decision it is again. */
+      if (takenBack.length > 0) {
+        await tx.invoiceAdjustment.updateMany({
+          where: { id: { in: takenBack.map((r) => r.id) } },
+          data: { reversedAt: null, reversedById: null, reversalReason: null },
+        });
+      }
+
       /* Same discipline as void and recordPayment, once per bill: the balance
          write only lands if the balance is still what this transaction read. */
       for (const s of redone) {
@@ -707,6 +758,13 @@ export async function restorePayment(
           where: { id: s.invoiceId, amountPaid: s.amountPaid },
           data: {
             amountPaid: new Prisma.Decimal(s.newPaid),
+            ...(s.restoredAdjustment > 0.005
+              ? {
+                  amountAdjusted: {
+                    increment: new Prisma.Decimal(s.restoredAdjustment),
+                  },
+                }
+              : {}),
             ...(s.newStatus ? { status: s.newStatus } : {}),
           },
         });

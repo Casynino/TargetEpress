@@ -113,7 +113,9 @@ export default async function ManagerFinance({
 }: {
   searchParams: Promise<{ period?: string; sort?: string; dir?: string }>;
 }) {
-  await requirePermission("profit.view");
+  /* record.review, like every other page in this portal — see the note on
+     /app/manager/batches. Nothing here needs a key Finance holds. */
+  await requirePermission("record.review");
   const locale = await viewerLocale();
   const { period, sort, dir } = await searchParams;
 

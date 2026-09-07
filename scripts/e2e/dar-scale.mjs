@@ -77,12 +77,27 @@ if (process.env.UNCHANGED !== "1") {
     return f?f.innerText.replace(/\s+/g," "):null;
   });
   /difference/i.test(diff??"") ? ok(`it shows both figures and the gap: "${diff.slice(0,120)}"`) : bad("no before/after shown");
-  const asks = await page.evaluate(()=>/Photograph the scale/i.test(document.body.innerText));
-  asks ? ok("and asks for the scale to be photographed") : bad("no photo asked for");
-  const file = await page.$('input[type="file"][name="photos"]');
-  if (file) { await file.uploadFile("/tmp/scale.png"); ok("attached a photo of the scale"); }
-  else bad("no photo input in the panel");
-  await wait(900);
+  /*
+    THE PHOTO IS OFFERED, NOT DEMANDED.
+
+    This used to insist the panel ask for a picture of the scale before a
+    corrected weight could be saved. The owner's rule is the other way round:
+    a weight correction must never be held up for a photograph, and the
+    existing photos of the cargo stay valid. So the check is that the offer is
+    there and costs nothing — the figure saves without one.
+  */
+  const offer = await page.evaluate(() =>
+    /Add a photo|Photo \(optional\)|可选/i.test(document.body.innerText)
+  );
+  offer
+    ? ok("a photo is offered, not demanded")
+    : bad("the panel does not offer a photo at all");
+  const required = await page.evaluate(() => {
+    const f = document.querySelector('input[type="file"][name="photos"]');
+    return f ? f.required : false;
+  });
+  required ? bad("the photo input is required") : ok("and nothing is required to save the weight");
+  await wait(600);
 }
 
 await page.evaluate(()=>{

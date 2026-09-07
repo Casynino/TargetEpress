@@ -1384,16 +1384,40 @@ export async function verifyShipment(
         // the carton is not on the floor. UNDER_INVESTIGATION is the honest
         // state, and it is what stops the line being counted as cargo the
         // warehouse holds.
+        /*
+          INCLUDING A ROW THE SAME DESK TICKED BY MISTAKE A MINUTE AGO.
+
+          This claimed on IN_TRANSIT alone, which is the state of a line
+          nobody has touched. The everyday correction is the other one: the
+          clerk ticks a row through the list, realises the pallet in front of
+          them is one consignment short, and comes back to mark it missing.
+          By then the line reads RECEIVED_AT_DAR, the claim matched nothing,
+          and the consignment stayed recorded as standing in the Dar warehouse
+          while its own case said it never came off the plane — countable as
+          cargo the floor holds, and priceable.
+
+          Only from those two. A consignment that has been cleared for
+          collection or handed over has money and a signature behind it, and
+          that is not a mis-tick to undo from this screen.
+        */
         const moved = await tx.shipment.updateMany({
-          where: { id: shipmentId, status: "IN_TRANSIT" },
-          data: { status: "UNDER_INVESTIGATION" },
+          where: {
+            id: shipmentId,
+            status: { in: ["IN_TRANSIT", "RECEIVED_AT_DAR"] },
+          },
+          data: {
+            status: "UNDER_INVESTIGATION",
+            /* It did not arrive, so it has no arrival date. Left standing, the
+               storage clock would run on a box that is not in the building. */
+            arrivedAt: null,
+          },
         });
 
         if (moved.count > 0) {
           await tx.shipmentStatusHistory.create({
             data: {
               shipmentId,
-              fromStatus: "IN_TRANSIT",
+              fromStatus: shipment.status,
               toStatus: "UNDER_INVESTIGATION",
               location: "Dar es Salaam warehouse",
               note: `Did not arrive with the flight: ${note}`,

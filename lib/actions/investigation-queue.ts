@@ -215,6 +215,9 @@ export async function advanceInvestigation(
           id: true,
           status: true,
           type: true,
+          /* The ending the resolve panel may already have filed — kept rather
+             than overwritten, and it is what says whether the cargo is gone. */
+          resolutionType: true,
           shipmentId: true,
           shipment: { select: { trackingNumber: true } },
           compensation: { select: { id: true, paidAt: true } },
@@ -299,8 +302,20 @@ export async function advanceInvestigation(
                    block off resolutionType, so a case finished from the queue
                    showed no outcome, no resolver and no date — the three
                    things somebody opens that block to read. */
+                /*
+                  AND IT DOES NOT OVERWRITE ONE THE CASE ALREADY HAS.
+
+                  This stamped OTHER on everything that was not CARGO_FOUND —
+                  including a case the resolve panel had already filed as a
+                  compensated loss or a corrected weight. The outcome block
+                  then read "Other" over a case whose ending was recorded in
+                  detail. An outcome already decided is kept; OTHER is only the
+                  answer when nobody has given one.
+                */
                 resolutionType:
-                  target === "CARGO_FOUND" ? ("CARGO_FOUND" as const) : ("OTHER" as const),
+                  target === "CARGO_FOUND"
+                    ? ("CARGO_FOUND" as const)
+                    : (exception.resolutionType ?? ("OTHER" as const)),
                 ...(note ? { resolutionNote: note } : {}),
               }
             : { resolvedById: null, resolvedAt: null }),
@@ -311,11 +326,28 @@ export async function advanceInvestigation(
          it is parked at UNDER_INVESTIGATION with nothing in the app able to
          move it. See releaseFromInvestigation. */
       if (terminal) {
+        /*
+          LOST CARGO DOES NOT GO BACK ON THE FLOOR.
+
+          This told releaseFromInvestigation "settled" for everything that was
+          not found — so closing a case the company had already paid the
+          customer out for put the consignment back into the warehouse's
+          inventory as if it were standing there. It is not: it is gone, which
+          is what the compensation was for. The resolve panel has always
+          answered this correctly; the queue said something different about the
+          same case.
+
+          The same test the other door makes, off the outcome the case
+          actually carries.
+        */
+        const lost =
+          exception.resolutionType === "CARGO_LOST" ||
+          (target !== "CARGO_FOUND" && exception.compensation !== null);
         await releaseFromInvestigation(
           tx,
           exception.shipmentId,
           user.id,
-          target === "CARGO_FOUND" ? "found" : "settled"
+          target === "CARGO_FOUND" ? "found" : lost ? "lost" : "settled"
         );
       }
 

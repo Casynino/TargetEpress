@@ -251,7 +251,16 @@ export default async function ManagerBatches({
     batch?: string;
   }>;
 }) {
-  const user = await requirePermission("profit.view");
+  /* THE SAME KEY ITS SEVEN SIBLINGS ASK FOR.
+
+     Every other page in this portal is gated on record.review, which is held
+     by the owner and the manager and deliberately not by Finance. These two
+     asked for profit.view instead — which Finance does hold — so the desk
+     whose cost entries this workspace exists to check could read the
+     manager's verdict on them by typing the address: the standing, the
+     reviewer's name, the timestamp and the reason, before it was raised with
+     them. The write side was never open; the reading side is now shut too. */
+  const user = await requirePermission("record.review");
   const canReview = can(user.role, "record.review");
   const locale = await viewerLocale();
   const { sort, dir, note, batch: notedBatch } = await searchParams;
