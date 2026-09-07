@@ -65,6 +65,19 @@ export default async function InvoicePage({
          nobody has to open the audit log to find out who let cargo go unpaid. */
       creditRequestedBy: { select: { name: true } },
       creditDecidedBy: { select: { name: true } },
+      /*
+        WHAT THIS BILL'S SHARE OF EACH TRANSFER WAS.
+
+        `payments` below is the ANCHOR relation: one merged transfer answering
+        three consignments is anchored to one of them. So the anchor bill listed
+        the whole figure — money most of which went to other bills — and the
+        other two listed nothing at all, while their balances plainly said
+        somebody had paid. The allocation is the record of the share, and it is
+        read here so every bill shows the part that reached it.
+      */
+      paymentAllocations: {
+        select: { paymentId: true, amount: true },
+      },
       payments: {
         orderBy: { paidAt: "asc" },
         include: {
@@ -490,6 +503,17 @@ export default async function InvoicePage({
         heroLocal={heroLocal}
         payments={invoice.payments.map((payment) => ({
           id: payment.id,
+          /* The share, when the transfer answered more than this bill. The
+             whole figure is named in the line beneath it, so the reader can see
+             both without doing the subtraction. */
+          shareOfThisBill:
+            payment._count.allocations > 1
+              ? toNumber(
+                  invoice.paymentAllocations.find(
+                    (a) => a.paymentId === payment.id
+                  )?.amount ?? 0
+                )
+              : null,
           line: [
             payment.receipt?.receiptNumber,
             /* The account, not the kind of account. A null simply drops out of
@@ -502,6 +526,19 @@ export default async function InvoicePage({
             .filter(Boolean)
             .join(" · "),
           amount: money(toNumber(payment.amount), payment.currency),
+          /* Stated in the BILL's money, because that is the unit a share is
+             recorded in — the transfer above is in whatever came in. */
+          shareLabel:
+            payment._count.allocations > 1
+              ? money(
+                  toNumber(
+                    invoice.paymentAllocations.find(
+                      (a) => a.paymentId === payment.id
+                    )?.amount ?? 0
+                  ),
+                  currency
+                )
+              : null,
           voided: payment.voidedAt !== null,
           voidNote: payment.voidedAt
             ? `${t(locale, "cancelled")} ${formatDate(payment.voidedAt, locale)}`

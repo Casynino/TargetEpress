@@ -115,6 +115,20 @@ export type InvoiceDocumentProps = {
     line: string;
     amount: string;
     /**
+     * THIS BILL'S SHARE, WHEN THE TRANSFER ANSWERED SEVERAL.
+     *
+     * One payment settling three consignments is one figure at the bank and
+     * three shares in the books. Printing the whole figure against one bill
+     * says the customer paid this bill that much, which they did not — and the
+     * other two bills, which the transfer never touched by its anchor, showed
+     * nothing at all beside a balance that had plainly moved.
+     *
+     * Null on an ordinary payment, where the figure and the share are the same
+     * thing and saying it twice would be noise.
+     */
+    shareOfThisBill?: number | null;
+    shareLabel?: string | null;
+    /**
      * Cancelled, and struck through rather than removed.
      *
      * A payment that was recorded in error still happened as an event — a
@@ -448,9 +462,18 @@ export async function InvoiceDocument({
                       : "font-mono tabular"
                   }
                 >
-                  {payment.amount}
+                  {payment.shareLabel ?? payment.amount}
                 </span>
               </div>
+              {/* The whole transfer beneath its share, so the reader can lay
+                  this line beside the customer's slip without doing the
+                  subtraction themselves. */}
+              {payment.shareLabel ? (
+                <p className="text-[11px] text-black/45">
+                  {t(locale, "of")} {payment.amount}{" "}
+                  {t(locale, "received against several bills")}
+                </p>
+              ) : null}
               {payment.action}
             </li>
           ))}

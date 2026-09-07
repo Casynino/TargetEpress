@@ -5530,6 +5530,7 @@ const ZH: Record<string, string> = {
   "packages here": "件在此",
   "paid but not collected": "已付款未提货",
   "per": "每",
+  "received against several bills": "，该笔款项同时结清多张账单",
   "received": "已收",
   "shipment(s) still unverified against the manifest.":
     "票货尚未对照舱单核对。",
