@@ -325,7 +325,12 @@ export async function VerifyQueue() {
                     {/* What is claimed, what is owed, and the decision — on the
                         same line as the claim, the way the Expenses register
                         keeps its money and its actions together. */}
-                    <div className="flex shrink-0 items-center gap-3">
+                    {/* Wraps rather than holding its width. shrink-0 pushed
+                        the decision buttons off the right edge of the card on a
+                        phone, so Finance could see a claim and not send it
+                        back — and the outer row is already flex-wrap, which
+                        this was cancelling. */}
+                    <div className="flex min-w-0 flex-wrap items-center gap-3">
                       <div className="text-right">
                         <p className="font-mono text-sm font-medium tabular-nums">
                           {formatMoney(claimed, row.currency)}

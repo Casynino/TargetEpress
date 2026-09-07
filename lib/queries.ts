@@ -19,6 +19,7 @@ import { t } from "@/lib/i18n";
 import type { ExceptionType } from "@prisma/client";
 import type { Locale } from "@/lib/locale";
 import { REJECTED_NEEDING_A_CALL } from "@/lib/collections";
+import { sequenceFromBatchNumber } from "@/lib/cargo";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -1163,7 +1164,18 @@ export async function receivingQueue({
     (a, b) =>
       (rank[a.status] ?? 9) - (rank[b.status] ?? 9) ||
       (b.waitDays ?? -1) - (a.waitDays ?? -1) ||
-      a.batchNumber.localeCompare(b.batchNumber)
+      /* By the number in it, not the string. GZ-100 sorts before GZ-99 as text,
+         so the run would read out of order the moment Guangzhou passes ninety-
+         nine — which is two months away at the current rate. The permanent
+         loading tables carry no sequence and fall back to a string compare. */
+      (() => {
+        const x = sequenceFromBatchNumber(a.batchNumber);
+        const y = sequenceFromBatchNumber(b.batchNumber);
+        if (x === null || y === null) {
+          return a.batchNumber.localeCompare(b.batchNumber);
+        }
+        return x - y;
+      })()
   );
 
   const onFloor = rows.filter((r) => r.status === "ARRIVED");

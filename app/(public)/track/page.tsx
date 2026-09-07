@@ -65,7 +65,7 @@ export default async function TrackPage({
             Enter the tracking number on your label (
             <span className="font-mono text-white">TX-000123</span>) or the batch
             number we gave you (
-            <span className="font-mono text-white">BATCH-2026-001</span>).
+            <span className="font-mono text-white">GZ-32</span>).
           </>
         }
       >
