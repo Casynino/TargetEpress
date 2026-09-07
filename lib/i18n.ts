@@ -125,6 +125,7 @@ const ZH: Record<string, string> = {
   "nothing handed up": "没有上报",
   "nothing waiting": "没有待办",
   "of what was billed": "，占已开单金额",
+  "that came in.": "。",
   "pick another": "换一个",
   "pickup note": "提货单",
   "without": "不含",
@@ -2001,6 +2002,7 @@ const ZH: Record<string, string> = {
   "of costs incurred. Counted from the day the work happened, not the day the money moved.":
     "的成本支出。按业务发生日计算，不是按收付款日。",
   "of the last": "最近",
+  "of transport is more than the": "的运输费超过实收的",
   "Office cash": "办公室现金",
   "Office supplies": "办公用品",
   "Older cargo is on its own page — find it under":
@@ -2472,6 +2474,7 @@ const ZH: Record<string, string> = {
   "Fill in whatever the airline has given you. Anything still unknown can stay empty and be added later — the cargo does not wait for it.":
     "航空公司给到什么就填什么。尚未确定的可以留空，之后再补——货物不必等它。",
   "Leave it empty until the airline issues it.": "在航空公司出单之前请留空。",
+  "Leave it empty when the whole amount is freight.": "若全部金额均为运费，请留空。",
   "The day it really left, not the day it was booked for.": "实际起飞的日期，而不是原定的日期。",
   "What changed": "改动了什么",
   "Airline moved the flight to the 25th": "航空公司把航班改到了 25 号",
@@ -2754,6 +2757,7 @@ const ZH: Record<string, string> = {
   "Say why the discount is being given.": "请说明给予折扣的原因。",
   "That discount is larger than the rest of the bill.": "折扣金额超过了账单余额。",
   "The bill (invoice)": "账单（发票）",
+  "The bill is credited with the rest:": "账单入账余额为：",
   "Click here if you wish to change the date": "如需修改日期，请点击这里",
   "This bill only. The dollar total does not move — only what it comes to in shillings.":
     "仅限此账单。美元总额不变，改变的只是折合的先令金额。",
@@ -2776,6 +2780,8 @@ const ZH: Record<string, string> = {
     "这笔款项到账当天没有发布汇率，无法在总账中计价。请为该日期发布汇率后重新记录。",
   "This payment is not against a bill. Cancel it and record it again.":
     "这笔款项没有对应的账单。请取消后重新记录。",
+  "This claim covers more than one bill, so the transport on it cannot be changed here. Withdraw it and raise the payment again against the bills it should cover.":
+    "此认领涵盖多张账单，因此无法在此修改其中的运输费。请撤回后，针对应涵盖的账单重新登记付款。",
   "This claim covers more than one bill, so its total cannot be changed here. Withdraw it and raise the payment again against the bills it should cover.":
     "这笔申报涵盖多张账单，金额不能在此更改。请撤回后，按应对应的账单重新提交。",
   "This payment has already been recorded. Reload the page — recording it again would take the same money twice.":

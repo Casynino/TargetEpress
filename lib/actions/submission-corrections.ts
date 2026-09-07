@@ -116,6 +116,21 @@ export async function editSubmission(
            and typed as dollars — and because the account it may have landed in
            depends on the answer. */
         currency: z.enum(["TZS", "USD"]).optional(),
+        /*
+          THE DELIVERY HALF OF WHAT CAME IN.
+
+          The customer hands over one sum and part of it is the driver's fare.
+          Support knows that at the counter, and Finance finds it out when they
+          ring the customer to check — and until now neither could say so on a
+          claim already raised. The screen had one money field, so a claim that
+          turned out to include transport had to be withdrawn and retyped, or
+          verified as if the whole figure were freight, which credits the bill
+          with money that has already gone out to whoever drove.
+        */
+        transportAmount: z.coerce
+          .number()
+          .min(0, "That transport figure is not valid.")
+          .optional(),
         /* Optional — warn, confirm, do. What changed is listed on the
            audit line beside the name of whoever changed it. */
         reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
@@ -143,6 +158,7 @@ export async function editSubmission(
 
     const before = {
       amount: toNumber(sub.amount),
+      transportAmount: toNumber(sub.transportAmount),
       reference: sub.reference,
       note: sub.note,
       accountId: sub.accountId,
@@ -150,6 +166,8 @@ export async function editSubmission(
     };
     const after = {
       amount: parsed.data.amount ?? before.amount,
+      transportAmount:
+        parsed.data.transportAmount ?? before.transportAmount,
       reference: parsed.data.reference || null,
       note: parsed.data.note || null,
       accountId: parsed.data.accountId || before.accountId,
@@ -218,24 +236,39 @@ export async function editSubmission(
       take. Refused with the way out, rather than guessed at — the same
       treatment a combined claim's total already gets two blocks above.
     */
-    const claimFare = toNumber(sub.transportAmount);
-    if (claimFare > 0 && changed.includes("amount")) {
+    const claimFare = after.transportAmount;
+    /*
+      THE FARE IS NOW ASKED FOR, SO THE SPLIT NO LONGER MOVES IN SILENCE.
+
+      Changing the total on a claim that carried a fare used to be refused
+      outright, because this screen had one money field and there was no honest
+      answer for what the fare should become. It has two now: the desk states
+      the whole transfer and the delivery half of it, and the allocation below
+      is restated from both. The refusal that stood here would only stop the
+      correction it was written to make safe.
+
+      What is still refused is the same thing as before — a claim covering
+      several bills, where the difference has more than one place to go. That
+      guard is two blocks above and applies to the fare for the same reason.
+    */
+    if (sub._count.allocations > 1 && changed.includes("transportAmount")) {
       return fail(
         t(
           locale,
-          `This claim includes ${sub.currency} ${claimFare.toLocaleString()} of transport, so its total cannot be changed here — the split would move without anybody saying so. Withdraw it and raise the payment again with the right figures.`
+          "This claim covers more than one bill, so the transport on it cannot be changed here. Withdraw it and raise the payment again against the bills it should cover."
         )
       );
     }
-    /* Same reason: the fare is quoted in the money it was taken in, and
-       restating the currency without restating the fare changes what leaves
-       the till. */
-    if (claimFare > 0 && changed.includes("currency")) {
+    /*
+      AND THE FARE CANNOT BE MORE THAN CAME IN.
+
+      The same sanity recordPayment applies at the counter: the delivery is a
+      part of the transfer, never more than all of it, and a claim saying
+      otherwise would allocate a negative figure to the bill.
+    */
+    if (claimFare > after.amount + 0.001) {
       return fail(
-        t(
-          locale,
-          "This claim includes transport, so its currency cannot be changed here. Withdraw it and raise the payment again."
-        )
+        `${after.currency} ${claimFare.toLocaleString()} ${t(locale, "of transport is more than the")} ${after.currency} ${after.amount.toLocaleString()} ${t(locale, "that came in.")}`
       );
     }
 
@@ -247,6 +280,7 @@ export async function editSubmission(
         where: { id: sub.id, status: "PENDING" },
         data: {
           amount: new Prisma.Decimal(after.amount),
+          transportAmount: new Prisma.Decimal(after.transportAmount),
           reference: after.reference,
           note: after.note,
           accountId: after.accountId,
@@ -265,10 +299,16 @@ export async function editSubmission(
       /* The CARGO half, not the gross figure. An allocation says how much of
          a bill this claim answers, and the fare answers none of it — writing
          the whole total here made every transport-bearing claim allocate more
-         than it had, which the counter action refuses on verification. Zero
-         while the block above refuses an amount change on a claim that has a
-         fare, and correct the day that screen learns to ask for one. */
-      if (sub._count.allocations === 1 && changed.includes("amount")) {
+         than it had, which the counter action refuses on verification.
+
+         Restated whenever EITHER figure moves, now that the screen asks for
+         both: adding a 10,000 fare to a 46,450 claim has to take the bill's
+         share down to 36,450, or Finance verifies a bill credited with money
+         that is on its way to the driver. */
+      if (
+        sub._count.allocations === 1 &&
+        (changed.includes("amount") || changed.includes("transportAmount"))
+      ) {
         await tx.submissionAllocation.updateMany({
           where: { submissionId: sub.id },
           data: {

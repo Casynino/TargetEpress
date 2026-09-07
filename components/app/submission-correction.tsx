@@ -35,6 +35,15 @@ export type SubmissionSubject = {
   trackingNumber: string;
   /** Every flight the claim touches — more than one only on a merged claim. */
   batchNumbers: string[];
+  /**
+   * The delivery half of what came in, as the claim states it now.
+   *
+   * Zero on most claims. When it is not, the bill's share is the rest — see
+   * editSubmission, which restates the allocation from both figures.
+   */
+  transportAmount: number;
+  /** More than one bill, so the fare has no single place to go. */
+  coversManyBills: boolean;
   customerName: string;
   customerPhone: string | null;
   amount: number;
@@ -130,6 +139,11 @@ export function SubmissionCorrection({
      mismatch, so offering a shilling account for a claim marked USD is
      offering a choice that can only end in an error message. */
   const [currency, setCurrency] = useState(subject.currency);
+  /* The delivery half of the transfer. Kept as a string like the total, so a
+     desk clearing the box to retype it is not fighting a zero. */
+  const [transport, setTransport] = useState(
+    subject.transportAmount > 0 ? String(subject.transportAmount) : ""
+  );
   const [accountId, setAccountId] = useState(subject.accountId ?? "");
   /* Held, not asked for. The fields are gone, but a claim raised before they
      went carries values, and posting empty strings over them would erase what
@@ -222,6 +236,7 @@ export function SubmissionCorrection({
         const fd = new FormData();
         fd.set("submissionId", subject.submissionId);
         fd.set("amount", amount);
+        fd.set("transportAmount", transport.trim() === "" ? "0" : transport);
         fd.set("currency", currency);
         if (accountId) fd.set("accountId", accountId);
         fd.set("reference", reference);
@@ -482,6 +497,49 @@ export function SubmissionCorrection({
                         </NativeSelect>
                       </div>
                     </div>
+
+                    {/* THE DELIVERY, INSIDE THE FIGURE ABOVE.
+
+                        The customer hands over one sum and part of it is the
+                        driver's fare. Support knows it at the counter; Finance
+                        finds it out when they ring to check. Without a box to
+                        say so, the whole transfer was verified as freight and
+                        the bill was credited with money already on its way out
+                        to whoever drove.
+
+                        Not offered on a claim covering several bills: the
+                        difference would have more than one place to go, and
+                        editSubmission refuses it for the same reason it
+                        refuses a total change on one. */}
+                    {subject.coversManyBills ? null : (
+                      <div className="space-y-1.5">
+                        <Label htmlFor="sub-transport">
+                          {t("Of that, transport")}
+                        </Label>
+                        <Input
+                          id="sub-transport"
+                          inputMode="decimal"
+                          placeholder="0"
+                          value={transport}
+                          onChange={(event) => setTransport(event.target.value)}
+                        />
+                        <p className="text-[11px] text-muted-foreground">
+                          {t("Leave it empty when the whole amount is freight.")}{" "}
+                          {t("The bill is credited with the rest:")}{" "}
+                          <span className="tabular text-foreground">
+                            {currency}{" "}
+                            {Math.max(
+                              0,
+                              Math.round(
+                                ((Number(amount) || 0) -
+                                  (Number(transport) || 0)) *
+                                  100
+                              ) / 100
+                            ).toLocaleString()}
+                          </span>
+                        </p>
+                      </div>
+                    )}
 
                     <div className="space-y-1.5">
                       <div className="space-y-1.5">

@@ -186,31 +186,75 @@ export async function VerifyQueue() {
                  transport as not matching the balance — of course it did not
                  match; it was larger by the fare. */
               const forBill = claimed - transport;
+              /*
+                WHAT THE COVERED BILLS COME TO, IN THE MONEY THAT ARRIVED —
+                EACH AT ITS OWN FROZEN RATE.
+
+                The gap used to be measured by converting the whole claim at
+                the ANCHOR bill's rate. Every covered bill shares a currency,
+                which is what the form that raises these filters on — but not a
+                rate. Two dollar bills raised two months apart carry the two
+                rates published on those days, and one shilling transfer
+                answering both was restated at whichever of them happened to
+                be the anchor. The gap came out wrong by the difference, which
+                is the figure the tick then writes off.
+
+                So each bill is converted on its own and the shillings are
+                added up. A bill with no rate at all cannot be stated in
+                shillings honestly, so the whole comparison says so rather
+                than guessing — the same rule localSplit follows.
+              */
+              const covered =
+                row.allocations.length > 1
+                  ? row.allocations.map((a) => a.invoice)
+                  : [row.invoice];
+              const inTendered = (inv: {
+                total: unknown;
+                amountPaid: unknown;
+                amountAdjusted: unknown;
+                currency: string;
+                exchangeRate: unknown;
+              }) => {
+                const owed = outstandingOf(inv as never);
+                if (row.currency === inv.currency) return owed;
+                const r = inv.exchangeRate ? toNumber(inv.exchangeRate as never) : null;
+                if (!r) return null;
+                return row.currency === "TZS" ? owed * r : owed / r;
+              };
+              const parts = covered.map(inTendered);
+              const owedTendered = parts.some((p) => p === null)
+                ? null
+                : parts.reduce((sum: number, p) => sum + (p as number), 0);
+
               // A claim that does not match what is owed is the one worth a
               // second look, so it is flagged rather than left to be spotted.
+              // Measured in the money that arrived, so a shilling claim
+              // against dollar bills is checked too — it never was before.
               const mismatch =
-                row.currency === row.invoice.currency &&
-                Math.abs(forBill - outstanding) > 0.5;
-              /*
-                The cargo half in the BILL's money, so it can be compared with
-                what the bill is owed.
+                owedTendered !== null && Math.abs(forBill - owedTendered) > 0.5;
 
-                Converted at the rate frozen onto the invoice and not today's:
-                that is the rate recordPayment will settle at, so anything else
-                here would put a figure on the tick that the adjustment then
-                does not write.
+              /*
+                And the gap restated in the money of the bill that will carry
+                the write-off — which is the bill shortfallBill picks, not
+                necessarily the anchor. That is the currency and the rate the
+                adjustment is actually written in, so the figure on the tick is
+                the figure recordPayment then writes.
               */
-              const billRate = row.invoice.exchangeRate
-                ? toNumber(row.invoice.exchangeRate)
+              const receiving =
+                shortfallBill(row.allocations)?.invoice ?? row.invoice;
+              const receivingRate = receiving.exchangeRate
+                ? toNumber(receiving.exchangeRate)
                 : null;
-              const forBillInvoiceMoney =
-                row.currency === row.invoice.currency
-                  ? forBill
-                  : billRate
+              const gapTendered =
+                owedTendered === null ? 0 : Math.max(0, owedTendered - forBill);
+              const shortfallOnBill =
+                row.currency === receiving.currency
+                  ? gapTendered
+                  : receivingRate
                     ? row.currency === "TZS"
-                      ? forBill / billRate
-                      : forBill * billRate
-                    : forBill;
+                      ? gapTendered / receivingRate
+                      : gapTendered * receivingRate
+                    : 0;
 
               /* Which flight this money is about. The desk was cross-checking
                  the batch report to tell one claim of a repeat customer's from
@@ -390,6 +434,8 @@ export async function VerifyQueue() {
                           invoiceNumber: row.invoice.invoiceNumber,
                           trackingNumber: row.invoice.shipment.trackingNumber,
                           batchNumbers: batches,
+                          transportAmount: transport,
+                          coversManyBills: row.allocations.length > 1,
                           customerName: row.invoice.customer.name,
                           customerPhone: row.invoice.customer.phone,
                           amount: claimed,
@@ -433,9 +479,9 @@ export async function VerifyQueue() {
                            money — the cargo half restated at the rate frozen
                            onto the bill, never today's, so the figure on the
                            tick is the figure the adjustment will write. */
-                        shortfall={Math.max(0, outstanding - forBillInvoiceMoney)}
-                        billCurrency={row.invoice.currency}
-                        billRate={billRate}
+                        shortfall={shortfallOnBill}
+                        billCurrency={receiving.currency}
+                        billRate={receivingRate}
                         clearShortfallClaimed={row.clearShortfall}
                         /* Named only when one transfer answers several bills.
                            On a single-bill claim there is no question, and the

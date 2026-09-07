@@ -1231,8 +1231,26 @@ export async function verifyShipment(
         follows has something to point at. Deleting it is how a warehouse ends
         up unable to say what it received.
       */
+      /*
+        AND A TICKED SELECTION IS A COUNT TOO.
+
+        Two doors record what landed: the clerk types a number, or the clerk
+        ticks the boxes in front of them. Only the typed one wrote the
+        confirmed figure back onto the consignment. Tick nine of ten and
+        `packages` kept saying ten — so per-item cargo, which is priced on
+        exactly that column, billed the customer for a carton that never came
+        off the plane, and every screen reading the scalar said ten while nine
+        rows were ticked.
+
+        The operator naming the boxes is the same statement as the operator
+        typing the number, so it is recorded the same way.
+      */
       const counted =
-        countedArrived === null ? null : Math.trunc(countedArrived);
+        countedArrived !== null
+          ? Math.trunc(countedArrived)
+          : explicitSelection && arrived
+            ? present.length
+            : null;
       const booked = shipment.packageList.length;
       const extra = counted !== null && counted > booked ? counted - booked : 0;
 

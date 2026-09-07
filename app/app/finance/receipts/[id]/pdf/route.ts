@@ -41,6 +41,9 @@ export async function GET(
              theirs to spend, so the receipt has to name it. */
           transportAmount: true,
           currency: true,
+          /* The rate this money settled at, frozen onto the payment when it
+             was taken — see the note where it is used below. */
+          exchangeRate: true,
           reference: true,
           paidAt: true,
           voidedAt: true,
@@ -131,8 +134,25 @@ export async function GET(
         ? [{ settled: toNumber(payment.amount), invoice: payment.invoice }]
         : [];
 
+  /*
+    THE RATE THIS RECEIPT WAS WRITTEN AT.
+
+    Each line used the BILL's rate as it stands now. A bill's rate can be
+    corrected afterwards — that is what the Change rate button is for — and
+    when it was, re-printing this receipt restated a payment the customer made
+    months ago at a rate nobody had agreed to. The lines no longer added up to
+    what had been handed over, and the difference came out at the bottom of
+    the document as money "held as credit" that did not exist.
+
+    The payment carries the rate it settled at. That is the one this receipt
+    was true at, and it is the one it stays true at. The bill's own rate is
+    the fallback for rows written before payments carried one, and for a
+    merged transfer answering bills frozen at different rates.
+  */
+  const settledAt = toNumber(payment.exchangeRate);
+
   const lines = rows.map(({ settled, invoice }) => {
-    const frozen = toNumber(invoice.exchangeRate);
+    const frozen = settledAt || toNumber(invoice.exchangeRate);
     const cross = invoice.currency !== tenderedCurrency;
     return {
       trackingNumber: invoice.shipment.trackingNumber,
