@@ -9,9 +9,11 @@ import { toNumber } from "@/lib/format";
 import { currentRateValue } from "@/lib/fx";
 import { nextTransferNumber } from "@/lib/ids";
 import { postLedgerEntry } from "@/lib/ledger";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
+import { viewerLocale } from "@/lib/viewer";
 import { firstError } from "@/lib/validation";
 
 /*
@@ -91,6 +93,7 @@ export async function recordTransfer(
   _prev: ActionResult<{ transferNumber: string }> | undefined,
   formData: FormData
 ): Promise<ActionResult<{ transferNumber: string }>> {
+  const locale = await viewerLocale();
   let user: SessionUser;
   try {
     user = await authorize("treasury.move");
@@ -232,6 +235,32 @@ export async function recordTransfer(
       }
 
       const number = await nextTransferNumber(tx, occurredAt.getFullYear());
+      /*
+        THE SAME TRANSFER, TWICE.
+
+        This had no defence at all: a double-click or a resubmitted form moved
+        the money again, and a transfer between two company accounts leaves no
+        customer to notice. Every other money door here carries either an
+        idempotency key or this echo check; AccountTransfer has no key column,
+        so it takes the check — the same shape recordPayment uses, keyed on the
+        pair of accounts and the figure rather than on a column that would need
+        a migration first.
+      */
+      const echo = await tx.accountTransfer.findFirst({
+        where: {
+          fromAccountId: from.id,
+          toAccountId: to.id,
+          amountOut: new Prisma.Decimal(input.amountOut),
+          createdAt: { gte: new Date(Date.now() - 120_000) },
+        },
+        select: { transferNumber: true },
+      });
+      if (echo) {
+        throw new Error(
+          `${t(locale, "This transfer has just been recorded on")} ${echo.transferNumber}. ${t(locale, "Reload the page — recording it again would move the same money twice.")}`
+        );
+      }
+
       const transfer = await tx.accountTransfer.create({
         data: {
           transferNumber: number,

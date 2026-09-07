@@ -140,9 +140,18 @@ export async function generateInvoice(
         );
       }
 
-      if (shipment.invoice && toNumber(shipment.invoice.amountPaid) > 0) {
+      /* Money received OR a difference somebody cleared. The second was
+         missing, so a bill Finance had closed by write-off could be
+         regenerated at a fresh price — reopening a balance the customer had
+         been told was settled, on cargo that may already have gone. A cleared
+         difference is a decision about a customer, the same as cash. */
+      if (
+        shipment.invoice &&
+        (toNumber(shipment.invoice.amountPaid) > 0 ||
+          toNumber(shipment.invoice.amountAdjusted) > 0.005)
+      ) {
         throw new Error(
-          `${shipment.invoice.invoiceNumber} already has money against it and cannot be regenerated.`
+          `${shipment.invoice.invoiceNumber} ${t(locale, "already has money or a cleared difference against it and cannot be regenerated.")}`
         );
       }
 

@@ -484,93 +484,19 @@ export async function createShipment(
   }
 }
 
-export async function updateShipment(
-  _prev: ActionResult | undefined,
-  formData: FormData
-): Promise<ActionResult> {
-  let user: SessionUser;
-  try {
-    user = await authorize("shipment.edit");
-  } catch (error) {
-    return fail(toActionError(error));
-  }
+/*
+  updateShipment IS GONE.
 
-  const id = String(formData.get("shipmentId") ?? "");
-  if (!id) return fail("Missing cargo.");
+  It was a second, older edit path: same fields as updateCargo, no caller
+  anywhere in app/ or components/, and still a live "use server" endpoint. Two
+  things made keeping it worse than deleting it — it rewrote Shipment.packages
+  without creating or deleting the Package rows underneath, so the box count and
+  the cartons that carry the QR codes could be walked out of step by anyone who
+  could reach the endpoint; and it wrote no FieldChange at all, so a correction
+  made through it left no trace on the cargo's history.
 
-  const parsed = shipmentSchema.safeParse(
-    Object.fromEntries(formData) as Record<string, string>
-  );
-  if (!parsed.success) return fail(firstError(parsed.error));
-  const input = parsed.data;
-
-  try {
-    await prisma.$transaction(async (tx) => {
-      const shipment = await tx.shipment.findUnique({
-        where: { id },
-        select: { id: true, status: true, trackingNumber: true },
-      });
-      if (!shipment) throw new Error("Cargo not found.");
-      /* Custody, the same test updateCargo and deleteCargo make. Every
-         "use server" export is a public endpoint whether a screen drives it or
-         not, and this one let any desk holding shipment.edit rewrite a weight
-         on the other warehouse's floor. */
-      if (!canAmendCargo(user.role, shipment.status)) {
-        throw new Error(
-          cargoCustody(shipment.status) === "LANDED"
-            ? "This cargo has landed in Dar. Only the Dar warehouse, a manager or the owner can change it now."
-            : "This cargo has not landed in Dar yet. Only Guangzhou, a manager or the owner can change it now."
-        );
-      }
-      // Once cargo has left China its recorded weight is what was billed and
-      // flown. Correcting it afterwards would rewrite history.
-      if (shipment.status !== "READY_TO_DEPART") {
-        throw new Error(
-          "This cargo has already departed and can no longer be edited."
-        );
-      }
-
-      // Edited text is re-rendered. A stale translation of a description that
-      // has since been corrected is worse than none — it reads as authoritative.
-      const editedDescription = await translateText(input.description, { learn: true, tx });
-      const editedNotes = await translateText(input.internalNotes, { tx });
-
-      await tx.shipment.update({
-        where: { id },
-        data: {
-          cargoCategory: input.cargoCategory,
-          cargoTypeId: input.cargoTypeId,
-          goodsType: input.goodsType,
-          ...translationColumns("description", editedDescription),
-          description: input.description,
-          packages: input.packages,
-          weightKg: input.weightKg,
-          volumeCbm: input.volumeCbm ?? null,
-          origin: routeFor(input.cargoCategory),
-          ...translationColumns("internalNotes", editedNotes),
-          internalNotes: input.internalNotes || null,
-        },
-      });
-
-      await recordAudit(
-        {
-          actor: user,
-          action: "shipment.update",
-          entity: "Shipment",
-          entityId: id,
-          summary: `Updated ${shipment.trackingNumber} before departure`,
-        },
-        tx
-      );
-    });
-
-    revalidatePath(`/app/cargo/${id}`);
-    revalidatePath("/app/cargo");
-    return ok();
-  } catch (error) {
-    return fail(toActionError(error));
-  }
-}
+  updateCargo does both correctly and is the one the screens actually drive.
+*/
 
 export async function raiseException(
   _prev: ActionResult | undefined,

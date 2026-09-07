@@ -723,8 +723,16 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
         ? HOLD_STEP[stage][investigation!.state].location
         : meta.publicLocation,
       batchNumber: shipment.batch?.batchNumber ?? null,
-      packages: shipment.packages,
-      packagesLabel: formatPackages(shipment.packages, shipment.packageType),
+      /* The cartons, not the scalar. packageProgress below counts the rows —
+         which is what the release counter reads — so a short check-in, which
+         writes the scalar down while leaving the rows alone, made this page
+         print two different totals for one consignment: "9 boxes" in the
+         header and "6 of 10 checked in" underneath. */
+      packages: shipment.packageList.length,
+      packagesLabel: formatPackages(
+        shipment.packageList.length,
+        shipment.packageType
+      ),
       customerInitials: initialsOf(shipment.customer.name),
       registeredAt: shipment.registeredAt.toISOString(),
       expectedArrival: expectedArrival ? expectedArrival.toISOString() : null,
