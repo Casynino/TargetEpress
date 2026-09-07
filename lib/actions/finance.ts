@@ -2342,7 +2342,9 @@ export async function recordPayment(
 
           Not issuing one here is the right outcome. A cancelled note was
           cancelled by somebody; re-deciding it is Finance's call on the bill's
-          own page, not a side effect of taking money.
+          own page, not a side effect of taking money — and issuePickupNote now
+          re-issues over a cancelled note with a fresh number, so that call is a
+          door that exists rather than the refusal it used to be.
         */
         const hasNote = shipment?.pickupNote != null;
         const blocked = (shipment?.exceptions.length ?? 0) > 0;
@@ -2534,19 +2536,34 @@ export async function issuePickupNote(
       });
       if (!shipment) throw new Error("Shipment not found.");
 
-      // Any existing note, not merely an active one. A shipment carries at most
-      // one note — the row is unique on shipmentId — so after a cancellation
-      // every other gate below would pass and the create would die on a raw
-      // database constraint in front of the clerk. Refusing here says something
-      // a person can act on.
-      if (shipment.pickupNote) {
+      /*
+        A CANCELLED NOTE IS RE-ISSUED, NOT A REFUSAL.
+
+        The row is unique on shipmentId, so a shipment carries at most one note
+        for its whole life. This refused every existing note including a
+        cancelled one, and told the clerk to "reopen the cancelled one" — a
+        door that does not exist anywhere in this app.
+
+        What that produced: cancelling a payment cancels the note and puts the
+        cargo back to RECEIVED_AT_DAR. Record the money again and the bill
+        reads PAID while the cargo sits behind a dead note, because the
+        automatic release asks for no note at all and this one refused to make
+        another. Six fully-paid consignments were standing in the warehouse
+        with no button in the app able to release them.
+
+        So the cancelled row is reissued in place: a FRESH number, because a
+        customer holding the printed cancelled slip must not be able to collect
+        on it, and the old number stays in the audit line that cancelled it.
+      */
+      const reissuing =
+        shipment.pickupNote?.status === "CANCELLED" ? shipment.pickupNote : null;
+
+      if (shipment.pickupNote && !reissuing) {
         const existing = shipment.pickupNote;
         throw new Error(
           existing.status === "ACTIVE"
             ? `A pickup note (${existing.noteNumber}) is already active for this cargo.`
-            : existing.status === "USED"
-              ? `Pickup note ${existing.noteNumber} was already used to collect this cargo.`
-              : `Pickup note ${existing.noteNumber} was cancelled. This cargo cannot be issued a second note — reopen the cancelled one or raise it with the CEO.`
+            : `Pickup note ${existing.noteNumber} was already used to collect this cargo.`
         );
       }
       if (shipment.status !== "RECEIVED_AT_DAR") {
@@ -2588,20 +2605,38 @@ export async function issuePickupNote(
          record that as cargo released against a debt. */
       const releasedUnpaid = onCredit && outstanding > 0.005;
 
-      const note = await tx.pickupNote.create({
-        data: {
-          noteNumber: await nextPickupNoteNumber(tx),
-          shipmentId: shipment.id,
-          customerId: shipment.customerId,
-          // What was actually settled at this moment, which on a credit release
-          // is nothing. The slip does not print this figure for a credit note —
-          // it derives what is still OWED from the invoice, because this one
-          // freezes here and never rises when the customer pays.
-          amountPaid: shipment.invoice.amountPaid,
-          currency: shipment.currency,
-          issuedById: user.id,
-        },
-      });
+      const noteNumber = await nextPickupNoteNumber(tx);
+      const note = reissuing
+        ? await tx.pickupNote.update({
+            where: { id: reissuing.id },
+            data: {
+              noteNumber,
+              status: "ACTIVE",
+              amountPaid: shipment.invoice.amountPaid,
+              currency: shipment.currency,
+              issuedById: user.id,
+              issuedAt: new Date(),
+              /* The cancellation is spent. Left standing, the slip would print
+                 as live and cancelled at the same time. */
+              cancelledAt: null,
+              cancelReason: null,
+            },
+          })
+        : await tx.pickupNote.create({
+            data: {
+              noteNumber,
+              shipmentId: shipment.id,
+              customerId: shipment.customerId,
+              // What was actually settled at this moment, which on a credit
+              // release is nothing. The slip does not print this figure for a
+              // credit note — it derives what is still OWED from the invoice,
+              // because this one freezes here and never rises when the
+              // customer pays.
+              amountPaid: shipment.invoice.amountPaid,
+              currency: shipment.currency,
+              issuedById: user.id,
+            },
+          });
 
       const now = new Date();
       await tx.shipment.update({
@@ -2620,8 +2655,8 @@ export async function issuePickupNote(
              what somebody reads months later when they ask why cargo left
              against an open bill. */
           note: releasedUnpaid
-            ? `Released on credit${shipment.invoice.creditTermDays ? ` (${shipment.invoice.creditTermDays}-day terms)` : ""} — ${shipment.currency} ${outstanding.toLocaleString()} unpaid. Pickup note ${note.noteNumber} issued.`
-            : `Payment confirmed. Pickup note ${note.noteNumber} issued.`,
+            ? `Released on credit${shipment.invoice.creditTermDays ? ` (${shipment.invoice.creditTermDays}-day terms)` : ""} — ${shipment.currency} ${outstanding.toLocaleString()} unpaid. Pickup note ${note.noteNumber} ${reissuing ? "re-issued" : "issued"}.`
+            : `Payment confirmed. Pickup note ${note.noteNumber} ${reissuing ? `re-issued in place of the cancelled ${reissuing.noteNumber}` : "issued"}.`,
           actorId: user.id,
         },
       });
@@ -2633,8 +2668,10 @@ export async function issuePickupNote(
           entity: "PickupNote",
           entityId: note.id,
           summary: releasedUnpaid
-            ? `Issued ${note.noteNumber} for ${shipment.trackingNumber} on credit — ${shipment.currency} ${outstanding.toLocaleString()} unpaid`
-            : `Issued ${note.noteNumber} for ${shipment.trackingNumber}`,
+            ? `${reissuing ? "Re-issued" : "Issued"} ${note.noteNumber} for ${shipment.trackingNumber} on credit — ${shipment.currency} ${outstanding.toLocaleString()} unpaid`
+            : reissuing
+              ? `Re-issued ${note.noteNumber} for ${shipment.trackingNumber}, replacing the cancelled ${reissuing.noteNumber}`
+              : `Issued ${note.noteNumber} for ${shipment.trackingNumber}`,
         },
         tx
       );
@@ -4342,6 +4379,39 @@ export async function recordCustomerPayment(
             },
           },
         });
+        /*
+          A NOTE THAT IS STILL GOOD, ON CARGO THAT WAS HELD.
+
+          The single-bill door has had this since storage charging was added:
+          charging storage on a settled bill reopens the debt and puts the
+          consignment back on the shelf while deliberately leaving its note
+          alive, and paying is what lets it go again. This door never learned
+          it, so a customer who settled that storage as part of a merged
+          payment had the bill read PAID while the boxes stayed on the floor —
+          behind a note that cannot be issued twice.
+        */
+        if (
+          shipment &&
+          shipment.pickupNote?.status === "ACTIVE" &&
+          shipment.status === "RECEIVED_AT_DAR" &&
+          shipment.exceptions.length === 0
+        ) {
+          await tx.shipment.update({
+            where: { id: shipment.id },
+            data: { status: "READY_FOR_PICKUP", readyForPickup: new Date() },
+          });
+          await tx.shipmentStatusHistory.create({
+            data: {
+              shipmentId: shipment.id,
+              fromStatus: "RECEIVED_AT_DAR",
+              toStatus: "READY_FOR_PICKUP",
+              location: "Dar es Salaam warehouse",
+              note: "Balance cleared. The pickup note it already holds stands.",
+              actorId: user.id,
+            },
+          });
+        }
+
         if (
           shipment &&
           shipment.status === "RECEIVED_AT_DAR" &&
