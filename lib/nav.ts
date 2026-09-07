@@ -506,8 +506,11 @@ const SUPPORT_SECTIONS: NavSection[] = [
     title: "China",
     group: { label: "China Services", icon: "Store" },
     items: [
-      { href: "/app/support/sourcing", label: "Sourcing requests", icon: "ShoppingBag" },
+      /* The market comes before the request made in it — and it is the row this
+         desk opens far more often. The admin menu has always had them this way
+         round; these two were the odd pair out. */
       { href: "/app/support/markets", label: "China markets", icon: "Store" },
+      { href: "/app/support/sourcing", label: "Sourcing requests", icon: "ShoppingBag" },
     ],
   },
 ];
