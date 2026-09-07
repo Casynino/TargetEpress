@@ -4822,6 +4822,8 @@ const ZH: Record<string, string> = {
   "More boxes": "箱数多于清单",
   "Balance cleared. The pickup note it already holds stands.": "余额已结清。其原有提货单继续有效。",
   "5–50 kg": "5–50 公斤",
+  "You are signed in as": "您当前登录身份为",
+  "This page belongs to another department. If you need access, ask the CEO to change your role.": "此页面属于其他部门。如需访问权限，请联系总裁调整您的角色。",
   "Tracking will read": "查件状态将显示为",
   "Tracking, note number or name": "运单号、提货单号或姓名",
   "Trader name or the mark on the packages": "商户名称或箱唛",
@@ -5110,7 +5112,6 @@ const ZH: Record<string, string> = {
   "Wrong item, batch or weight": "货物、批次或重量有误",
   "Wrong quantity": "数量不符",
   "You are not authorised to give discounts.": "你没有给折扣的权限。",
-  "You are signed in as": "当前登录身份",
   "You can read the rate book and the exchange rate here. Changing them is Finance’s, so nothing on this page is editable for you.":
     "你可以在这里查看价目表和汇率。修改是财务的事，所以本页对你不可编辑。",
   "You do not have permission to do that.": "你没有执行此操作的权限。",
