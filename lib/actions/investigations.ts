@@ -1340,6 +1340,27 @@ export async function resolveInvestigation(
         step-list route already refuses this in nearly these words; this door
         did not, which is two doors to one decision with only one of them shut.
       */
+      /*
+        AN AGREED PAYOUT THAT HAS NOT GONE OUT KEEPS THE CASE OPEN.
+
+        This asked only about CARGO_LOST with the box ticked, so closing the
+        same case as "damaged settled" or "other" walked straight past an
+        approved settlement — and once the case is terminal, approving refuses
+        it, recording refuses it, and nothing reopens an exception. The
+        customer's claim simply stopped being payable.
+
+        The queue's own close has refused this all along, in nearly these
+        words. Two doors to one decision with only one of them shut.
+      */
+      if (existing.compensation && !existing.compensation.paidAt) {
+        throw new Error(
+          t(
+            locale,
+            "Finance has not recorded the payment yet — this case stays open until they have."
+          )
+        );
+      }
+
       if (rawType === "CARGO_LOST" && detail.compensationOwed === true) {
         if (!existing.compensation) {
           throw new Error(

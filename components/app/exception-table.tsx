@@ -820,7 +820,21 @@ function CompensationPanel({
   // to somebody who cannot press it.
   // Approving is a lifecycle step and lives in the step list. This panel is
   // only the money record — what actually left the business.
-  const showRecord = allow.compensate && !finished && (approved || Boolean(comp));
+  /*
+    A SETTLEMENT ALREADY AGREED STAYS RECORDABLE AFTER THE CASE CLOSES.
+
+    markCargoFound writes a terminal status and never looks at the Compensation
+    row, so a payout the owner had approved and Finance had not yet paid became
+    frozen the moment the box turned up: this panel stopped rendering, and no
+    action anywhere cancels or zeroes a settlement. The lifecycle step's own
+    hint names the risk — "Found after all — tell Finance before the payout goes
+    out" — and did nothing about it.
+
+    So a case that is finished still shows the form to the desk that pays, but
+    only where a settlement actually exists. A finished case with none is done.
+  */
+  const showRecord =
+    allow.compensate && (finished ? Boolean(comp) : approved || Boolean(comp));
 
   if (!comp) {
     /* The decision itself. The lifecycle stepper that used to carry "Approve
