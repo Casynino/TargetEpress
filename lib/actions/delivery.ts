@@ -445,10 +445,27 @@ export async function releaseShipment(
          there is one pickup note per consignment and there is no second one
          to issue. */
       if (!partial) {
-        await tx.pickupNote.update({
-          where: { id: note.id },
+        /*
+          CLAIMED, NOT ADDRESSED.
+
+          A double press finished the same handover twice: the note was set
+          USED again, the delivery record's note gained a second "remaining
+          boxes collected" sentence, and the timeline carried the collection
+          twice over. Conditioned on the note still being ACTIVE, so the second
+          attempt matches nothing and unwinds.
+        */
+        const consumed = await tx.pickupNote.updateMany({
+          where: { id: note.id, status: "ACTIVE" },
           data: { status: "USED", usedAt: now },
         });
+        if (consumed.count === 0) {
+          throw new Error(
+            t(
+              locale,
+              "This cargo has just been handed over. Reload the page before releasing it again."
+            )
+          );
+        }
       }
 
       /* Only the cartons that were actually on the floor. A part delivery that

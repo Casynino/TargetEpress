@@ -172,6 +172,35 @@ export async function adjustDifference(
         );
       }
 
+      /*
+        THE SAME WRITE-OFF, TWICE.
+
+        A resubmitted form or a double press cleared the difference again — and
+        because a partial write-off leaves a balance, the second one is accepted
+        by every guard above it. The bill ends up clearing more than it ever
+        owed, out of two decisions nobody made twice.
+
+        The echo check the payment doors use, keyed on the bill, the figure and
+        the person, rather than a column that would need a migration first.
+      */
+      const echo = await tx.invoiceAdjustment.findFirst({
+        where: {
+          invoiceId: invoice.id,
+          amount: new Prisma.Decimal(amount),
+          createdById: user.id,
+          createdAt: { gte: new Date(Date.now() - 120_000) },
+        },
+        select: { id: true },
+      });
+      if (echo) {
+        throw new Error(
+          t(
+            locale,
+            "This difference has just been cleared. Reload the page — clearing it again would write off twice."
+          )
+        );
+      }
+
       const row = await tx.invoiceAdjustment.create({
         data: {
           invoiceId: invoice.id,
