@@ -57,7 +57,12 @@ export function CargoEditForm({
       <FormError state={state} />
       {state?.ok && state.data ? (
         <p className="rounded-lg border border-success/40 bg-success/5 p-3 text-sm text-success">
-          Saved. {state.data.trackingNumber} is updated everywhere it appears.
+          {/* Through the dictionary like every other sentence: this is a screen
+              the Guangzhou desk works in Chinese, and the one line telling them
+              the save worked was the one line left in English. The tracking
+              number is data and stays outside the translation. */}
+          {t("Saved.")} {state.data.trackingNumber}{" "}
+          {t("is updated everywhere it appears.")}
         </p>
       ) : null}
 

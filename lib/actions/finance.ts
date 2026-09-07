@@ -903,6 +903,10 @@ export async function adjustInvoice(
         somebody edited its notes.
       */
       let rateBookFreightNow = rateBookFreight;
+      /* Held for the write below: the consignment carries its own copy of the
+         working, and it has to move with the figure. */
+      let repricedQuote: Extract<Awaited<ReturnType<typeof quote>>, { ok: true }> | null =
+        null;
       if (input.repriceFromWeight) {
         const repriced = await quote({
           category: invoice.shipment.cargoCategory,
@@ -916,6 +920,7 @@ export async function adjustInvoice(
           );
         }
         rateBookFreightNow = repriced.total;
+        repricedQuote = repriced;
       }
 
       /*
@@ -1101,6 +1106,36 @@ export async function adjustInvoice(
         out with it. The storage door has always held the cargo in this
         situation — see lib/cargo-hold.ts, which both doors now call.
       */
+      /*
+        THE WORKING ON THE CONSIGNMENT FOLLOWS THE FIGURE.
+
+        A re-price wrote the new freight onto the bill and left the shipment
+        carrying the quote it was first given — the rate, the chargeable weight
+        and the method. Those are what the invoice PDF and the customer's
+        tracking page print as the working, so the document showed a rate times
+        a weight that did not multiply out to the freight beside it, and the
+        customer had a bill that argued with itself.
+
+        Stamped exactly as confirmInvoicePrice stamps it, so the two doors that
+        can move a price leave the consignment saying the same thing.
+      */
+      if (repricedQuote) {
+        await tx.shipment.update({
+          where: { id: invoice.shipment.id },
+          data: {
+            quotedAmount: new Prisma.Decimal(repricedQuote.total),
+            quoteCurrency: repricedQuote.currency,
+            quotedMethod: repricedQuote.method,
+            quotedRate: new Prisma.Decimal(repricedQuote.rate),
+            chargeableKg:
+              repricedQuote.chargeableWeightKg === null
+                ? null
+                : new Prisma.Decimal(repricedQuote.chargeableWeightKg),
+            currency: repricedQuote.currency,
+          },
+        });
+      }
+
       const holdOutcome = await holdCargoUntilSettled(tx, {
         shipment: invoice.shipment
           ? {

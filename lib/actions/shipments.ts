@@ -203,12 +203,24 @@ export async function createShipment(
     return fail(toActionError(error));
   }
 
+  const locale = await viewerLocale();
   const parsed = shipmentSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
-  if (!parsed.success) return fail(firstError(parsed.error));
+  /*
+    IN THE LANGUAGE THE PERSON FILLING THE FORM READS.
+
+    This is the Guangzhou desk's own screen and the refusal came back in
+    English, on a form whose every label is Chinese. The dictionary has held
+    the translation all along.
+
+    It also makes the form's own scroll-to-field work: it matches the message
+    against t(locale, "Describe the cargo.") to know which box to put the
+    cursor in, and comparing Chinese against English never matched — so the
+    Chinese reader was told something was wrong and left to find it.
+  */
+  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
   const input = parsed.data;
-  const locale = await viewerLocale();
 
   /*
     Evidence is expected, never enforced.

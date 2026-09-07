@@ -381,10 +381,26 @@ function VerificationCard({
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         <span className="tabular">{formatWeight(shipment.weightKg)}</span>
         <span className="tabular">
+          {/*
+              COUNTED OFF THE ROWS, NOT OFF THE SCALAR.
+
+              `packages` is the CONFIRMED count — what Dar says actually turned
+              up — while `short` counts the package rows nobody has ticked. On
+              a short consignment those two describe different things, and
+              subtracting one from the other gave the arithmetic of neither:
+              nine of ten booked, checked in as nine, read "8 of 9 boxes".
+
+              The rows are the physical cartons, so both halves come from them:
+              how many are ticked, out of how many the manifest names.
+          */}
           {short > 0 && shipment.verification ? (
             <span className="font-semibold text-warning">
-              {shipment.packages - short} {t("of")}{" "}
-              {formatPackagesShort(shipment.packages, shipment.packageType, locale)}
+              {shipment.packageList.length - short} {t("of")}{" "}
+              {formatPackagesShort(
+                shipment.packageList.length,
+                shipment.packageType,
+                locale
+              )}
             </span>
           ) : (
             formatPackagesShort(shipment.packages, shipment.packageType, locale)

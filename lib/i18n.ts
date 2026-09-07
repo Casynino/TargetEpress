@@ -1361,6 +1361,7 @@ const ZH: Record<string, string> = {
   "Invoices generated": "已生成账单",
   "is a bank account. A driver is paid out of cash or mobile money.":
     "是银行账户。司机运费应从现金或移动支付账户支出。",
+  "is updated everywhere it appears.": "的更新已同步到所有相关页面。",
   "is already with Finance for this bill. Wait for it to be checked rather than sending a second claim — two submissions against one invoice is the same money verified twice.":
     "这张账单已经提交给财务了。请等核对结果，不要再提交一次——同一张账单提交两次，等于同一笔钱核两遍。",
   "is cleared and waiting.": "已放行，正在等待提货。",

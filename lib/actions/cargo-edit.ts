@@ -190,7 +190,9 @@ export async function updateCargo(
     const cargoType = input.cargoTypeId
       ? await prisma.cargoType.findUnique({
           where: { id: input.cargoTypeId },
-          select: { name: true },
+          /* The category too, because the consignment carries its own copy and
+             the rate book resolves on it — see the write below. */
+          select: { name: true, category: true },
         })
       : null;
 
@@ -299,6 +301,20 @@ export async function updateCargo(
         where: { id: before.id },
         data: {
           cargoTypeId: input.cargoTypeId,
+          /*
+            AND THE CATEGORY THAT COMES WITH IT.
+
+            The picker offers products from every category — a clerk correcting
+            "Documents" to "Laptop" is crossing from normal goods into
+            electronics — but only the product id was written, leaving the
+            consignment's own `cargoCategory` saying what it used to be.
+
+            The rate book resolves on the category FIRST and only then on the
+            product (see resolveRule), so a laptop filed under normal goods
+            never reaches the per-item electronics price. It was quoted by the
+            kilo instead, on a rate meant for something else.
+          */
+          ...(cargoType ? { cargoCategory: cargoType.category } : {}),
           ...translationColumns("description", describedAs),
           description: input.description,
           weightKg: input.weightKg,
