@@ -387,7 +387,7 @@ export async function InvoiceDocument({
           </div>
           {amountPaid > 0 ? (
             <div className="flex justify-between gap-4">
-              <dt className="text-black/60">{t(locale, "Received")}</dt>
+              <dt className="text-black/60">{t(locale, "Amount received")}</dt>
               <dd className="font-mono tabular">
                 −{money(amountPaid, currency)}
               </dd>

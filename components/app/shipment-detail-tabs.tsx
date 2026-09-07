@@ -486,7 +486,7 @@ export function ShipmentDetailTabs({
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-3 py-2 font-medium">{t("Received")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Date received")}</th>
                   <th className="px-3 py-2 font-medium">{t("Tracking")}</th>
                   <th className="px-3 py-2 font-medium">{t("Customer")}</th>
                   <th className="px-3 py-2 font-medium">{t("Goods")}</th>

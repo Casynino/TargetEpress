@@ -155,7 +155,13 @@ export async function GET(
   const pdf = renderPickupSlipPdf({
     noteNumber: note.noteNumber,
     status: note.status,
-    issuedOn: formatDate(note.issuedAt, locale),
+    /* Dates in English on a WinAnsi PDF.
+
+       The renderer strips every codepoint the font cannot draw, and a Chinese
+       date — 2026年9月7日 — loses its 年月日 and arrives as digit soup: "202697".
+       The document is Latin-only by construction, so the date is composed that
+       way rather than sanitised afterwards. */
+    issuedOn: formatDate(note.issuedAt, "en"),
     trackingNumber: note.shipment.trackingNumber,
     customerName: note.customer.name,
     customerPhone: note.customer.phone,
@@ -203,7 +209,7 @@ export async function GET(
             : "Payment not received",
     credit: credit
       ? {
-          dueOn: credit.dueDate ? formatDate(credit.dueDate, locale) : null,
+          dueOn: credit.dueDate ? formatDate(credit.dueDate, "en") : null,
           overdue: credit.state === "OVERDUE",
         }
       : null,

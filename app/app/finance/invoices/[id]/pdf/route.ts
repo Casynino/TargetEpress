@@ -133,8 +133,14 @@ export async function GET(
 
   const pdf = renderInvoicePdf({
     invoiceNumber: invoice.invoiceNumber,
-    issuedOn: formatDate(invoice.issuedAt, locale),
-    dueOn: invoice.dueDate ? formatDate(invoice.dueDate, locale) : null,
+    /* Dates in English on a WinAnsi PDF.
+
+       The renderer strips every codepoint the font cannot draw, and a Chinese
+       date — 2026年9月7日 — loses its 年月日 and arrives as digit soup: "202697".
+       The document is Latin-only by construction, so the date is composed that
+       way rather than sanitised afterwards. */
+    issuedOn: formatDate(invoice.issuedAt, "en"),
+    dueOn: invoice.dueDate ? formatDate(invoice.dueDate, "en") : null,
     status: invoice.status,
 
     customerName: invoice.customer.name,
