@@ -146,19 +146,40 @@ checked._count.packageList > before._count.packageList ? ok("and the extra carto
 await page.setCookie(...(await cookies("ceo@targetexpress.co.tz")));
 await page.goto(`${BASE}/app/shipments/${batch.id}`, { waitUntil: "networkidle2" });
 await wait(1500);
-const undone = await page.evaluate(() => {
-  const b = [...document.querySelectorAll("button")].find((x) => /back in the air|Undo the arrival|Undo arrival/i.test(x.innerText));
-  if (!b) return "no undo button — " + [...document.querySelectorAll("button")].map((x) => x.innerText.trim()).filter(Boolean).slice(0, 25).join(" | ");
-  b.click();
+/* The panel is collapsed behind its own heading; the submit inside it is the
+   one that says "Put <flight> back in the air". */
+const opened2 = await page.evaluate(() => {
+  const toggle = [...document.querySelectorAll("button")].find((x) =>
+    /Undo arrival|Checked in the wrong flight/i.test(x.innerText)
+  );
+  if (toggle) { toggle.click(); return null; }
+  const direct = [...document.querySelectorAll("button")].find((x) => /back in the air/i.test(x.innerText));
+  if (direct) return null;
+  return "no undo control — " + [...document.querySelectorAll("button")].map((x) => x.innerText.trim().replace(/\s+/g, " ")).filter(Boolean).slice(0, 25).join(" | ");
+});
+if (opened2) { bad(opened2); await browser.close(); await prisma.$disconnect(); process.exit(1); }
+await wait(1800);
+console.log("   buttons: " + await page.evaluate(() => [...document.querySelectorAll("button")].map((x) => x.innerText.trim().replace(/\s+/g, " ")).filter(Boolean).slice(0, 20).join(" | ")));
+const pressed = await page.evaluate(() => {
+  const b = [...document.querySelectorAll("button")].find((x) => /back in the air/i.test(x.innerText) && x.type === "submit");
+  if (!b) return "no submit — " + [...document.querySelectorAll("button")].map((x) => `${x.innerText.trim().replace(/\s+/g, " ").slice(0,30)}[${x.type}]`).filter(Boolean).slice(0, 25).join(" | ");
+  const form = b.closest("form");
+  if (!form) return "the submit is not inside a form";
+  /* requestSubmit, not click: it runs the form's own submit path, which is
+     what a React form action listens to. */
+  form.requestSubmit(b);
   return null;
 });
-if (undone) { bad(undone); await browser.close(); await prisma.$disconnect(); process.exit(1); }
-await wait(1200);
-await page.evaluate(() => {
-  const b = [...document.querySelectorAll("button")].find((x) => /Put it back|Undo it|Yes/i.test(x.innerText));
-  b?.click();
-});
-await wait(6000);
+if (pressed) { bad(pressed); await browser.close(); await prisma.$disconnect(); process.exit(1); }
+await wait(8000);
+console.log("   panel says: " + await page.evaluate(() => {
+  const f = [...document.querySelectorAll("form")].find((x) => /back in the air/i.test(x.innerText));
+  return f ? f.innerText.replace(/\s+/g, " ").slice(0, 400) : "(the undo form is gone from the page)";
+}));
+const refusal = await page.evaluate(() =>
+  document.body.innerText.match(/[^\n]*(cannot|will stop this|refus|already)[^\n]*/i)?.[0] ?? null
+);
+if (refusal) console.log("   screen says: " + refusal.trim().slice(0, 180));
 
 console.log("\nafter putting it back in the air:");
 const after = await prisma.shipment.findUnique({
