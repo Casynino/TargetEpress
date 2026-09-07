@@ -9,6 +9,7 @@ import {
 } from "@/components/app/shipments-dashboard";
 import { EXCEPTION_OPEN_STATUSES, ORIGIN_LABELS } from "@/lib/constants";
 import { formatDate, toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { currentRateValue } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -43,6 +44,7 @@ function moneyFor(
     invoice: {
       total: unknown;
       amountPaid: unknown;
+      amountAdjusted: unknown;
       status: string;
     } | null;
   }[]
@@ -62,7 +64,16 @@ function moneyFor(
     expected += total;
     collected += paid;
     if (invoice.status === "DRAFT") drafts += 1;
-    else outstanding += Math.max(0, total - paid);
+    /* Through the one subtraction, like the flight's own page. Done by hand
+       here it ignored every shilling Finance had cleared, so a board of three
+       hundred flights showed a company owed money it had already written off —
+       and disagreed with the page one click away. */
+    else
+      outstanding += outstandingOf({
+        total: invoice.total as never,
+        amountPaid: invoice.amountPaid as never,
+        amountAdjusted: invoice.amountAdjusted as never,
+      });
   }
 
   return { currency: "USD", expected, collected, outstanding, drafts };
