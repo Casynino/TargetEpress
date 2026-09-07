@@ -173,44 +173,50 @@ export function AttachmentManager({
           Dashed rather than solid: it reads as a space waiting to be filled
           instead of a field that has been left blank.
         */
+        /*
+          ONE LINE, LIKE THE COUNTER'S.
+
+          This was a bordered panel with a heading and a paragraph of
+          explanation — the tallest thing on a dialog whose actual job is the
+          figures above it, and three times the size of the same control on
+          the cargo page. The owner's words: the customer's evidence does not
+          need to be that big, check how small it is elsewhere.
+
+          The sentence it carried is true and is now the field's own hint,
+          shown at the weight a hint deserves. Still tinted while there is
+          nothing attached, because "no proof" is worth noticing; quiet once
+          there is.
+        */
         <div
-          className={`rounded-lg border border-dashed p-3 ${
+          className={`flex flex-wrap items-center gap-1.5 rounded-lg border px-2.5 py-1.5 ${
             attachments.length === 0
               ? "border-warning/50 bg-warning/[0.04]"
               : "border-border"
           }`}
         >
-          <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+          <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-foreground">
             <Upload className="h-3.5 w-3.5 shrink-0 text-warning" />
-            {attachments.length === 0
-              ? t("Add payment proof — the slip or the screenshot")
-              : t("Add another")}
-          </p>
-          {attachments.length === 0 ? (
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
-              {t(
-                "Not compulsory, but it is what settles an argument months from now. Without it Finance is agreeing to this on somebody's word."
-              )}
-            </p>
-          ) : null}
-          <div className="mt-2 flex items-center gap-1.5">
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              className="block flex-1 text-xs text-muted-foreground file:mr-2 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs file:font-medium"
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-7 shrink-0 px-2 text-[11px]"
-              disabled={pending}
-              onClick={addFile}
-            >
-              {pending ? t("Adding…") : t("Add")}
-            </Button>
-          </div>
+            {attachments.length === 0 ? t("Proof") : t("Add another")}
+          </span>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            title={t(
+              "Not compulsory, but it is what settles an argument months from now. Without it Finance is agreeing to this on somebody's word."
+            )}
+            className="block min-w-0 flex-1 text-xs text-muted-foreground file:mr-2 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs file:font-medium"
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 shrink-0 px-2 text-[11px]"
+            disabled={pending}
+            onClick={addFile}
+          >
+            {pending ? t("Adding…") : t("Add")}
+          </Button>
         </div>
       ) : null}
 

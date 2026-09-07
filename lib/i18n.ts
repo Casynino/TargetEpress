@@ -2787,6 +2787,7 @@ const ZH: Record<string, string> = {
     "这笔款项没有对应的账单。请取消后重新记录。",
   "This claim covers more than one bill, so the transport on it cannot be changed here. Withdraw it and raise the payment again against the bills it should cover.":
     "此认领涵盖多张账单，因此无法在此修改其中的运输费。请撤回后，针对应涵盖的账单重新登记付款。",
+  "This page is out of date": "此页面已过期",
   "This claim covers more than one bill, so its total cannot be changed here. Withdraw it and raise the payment again against the bills it should cover.":
     "这笔申报涵盖多张账单，金额不能在此更改。请撤回后，按应对应的账单重新提交。",
   "This payment has already been recorded. Reload the page — recording it again would take the same money twice.":
@@ -3893,6 +3894,7 @@ const ZH: Record<string, string> = {
   "Where revenue comes from": "收入来源",
   "Where the money is right now, derived from the ledger. Not a period figure — it is today's answer whichever stretch is chosen above.": "资金当前所在位置，由总账推算得出。这不是期间数——无论上方选了哪个时间段，显示的都是今天的实际情况。",
   "Where the money is sitting": "资金存放位置",
+  "Where the customer's money landed": "客户款项到账账户",
   "Where the driver was paid from. Finance can still change it when they verify.": "司机运费的支出账户。财务在核对时仍可更改。",
   "Where the money sits": "资金存放位置",
   "Why": "原因",
@@ -4228,6 +4230,7 @@ const ZH: Record<string, string> = {
     "记录后会进入该客户的联系记录，下一个跟他打交道的人就知道我们说过什么。",
   "Recording…": "登记中…",
   "Records deleted": "删除记录数",
+  "Refresh": "刷新",
   "Reference": "参考号",
   "Reference from the customer": "客户提供的参考号",
   "Reference, who authorised it, anything an auditor will ask about.":

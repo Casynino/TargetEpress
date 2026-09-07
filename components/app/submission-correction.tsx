@@ -523,94 +523,76 @@ export function SubmissionCorrection({
                       </div>
                     </div>
 
-                    {/* THE DELIVERY, INSIDE THE FIGURE ABOVE.
+                    {/*
+                      THE FARE AND ITS TILL, SIDE BY SIDE.
 
-                        The customer hands over one sum and part of it is the
-                        driver's fare. Support knows it at the counter; Finance
-                        finds it out when they ring to check. Without a box to
-                        say so, the whole transfer was verified as freight and
-                        the bill was credited with money already on its way out
-                        to whoever drove.
+                      They were stacked, with the till labelled "Paid out of"
+                      and sitting a paragraph below the figure it belongs to —
+                      and a second account picker further down for where the
+                      CUSTOMER's money landed. Two account boxes on one form,
+                      neither saying plainly which was which. The owner's
+                      words: we cannot be sure which one is for transport and
+                      which one is for the account.
 
-                        Not offered on a claim covering several bills: the
-                        difference would have more than one place to go, and
-                        editSubmission refuses it for the same reason it
-                        refuses a total change on one. */}
+                      So they are one row, named the way the counter names
+                      them, and the customer's account keeps its own heading
+                      well clear of this pair.
+
+                      Not offered on a claim covering several bills: the
+                      difference would have more than one place to go, and
+                      editSubmission refuses it for the same reason it refuses
+                      a total change on one.
+                    */}
                     {subject.coversManyBills ? null : (
-                      <div className="space-y-1.5">
-                        <Label htmlFor="sub-transport">
-                          {t("Of that, transport")}
-                        </Label>
-                        <Input
-                          id="sub-transport"
-                          inputMode="decimal"
-                          placeholder="0"
-                          value={transport}
-                          onChange={(event) => setTransport(event.target.value)}
-                        />
-                        <p className="text-[11px] text-muted-foreground">
-                          {t("Leave it empty when the whole amount is freight.")}{" "}
-                          {t("The bill is credited with the rest:")}{" "}
-                          <span className="tabular text-foreground">
-                            {currency}{" "}
-                            {Math.max(
-                              0,
-                              Math.round(
-                                ((Number(amount) || 0) -
-                                  (Number(transport) || 0)) *
-                                  100
-                              ) / 100
-                            ).toLocaleString()}
-                          </span>
-                        </p>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="sub-transport">
+                            {t("Transport they added")}
+                          </Label>
+                          <Input
+                            id="sub-transport"
+                            inputMode="decimal"
+                            placeholder="0"
+                            value={transport}
+                            onChange={(event) => setTransport(event.target.value)}
+                          />
+                        </div>
+                        {/* Always here, greyed until there is a fare to settle
+                            — a disabled field is not submitted, so nothing is
+                            asked for when there is nothing to pay. Only cash
+                            and mobile money, in the money the fare was taken
+                            in: a bank account cannot hand a driver a note.
 
-                        {/* AND WHERE IT WAS SETTLED FROM.
-
-                            A fare with no till behind it is money that left no
-                            account: the register balances and the cash box does
-                            not. Asked here, beside the figure, because the two
-                            are one fact — the desk that knows the driver was
-                            paid knows what they were paid out of.
-
-                            Deliberately not the account the customer paid INTO:
-                            they can send by bank while the driver is handed
-                            cash. Only cash and mobile money are offered, in the
-                            money the fare was taken in — a bank account cannot
-                            hand a driver a note, and an account cannot give up
-                            money it is not denominated in. */}
-                        {Number(transport) > 0 ? (
-                          <div className="space-y-1.5 pt-1">
-                            <Label htmlFor="sub-transport-source">
-                              {t("Paid out of")}
-                            </Label>
-                            <NativeSelect
-                              id="sub-transport-source"
-                              value={transportSource}
-                              onChange={(event) =>
-                                setTransportSource(event.target.value)
-                              }
-                            >
-                              <option value="">{t("Not said yet")}</option>
-                              {accounts
-                                .filter(
-                                  (a) =>
-                                    a.currency === currency &&
-                                    (a.kind === "CASH" ||
-                                      a.kind === "MOBILE_MONEY")
-                                )
-                                .map((account) => (
-                                  <option key={account.id} value={account.id}>
-                                    {account.name}
-                                  </option>
-                                ))}
-                            </NativeSelect>
-                            <p className="text-[11px] text-muted-foreground">
-                              {t(
-                                "Where the driver was paid from. Finance can still change it when they verify."
-                              )}
-                            </p>
-                          </div>
-                        ) : null}
+                            Deliberately NOT the account the customer paid
+                            into. They can send by bank while the driver is
+                            handed cash out of the tin. */}
+                        <div className="space-y-1.5">
+                          <Label htmlFor="sub-transport-source">
+                            {t("Transport settled from")}
+                          </Label>
+                          <NativeSelect
+                            id="sub-transport-source"
+                            value={transportSource}
+                            disabled={!(Number(transport) > 0)}
+                            onChange={(event) =>
+                              setTransportSource(event.target.value)
+                            }
+                            className="disabled:opacity-50"
+                          >
+                            <option value="">{t("Cash or the Lipa number")}</option>
+                            {accounts
+                              .filter(
+                                (a) =>
+                                  a.currency === currency &&
+                                  (a.kind === "CASH" || a.kind === "MOBILE_MONEY")
+                              )
+                              .map((account) => (
+                                <option key={account.id} value={account.id}>
+                                  {account.name}
+                                </option>
+                              ))}
+                          </NativeSelect>
+                        </div>
                       </div>
                     )}
 
@@ -653,8 +635,16 @@ export function SubmissionCorrection({
 
                     <div className="space-y-1.5">
                       <div className="space-y-1.5">
+                        {/* THE CUSTOMER'S MONEY, NOT THE DRIVER'S.
+
+                            There are two account boxes on this form and they
+                            answer opposite questions: one is where the fare
+                            went OUT to, this is where the transfer came IN.
+                            Named so, because "Where did it land" beside a
+                            "Paid out of" a few lines above was two labels a
+                            desk had to think about rather than read. */}
                         <Label htmlFor="sub-account">
-                          {t("Where did it land")}
+                          {t("Where the customer's money landed")}
                         </Label>
                         <NativeSelect
                           id="sub-account"
@@ -719,7 +709,9 @@ export function SubmissionCorrection({
                     answered rather than only complained about on the row. */}
                 {open !== "withdraw" ? (
                   <div className="space-y-1.5">
-                    <Label>{t("The customer's evidence")}</Label>
+                    {/* No heading above it: the row says "Proof" itself, and a
+                        label on top of a one-line control is the height this
+                        was shrunk to avoid. */}
                     <AttachmentManager
                       kind="submission"
                       parentId={subject.submissionId}

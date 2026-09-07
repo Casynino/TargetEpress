@@ -67,19 +67,32 @@ export function NewVersionNotice({ build }: { build: string }) {
 
   if (!stale) return null;
 
+  /*
+    OUT OF THE WAY, AND IN WORDS ABOUT THE READER.
+
+    It sat centred across the top, over the page's own heading — the one place
+    a notice can be while telling somebody their screen is stale, and it
+    covered the thing they came to read. It sits in the corner now, clear of
+    the header's own controls, where a message that is not urgent belongs.
+
+    "A newer version is live" is a sentence about the software. What the clerk
+    needs to know is about THEM: the screen they are looking at is old, which
+    is why the button they just pressed behaved oddly. So it says that, and
+    the button says what pressing it does.
+  */
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-3 z-[60] flex justify-center px-4 print:hidden">
-      <div className="pointer-events-auto flex items-center gap-3 rounded-full border bg-card/95 px-4 py-2 shadow-lg backdrop-blur">
-        <span className="text-sm font-medium">
-          {t("A newer version is live.")}
+    <div className="pointer-events-none fixed right-3 top-16 z-[60] flex justify-end print:hidden lg:top-16">
+      <div className="pointer-events-auto flex items-center gap-2.5 rounded-full border bg-card/95 py-1.5 pl-3.5 pr-1.5 shadow-lg backdrop-blur">
+        <span className="text-xs font-medium">
+          {t("This page is out of date")}
         </span>
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="focus-ring inline-flex items-center gap-1.5 rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground hover:bg-brand/90"
+          className="focus-ring inline-flex items-center gap-1.5 rounded-full bg-brand px-2.5 py-1 text-xs font-semibold text-brand-foreground hover:bg-brand/90"
         >
           <RefreshCw className="h-3.5 w-3.5" />
-          {t("Reload")}
+          {t("Refresh")}
         </button>
       </div>
     </div>
