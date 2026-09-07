@@ -167,7 +167,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
         <div className="min-w-0">
           <p className="truncate text-sm">{row.customerName}</p>
           <p className="truncate text-xs text-muted-foreground tabular">
-            {row.customerPhone ?? "No phone recorded"}
+            {row.customerPhone ?? t("No phone recorded")}
           </p>
         </div>
       ),
@@ -426,11 +426,11 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
             row.pickupNoteNumber ?? "",
           ].join(" ")
         }
-        searchPlaceholder="Tracking number, customer, phone, carton or batch…"
+        searchPlaceholder={t("Tracking number, customer, phone, carton or batch…")}
         filters={filters}
         initialSort={{ columnId: "daysHeld", direction: "desc" }}
-        emptyTitle="No cargo matches"
-        emptyDescription="Try a different search, or clear the filters."
+        emptyTitle={t("No cargo matches")}
+        emptyDescription={t("Try a different search, or clear the filters.")}
         renderExpanded={(row) => (
           <dl className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             {[
@@ -491,7 +491,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
             </div>
             <p className="mt-2 truncate text-sm">{row.customerName}</p>
             <p className="truncate text-xs text-muted-foreground tabular">
-              {row.customerPhone ?? "No phone recorded"}
+              {row.customerPhone ?? t("No phone recorded")}
             </p>
             <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
               <Boxes className="h-3.5 w-3.5" />
