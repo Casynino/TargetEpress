@@ -1307,6 +1307,8 @@ export async function resolveInvestigation(
           shipmentId: true,
           type: true,
           compensation: { select: { id: true, paidAt: true } },
+          raisedById: true,
+          assignedToId: true,
           /* Read for WEIGHT_CORRECTED, which writes the corrected figure
              through to the cargo rather than filing it beside it. */
           shipment: {
@@ -1477,6 +1479,36 @@ export async function resolveInvestigation(
         user.id,
         rawType === "CARGO_LOST" ? "lost" : "settled"
       );
+
+      /*
+        AND THE DESKS THAT WERE WAITING ON IT.
+
+        markCargoFound tells Customer Support, the owner, whoever raised the
+        case and whoever it was assigned to. This door told nobody at all — so
+        the desk that phoned a customer to say their cargo could not be found
+        never learned how it ended, and Finance never learned a weight had been
+        corrected or a settlement agreed. Same audience the found-door builds,
+        minus whoever pressed it.
+      */
+      const audience = new Set<string>(
+        await desksHolding(["ticket.manage", "user.manage"], tx)
+      );
+      if (existing.raisedById) audience.add(existing.raisedById);
+      if (existing.assignedToId) audience.add(existing.assignedToId);
+      audience.delete(user.id);
+
+      if (audience.size > 0) {
+        await notify(
+          {
+            userIds: [...audience],
+            kind: "exception.closed",
+            title: `${existing.shipment?.trackingNumber ?? "Case"} — ${RESOLUTION_TYPE_LABELS[rawType]}`,
+            body: note || RESOLUTION_TYPE_LABELS[rawType],
+            href: `/app/exceptions`,
+          },
+          tx
+        );
+      }
     });
 
     // Cargo Found restores the shipment and re-ticks its boxes. That logic
