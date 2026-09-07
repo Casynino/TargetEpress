@@ -37,6 +37,21 @@ export type MoneyRow = {
   currency: string;
   amount: Numeric;
   amountUsd: Numeric;
+  /**
+   * THE EXACT SHILLING FIGURE, WHERE ONE REALLY EXISTS.
+   *
+   * Foreign money usually has no exact shilling answer — a dollar expense was
+   * never shillings, so it is worth whatever today's rate says. A BILL is the
+   * exception: it was quoted to a customer at a rate frozen onto it, and that
+   * shilling figure is the one they were given and the one they paid. Without
+   * this, a flight's shilling revenue was recomputed at today's rate every
+   * time the page was opened, so last month's dispatch quietly earned a
+   * different amount whenever the rate moved.
+   *
+   * Optional. A row that has no such figure leaves it out and is converted as
+   * before.
+   */
+  amountLocal?: Numeric;
 };
 
 /**
@@ -49,6 +64,11 @@ export type MoneyRow = {
  */
 export function rowInShillings(row: MoneyRow, rate: number | null): number {
   if (row.currency === LOCAL_CURRENCY) return toNumber(row.amount);
+  /* A figure that was fixed in shillings at the time stands as it is — see
+     amountLocal. Only money with no shilling figure of its own is converted. */
+  if (row.amountLocal !== null && row.amountLocal !== undefined) {
+    return toNumber(row.amountLocal);
+  }
   return rate ? toNumber(row.amountUsd) * rate : 0;
 }
 

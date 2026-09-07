@@ -1359,6 +1359,8 @@ const ZH: Record<string, string> = {
   "Invoices already raised keep the rate they were raised at.":
     "已开出的账单仍按开单时的汇率。",
   "Invoices generated": "已生成账单",
+  "is a bank account. A driver is paid out of cash or mobile money.":
+    "是银行账户。司机运费应从现金或移动支付账户支出。",
   "is already with Finance for this bill. Wait for it to be checked rather than sending a second claim — two submissions against one invoice is the same money verified twice.":
     "这张账单已经提交给财务了。请等核对结果，不要再提交一次——同一张账单提交两次，等于同一笔钱核两遍。",
   "is cleared and waiting.": "已放行，正在等待提货。",
@@ -2174,6 +2176,7 @@ const ZH: Record<string, string> = {
   "Paid from": "付款账户",
   "Paid from…": "付款账户…",
   "Paid in": "付款币种",
+  "Paid out of": "支出账户",
   "Paid in full": "已付清",
   "Paid in the same currency the bill was raised in.":
     "与开单币种一致，未发生换汇。",
@@ -3887,6 +3890,7 @@ const ZH: Record<string, string> = {
   "Where revenue comes from": "收入来源",
   "Where the money is right now, derived from the ledger. Not a period figure — it is today's answer whichever stretch is chosen above.": "资金当前所在位置，由总账推算得出。这不是期间数——无论上方选了哪个时间段，显示的都是今天的实际情况。",
   "Where the money is sitting": "资金存放位置",
+  "Where the driver was paid from. Finance can still change it when they verify.": "司机运费的支出账户。财务在核对时仍可更改。",
   "Where the money sits": "资金存放位置",
   "Why": "原因",
   "Why are they asking? Finance reads this.": "申请原因是什么？财务会看这段说明。",

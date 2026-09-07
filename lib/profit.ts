@@ -588,6 +588,12 @@ export async function profitByDispatch(take = 10) {
             ? amount / frozen
             : 0
           : amount,
+      /* And a dollar bill's SHILLING figure comes from the same place. It was
+         converted at today's rate before, so a flight that closed in March
+         reported different shilling revenue every time the rate moved — on a
+         page printed beside the costs it was actually paid against. */
+      amountLocal:
+        invoice.currency === LOCAL_CURRENCY ? amount : frozen ? amount * frozen : undefined,
     };
   };
 

@@ -587,6 +587,7 @@ export default async function SubmissionsPage({
                         trackingNumber: row.invoice.shipment.trackingNumber,
                         batchNumbers: batchesOf.get(row.id) ?? [],
                         transportAmount: toNumber(row.transportAmount),
+                        transportSourceId: row.transportSourceId,
                         coversManyBills: row.allocations.length > 1,
                         customerName: row.invoice.customer.name,
                         customerPhone: row.invoice.customer.phone,

@@ -42,6 +42,8 @@ export type SubmissionSubject = {
    * editSubmission, which restates the allocation from both figures.
    */
   transportAmount: number;
+  /** Which till the fare was taken out of, if anybody has said yet. */
+  transportSourceId: string | null;
   /** More than one bill, so the fare has no single place to go. */
   coversManyBills: boolean;
   customerName: string;
@@ -117,7 +119,9 @@ export function SubmissionCorrection({
   canDelete = true,
 }: {
   subject: SubmissionSubject;
-  accounts: { id: string; name: string; currency: string }[];
+  /** `kind` because a driver is not paid out of a bank account — see the
+   *  transport source below. */
+  accounts: { id: string; name: string; currency: string; kind: string }[];
   /** Whether this reader may change the claim, as opposed to only read it. */
   canEdit: boolean;
   /**
@@ -143,6 +147,11 @@ export function SubmissionCorrection({
      desk clearing the box to retype it is not fighting a zero. */
   const [transport, setTransport] = useState(
     subject.transportAmount > 0 ? String(subject.transportAmount) : ""
+  );
+  /* Where the fare came out of. A delivery is paid from the till or the Lipa
+     number, never from a bank account, so only those are offered. */
+  const [transportSource, setTransportSource] = useState(
+    subject.transportSourceId ?? ""
   );
   const [accountId, setAccountId] = useState(subject.accountId ?? "");
   /* Held, not asked for. The fields are gone, but a claim raised before they
@@ -237,6 +246,7 @@ export function SubmissionCorrection({
         fd.set("submissionId", subject.submissionId);
         fd.set("amount", amount);
         fd.set("transportAmount", transport.trim() === "" ? "0" : transport);
+        fd.set("transportSourceId", transportSource);
         fd.set("currency", currency);
         if (accountId) fd.set("accountId", accountId);
         fd.set("reference", reference);
@@ -538,6 +548,54 @@ export function SubmissionCorrection({
                             ).toLocaleString()}
                           </span>
                         </p>
+
+                        {/* AND WHERE IT WAS SETTLED FROM.
+
+                            A fare with no till behind it is money that left no
+                            account: the register balances and the cash box does
+                            not. Asked here, beside the figure, because the two
+                            are one fact — the desk that knows the driver was
+                            paid knows what they were paid out of.
+
+                            Deliberately not the account the customer paid INTO:
+                            they can send by bank while the driver is handed
+                            cash. Only cash and mobile money are offered, in the
+                            money the fare was taken in — a bank account cannot
+                            hand a driver a note, and an account cannot give up
+                            money it is not denominated in. */}
+                        {Number(transport) > 0 ? (
+                          <div className="space-y-1.5 pt-1">
+                            <Label htmlFor="sub-transport-source">
+                              {t("Paid out of")}
+                            </Label>
+                            <NativeSelect
+                              id="sub-transport-source"
+                              value={transportSource}
+                              onChange={(event) =>
+                                setTransportSource(event.target.value)
+                              }
+                            >
+                              <option value="">{t("Not said yet")}</option>
+                              {accounts
+                                .filter(
+                                  (a) =>
+                                    a.currency === currency &&
+                                    (a.kind === "CASH" ||
+                                      a.kind === "MOBILE_MONEY")
+                                )
+                                .map((account) => (
+                                  <option key={account.id} value={account.id}>
+                                    {account.name}
+                                  </option>
+                                ))}
+                            </NativeSelect>
+                            <p className="text-[11px] text-muted-foreground">
+                              {t(
+                                "Where the driver was paid from. Finance can still change it when they verify."
+                              )}
+                            </p>
+                          </div>
+                        ) : null}
                       </div>
                     )}
 

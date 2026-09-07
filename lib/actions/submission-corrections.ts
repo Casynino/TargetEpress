@@ -131,6 +131,18 @@ export async function editSubmission(
           .number()
           .min(0, "That transport figure is not valid.")
           .optional(),
+        /*
+          AND WHICH TILL IT CAME OUT OF.
+
+          A fare with no source behind it is money that left no account: the
+          register balances and the cash box does not. Deliberately not the
+          account the customer paid INTO — they can send by bank while the
+          driver is handed cash out of the tin.
+
+          Finance can still name a different one when they verify; theirs wins,
+          because they are the desk that actually pays the driver.
+        */
+        transportSourceId: z.string().trim().optional(),
         /* Optional — warn, confirm, do. What changed is listed on the
            audit line beside the name of whoever changed it. */
         reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
@@ -159,6 +171,7 @@ export async function editSubmission(
     const before = {
       amount: toNumber(sub.amount),
       transportAmount: toNumber(sub.transportAmount),
+      transportSourceId: sub.transportSourceId,
       reference: sub.reference,
       note: sub.note,
       accountId: sub.accountId,
@@ -168,6 +181,12 @@ export async function editSubmission(
       amount: parsed.data.amount ?? before.amount,
       transportAmount:
         parsed.data.transportAmount ?? before.transportAmount,
+      /* Cleared with the fare: a claim with no delivery on it has no till to
+         name, and leaving a stale one would send Finance to the wrong box. */
+      transportSourceId:
+        (parsed.data.transportAmount ?? before.transportAmount) > 0
+          ? (parsed.data.transportSourceId ?? before.transportSourceId) || null
+          : null,
       reference: parsed.data.reference || null,
       note: parsed.data.note || null,
       accountId: parsed.data.accountId || before.accountId,
@@ -260,6 +279,36 @@ export async function editSubmission(
       );
     }
     /*
+      A TILL THAT COULD REALLY HAVE PAID THE DRIVER.
+
+      The same three questions the account above is asked, for the same reason:
+      an endpoint that took any id at all would walk straight past the rule the
+      form enforces. A bank account cannot hand somebody a note, and an account
+      cannot give up money it is not denominated in.
+    */
+    if (
+      after.transportSourceId &&
+      after.transportSourceId !== before.transportSourceId
+    ) {
+      const till = await prisma.companyAccount.findUnique({
+        where: { id: after.transportSourceId },
+        select: { name: true, currency: true, active: true, kind: true },
+      });
+      if (!till) return fail(t(locale, "That account no longer exists."));
+      if (!till.active) return fail(`${till.name} ${t(locale, "has been archived.")}`);
+      if (till.currency !== after.currency) {
+        return fail(
+          `${till.name} is a ${till.currency} account, so a ${after.currency} fare could not have come out of it.`
+        );
+      }
+      if (till.kind !== "CASH" && till.kind !== "MOBILE_MONEY") {
+        return fail(
+          `${till.name} ${t(locale, "is a bank account. A driver is paid out of cash or mobile money.")}`
+        );
+      }
+    }
+
+    /*
       AND THE FARE CANNOT BE MORE THAN CAME IN.
 
       The same sanity recordPayment applies at the counter: the delivery is a
@@ -281,6 +330,7 @@ export async function editSubmission(
         data: {
           amount: new Prisma.Decimal(after.amount),
           transportAmount: new Prisma.Decimal(after.transportAmount),
+          transportSourceId: after.transportSourceId,
           reference: after.reference,
           note: after.note,
           accountId: after.accountId,

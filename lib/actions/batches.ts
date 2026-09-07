@@ -2149,6 +2149,10 @@ export async function undoBatchArrival(
           batchNumber: true,
           status: true,
           closedAt: true,
+          /* When the flight was marked down. Everything the check-in wrote
+             onto a consignment was written after this instant, which is how
+             the undo below knows what to put back. */
+          arrivedAt: true,
           shipments: {
             where: { deletedAt: null },
             select: {
@@ -2369,6 +2373,86 @@ export async function undoBatchArrival(
         where: { shipmentId: { in: shipmentIds } },
         data: { receivedAt: null, receivedById: null },
       });
+
+      /*
+        AND THE FIGURES THE CHECK-IN WROTE GO BACK TOO.
+
+        The owner's words for this button are "everything goes back to where it
+        was, like nothing happened". Un-ticking the boxes was only part of it.
+        Dar check-in also writes the confirmed weight and the confirmed piece
+        count onto the consignment, and creates a package row for every carton
+        that turned up beyond the manifest — so undoing an arrival left a
+        flight in the air carrying the Dar scale's weight, the Dar count, and
+        boxes Guangzhou never booked.
+
+        Put back from the consignment's own change history, which is where
+        check-in recorded the figure it replaced, and only from the entries
+        written since this flight landed. Nothing is guessed: a consignment
+        whose figure was never touched has no entry and is left alone.
+      */
+      const landedAt = batch.arrivedAt;
+      if (landedAt && shipmentIds.length > 0) {
+        const written = await tx.fieldChange.findMany({
+          where: {
+            entity: "Shipment",
+            entityId: { in: shipmentIds },
+            field: { in: ["packages", "weightKg"] },
+            createdAt: { gte: landedAt },
+          },
+          orderBy: { createdAt: "asc" },
+          select: { id: true, entityId: true, field: true, before: true },
+        });
+        /* The EARLIEST entry per consignment and field — the figure as it
+           stood before this arrival touched it at all, however many times the
+           desk corrected it afterwards. */
+        const original = new Map<string, string>();
+        for (const row of written) {
+          const key = `${row.entityId}:${row.field}`;
+          if (!original.has(key) && row.before !== null) {
+            original.set(key, row.before);
+          }
+        }
+        for (const shipmentId of shipmentIds) {
+          const packagesBefore = original.get(`${shipmentId}:packages`);
+          const weightBefore = original.get(`${shipmentId}:weightKg`);
+          if (packagesBefore === undefined && weightBefore === undefined) continue;
+          await tx.shipment.update({
+            where: { id: shipmentId },
+            data: {
+              ...(packagesBefore === undefined
+                ? {}
+                : { packages: Number(packagesBefore) }),
+              ...(weightBefore === undefined
+                ? {}
+                : { weightKg: new Prisma.Decimal(weightBefore) }),
+            },
+          });
+          /* The cartons this arrival invented. A booking of ten that checked
+             in as twelve gained two rows with their own QR codes; a flight
+             that never landed has no such boxes. */
+          if (packagesBefore !== undefined) {
+            await tx.package.deleteMany({
+              where: {
+                shipmentId,
+                sequence: { gt: Number(packagesBefore) },
+                /* Never one somebody has scanned or handed over. Nothing here
+                   should be in that state — the un-receipt above has just run
+                   — but a row with a delivery against it is evidence, and this
+                   button does not destroy evidence. */
+                deliveredAt: null,
+              },
+            });
+          }
+        }
+        /* The history of the arrival goes with the arrival. Left standing, the
+           cargo page would show a weight change to a figure the consignment no
+           longer carries, made on a flight that is back in the air. */
+        if (written.length > 0) {
+          await tx.fieldChange.deleteMany({
+            where: { id: { in: written.map((r) => r.id) } },
+          });
+        }
+      }
 
       await tx.batchVerification.deleteMany({ where: { batchId } });
       await tx.shipmentException.deleteMany({ where: { batchId } });

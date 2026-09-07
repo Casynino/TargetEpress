@@ -90,6 +90,30 @@ preview.includes((total - fare).toLocaleString())
   ? ok(`the dialog says the bill gets the rest: ${(total - fare).toLocaleString()}`)
   : bad(`the dialog does not show ${(total - fare).toLocaleString()} — it says "${preview}"`);
 
+/* And where it was settled from — a fare with no till behind it is money that
+   left no account, so the register would balance while the cash box did not. */
+const till = await page.evaluate(() => {
+  const sel = document.getElementById("sub-transport-source");
+  if (!sel) return null;
+  const pick = [...sel.options].find((o) => o.value);
+  if (!pick) return "no till offered";
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value").set;
+  setter.call(sel, pick.value);
+  sel.dispatchEvent(new Event("change", { bubbles: true }));
+  return pick.text;
+});
+till && till !== "no till offered"
+  ? ok(`and asks where it was paid from — picked "${till}"`)
+  : bad(`no transport source to pick (${till})`);
+/* Only tills a driver can really be paid out of. */
+const kinds = await page.evaluate(() => {
+  const sel = document.getElementById("sub-transport-source");
+  return sel ? [...sel.options].map((o) => o.text) : [];
+});
+kinds.some((k) => /bank/i.test(k))
+  ? bad(`a bank account is offered for a fare: ${kinds.join(", ")}`)
+  : ok("and no bank account is offered — a driver is paid cash or mobile money");
+
 await page.evaluate(() => {
   const b = [...document.querySelectorAll("button")].find((x) => /Save the correction/.test(x.innerText));
   b?.click();
@@ -98,7 +122,11 @@ await wait(2500);
 
 const after = await prisma.paymentSubmission.findUnique({
   where: { id: claim.id },
-  select: { amount: true, transportAmount: true, allocations: { select: { amount: true } } },
+  select: {
+    amount: true, transportAmount: true,
+    transportSource: { select: { name: true, kind: true } },
+    allocations: { select: { amount: true } },
+  },
 });
 Number(after.transportAmount) === fare
   ? ok(`the claim now carries a ${fare.toLocaleString()} fare`)
@@ -125,8 +153,15 @@ if (after.allocations.length === 0) {
     : bad(`the bill's share is ${share.toLocaleString()}, expected ${(total - fare).toLocaleString()}`);
 }
 
+after.transportSource
+  ? ok(`and the claim says where it came from: ${after.transportSource.name} (${after.transportSource.kind})`)
+  : bad("the claim carries no transport source");
+
 /* Put it back, so the fixture is unchanged for the next run. */
-await prisma.paymentSubmission.update({ where: { id: claim.id }, data: { transportAmount: 0 } });
+await prisma.paymentSubmission.update({
+  where: { id: claim.id },
+  data: { transportAmount: 0, transportSourceId: null },
+});
 for (const a of claim.allocations) {
   await prisma.submissionAllocation.update({ where: { id: a.id }, data: { amount: a.amount } });
 }

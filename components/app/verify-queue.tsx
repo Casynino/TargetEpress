@@ -426,6 +426,9 @@ export async function VerifyQueue() {
                           id: a.id,
                           name: a.name,
                           currency: a.currency,
+                          /* So the fare can offer the tills a driver is
+                             actually paid out of, and only those. */
+                          kind: a.kind,
                         }))}
                         subject={{
                           submissionId: row.id,
@@ -435,6 +438,7 @@ export async function VerifyQueue() {
                           trackingNumber: row.invoice.shipment.trackingNumber,
                           batchNumbers: batches,
                           transportAmount: transport,
+                          transportSourceId: row.transportSourceId,
                           coversManyBills: row.allocations.length > 1,
                           customerName: row.invoice.customer.name,
                           customerPhone: row.invoice.customer.phone,
