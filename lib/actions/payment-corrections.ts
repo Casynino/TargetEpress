@@ -506,7 +506,26 @@ export async function voidPayment(
         if (s.shipment && s.shipment.status === "READY_FOR_PICKUP") {
           await tx.shipment.update({
             where: { id: s.shipment.id },
-            data: { status: "RECEIVED_AT_DAR" },
+            data: {
+              status: "RECEIVED_AT_DAR",
+              /* The stamp goes with the state. Left standing it says the cargo
+                 was cleared for collection at a moment the books no longer
+                 agree with. */
+              readyForPickup: null,
+            },
+          });
+          /* Said on the timeline, not only in the audit log. This is the line a
+             clerk reads when a customer asks why the cargo they were told was
+             ready is being refused. */
+          await tx.shipmentStatusHistory.create({
+            data: {
+              shipmentId: s.shipment.id,
+              fromStatus: "READY_FOR_PICKUP",
+              toStatus: "RECEIVED_AT_DAR",
+              location: "Dar es Salaam warehouse",
+              note: "Payment cancelled. Held until the balance is settled again.",
+              actorId: user.id,
+            },
           });
         }
       }

@@ -300,6 +300,19 @@ export async function chargeStorageFee(
               where: { id: cargo.id },
               data: { status: "RECEIVED_AT_DAR" },
             });
+            /* The move said nothing on the timeline, so a customer told their
+               cargo was ready read a page that still said so while the counter
+               refused them. */
+            await tx.shipmentStatusHistory.create({
+              data: {
+                shipmentId: cargo.id,
+                fromStatus: "READY_FOR_PICKUP",
+                toStatus: "RECEIVED_AT_DAR",
+                location: "Dar es Salaam warehouse",
+                note: "Storage charged. Held until the new balance is settled; the pickup note it holds stands.",
+                actorId: user.id,
+              },
+            });
           }
         }
       }

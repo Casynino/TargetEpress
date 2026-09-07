@@ -146,6 +146,13 @@ async function openOrAppendLossCase(
   // shipment that has not already been handed over is touched — a delivered or
   // cancelled shipment reported missing is a different problem, and rewinding
   // its status would erase a handover that really happened.
+  /* Read before the claim, so the history line can say where it actually came
+     from. Either of the two is possible and the line asserted the first. */
+  const before = await tx.shipment.findUnique({
+    where: { id: cargo.id },
+    select: { status: true },
+  });
+
   const moved = await tx.shipment.updateMany({
     where: {
       id: cargo.id,
@@ -162,7 +169,10 @@ async function openOrAppendLossCase(
     await tx.shipmentStatusHistory.create({
       data: {
         shipmentId: cargo.id,
-        fromStatus: "RECEIVED_AT_DAR",
+        /* The status it actually left, not an assumption. Cargo reported
+           missing is as often READY_FOR_PICKUP — already cleared and then not
+           on the shelf — and the timeline asserted otherwise. */
+        fromStatus: before?.status ?? "RECEIVED_AT_DAR",
         toStatus: "UNDER_INVESTIGATION",
         location: "Dar es Salaam warehouse",
         note: description,
