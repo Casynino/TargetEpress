@@ -841,6 +841,31 @@ export const SUBMISSION_STATUS_LABELS: Record<SubmissionStatus, string> = {
  * still open work, whatever the paperwork says, and the desk reading a list
  * wants to know whether anybody still has to do something.
  */
+/**
+ * THE SAME STATUSES, KEPT APART.
+ *
+ * EXCEPTION_STATUS_LABELS below collapses five live statuses into the single
+ * word "Open" on purpose — the owner's vocabulary for a case is Open, Solved,
+ * Settled and nothing else, and a reader should not have to learn five.
+ *
+ * But the case timeline was BUILT from those labels, so four genuine lifecycle
+ * moves — taking a case up, putting it to the customer, approving a payout,
+ * approving a replacement — were each written into the permanent record as
+ * "Open → Open". The history is the one place the five have to stay apart,
+ * because it is what somebody reads a year later to work out what was done.
+ */
+export const EXCEPTION_STEP_LABELS: Record<ExceptionStatus, string> = {
+  OPEN: "Reported",
+  UNDER_INVESTIGATION: "Being investigated",
+  WAITING_CUSTOMER: "Waiting on the customer",
+  COMPENSATION_APPROVED: "Compensation approved",
+  REPLACEMENT_APPROVED: "Replacement approved",
+  CARGO_FOUND: "Cargo found",
+  CLOSED: "Closed",
+  RESOLVED: "Closed",
+  WRITTEN_OFF: "Written off",
+};
+
 export const EXCEPTION_STATUS_LABELS: Record<ExceptionStatus, string> = {
   OPEN: "Open",
   UNDER_INVESTIGATION: "Open",

@@ -422,7 +422,12 @@ export async function changeUserRole(
           action: "user.changeRole",
           entity: "User",
           entityId: target.id,
-          summary: `Moved ${target.name} to ${ROLE_LABELS[role]}`,
+          /* Both ends of the move. "Moved Amina to Finance" does not say what
+             she could do yesterday, which is the whole question somebody asks
+             of this line months later. The blocked path directly above already
+             records both. */
+          summary: `Moved ${target.name} from ${ROLE_LABELS[target.role]} to ${ROLE_LABELS[role]}`,
+          metadata: { from: target.role, to: role },
         },
         tx
       );

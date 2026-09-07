@@ -4818,6 +4818,7 @@ const ZH: Record<string, string> = {
   "belongs to": "属于",
   "If they are the same person, merge the two records instead.": "如果是同一个人，请改为合并这两条记录。",
   "another customer": "另一位客户",
+  "Nothing is on this loading table any more — it may have just been dispatched. Reload and check before sending it again.": "该装载表上已无货物——可能刚刚已被发运。请刷新确认后再重新发送。",
   "Tracking will read": "查件状态将显示为",
   "Tracking, note number or name": "运单号、提货单号或姓名",
   "Trader name or the mark on the packages": "商户名称或箱唛",

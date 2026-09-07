@@ -89,7 +89,10 @@ export function InvestigationTimeline({
             </div>
             <div className={last ? "min-w-0 pb-0" : "min-w-0 pb-3"}>
               <p className="text-xs font-medium">
-                {eventLabel(entry.action)}
+                {/* The locale was in hand two lines below and this dropped
+                    it, so the Chinese warehouse read every case event in
+                    English. */}
+                {eventLabel(entry.action, locale)}
                 <span className="ml-2 font-normal text-muted-foreground">
                   {formatDateTime(entry.createdAt, locale)}
                   {entry.actorName ? ` · ${entry.actorName}` : ""}

@@ -504,6 +504,25 @@ export async function dispatchLoadingTable(
         },
       });
 
+      /*
+        NOTHING MOVED MEANS NOTHING FLEW.
+
+        Two dispatches of the same loading table at the same moment: the first
+        claims every consignment, the second's updateMany matches zero rows and
+        it went on to create the flight anyway — a phantom empty batch, plus a
+        departure line written onto cargo that flew on the other one. The throw
+        unwinds the transaction and takes the empty flight with it, which is
+        the idiom every money-moving action here already uses.
+      */
+      if (moved.count === 0) {
+        throw new Error(
+          t(
+            locale,
+            "Nothing is on this loading table any more — it may have just been dispatched. Reload and check before sending it again."
+          )
+        );
+      }
+
       await tx.shipmentStatusHistory.createMany({
         data: table.shipments.map((cargo) => ({
           shipmentId: cargo.id,

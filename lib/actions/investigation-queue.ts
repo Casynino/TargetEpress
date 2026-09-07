@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 import type { ExceptionStatus, Role } from "@prisma/client";
 
 import { recordAudit } from "@/lib/audit";
-import { EXCEPTION_STATUS_LABELS } from "@/lib/constants";
+import {
+  EXCEPTION_STATUS_LABELS,
+  EXCEPTION_STEP_LABELS,
+} from "@/lib/constants";
 import { t } from "@/lib/i18n";
 import { localeOf, type Locale } from "@/lib/locale";
 import {
@@ -315,7 +318,10 @@ export async function advanceInvestigation(
           exceptionId: id,
           action: target === "CLOSED" ? "closed" : "status.changed",
           note:
-            `${EXCEPTION_STATUS_LABELS[exception.status]} → ${EXCEPTION_STATUS_LABELS[target]}` +
+            /* The step labels, not the screen labels — five live statuses
+               share the word "Open", so this wrote "Open → Open" for four
+               genuine moves. */
+            `${EXCEPTION_STEP_LABELS[exception.status]} → ${EXCEPTION_STEP_LABELS[target]}` +
             (note ? ` — ${note}` : ""),
           actorId: user.id,
         },

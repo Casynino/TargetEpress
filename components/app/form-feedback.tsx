@@ -42,7 +42,11 @@ export function SubmitButton({
   const t = useT();
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending || props.disabled} {...props}>
+    /* The spread LAST would put the caller's own `disabled` back over the
+       pending guard — and about half the call sites pass one, so the button
+       they hand a customer stayed live through the whole round trip and a
+       second press recorded a second payment. Spread first, decide after. */
+    <Button {...props} type="submit" disabled={pending || props.disabled}>
       {pending ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
