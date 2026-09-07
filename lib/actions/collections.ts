@@ -661,8 +661,26 @@ export async function verifyPaymentSubmission(
   */
   const combined = submission.allocations.length >= 1;
   const handover = new FormData();
-  handover.set("amount", toNumber(submission.amount).toString());
-  handover.set("currency", submission.currency);
+
+  /*
+    THE FIGURE FINANCE READ OFF THE SLIP.
+
+    Support writes down what the customer told them on the phone; Finance is
+    looking at the transfer itself. Where the two differ the desk deciding the
+    claim is the one that should be able to say so — and the panel they decide
+    on now has the same cargo box the counter has, so the figure it sends is
+    honoured here. Absent, the claim's own figure stands, which is every
+    ordinary case.
+
+    What arrives from that panel is the CARGO half; the fare is stated beside
+    it and added back here, because recordPayment is handed the whole transfer
+    and carves the delivery out of it again.
+  */
+  const saidCargo = String(formData.get("amount") ?? "").trim();
+  const financeCargo = saidCargo === "" ? null : Number(saidCargo);
+  if (financeCargo !== null && (!Number.isFinite(financeCargo) || financeCargo < 0)) {
+    return fail("That cargo figure is not valid.");
+  }
   /*
     THE ACCOUNT FINANCE NAMES DECIDES HOW IT WAS PAID.
 
@@ -711,10 +729,17 @@ export async function verifyPaymentSubmission(
     return fail("That transport figure is not valid.");
   }
   const transport = financeFare ?? toNumber(submission.transportAmount);
-  if (transport > toNumber(submission.amount) + 0.001) {
+  /* The whole transfer: what settles the bill plus what goes to the driver. */
+  const tendered =
+    financeCargo === null
+      ? toNumber(submission.amount)
+      : Math.round((financeCargo + transport) * 100) / 100;
+  handover.set("amount", tendered.toString());
+  handover.set("currency", submission.currency);
+  if (transport > tendered + 0.001) {
     return fail(
       `${submission.currency} ${transport.toLocaleString()} of transport is more than the ` +
-        `${submission.currency} ${toNumber(submission.amount).toLocaleString()} that came in.`
+        `${submission.currency} ${tendered.toLocaleString()} that came in.`
     );
   }
   if (transport > 0) {
@@ -788,6 +813,25 @@ export async function verifyPaymentSubmission(
   if (submission.reference) handover.set("reference", submission.reference);
   if (submission.note) handover.set("note", submission.note);
   if (accountId) handover.set("accountId", accountId);
+
+  /*
+    THE DAY THE MONEY ACTUALLY ARRIVED, AND THE SLIP FINANCE IS HOLDING.
+
+    A claim agreed on Monday for a transfer that landed on Friday is a Friday
+    payment; dating it today puts it in the wrong week's takings and the wrong
+    reconciliation. The panel offers the same date control the counter has, so
+    the answer travels.
+
+    And the proof: Support raises plenty of claims with nothing attached — the
+    row says so in red — and Finance is often the desk the customer finally
+    sends the screenshot to. recordPayment stores whatever files it is given,
+    so they simply ride along.
+  */
+  const paidAt = String(formData.get("paidAt") ?? "").trim();
+  if (paidAt) handover.set("paidAt", paidAt);
+  for (const file of formData.getAll("proof")) {
+    if (file instanceof File && file.size > 0) handover.append("proof", file);
+  }
 
   if (combined) {
     if (!submission.customerId) {

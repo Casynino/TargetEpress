@@ -19,6 +19,8 @@ import { currentRateValue, formatLocal, formatUsd } from "@/lib/fx";
 import { sumShillings, sumUsd, type MoneyRow } from "@/lib/money-totals";
 import { t } from "@/lib/i18n";
 import { viewerLocale } from "@/lib/viewer";
+import { can } from "@/lib/rbac";
+import { currentUser } from "@/lib/session";
 
 /**
  * What Customer Support says customers have paid, waiting on Finance.
@@ -49,6 +51,13 @@ const TODAY = new Date().toISOString().slice(0, 10);
 
 export async function VerifyQueue() {
   const locale = await viewerLocale();
+  /* Which of the bill's own controls this desk may use. Discounting and
+     re-rating change what the customer owes, so they are Finance's — and the
+     panel offers only what the person looking at it may actually do. */
+  const viewer = await currentUser();
+  const canDiscount = can(viewer?.role, "invoice.discount");
+  const canChangeRate = can(viewer?.role, "invoice.rate");
+  const canAdjust = can(viewer?.role, "ledger.adjust");
   const [rows, accounts, rate] = await Promise.all([
     submissionQueue("PENDING"),
     activeAccounts(),
@@ -443,6 +452,10 @@ export async function VerifyQueue() {
                           batchNumbers: batches,
                           transportAmount: transport,
                           transportSourceId: row.transportSourceId,
+                          invoiceTotal: toNumber(row.invoice.total),
+                          invoiceDiscount: toNumber(row.invoice.discount),
+                          canDiscount,
+                          canChangeRate,
                           coversManyBills: row.allocations.length > 1,
                           customerName: row.invoice.customer.name,
                           customerPhone: row.invoice.customer.phone,
@@ -488,6 +501,17 @@ export async function VerifyQueue() {
                           outstanding,
                           submittedByName: row.submittedBy?.name ?? null,
                           submittedAtLabel: formatDateTime(row.submittedAt, locale),
+                        }}
+                        /* The bill's own doors, offered on the screen where
+                           Finance discovers the price is wrong rather than on
+                           another one they have to go and find. */
+                        bill={{
+                          invoiceId: row.invoice.id,
+                          total: toNumber(row.invoice.total),
+                          discount: toNumber(row.invoice.discount),
+                          canDiscount,
+                          canChangeRate,
+                          canAdjust,
                         }}
                         accounts={accounts.map((a) => ({
                           id: a.id,

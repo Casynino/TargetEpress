@@ -151,6 +151,11 @@ export default async function SubmissionsPage({
     slice is the same one the page displays, so the box is a shortcut through
     this page rather than an index of every claim ever filed.
   */
+  /* Which of the bill's own controls this desk may use — Support raises the
+     claims here and may not move a price, so they simply do not see them. */
+  const canDiscount = can(user.role, "invoice.discount");
+  const canChangeRate = can(user.role, "invoice.rate");
+
   const needle = query.toLowerCase();
   const visible =
     needle.length === 0
@@ -588,6 +593,10 @@ export default async function SubmissionsPage({
                         batchNumbers: batchesOf.get(row.id) ?? [],
                         transportAmount: toNumber(row.transportAmount),
                         transportSourceId: row.transportSourceId,
+                        invoiceTotal: toNumber(row.invoice.total),
+                        invoiceDiscount: toNumber(row.invoice.discount),
+                        canDiscount,
+                        canChangeRate,
                         coversManyBills: row.allocations.length > 1,
                         customerName: row.invoice.customer.name,
                         customerPhone: row.invoice.customer.phone,

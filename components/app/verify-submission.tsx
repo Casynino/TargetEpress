@@ -11,6 +11,11 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { MoneyInput } from "@/components/ui/money-input";
 import { PaymentDateField } from "@/components/app/payment-date-field";
+import { PaymentProofField } from "@/components/app/payment-proof-field";
+import { ChangeRate } from "@/components/app/change-rate";
+import { GiveDiscount } from "@/components/app/give-discount";
+import { PaymentDifference } from "@/components/app/payment-difference";
+import { TransportSplit } from "@/components/app/transport-split";
 import {
   rejectPaymentSubmission,
   verifyPaymentSubmission,
@@ -49,11 +54,31 @@ export function VerifySubmission({
   clearsOn = null,
   subject = null,
   today,
+  bill = null,
 }: {
   submissionId: string;
   /** Today, yyyy-mm-dd from the server, so the date picker and the action
       agree about what day it is. */
   today: string;
+  /**
+   * THE BILL'S OWN CONTROLS, THE ONES THE COUNTER HAS.
+   *
+   * Discounting and re-rating change the BILL rather than this payment, which
+   * is why they are their own doors — but the moment Finance is deciding a
+   * claim is exactly when they find the price is wrong, and sending them to
+   * another screen to fix it is how a claim gets confirmed at a figure
+   * everybody already knows is wrong.
+   *
+   * Null when there is nothing to offer: no bill, or a viewer who may not.
+   */
+  bill?: {
+    invoiceId: string;
+    total: number;
+    discount: number;
+    canDiscount: boolean;
+    canChangeRate: boolean;
+    canAdjust: boolean;
+  } | null;
   accounts: { id: string; name: string; currency: string }[];
   /**
    * WHOSE MONEY, AGAINST WHAT — READ BACK BEFORE THE DECISION.
@@ -144,8 +169,43 @@ export function VerifySubmission({
      string like every other money box, so clearing it to retype is not a
      fight with a zero. */
   const [fare, setFare] = useState(transport > 0 ? String(transport) : "");
+  const [source, setSource] = useState(transportSourceId ?? "");
+  /*
+    THE CARGO HALF, TYPEABLE.
+
+    Support writes what the customer told them; Finance reads the slip. When
+    the two differ, the desk deciding the claim is the desk that should be able
+    to say so — the same box the counter has, in the same place.
+  */
+  const [typedCargo, setTypedCargo] = useState<string | null>(null);
   /* What the customer handed over: the two halves as the claim states them. */
   const claimed = cargo + transport;
+  const fareNow = Math.max(0, Number(fare) || 0);
+  const cargoNow =
+    typedCargo === null ? Math.max(0, claimed - fareNow) : Math.max(0, Number(typedCargo) || 0);
+  const tendered = cargoNow + fareNow;
+
+  /*
+    THE GAP, IN THE MONEY THAT ARRIVED AND IN THE BILL'S.
+
+    `shortfall` is what the claim as Support raised it leaves owing. Once
+    Finance moves the cargo half or the fare, the gap moves with it — so it is
+    derived from what is on the screen rather than read off the claim, exactly
+    as the counter derives it.
+  */
+  const owedInTender =
+    billRate && billCurrency !== currency
+      ? currency === "TZS"
+        ? shortfall * billRate + cargoNow
+        : shortfall / billRate + cargoNow
+      : shortfall + cargoNow;
+  const gapInTender = Math.round((owedInTender - cargoNow) * 100) / 100;
+  const gapInBill =
+    billRate && billCurrency !== currency
+      ? currency === "TZS"
+        ? gapInTender / billRate
+        : gapInTender * billRate
+      : gapInTender;
   /* Portalled, so it waits for the document. */
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -235,63 +295,77 @@ export function VerifySubmission({
           </div>
         ) : null}
 
-        {/* WHAT CAME IN, AND WHAT OF IT WAS THE COMPANY'S.
+        {/*
+          THE SAME FIELDS, IN THE SAME ORDER, AS THE COUNTER.
 
-            Read back rather than asked for: the figure is the customer's, and
-            correcting it is what the Edit door is for. The fare is the half
-            Finance often learns about on the phone, so that one IS asked. */}
-        <div className="rounded-lg border px-3 py-2">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="text-xs uppercase tracking-wide text-muted-foreground">
-              {t("How much came in")}
-            </span>
-            <span className="font-mono text-sm font-semibold tabular">
-              {currency} {claimed.toLocaleString()}
-            </span>
+          The cargo charge and the money it came in; the fare the customer
+          added and the till it goes out of; then the bill's own controls, the
+          split in words, and the difference. A desk that has learned this
+          panel on the cargo page has learned it here.
+        */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="space-y-1.5">
+            <Label htmlFor={`cargo-${submissionId}`} className="text-xs">
+              {t("Cargo charge")}
+            </Label>
+            <MoneyInput
+              id={`cargo-${submissionId}`}
+              name="amount"
+              decimals={currency === "TZS" ? 0 : 2}
+              value={typedCargo ?? String(cargoNow)}
+              /* Emptying it hands the figure back to the claim rather than
+                 latching an empty string. */
+              onValueChange={(raw) => setTypedCargo(raw === "" ? null : raw)}
+              required
+            />
           </div>
-          <div className="mt-1 flex items-baseline justify-between gap-3">
-            <span className="text-xs text-muted-foreground">
-              {t("To the bill")}
-            </span>
-            <span className="font-mono text-sm tabular">
-              {currency} {cargoNow.toLocaleString()}
-            </span>
+          <div className="space-y-1.5">
+            <Label htmlFor={`currency-${submissionId}`} className="text-xs">
+              {t("Paid in")}
+            </Label>
+            {/* Read back, not chosen: what the customer sent is the claim's
+                own fact, and changing it restates the fare with it — that is
+                the correction door's question, not this one's. */}
+            <NativeSelect
+              id={`currency-${submissionId}`}
+              value={currency}
+              disabled
+              className="disabled:opacity-70"
+            >
+              <option value={currency}>{currency}</option>
+            </NativeSelect>
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor={`fare-${submissionId}`} className="text-xs">
-            {t("Of that, transport")}
-          </Label>
-          <MoneyInput
-            id={`fare-${submissionId}`}
-            name="transportAmount"
-            decimals={currency === "TZS" ? 0 : 2}
-            value={fare}
-            onValueChange={(raw) => setFare(raw)}
-          />
-          <p className="text-[11px] text-muted-foreground">
-            {t("Leave it empty when the whole amount is freight.")}{" "}
-            {transportSourceName
-              ? `${t("Support said")} ${transportSourceName}.`
-              : t("The bill is credited with the rest.")}
-          </p>
-        </div>
-
-        {Number(fare) > 0 ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor={`fare-${submissionId}`} className="text-xs">
+              {t("Transport they added")}
+            </Label>
+            <MoneyInput
+              id={`fare-${submissionId}`}
+              name="transportAmount"
+              decimals={currency === "TZS" ? 0 : 2}
+              value={fare}
+              onValueChange={(raw) => setFare(raw)}
+              placeholder="0"
+            />
+          </div>
+          {/* Always here, greyed until there is a fare to settle — a disabled
+              field is not submitted, so nothing is asked for when there is
+              nothing to pay. */}
           <div className="space-y-1.5">
             <Label htmlFor={`transport-source-${submissionId}`} className="text-xs">
               {t("Transport settled from")}
             </Label>
-            {/* Cash and the Lipa number only — a driver is not paid out of a
-                bank account. Support's answer is pre-filled because they
-                usually know; Finance may change it because they are the desk
-                that actually hands it over. */}
             <NativeSelect
               id={`transport-source-${submissionId}`}
               name="transportSourceId"
-              defaultValue={transportSourceId ?? ""}
-              required
+              required={fareNow > 0}
+              disabled={!(fareNow > 0)}
+              value={source}
+              onChange={(event) => setSource(event.target.value)}
+              className="disabled:opacity-50"
             >
               <option value="" disabled>
                 {t("Cash or the Lipa number")}
@@ -303,44 +377,78 @@ export function VerifySubmission({
               ))}
             </NativeSelect>
           </div>
+        </div>
+
+        {/* Straight under the figure it changes, as on the cargo page. */}
+        {bill?.canDiscount ? (
+          <div className="text-xs">
+            <GiveDiscount
+              invoiceId={bill.invoiceId}
+              currency={billCurrency}
+              current={bill.discount}
+              rate={billRate}
+            />
+          </div>
         ) : null}
 
-        {shortfall > 0.005 ? (
+        {bill?.canChangeRate ? (
+          <div className="text-xs">
+            <ChangeRate
+              invoiceId={bill.invoiceId}
+              currency={billCurrency}
+              current={billRate}
+              total={bill.total}
+            />
+          </div>
+        ) : null}
+
+        {/* The split in words, so the figure on the screen can be laid beside
+            the figure on the customer's phone. */}
+        <TransportSplit
+          cargo={cargoNow}
+          transport={fareNow}
+          total={tendered}
+          money={(v) => `${currency} ${v.toLocaleString()}`}
+        />
+
+        {/* Short of the bill, or over it — said plainly and answerable here,
+            the same control the counter uses. */}
+        {Math.abs(gapInTender) > 0.005 ? (
+          <PaymentDifference
+            gap={gapInTender}
+            paid={cargoNow}
+            tendered={currency}
+            billCurrency={billCurrency}
+            gapInBill={gapInBill}
+            canClear={bill?.canAdjust ?? false}
+            onArmedChange={setClearRest}
+          />
+        ) : null}
+
+        {/* Support's own words about the difference, kept beside the control
+            that answers it — and, when one transfer covers several bills, WHICH
+            bill the write-off lands on. "The rest is not coming" does not say
+            which bill's rest when a claim answers four. */}
+        {Math.abs(gapInTender) > 0.005 && (clearShortfallClaimed || clearsOn) ? (
+          <p className="text-[11px] text-muted-foreground">
+            {clearShortfallClaimed
+              ? `${t("Support was told the rest is not coming.")} `
+              : ""}
+            {clearsOn
+              ? `${t("Taken off")} ${clearsOn} ${t("— the largest of the bills it covers.")}`
+              : ""}
+          </p>
+        ) : null}
+
+        {/* Stated either way, so an untick is a NO rather than a silence the
+            action would read as Support's yes. */}
+        {gapInTender > 0.005 ? (
           <>
-            <label className="flex cursor-pointer items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-2.5 py-2 text-[11px] leading-relaxed text-warning">
-              <input
-                type="checkbox"
-                checked={clearRest}
-                onChange={(event) => setClearRest(event.target.checked)}
-                className="mt-0.5 h-3.5 w-3.5 shrink-0"
-              />
-              <span>
-                <span className="font-semibold">
-                  {t("Clear the last")} {gapShown} {t("and settle the bill")}
-                </span>
-                <span className="mt-0.5 block opacity-90">
-                  {clearShortfallClaimed
-                    ? `${t("Support was told the rest is not coming.")} `
-                    : `${t("This claim is short of the bill.")} `}
-                  {t(
-                    "The payment records what came in; the difference is written off and moves no money."
-                  )}
-                </span>
-                {clearsOn ? (
-                  <span className="mt-0.5 block font-medium opacity-90">
-                    {t("Taken off")} {clearsOn}{" "}
-                    {t("— the largest of the bills it covers.")}
-                  </span>
-                ) : null}
-              </span>
-            </label>
-            {/* Stated either way, so an untick is a NO rather than a silence
-                the action would read as Support's yes. */}
             <input type="hidden" name="clearShortfall" value={clearRest ? "1" : "0"} />
             <input
               type="hidden"
               name="clearShortfallUpTo"
-              value={shortfall.toFixed(2)}
+              value={Math.max(0, gapInBill).toFixed(2)}
             />
           </>
         ) : null}
@@ -360,6 +468,10 @@ export function VerifySubmission({
             ))}
           </NativeSelect>
         </div>
+
+        {/* The customer's slip, if Finance is holding one Support did not
+            attach. The same field the counter has. */}
+        <PaymentProofField />
 
         {/* The day the money actually arrived, when it was not today. The same
             control the counter uses, so a claim agreed on Monday for a transfer

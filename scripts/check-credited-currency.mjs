@@ -25,6 +25,8 @@ const rows = await prisma.payment.findMany({
   select: {
     id: true,
     amount: true,
+    /* The half that answers no bill — see the note where it is subtracted. */
+    transportAmount: true,
     currency: true,
     creditedAmount: true,
     exchangeRate: true,
@@ -43,23 +45,38 @@ for (const p of rows) {
   const rate = n(p.exchangeRate);
   const name = p.receipt?.receiptNumber ?? p.id;
 
+  /*
+    THE FARE IS NOT CREDITED TO ANY BILL.
+
+    `amount` is what the customer handed across the counter, and on a delivery
+    that is the freight PLUS the driver's fare. Only the freight half settles
+    a bill, so that is the half `creditedAmount` holds — the fare leaves again
+    on its own ledger leg.
+
+    This check compared the credited figure against the WHOLE transfer, so the
+    first payment ever taken with a fare in a currency other than the bill's
+    was reported as holding the wrong currency. It held exactly the right
+    figure; the arithmetic here was missing a term.
+  */
+  const forBills = amount - (n(p.transportAmount) ?? 0);
+
   if (p.currency === "USD") {
     /* Paid in the bill's own currency: the two must agree. */
-    if (Math.abs(credited - amount) > 0.01) {
-      bad.push(`${name}: paid USD ${amount} but credited ${credited}`);
+    if (Math.abs(credited - forBills) > 0.01) {
+      bad.push(`${name}: paid USD ${forBills} to bills but credited ${credited}`);
     }
     continue;
   }
 
   /* Paid in shillings. The credited figure is that money in dollars, so it
-     must be the amount divided by the rate — never the amount itself. */
+     must be the freight half divided by the rate — never the amount itself. */
   if (rate && rate > 0) {
-    const expected = amount / rate;
+    const expected = forBills / rate;
     /* A cent of tolerance, plus the deliberate snap-to-outstanding the credit
        helper applies when a conversion lands within a cent of the balance. */
     if (Math.abs(credited - expected) > 0.02) {
       bad.push(
-        `${name}: TZS ${amount} at ${rate} should credit ~${expected.toFixed(2)}, stored ${credited}`
+        `${name}: TZS ${forBills} to bills at ${rate} should credit ~${expected.toFixed(2)}, stored ${credited}`
       );
     }
   } else if (amount > 1000 && Math.abs(credited - amount) < 0.01) {

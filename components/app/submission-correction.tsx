@@ -14,6 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { ChangeRate } from "@/components/app/change-rate";
+import { GiveDiscount } from "@/components/app/give-discount";
+import { TransportSplit } from "@/components/app/transport-split";
 import { Textarea } from "@/components/ui/textarea";
 import {
   editSubmission,
@@ -46,6 +49,18 @@ export type SubmissionSubject = {
   transportSourceId: string | null;
   /** More than one bill, so the fare has no single place to go. */
   coversManyBills: boolean;
+  /**
+   * THE BILL'S OWN DOORS, ON THE SCREEN WHERE THE PRICE IS QUESTIONED.
+   *
+   * A discount and a rate change what the customer owes rather than what this
+   * claim says — but the desk correcting a claim is often the desk that has
+   * just found the price wrong, and sending them elsewhere to fix it is how a
+   * claim gets corrected against a figure everybody knows is wrong.
+   */
+  invoiceTotal: number;
+  invoiceDiscount: number;
+  canDiscount: boolean;
+  canChangeRate: boolean;
   customerName: string;
   customerPhone: string | null;
   amount: number;
@@ -597,6 +612,43 @@ export function SubmissionCorrection({
                           </div>
                         ) : null}
                       </div>
+                    )}
+
+                    {/* The bill's own doors, straight under the figures they
+                        change — the same place the counter puts them. */}
+                    {subject.canDiscount ? (
+                      <div className="text-xs">
+                        <GiveDiscount
+                          invoiceId={subject.invoiceId}
+                          currency={subject.invoiceCurrency}
+                          current={subject.invoiceDiscount}
+                          rate={subject.invoiceRate}
+                        />
+                      </div>
+                    ) : null}
+                    {subject.canChangeRate ? (
+                      <div className="text-xs">
+                        <ChangeRate
+                          invoiceId={subject.invoiceId}
+                          currency={subject.invoiceCurrency}
+                          current={subject.invoiceRate}
+                          total={subject.invoiceTotal}
+                        />
+                      </div>
+                    ) : null}
+
+                    {/* The split in words, so the total on the screen can be
+                        laid beside the total on the customer's phone. */}
+                    {subject.coversManyBills ? null : (
+                      <TransportSplit
+                        cargo={Math.max(
+                          0,
+                          (Number(amount) || 0) - (Number(transport) || 0)
+                        )}
+                        transport={Math.max(0, Number(transport) || 0)}
+                        total={Number(amount) || 0}
+                        money={(v) => `${currency} ${v.toLocaleString()}`}
+                      />
                     )}
 
                     <div className="space-y-1.5">

@@ -272,6 +272,9 @@ export async function submissionQueue(
              this rate — never at today's, which would land the claim a few
              hundred shillings off the balance it is meant to settle. */
           exchangeRate: true,
+          /* What is already off this bill, so the discount control opens on
+             the truth rather than on zero. */
+          discount: true,
           customer: { select: { id: true, name: true, phone: true } },
           /* The flight, because one customer sends on several of them and the
              desk has to know which consignment a transfer answers. Without it
