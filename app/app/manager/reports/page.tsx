@@ -134,7 +134,7 @@ export default async function ManagerReport({
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
-  await requirePermission("report.view");
+  await requirePermission("record.review");
   const locale = await viewerLocale();
   const { period } = await searchParams;
 

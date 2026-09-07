@@ -373,7 +373,21 @@ export async function createShipment(
           sequence: index + 1,
           reference: packageReference(shipment.trackingNumber, index + 1),
           qrToken: generateQrToken(),
-        })),
+          /*
+            A BOX ADDED AT THE COUNTER IS ALREADY ON THE FLOOR.
+
+            The row was created un-ticked, and the only four writers of
+            Package.receivedAt are the check-in paths — every one of which
+            refuses a flight that is not ARRIVED or VERIFIED. So a carton
+            registered onto a CLOSED flight could never be ticked by anybody,
+            and the release counter refuses on "0/3 packages checked in" for
+            ever: billed, paid for, and then turned away.
+
+            Somebody is holding it and has just said so, which is exactly the
+            reasoning the check-in's own extra-carton branch gives.
+          */
+          ...(intoBatch ? { receivedAt: new Date(), receivedById: user.id } : {}),
+})),
       });
 
       await tx.shipmentPhoto.createMany({

@@ -100,7 +100,7 @@ export default async function ManagerApprovals({
 }: {
   searchParams: Promise<{ view?: string }>;
 }) {
-  const user = await requirePermission("report.view");
+  const user = await requirePermission("record.review");
   const locale = await viewerLocale();
   const { view } = await searchParams;
   const tab: View = view === "approved" || view === "rejected" ? view : "waiting";

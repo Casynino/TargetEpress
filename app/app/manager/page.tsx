@@ -144,7 +144,7 @@ const STATED_ELSEWHERE = new Set([
  * for exactly that reason — see the note on CorridorBar.
  */
 export default async function ManagerHome() {
-  const user = await requirePermission("report.view");
+  const user = await requirePermission("record.review");
   const locale = await viewerLocale();
   const now = new Date();
 

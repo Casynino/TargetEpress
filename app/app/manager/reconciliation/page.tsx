@@ -248,7 +248,7 @@ export default async function ManagerReconciliation({
 }: {
   searchParams: Promise<Params>;
 }) {
-  const user = await requirePermission("report.view");
+  const user = await requirePermission("record.review");
   const locale = await viewerLocale();
   const params = await searchParams;
 

@@ -25,7 +25,7 @@ export const metadata: Metadata = { title: "Control room" };
  * waiting, then by how long it has waited.
  */
 export default async function ControlRoom() {
-  await requirePermission("report.view");
+  await requirePermission("record.review");
   const locale = await viewerLocale();
   const lines = await controlRoom();
 

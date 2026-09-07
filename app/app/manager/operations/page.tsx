@@ -79,7 +79,7 @@ export default async function ManagerOperationsPage() {
     deliberately. Every /app route's only real lock is the one its own page
     calls, which makes this line the whole of it.
   */
-  const user = await requirePermission("report.view");
+  const user = await requirePermission("record.review");
   // Before the Promise.all. deskPulse() below reads `locale` from inside a
   // callback, and a const referenced by a closure that runs first is a temporal
   // dead zone TypeScript cannot see — the page then dies at runtime.

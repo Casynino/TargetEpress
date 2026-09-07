@@ -16,7 +16,7 @@ import { requirePermission } from "@/lib/session";
  * person reads forty at a time, and a file has no such limit.
  */
 export async function GET(request: NextRequest) {
-  await requirePermission("report.view");
+  await requirePermission("record.review");
 
   const params = Object.fromEntries(request.nextUrl.searchParams) as Record<string, string>;
   const rows: string[][] = [

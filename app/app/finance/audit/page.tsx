@@ -40,6 +40,24 @@ const MONEY_ENTITIES = [
   "AccountTransfer",
   "CompanyAccount",
   "Compensation",
+  /*
+    THE ENTITIES THE UNDONE LIST ACTUALLY WRITES.
+
+    Eight of the fifteen actions in UNDONE_ACTIONS below could never match a
+    row, because the entity they are written against was not on this list:
+    ledger.cancel writes "LedgerEntry", the cargo verbs write "Shipment",
+    the submission verbs write "PaymentSubmission", credit.facility.withdrawn
+    writes "Customer". So the page's own "Cancelled & deleted" view showed
+    about half of what it claimed to show — which reads as proof nothing
+    happened, and is the one thing this filter must never do.
+  */
+  "LedgerEntry",
+  "LEDGER_ENTRY",
+  "PaymentSubmission",
+  "PayrollRun",
+  "AccountReconciliation",
+  "Shipment",
+  "Customer",
 ];
 
 const PAGE_SIZE = 60;
@@ -78,12 +96,17 @@ export default async function FinanceAuditPage({
     "cargo.delete",
     "cargo.restore",
     "cargo.purge",
-    "shipment.cancel",
+    /* shipment.cancel is gone — cancelling cargo was removed, and a filter
+       naming an action nothing writes is a row that can never appear. */
     "pickupNote.cancel",
+    "invoice.void",
     "credit.rejected",
     "credit.facility.withdrawn",
     "storage.waived",
-    "submission.rejected",
+    /* The action actually written is payment.rejected — see
+       lib/actions/collections.ts. "submission.rejected" was never written by
+       anything. */
+    "payment.rejected",
     "submission.withdrawn",
   ];
   const undoneOnly = params.view === "undone";
