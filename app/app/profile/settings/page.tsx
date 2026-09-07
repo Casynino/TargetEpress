@@ -9,8 +9,10 @@ import {
   PersonalDetailsForm,
 } from "@/components/app/profile-settings";
 import { DEPARTMENT_LABELS, ROLE_LABELS } from "@/lib/constants";
+import { t } from "@/lib/i18n";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { viewerLocale } from "@/lib/viewer";
 import { requireUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Personal details" };
@@ -21,6 +23,9 @@ const RANK_LABELS: Record<string, string> = {
 };
 
 export default async function ProfileSettingsPage() {
+  /* Every desk has one of these pages and the Guangzhou half of the company
+     read theirs in English. */
+  const locale = await viewerLocale();
   const session = await requireUser();
 
   const me = await prisma.user.findUnique({
@@ -44,8 +49,11 @@ export default async function ProfileSettingsPage() {
   return (
     <>
       <PageHeader
-        title="Personal details"
-        description="Yours to change. Anything about your employment is set by management."
+        title={t(locale, "Personal details")}
+        description={t(
+          locale,
+          "Yours to change. Anything about your employment is set by management."
+        )}
         actions={
           <BackLinkButton fallbackHref="/app/profile" fallbackLabel="Profile" />
         }
@@ -83,25 +91,33 @@ export default async function ProfileSettingsPage() {
           <div className="border-b px-5 py-4">
             <h2 className="font-display font-semibold">Set by management</h2>
             <p className="text-xs text-muted-foreground">
-              Ask the office if any of this is wrong.
+              {t(locale, "Ask the office if any of this is wrong.")}
             </p>
           </div>
           <dl className="divide-y">
             {[
-              { label: "Employee ID", value: me.employeeId ?? "Not assigned" },
+              {
+                label: "Employee ID",
+                value: me.employeeId ?? t(locale, "Not assigned"),
+              },
               { label: "Company email", value: me.email },
               {
                 label: "Department",
-                value: DEPARTMENT_LABELS[me.department],
+                value: t(locale, DEPARTMENT_LABELS[me.department]),
               },
               {
                 label: "Role",
-                value: me.rank ? RANK_LABELS[me.rank] : ROLE_LABELS[me.role],
+                value: t(
+                  locale,
+                  me.rank ? RANK_LABELS[me.rank] : ROLE_LABELS[me.role]
+                ),
               },
-              { label: "Date joined", value: formatDate(me.joinedAt) },
+              { label: "Date joined", value: formatDate(me.joinedAt, locale) },
             ].map((item) => (
               <div key={item.label} className="px-5 py-3">
-                <dt className="text-xs text-muted-foreground">{item.label}</dt>
+                <dt className="text-xs text-muted-foreground">
+                  {t(locale, item.label)}
+                </dt>
                 <dd className="mt-0.5 text-sm font-medium">{item.value}</dd>
               </div>
             ))}

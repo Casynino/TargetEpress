@@ -2291,6 +2291,19 @@ export async function undoBatchArrival(
          cannot have cargo waiting at a counter for it. In practice one only
          reaches here with its note already cancelled, because a standing note
          is refused above. */
+      /* Which ones are about to move, read before the claim so each can have
+         its own history line. Undoing an arrival moved every consignment on the
+         flight between statuses and wrote nothing to any of their timelines —
+         so a customer's page went on asserting the cargo had landed, and the
+         only record of the correction was one audit row against the batch. */
+      const returning = await tx.shipment.findMany({
+        where: {
+          id: { in: shipmentIds },
+          status: { in: ["RECEIVED_AT_DAR", "READY_FOR_PICKUP"] },
+        },
+        select: { id: true, status: true },
+      });
+
       const returned = await tx.shipment.updateMany({
         where: {
           id: { in: shipmentIds },
@@ -2298,6 +2311,22 @@ export async function undoBatchArrival(
         },
         data: { status: "IN_TRANSIT", arrivedAt: null, readyForPickup: null },
       });
+
+      if (returning.length > 0) {
+        await tx.shipmentStatusHistory.createMany({
+          data: returning.map((piece) => ({
+            shipmentId: piece.id,
+            fromStatus: piece.status,
+            toStatus: "IN_TRANSIT" as const,
+            location: "China → Tanzania",
+            note: withNote(
+              `${batch.batchNumber} was put back in the air — this cargo had not landed.`,
+              reason
+            ),
+            actorId: user.id,
+          })),
+        });
+      }
 
       /*
         AND THE ONES IT LEFT UNDER INVESTIGATION.
