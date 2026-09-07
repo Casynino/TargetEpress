@@ -13,6 +13,7 @@ import { packageReference } from "@/lib/ids";
 import { generateQrToken } from "@/lib/ids";
 import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
+import { translateText, translationColumns } from "@/lib/translate";
 import { canAmendCargo, cargoCustody } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
 import { filesFrom, putImages } from "@/lib/storage";
@@ -247,7 +248,7 @@ export async function updateCargo(
         });
         if (taken && taken.id !== before.customer.id) {
           throw new Error(
-            `${phone} is already on file as ${taken.name} (${taken.code}). Use a different number, or merge the two records.`
+            `${phone} ${t(locale, "is already on file as")} ${taken.name} (${taken.code}). ${t(locale, "Use a different number, or merge the two records.")}`
           );
         }
 
@@ -274,14 +275,36 @@ export async function updateCargo(
         data: { name: input.customerName, phone },
       });
 
+      /*
+        THE TRANSLATION FOLLOWS THE TEXT IT TRANSLATES.
+
+        This wrote description and internalNotes and left the translation
+        columns exactly as they were — and cargoText PREFERS the stored
+        translation over the original, so every reader on the other side of the
+        company went on seeing the text as it stood before the edit. A weight
+        typo corrected in Guangzhou still read wrong in Dar, and the other way
+        round.
+
+        The sibling createShipment/updateShipment path has always done this,
+        under a comment saying a stale translation is worse than none. The
+        comment was right and this was the live door.
+      */
+      const describedAs = await translateText(input.description, {
+        learn: true,
+        tx,
+      });
+      const notedAs = await translateText(input.internalNotes, { tx });
+
       await tx.shipment.update({
         where: { id: before.id },
         data: {
           cargoTypeId: input.cargoTypeId,
+          ...translationColumns("description", describedAs),
           description: input.description,
           weightKg: input.weightKg,
           packages: input.packages,
           packageType: input.packageType,
+          ...translationColumns("internalNotes", notedAs),
           internalNotes: input.internalNotes,
         },
       });

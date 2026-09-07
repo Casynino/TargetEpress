@@ -19,12 +19,15 @@ import {
 } from "@/lib/ids";
 import { assignToLoadingTable } from "@/lib/batching";
 import { quote } from "@/lib/pricing";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 import { prisma, type TxClient } from "@/lib/prisma";
 import { autoPriceShipments } from "@/lib/auto-price";
 import { canAmendCargo, cargoCustody } from "@/lib/rbac";
 import { translateText, translationColumns } from "@/lib/translate";
 import { filesFrom, putImages } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import { exceptionSchema, firstError, shipmentSchema } from "@/lib/validation";
 
@@ -85,7 +88,10 @@ async function resolveCustomer(
     customerPhone: string;
     customerCity?: string;
   },
-  actorId: string
+  actorId: string,
+  /* Guangzhou registers most cargo and reads the app in Chinese, so the
+     refusals this throws have to be composed in their language. */
+  locale: Locale
 ) {
   const phone = normalisePhone(input.customerPhone);
 
@@ -109,8 +115,11 @@ async function resolveCustomer(
         where: { id: theirs.customerId },
         select: { name: true, code: true },
       });
+      /* Composed from translated fragments. A sentence carrying a phone number
+         reaches the dictionary already interpolated, so it can never match a
+         key — and Guangzhou, who sees this refusal most, reads in Chinese. */
       throw new Error(
-        `${phone} is already on file as ${owner?.name ?? "another customer"} (${owner?.code ?? ""}). Register this cargo against them, or use a different number.`
+        `${phone} ${t(locale, "is already on file as")} ${owner?.name ?? t(locale, "another customer")} (${owner?.code ?? ""}). ${t(locale, "Register this cargo against them, or use a different number.")}`
       );
     }
 
@@ -199,6 +208,7 @@ export async function createShipment(
   );
   if (!parsed.success) return fail(firstError(parsed.error));
   const input = parsed.data;
+  const locale = await viewerLocale();
 
   /*
     Evidence is expected, never enforced.
@@ -224,7 +234,7 @@ export async function createShipment(
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const customer = await resolveCustomer(tx, input, user.id);
+      const customer = await resolveCustomer(tx, input, user.id, locale);
 
       /*
         TWO WAYS A CARGO RECORD IS BORN, AND ONE PLACE THAT WRITES IT.

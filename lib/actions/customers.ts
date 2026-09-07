@@ -405,7 +405,7 @@ export async function addCustomerPhone(input: {
           select: { name: true, code: true },
         });
         throw new Error(
-          `${phone} belongs to ${owner?.name ?? "another customer"} (${owner?.code ?? ""}). If they are the same person, merge the two records instead.`
+          `${phone} ${t(locale, "belongs to")} ${owner?.name ?? t(locale, "another customer")} (${owner?.code ?? ""}). ${t(locale, "If they are the same person, merge the two records instead.")}`
         );
       }
       /* The unique column too — a number on one customer's `phone` and another
@@ -416,7 +416,7 @@ export async function addCustomerPhone(input: {
       });
       if (primaryOf && primaryOf.id !== customer.id) {
         throw new Error(
-          `${phone} belongs to ${primaryOf.name} (${primaryOf.code}). If they are the same person, merge the two records instead.`
+          `${phone} ${t(locale, "belongs to")} ${primaryOf.name} (${primaryOf.code}). ${t(locale, "If they are the same person, merge the two records instead.")}`
         );
       }
 

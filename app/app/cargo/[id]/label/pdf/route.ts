@@ -12,6 +12,8 @@ import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { packageQrDataUrl } from "@/lib/qr";
 import { requirePermission } from "@/lib/session";
+import { latinLabel } from "@/lib/manifest-pdf";
+import { CATEGORY_LABELS } from "@/lib/cargo";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
 /**
@@ -43,6 +45,10 @@ export async function GET(
     select: {
       trackingNumber: true,
       ...selectText("description"),
+      /* The fallback when the description is Chinese: a WinAnsi PDF deletes
+         every CJK codepoint, so the goods line printed empty. */
+      cargoCategory: true,
+      cargoType: { select: { name: true } },
       weightKg: true,
       packageType: true,
       registeredAt: true,
@@ -66,7 +72,10 @@ export async function GET(
       trackingNumber: shipment.trackingNumber,
       packageRef: pkg.reference,
       customerName: shipment.customer.name,
-      description: cargoText(locale, shipment, "description"),
+      description: latinLabel(
+      cargoText("en", shipment, "description"),
+      shipment.cargoType?.name ?? CATEGORY_LABELS[shipment.cargoCategory]
+    ),
       weightLabel: formatWeight(shipment.weightKg),
       packagesLabel: formatPackages(
         shipment.packageList.length,

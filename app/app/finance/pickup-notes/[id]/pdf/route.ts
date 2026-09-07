@@ -9,6 +9,8 @@ import { prisma } from "@/lib/prisma";
 import { shipmentQrDataUrl } from "@/lib/qr";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { latinLabel } from "@/lib/manifest-pdf";
+import { CATEGORY_LABELS } from "@/lib/cargo";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 import { localSplit, outstandingOf } from "@/lib/invoice-balance";
 
@@ -42,6 +44,10 @@ export async function GET(
           trackingNumber: true,
           qrToken: true,
           ...selectText("description"),
+          /* The fallback when the description is Chinese: a WinAnsi PDF deletes
+             every CJK codepoint, so the goods line printed empty. */
+          cargoCategory: true,
+          cargoType: { select: { name: true } },
           packages: true,
           packageType: true,
           weightKg: true,
@@ -156,7 +162,10 @@ export async function GET(
     // The reader's rendering, not whatever the Guangzhou desk typed. The card
     // draws through WinAnsi, so an English clerk downloading this now gets the
     // English line rather than Chinese that the font drops on the floor.
-    description: cargoText(locale, note.shipment, "description"),
+    description: latinLabel(
+      cargoText("en", note.shipment, "description"),
+      note.shipment.cargoType?.name ?? CATEGORY_LABELS[note.shipment.cargoCategory]
+    ),
     weightLabel: formatWeight(note.shipment.weightKg),
     packagesLabel: formatPackages(
       note.shipment.packages,

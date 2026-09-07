@@ -5,6 +5,8 @@ import { toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { combinedReceiptToPdf } from "@/lib/receipt-pdf";
 import { requirePermission } from "@/lib/session";
+import { latinLabel } from "@/lib/manifest-pdf";
+import { CATEGORY_LABELS } from "@/lib/cargo";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 import { isSettled } from "@/lib/invoice-balance";
 
@@ -61,6 +63,10 @@ export async function GET(
                   trackingNumber: true,
                   batch: { select: { batchNumber: true } },
                   ...selectText("description"),
+                  /* The fallback when the description is Chinese: a WinAnsi PDF deletes
+                     every CJK codepoint, so the goods line printed empty. */
+                  cargoCategory: true,
+                  cargoType: { select: { name: true } },
                 },
               },
             },
@@ -82,6 +88,10 @@ export async function GET(
                       trackingNumber: true,
                       batch: { select: { batchNumber: true } },
                       ...selectText("description"),
+                      /* The fallback when the description is Chinese: a WinAnsi PDF deletes
+                         every CJK codepoint, so the goods line printed empty. */
+                      cargoCategory: true,
+                      cargoType: { select: { name: true } },
                     },
                   },
                 },
@@ -126,7 +136,10 @@ export async function GET(
     const cross = invoice.currency !== tenderedCurrency;
     return {
       trackingNumber: invoice.shipment.trackingNumber,
-      description: cargoText(locale, invoice.shipment, "description"),
+      description: latinLabel(
+      cargoText("en", invoice.shipment, "description"),
+      invoice.shipment.cargoType?.name ?? CATEGORY_LABELS[invoice.shipment.cargoCategory]
+    ),
       invoiceNumber: invoice.invoiceNumber,
       batchNumber: invoice.shipment.batch?.batchNumber ?? null,
       settled,

@@ -7,6 +7,7 @@ import { t } from "@/lib/i18n";
 import { renderInvoicePdf } from "@/lib/invoice-pdf";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { latinLabel } from "@/lib/manifest-pdf";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 import { outstandingOf } from "@/lib/invoice-balance";
 
@@ -144,7 +145,10 @@ export async function GET(
     batchNumber: invoice.shipment.batch?.batchNumber ?? null,
     // The cargo description follows whoever is downloading it, not whoever
     // typed it: Guangzhou registers 手机配件 and Dar gets it in English.
-    description: cargoText(locale, invoice.shipment, "description"),
+    description: latinLabel(
+      cargoText("en", invoice.shipment, "description"),
+      invoice.shipment.cargoType?.name ?? CATEGORY_LABELS[invoice.shipment.cargoCategory]
+    ),
     weightKg: toNumber(invoice.shipment.weightKg),
     packages: invoice.shipment.packages,
     packageType: invoice.shipment.packageType,
