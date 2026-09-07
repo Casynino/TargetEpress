@@ -228,7 +228,12 @@ export async function chargeStorageFee(
       */
       const paidSoFar = toNumber(fresh.amountPaid);
       const nextStatus =
-        invoiceStatusFor(fresh.status, paidSoFar, total) ?? fresh.status;
+        invoiceStatusFor(
+          fresh.status,
+          paidSoFar,
+          total,
+          toNumber(fresh.amountAdjusted)
+        ) ?? fresh.status;
 
       /* Conditional on the total this transaction read: a concurrent change
          makes this touch nothing, and the person is told to look again. */
@@ -502,7 +507,12 @@ async function waiveOne(
       /* Waiving can legitimately SETTLE a bill the customer had part-paid.
          Derived where every other door derives it — lib/invoice-status.ts. */
       const nextStatus =
-        invoiceStatusFor(fresh.status, paidSoFar, total) ?? fresh.status;
+        invoiceStatusFor(
+          fresh.status,
+          paidSoFar,
+          total,
+          toNumber(fresh.amountAdjusted)
+        ) ?? fresh.status;
 
       const claimed = await tx.invoice.updateMany({
         where: { id: invoice.id, total: fresh.total },

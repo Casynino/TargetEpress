@@ -152,6 +152,33 @@ export async function applyCreditToInvoice(
 ): Promise<number> {
   if (args.outstanding <= 0.005) return 0;
 
+  /*
+    THE SAME DEPOSIT CANNOT SETTLE TWO BILLS AT ONCE.
+
+    What is spare is derived: the payment less what its allocations already
+    answered. Reading that and then writing an allocation is read-then-write,
+    and under READ COMMITTED two check-ins for the same customer at the same
+    moment both see the whole deposit and both spend it — one payment settling
+    twice its own value across two bills, with no error and nothing on any
+    screen to show it.
+
+    A customer with several consignments on one flight is not a contrived case:
+    finishing a manifest prices every line on it.
+
+    Locked rather than claimed with a conditional update, because there is no
+    single column to claim — "spare" is a sum over the allocation rows. Taking
+    the customer's payment rows first makes the second transaction wait and
+    then re-read the spare this one has already spent. Ordered by the same key
+    everywhere this runs, so two customers can never deadlock against
+    each other.
+  */
+  await tx.$queryRaw`
+    SELECT "id" FROM "Payment"
+    WHERE "customerId" = ${args.customerId} AND "voidedAt" IS NULL
+    ORDER BY "id"
+    FOR UPDATE
+  `;
+
   const payments = await tx.payment.findMany({
     where: { customerId: args.customerId, voidedAt: null },
     orderBy: { paidAt: "asc" },

@@ -26,7 +26,11 @@ import { currentRateValue } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { nextPickupNoteNumber } from "@/lib/ids";
 import { postLedgerEntry } from "@/lib/ledger";
-import { REPORTED_CARGO_ABSENT, restoredStatus } from "@/lib/investigations";
+import {
+  COULD_BE_IN_CHINA,
+  REPORTED_CARGO_ABSENT,
+  restoredStatus,
+} from "@/lib/investigations";
 import { notify } from "@/lib/notify";
 import { prisma, type TxClient } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -187,7 +191,7 @@ export async function markFoundInChina(
         },
       });
       if (!exception) throw new Error(t(locale, "Case not found."));
-      if (!REPORTED_CARGO_ABSENT[exception.type]) {
+      if (!COULD_BE_IN_CHINA[exception.type]) {
         throw new Error(
           t(
             locale,

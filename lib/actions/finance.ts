@@ -1014,7 +1014,12 @@ export async function adjustInvoice(
             derive the state the same way. See lib/invoice-status.ts.
           */
           ...(() => {
-            const next = invoiceStatusFor(invoice.status, alreadyPaid, total);
+            const next = invoiceStatusFor(
+              invoice.status,
+              alreadyPaid,
+              total,
+              toNumber(invoice.amountAdjusted)
+            );
             return next === null ? {} : { status: next };
           })(),
         },
@@ -1071,7 +1076,13 @@ export async function adjustInvoice(
           where: { id: invoice.id },
           data: {
             amountPaid: new Prisma.Decimal(paidAfter),
-            status: invoiceStatusFor(invoice.status, paidAfter, total) ?? undefined,
+            status:
+              invoiceStatusFor(
+                invoice.status,
+                paidAfter,
+                total,
+                toNumber(invoice.amountAdjusted)
+              ) ?? undefined,
           },
         });
       }
@@ -1305,7 +1316,12 @@ export async function applyInvoiceDiscount(
 
         const rate =
           invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate);
-        const nextStatus = invoiceStatusFor(invoice.status, paid, total);
+        const nextStatus = invoiceStatusFor(
+          invoice.status,
+          paid,
+          total,
+          toNumber(invoice.amountAdjusted)
+        );
 
         /* The claim: both the balance and the discount have to be what this
            transaction read, so two people discounting at once cannot stack.

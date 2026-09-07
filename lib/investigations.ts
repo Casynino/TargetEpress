@@ -8,6 +8,7 @@ import type {
 
 import { formatMoney } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { COULD_BE_IN_CHINA } from "@/lib/cargo-presence";
 import { can } from "@/lib/rbac";
 
 /**
@@ -59,6 +60,8 @@ export const REPORTED_CARGO_ABSENT: Record<ExceptionType, boolean> = {
   // is worse than leaving the shipment short.
   OTHER: false,
 };
+
+export { COULD_BE_IN_CHINA };
 
 /**
  * Where found cargo goes back to.

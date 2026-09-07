@@ -86,3 +86,46 @@ export function cargoIsHere(type: ExceptionType): boolean {
 export function presenceLabel(type: ExceptionType): string {
   return CARGO_PHYSICALLY_HERE[type] ? "Cargo present" : "Not in the warehouse";
 }
+
+/**
+ * COULD THESE BOXES STILL BE IN GUANGZHOU?
+ *
+ * A different question from REPORTED_CARGO_ABSENT above, and markFoundInChina
+ * was asking that one instead. They agree everywhere but customs: cargo the
+ * authority is holding IS absent from our floor, so the first table says true —
+ * and it is absent because it landed in Dar and was stopped there, so this one
+ * says false.
+ *
+ * That single disagreement was enough. "Found in China" was offered on a
+ * customs hold, and pressing it wrote READY_TO_DEPART, batchId null and
+ * departedAt null onto cargo sitting in a shed at the airport: the consignment
+ * dropped off the flight it actually flew, that flight's manifest count changed
+ * underneath it, and its BatchVerification row was left behind so the flight
+ * then reported more checks than consignments.
+ *
+ * Exhaustive, like its neighbour, so a new ExceptionType has to answer this
+ * question too rather than inheriting an answer meant for another one.
+ */
+export const COULD_BE_IN_CHINA: Record<ExceptionType, boolean> = {
+  // Nothing came off the plane. It may never have been loaded.
+  MISSING_SHIPMENT: true,
+  // The fifth carton may still be on the Guangzhou floor.
+  PACKAGE_COUNT_MISMATCH: true,
+  // It travelled on the wrong flight, or it never travelled at all.
+  WRONG_BATCH: true,
+  // Left behind for weight. This is the case that names Guangzhou outright.
+  SHORT_LANDED: true,
+  /* IT LANDED. The authority is holding it in Dar — see the schema note on the
+     type. It is off our floor, which is why REPORTED_CARGO_ABSENT says true,
+     and it is emphatically not in China. */
+  HELD_BY_CUSTOMS: false,
+  // Every one of these was raised on boxes standing in the Dar warehouse.
+  DAMAGED_CARGO: false,
+  WEIGHT_MISMATCH: false,
+  WRONG_ITEM: false,
+  UNIDENTIFIED_CARGO: false,
+  RESTRICTED_ITEM: false,
+  OVER_SHIPPED: false,
+  HOLD_FOR_INVESTIGATION: false,
+  OTHER: false,
+};

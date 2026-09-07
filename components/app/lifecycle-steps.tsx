@@ -5,6 +5,7 @@ import { ArrowRight, X } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
+import { COULD_BE_IN_CHINA } from "@/lib/cargo-presence";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { advanceInvestigation } from "@/lib/actions/investigation-queue";
@@ -137,10 +138,35 @@ export function LifecycleSteps({
 
   const raw = LIFECYCLE_STEPS[status] ?? [];
   if (raw.length === 0) return null;
+  /*
+    KEYED ON WHICH ROUTE, NOT ONLY ON WHERE IT LANDS.
+
+    Three statuses offer TWO steps that both end at CARGO_FOUND: the Dar one
+    (via cargoFound, for the desk holding the box) and the Guangzhou one (via
+    foundInChina, for cargo that never travelled). Keyed on `to` alone, the
+    type's wording was spread over both — so the only button the China desk is
+    given read "Cargo released — Customs has let it go. It comes onto the floor
+    and counts as received", while pressing it posts foundInChina and un-
+    manifests the consignment back to READY_TO_DEPART.
+
+    `via` is what the two differ by, so `via` is what the words are keyed on.
+    The React key too: `to` collided for exactly the same reason.
+  */
+  /* And not offered at all where the answer cannot be yes. markFoundInChina
+     refuses a type that could not have stayed in Guangzhou, so the button was
+     a dead end on four types and a data-loss trap on the fifth. Same table the
+     action gates on, so the screen and the server cannot disagree. */
+  const routed = raw.filter(
+    (step) => step.via !== "foundInChina" || COULD_BE_IN_CHINA[type]
+  );
+
   const words = STEP_WORDS[type];
   const steps = words
-    ? raw.map((step) => ({ ...step, ...(words[step.to] ?? {}) }))
-    : raw;
+    ? routed.map((step) => ({
+        ...step,
+        ...(words[`${step.via}:${step.to}`] ?? words[step.to] ?? {}),
+      }))
+    : routed;
 
   const may = (permission: string) =>
     permission === "exception.investigate"
@@ -206,7 +232,7 @@ export function LifecycleSteps({
       ) : mine.length > 0 ? (
         <ul className="space-y-1.5">
           {mine.map((step) => (
-            <li key={step.to}>
+            <li key={`${step.via}:${step.to}`}>
               <button
                 type="button"
                 onClick={() => setChosen(step)}

@@ -31,10 +31,15 @@ export function invoiceStatusFor(
   /**
    * WHAT FINANCE CLEARED WITHOUT MONEY ARRIVING.
    *
-   * Optional so every existing caller keeps compiling and keeps behaving
-   * exactly as it did — a bill with no adjustment is the same bill. Where it
-   * IS passed, a difference somebody cleared closes the bill as surely as the
-   * money would have: the balance is zero, so the cargo goes.
+   * REQUIRED, AND THAT IS THE WHOLE POINT — the same lesson BalanceInput
+   * learned. It was optional so existing callers kept compiling, and five of
+   * them went on never passing it: charging storage, waiving it, discounting a
+   * bill, and settling one from customer credit. Each re-derives the STORED
+   * status from two of the three figures, so a bill whose balance Finance had
+   * cleared came back PARTIALLY_PAID and its cargo stopped being releasable,
+   * and a bill discounted to what had been paid could be written UNPAID.
+   *
+   * A caller with genuinely nothing cleared passes 0 and says so.
    *
    * The stored status stays PAID for that case rather than gaining a state of
    * its own. Forty-three places in this app test `status === "PAID"`, and a
@@ -42,7 +47,7 @@ export function invoiceStatusFor(
    * — what differs is what the reader is TOLD, and that label is derived in
    * lib/invoice-balance.ts where it can say "fully cleared — adjustment 625".
    */
-  adjusted = 0
+  adjusted: number
 ): InvoiceStatus | null {
   if (current === "VOID" || current === "WRITTEN_OFF" || current === "DRAFT") {
     return null;
