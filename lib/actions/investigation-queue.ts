@@ -14,6 +14,7 @@ import {
   type StepVia,
 } from "@/lib/investigation-lifecycle";
 import { notify } from "@/lib/notify";
+import { releaseFromInvestigation } from "@/lib/investigations";
 import { prisma, type TxClient } from "@/lib/prisma";
 import {
   approveCompensation,
@@ -211,6 +212,7 @@ export async function advanceInvestigation(
           id: true,
           status: true,
           type: true,
+          shipmentId: true,
           shipment: { select: { trackingNumber: true } },
           compensation: { select: { id: true, paidAt: true } },
         },
@@ -295,6 +297,18 @@ export async function advanceInvestigation(
             : { resolvedById: null, resolvedAt: null }),
         },
       });
+
+      /* A terminal step closes the paperwork; the cargo has to come with it or
+         it is parked at UNDER_INVESTIGATION with nothing in the app able to
+         move it. See releaseFromInvestigation. */
+      if (terminal) {
+        await releaseFromInvestigation(
+          tx,
+          exception.shipmentId,
+          user.id,
+          target === "CARGO_FOUND" ? "found" : "settled"
+        );
+      }
 
       await tx.exceptionEvent.create({
         data: {

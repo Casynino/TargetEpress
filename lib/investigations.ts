@@ -6,8 +6,9 @@ import type {
   ShipmentStatus,
 } from "@prisma/client";
 
+import { EXCEPTION_OPEN_STATUSES } from "@/lib/constants";
 import { formatMoney } from "@/lib/format";
-import { prisma } from "@/lib/prisma";
+import { prisma, type TxClient } from "@/lib/prisma";
 import { COULD_BE_IN_CHINA } from "@/lib/cargo-presence";
 import { can } from "@/lib/rbac";
 
@@ -184,4 +185,80 @@ export async function getCompensation(
  */
 export async function compensationPendingCount(): Promise<number> {
   return prisma.compensation.count({ where: { paidAt: null } });
+}
+
+/**
+ * A CASE THAT CLOSES MUST NOT LEAVE ITS CARGO BEHIND.
+ *
+ * A shipment reaches UNDER_INVESTIGATION in exactly two places — the Dar
+ * check-in when a line did not arrive, and reportCargoMissing — and it was
+ * moved back out by only three: markCargoFound, markFoundInChina and undoing a
+ * whole flight's arrival. All three refuse a case that is already terminal.
+ *
+ * So every other way of finishing a case — the queue's advance, and every
+ * outcome on the Resolve panel — closed the paperwork and left the consignment
+ * parked in a status nothing in the app could clear. It vanished from Available
+ * Cargo, could not be released, could not be issued a note, and stayed on the
+ * owner's flagged tile for ever with no open case behind it. Recovery meant
+ * raising a fresh case on the same cargo purely to close it with a different
+ * button.
+ *
+ * Scoped the way undoBatchArrival's sweep is: only when NO case is still open
+ * on that consignment, so a shipment carrying a second problem keeps the status
+ * that problem earned it. Where the boxes are on the floor it goes back to what
+ * the case interrupted; cargo written off as lost is cancelled, because it is
+ * not coming.
+ */
+export async function releaseFromInvestigation(
+  tx: TxClient,
+  shipmentId: string,
+  actorId: string,
+  outcome: "found" | "lost" | "settled"
+) {
+  const shipment = await tx.shipment.findUnique({
+    where: { id: shipmentId },
+    select: { id: true, status: true },
+  });
+  if (!shipment || shipment.status !== "UNDER_INVESTIGATION") return;
+
+  const stillOpen = await tx.shipmentException.count({
+    where: {
+      shipmentId,
+      status: { in: [...EXCEPTION_OPEN_STATUSES] },
+    },
+  });
+  if (stillOpen > 0) return;
+
+  const recorded = await tx.shipmentStatusHistory.findFirst({
+    where: { shipmentId, toStatus: { not: "UNDER_INVESTIGATION" } },
+    orderBy: { createdAt: "desc" },
+    select: { toStatus: true },
+  });
+
+  const next =
+    outcome === "lost"
+      ? "CANCELLED"
+      : restoredStatus(recorded?.toStatus ?? null, shipment.status);
+
+  /* Claimed on the status this transaction read, so two closes landing at once
+     produce one move and one history line rather than two. */
+  const moved = await tx.shipment.updateMany({
+    where: { id: shipmentId, status: "UNDER_INVESTIGATION" },
+    data: { status: next },
+  });
+  if (moved.count === 0) return;
+
+  await tx.shipmentStatusHistory.create({
+    data: {
+      shipmentId,
+      fromStatus: "UNDER_INVESTIGATION",
+      toStatus: next,
+      location: "Dar es Salaam warehouse",
+      note:
+        outcome === "lost"
+          ? "Case closed as lost. The consignment is cancelled."
+          : "Case closed. The consignment returns to the floor.",
+      actorId,
+    },
+  });
 }

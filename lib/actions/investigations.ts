@@ -29,6 +29,7 @@ import { postLedgerEntry } from "@/lib/ledger";
 import {
   COULD_BE_IN_CHINA,
   REPORTED_CARGO_ABSENT,
+  releaseFromInvestigation,
   restoredStatus,
 } from "@/lib/investigations";
 import { notify } from "@/lib/notify";
@@ -1439,6 +1440,17 @@ export async function resolveInvestigation(
         },
         tx
       );
+
+      /* And the cargo with it — see releaseFromInvestigation. Closing the
+         paperwork while leaving the consignment parked at UNDER_INVESTIGATION
+         is what stranded it, because no other door in the app can move a
+         shipment out of that status once its case is terminal. */
+      await releaseFromInvestigation(
+        tx,
+        existing.shipmentId,
+        user.id,
+        rawType === "CARGO_LOST" ? "lost" : "settled"
+      );
     });
 
     // Cargo Found restores the shipment and re-ticks its boxes. That logic
@@ -1462,7 +1474,17 @@ export async function resolveInvestigation(
     revalidatePath("/app/pickup-queue");
     revalidatePath("/app/cargo");
 
-    if (repriced !== null && !billMoved) {
+    /*
+      THE RESULT, NOT THE FACT THAT IT RETURNED.
+
+      This tested `!billMoved`, which is only true when the call THREW.
+      autoPriceShipments returns an object either way: a bill past DRAFT takes
+      the skip branch and comes back { priced: 0, skipped: 1 } — truthy — so
+      closing a case as "weight corrected" on a confirmed bill reported plain
+      success while the invoice went on quoting the weight the case had just
+      disproved. The comment above said the opposite of what the code did.
+    */
+    if (repriced !== null && (!billMoved || billMoved.priced === 0)) {
       return fail(
         t(
           locale,
