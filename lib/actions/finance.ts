@@ -14,6 +14,7 @@ import {
 } from "@/lib/pickup-lock";
 import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
+import { holdCargoUntilSettled } from "@/lib/cargo-hold";
 import { invoiceStatusFor } from "@/lib/invoice-status";
 import { isLargeAdjustment, outstandingOf } from "@/lib/invoice-balance";
 import {
@@ -507,7 +508,21 @@ export async function confirmInvoicePrice(
            it only same-currency money is visible, which is how a customer who
            paid in March got asked again in August. */
         invoiceRate: rate,
-        outstanding: total - toNumber(invoice.amountPaid),
+        /*
+          WHAT THE BILL OWES, NOT WHAT IT WAS BILLED LESS WHAT WAS PAID.
+
+          Written out as a subtraction here, this took the customer's deposit
+          against a gap Finance had already cleared: a bill of 100 with 60 paid
+          and 40 written off owes nothing, and this asked for 40 of somebody's
+          money to settle it. `outstandingOf` is the one function that knows
+          about the third column, and its argument is required so a caller
+          cannot leave it out.
+        */
+        outstanding: outstandingOf({
+          total,
+          amountPaid: invoice.amountPaid,
+          amountAdjusted: invoice.amountAdjusted,
+        }),
         user,
       });
 
@@ -517,7 +532,22 @@ export async function confirmInvoicePrice(
           where: { id: invoice.id },
           data: {
             amountPaid: new Prisma.Decimal(nowPaid),
-            status: nowPaid + 0.001 >= total ? "PAID" : "PARTIALLY_PAID",
+            /* Through invoiceStatusFor like every other door that moves a
+               paid figure — the ternary here could not see a write-off, so a
+               bill whose remainder Finance had cleared was stamped
+               PARTIALLY_PAID and its cargo stopped being releasable.
+
+               Against UNPAID, which is the status the update above has just
+               written: `invoice.status` is still the DRAFT this call is in the
+               middle of lifting, and invoiceStatusFor deliberately refuses to
+               overturn a draft. */
+            status:
+              invoiceStatusFor(
+                "UNPAID",
+                nowPaid,
+                total,
+                toNumber(invoice.amountAdjusted)
+              ) ?? undefined,
           },
         });
       }
@@ -778,6 +808,10 @@ export async function adjustInvoice(
               cargoTypeId: true,
               weightKg: true,
               packages: true,
+              /* Whether the boxes are cleared to leave, and on what — a bill
+                 corrected upward has to be able to stop them. */
+              status: true,
+              pickupNote: { select: { noteNumber: true, status: true } },
             },
           },
         },
@@ -829,12 +863,29 @@ export async function adjustInvoice(
           : toNumber(invoice.freightOverride);
       const overrideChanged = input.freightOverride !== previousOverride;
 
-      if (overrideChanged && input.freightOverride !== null) {
-        if (!can(user.role, "invoice.discount")) {
-          throw new Error(
-            "You are not authorised to change the freight amount on an invoice."
-          );
-        }
+      /*
+        ANY MOVE OF THE FREIGHT FIGURE, NOT ONLY SETTING ONE.
+
+        This asked the permission question only when an override was being
+        WRITTEN. Clearing one — setting it back to null — reverts the bill to
+        whatever the rate book says today, which changes what the customer owes
+        just as much and can move it either way. Customer Care holds
+        `invoice.edit` (they raise and send bills) and not `invoice.discount`,
+        so the desk that may not agree a price could still delete one somebody
+        else had agreed, on an unpaid bill, with nothing to stop them.
+
+        Re-pricing from the weight is the same act by another route: it re-runs
+        the rate book over the bill, picking up every price published since.
+        It is asked for deliberately on the form, and it needs the same
+        authority as typing the figure by hand.
+      */
+      if (
+        (overrideChanged || input.repriceFromWeight) &&
+        !can(user.role, "invoice.discount")
+      ) {
+        throw new Error(
+          "You are not authorised to change the freight amount on an invoice."
+        );
       }
 
       /*
@@ -979,6 +1030,15 @@ export async function adjustInvoice(
       const rate = input.exchangeRate ?? currentRate ?? (await billingRate(new Date()));
       const totalLocal = rate === null ? null : toLocal(total, rate);
 
+      /* Derived once, because the write needs it and so does the decision
+         about whether the cargo may still leave. */
+      const nextStatus = invoiceStatusFor(
+        invoice.status,
+        alreadyPaid,
+        total,
+        toNumber(invoice.amountAdjusted)
+      );
+
       /* The write only lands if amountPaid is still what the guard above
          tested. A payment committing in between would otherwise slip the new
          total below what the customer has now paid — the exact state the
@@ -1022,15 +1082,7 @@ export async function adjustInvoice(
             has always done this; both doors move the same total, and now both
             derive the state the same way. See lib/invoice-status.ts.
           */
-          ...(() => {
-            const next = invoiceStatusFor(
-              invoice.status,
-              alreadyPaid,
-              total,
-              toNumber(invoice.amountAdjusted)
-            );
-            return next === null ? {} : { status: next };
-          })(),
+          ...(nextStatus === null ? {} : { status: nextStatus }),
         },
       });
       if (adjusted.count === 0) {
@@ -1038,6 +1090,29 @@ export async function adjustInvoice(
           "A payment landed on this bill a moment ago. Reload and adjust it against the fresh balance."
         );
       }
+
+      /*
+        AND THE CARGO GOES BACK ON THE SHELF.
+
+        Moving the status is what the receivables screens read; it is not what
+        lets the boxes out. Correcting a settled bill upward left the
+        consignment cleared for collection with a live pickup note, so the
+        counter handed it over and the difference Finance had just found walked
+        out with it. The storage door has always held the cargo in this
+        situation — see lib/cargo-hold.ts, which both doors now call.
+      */
+      const holdOutcome = await holdCargoUntilSettled(tx, {
+        shipment: invoice.shipment
+          ? {
+              id: invoice.shipment.id,
+              status: invoice.shipment.status,
+              pickupNote: invoice.shipment.pickupNote,
+            }
+          : null,
+        nextStatus,
+        actorId: user.id,
+        reason: `${invoice.invoiceNumber} corrected. Held until the new balance is settled; the pickup note it holds stands.`,
+      });
 
       /*
         AND THE DEPOSIT FOLLOWS THE CORRECTION.
@@ -1075,7 +1150,14 @@ export async function adjustInvoice(
               customerId: invoice.customerId,
               currency: invoice.currency,
               invoiceRate: rate,
-              outstanding: total - alreadyPaid,
+              /* The same lesson as confirmInvoicePrice above: a bill whose
+                 remainder was cleared without money owes nothing, and asking
+                 for the difference spends a deposit on a settled bill. */
+              outstanding: outstandingOf({
+                total,
+                amountPaid: alreadyPaid,
+                amountAdjusted: invoice.amountAdjusted,
+              }),
               user,
             });
 
@@ -1127,6 +1209,12 @@ export async function adjustInvoice(
               ? ` — ${input.correctionReason}`
               : ""),
           metadata: {
+            /* What the correction did to the cargo — held on the shelf until
+               the new balance is settled, or, in the case nobody can fix from
+               a desk, already collected on the note this bill has now
+               outgrown. The second is a live debt for somebody to chase, and
+               the register has to say so. */
+            cargoHold: holdOutcome,
             // Named so a reader of the log can tell a routine adjustment from
             // a restatement of a bill somebody had already paid.
             correction: correcting,
@@ -1221,6 +1309,15 @@ export async function applyInvoiceDiscount(
           amountAdjusted: true,
           exchangeRate: true,
           localCurrency: true,
+          /* Cutting a discount raises what is owed, so the same question the
+             correction door asks: are the boxes still allowed to leave. */
+          shipment: {
+            select: {
+              id: true,
+              status: true,
+              pickupNote: { select: { noteNumber: true, status: true } },
+            },
+          },
         },
       });
       if (invoices.length !== ids.length) {
@@ -1355,6 +1452,16 @@ export async function applyInvoiceDiscount(
           );
         }
 
+        /* A discount cut on a settled bill reopens the balance. The cargo goes
+           back on the shelf with it — the same hold the correction and storage
+           doors use, so all three answer "may these boxes leave" identically. */
+        const holdOutcome = await holdCargoUntilSettled(tx, {
+          shipment: invoice.shipment,
+          nextStatus,
+          actorId: user.id,
+          reason: `${invoice.invoiceNumber}: discount reduced. Held until the new balance is settled; the pickup note it holds stands.`,
+        });
+
         await recordAudit(
           {
             actor: user,
@@ -1371,6 +1478,9 @@ export async function applyInvoiceDiscount(
               input.reason
             ),
             metadata: {
+              /* Whether the boxes were held for the reopened balance, or had
+                 already gone on the note this discount has outgrown. */
+              cargoHold: holdOutcome,
               discountBefore: wasDiscount,
               discountAfter: share,
               totalBefore: toNumber(invoice.total),
@@ -2241,7 +2351,14 @@ export async function recordPayment(
           ...(clearing > 0
             ? { amountAdjusted: new Prisma.Decimal(nextAdjusted) }
             : {}),
-          status: settled ? "PAID" : "PARTIALLY_PAID",
+          /* Derived, not decided here. The ternary this replaces had no third
+             answer, so a payment that credits nothing to the bill — the whole
+             of it being the driver's fare, which the desk does take in one
+             go — stamped PARTIALLY_PAID on a bill nobody had paid a shilling
+             against, and the call list believed it. */
+          status:
+            invoiceStatusFor(invoice.status, newPaid, total, nextAdjusted) ??
+            undefined,
         },
       });
       if (claimed.count === 0) {
@@ -2871,6 +2988,22 @@ export async function attributePayment(
         },
       });
       if (!payment) throw new Error("That payment no longer exists.");
+      /*
+        CANCELLED MONEY IS NOT MONEY WAITING TO BE FILED.
+
+        Naming an account posts a live money-in line. A payment that has been
+        cancelled has already had its ledger effect taken back, and every total
+        on the page above excludes it — so attributing one afterwards puts the
+        cash back into an account with nothing to answer it, and the register
+        cannot say where it came from. The screens do not offer this, which is
+        exactly why the endpoint has to refuse it: an unrendered button is not
+        a control.
+      */
+      if (payment.voidedAt) {
+        throw new Error(
+          "That payment was cancelled, so there is no money to put into an account. Record a fresh payment if it turns out the money did arrive."
+        );
+      }
       if (payment.accountId) {
         throw new Error(
           "This payment is already attributed to an account. Correcting a booked payment means reversing it in the ledger, not editing it."

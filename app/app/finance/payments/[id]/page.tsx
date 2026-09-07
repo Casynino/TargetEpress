@@ -111,7 +111,17 @@ export default async function PaymentDetailPage({
              localSplit. Without it the shilling figures are the dollar
              columns multiplied back out, and they do not match the button
              the desk pressed. */
-          payments: { where: { voidedAt: null }, select: { amount: true, currency: true } },
+          payments: {
+            where: { voidedAt: null },
+            /* The fare inside the sum, and whether this transfer answered more
+               than this one bill — see localSplit. */
+            select: {
+              amount: true,
+              currency: true,
+              transportAmount: true,
+              _count: { select: { allocations: true } },
+            },
+          },
           /* The write-offs on this bill, so the page can say how a payment
              short of the total nevertheless settled it. */
           adjustments: {

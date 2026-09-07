@@ -122,6 +122,21 @@ export function creditLine(
   invoice: {
     total: Money;
     amountPaid: Money;
+    /**
+     * WHAT FINANCE CLEARED WITHOUT MONEY ARRIVING — AND IT IS REQUIRED.
+     *
+     * This function used to subtract paid from total on its own, and every
+     * screen in the credit book inherited the answer: a credit whose last few
+     * shillings Finance had written off still read as outstanding, still aged,
+     * still counted against the customer's limit, and still turned up overdue
+     * on the chase list. The bills were settled; only this arithmetic thought
+     * otherwise.
+     *
+     * The subtraction is `outstandingOf`'s job — it is the same one every
+     * other money surface uses, and its third argument is required precisely
+     * so a caller cannot forget this one.
+     */
+    amountAdjusted: Money;
     status: InvoiceStatus;
     dueDate: Date | null;
     creditDecidedAt: Date | null;
@@ -130,7 +145,7 @@ export function creditLine(
 ): CreditLine {
   const totalUsd = toNumber(invoice.total);
   const paidUsd = toNumber(invoice.amountPaid);
-  const outstandingUsd = Math.max(0, totalUsd - paidUsd);
+  const outstandingUsd = outstandingOf(invoice);
 
   const creditDate = invoice.creditDecidedAt;
   const dueDate = invoice.dueDate;

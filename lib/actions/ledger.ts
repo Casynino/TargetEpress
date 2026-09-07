@@ -72,27 +72,78 @@ export async function cancelLedgerEntry(
         );
       }
 
-      await postLedgerEntry(tx, {
-        accountId: entry.accountId,
-        currency: entry.currency,
-        direction: entry.direction === "OUT" ? "IN" : "OUT",
-        kind: entry.kind,
-        amount: toNumber(entry.amount),
-        amountUsd: toNumber(entry.amountUsd),
-        exchangeRate:
-          entry.exchangeRate === null ? null : toNumber(entry.exchangeRate),
-        /* Dated today, not on the original day. The money comes back now;
-           backdating it would silently rewrite a month somebody has closed. */
-        occurredAt: new Date(),
-        description: withNote(
-          `${t(locale, "Cancels")} ${entry.entryNumber}`,
-          parsed.data.reason
-        ),
-        sourceEntity: entry.sourceEntity,
-        sourceId: entry.sourceId,
-        recordedById: user.id,
-        reversesId: entry.id,
-      });
+      /*
+        A TRANSFER IS ONE MOVEMENT. IT COMES BACK AS ONE MOVEMENT.
+
+        Moving TSh 500,000 from the bank to the cash tin posts two lines: OUT of
+        the bank and IN to the tin. Cancelling the line the reader happened to
+        click undid one half of that — the bank got its 500,000 back and the
+        tin kept the 500,000 it had been given. The company's cash went up by
+        half a million shillings because somebody corrected a mistake, and every
+        balance, every reconciliation and every report agreed with it.
+
+        Both legs travel together, always: they are one transfer, and the pair
+        that made the money move is the pair that has to put it back. A leg
+        somebody already cancelled on its own is skipped rather than reversed
+        twice, so an account that was left half-undone by the old behaviour is
+        finished off correctly by this one.
+      */
+      const legs = entry.transferId
+        ? await tx.ledgerEntry.findMany({
+            where: {
+              transferId: entry.transferId,
+              reversesId: null,
+              reversedBy: { is: null },
+            },
+          })
+        : [entry];
+
+      for (const leg of legs) {
+        await postLedgerEntry(tx, {
+          accountId: leg.accountId,
+          currency: leg.currency,
+          direction: leg.direction === "OUT" ? "IN" : "OUT",
+          kind: leg.kind,
+          amount: toNumber(leg.amount),
+          amountUsd: toNumber(leg.amountUsd),
+          exchangeRate:
+            leg.exchangeRate === null ? null : toNumber(leg.exchangeRate),
+          /* Dated today, not on the original day. The money comes back now;
+             backdating it would silently rewrite a month somebody has closed. */
+          occurredAt: new Date(),
+          description: withNote(
+            `${t(locale, "Cancels")} ${leg.entryNumber}`,
+            parsed.data.reason
+          ),
+          sourceEntity: leg.sourceEntity,
+          sourceId: leg.sourceId,
+          recordedById: user.id,
+          reversesId: leg.id,
+        });
+      }
+
+      /*
+        AN OPENING BALANCE TAKEN BACK CAN BE GIVEN AGAIN.
+
+        An account takes an opening balance exactly once, and the one-time
+        stamp is what stops two of them racing each other. Cancelling the line
+        is the statement that it never should have been there — but the stamp
+        stayed, so the account was left at nothing with the door to setting one
+        locked for good. The only way back was an adjustment posted under some
+        other name, which is not what happened and not what the register should
+        say happened.
+
+        The stamp comes off with the line. Setting one again re-stamps it, so
+        the race the stamp exists to stop is still stopped.
+      */
+      if (legs.some((leg) => leg.kind === "OPENING_BALANCE")) {
+        for (const leg of legs.filter((l) => l.kind === "OPENING_BALANCE")) {
+          await tx.companyAccount.updateMany({
+            where: { id: leg.accountId },
+            data: { openingSetAt: null },
+          });
+        }
+      }
 
       await recordAudit(
         {
@@ -100,9 +151,18 @@ export async function cancelLedgerEntry(
           action: "ledger.cancel",
           entity: "LedgerEntry",
           entityId: entry.id,
-          summary: withNote(`${entry.entryNumber} cancelled`, parsed.data.reason),
+          summary: withNote(
+            legs.length > 1
+              ? `${legs.map((l) => l.entryNumber).join(" and ")} cancelled — both legs of one transfer`
+              : `${entry.entryNumber} cancelled`,
+            parsed.data.reason
+          ),
           metadata: {
             entryNumber: entry.entryNumber,
+            /* Both, when it was a transfer — the register has to be able to
+               say that cancelling one line moved two. */
+            cancelled: legs.map((l) => l.entryNumber),
+            transferId: entry.transferId,
             account: entry.account.name,
             amount: toNumber(entry.amount),
             currency: entry.currency,

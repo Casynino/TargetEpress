@@ -309,10 +309,29 @@ export async function updateCargo(
         },
       });
 
-      // The count changed, so the boxes have to. Extra packages get their own
-      // QR like any other; removed ones go from the top down, because package 5
-      // of 5 is the one that was never there.
-      if (input.packages !== before.packageList.length) {
+      /*
+        THE COUNT CHANGED, SO THE BOXES HAVE TO — BUT ONLY IF IT CHANGED.
+
+        This asked whether the number posted differs from the number of package
+        ROWS. The form is filled from `packages`, the scalar, and after a short
+        check-in the two deliberately disagree: Dar counts nine of ten, the
+        scalar becomes nine, and the tenth row stays exactly where it is,
+        un-ticked, because a missing carton is missing rather than deleted and
+        that row is what keeps the release counter shut.
+
+        So on every short-landed consignment the two numbers differed by one
+        before anybody touched anything, and an edit that changed only the
+        customer's phone number entered this branch and deleted the missing
+        carton's row — its QR, its reference and the evidence of the shortage.
+        Nothing was written to the change log, because by the log's own
+        comparison the count had not changed. Afterwards nine of nine read as
+        complete and the counter handed over a short consignment as a whole one.
+
+        Asked of the number the clerk was actually shown, so an untouched box
+        is a no-op. The arithmetic below still works against the rows, because
+        the rows are what has to end up matching.
+      */
+      if (input.packages !== before.packages) {
         if (input.packages > before.packageList.length) {
           await tx.package.createMany({
             data: Array.from(

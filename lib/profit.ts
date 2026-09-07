@@ -5,7 +5,6 @@ import type { Prisma } from "@prisma/client";
 import { BILLED_INVOICE_STATUSES } from "@/lib/constants";
 import { creditForPeriod } from "@/lib/credit-queries";
 import { formatMonthYear, toNumber } from "@/lib/format";
-import { outstandingOf } from "@/lib/invoice-balance";
 import { BASE_CURRENCY, currentRateValue } from "@/lib/fx";
 import type { Locale } from "@/lib/locale";
 import {
@@ -185,6 +184,7 @@ export async function profitAndLoss(window: ProfitWindow) {
 
   const [
     billed,
+    periodReceivable,
     writtenOff,
     collected,
     paidOut,
@@ -205,6 +205,26 @@ export async function profitAndLoss(window: ProfitWindow) {
       _sum: { total: true, amountPaid: true, amountAdjusted: true },
       _count: true,
     }),
+    /*
+      THE SAME BILLS, ASKED WHAT THEY ARE OWED — ONE BILL AT A TIME.
+
+      The receivable below used to be `outstandingOf(billed._sum)`: the whole
+      period's totals, payments and write-offs added up first and clamped once
+      at the end. That is the aggregate mistake RECEIVABLE_SQL exists to stop —
+      the clamp never sees the individual bills, so one customer who overpaid
+      by a hundred thousand cancels a hundred customers each owing a thousand,
+      and the statement reports a company owed nothing.
+
+      SQL does the clamp per row. Same window and same statuses as the
+      aggregate above, written out rather than shared so the two cannot drift.
+    */
+    prisma.$queryRaw<{ owed: number }[]>`
+      SELECT COALESCE(SUM(GREATEST(0, "total" - "amountPaid" - "amountAdjusted")), 0)::float8 AS "owed"
+        FROM "Invoice"
+       WHERE "issuedAt" >= ${window.from}
+         AND "issuedAt" < ${window.to}
+         AND "status" IN ('UNPAID', 'PARTIALLY_PAID', 'PAID')
+    `,
     /*
       Bills the company decided it will never collect.
 
@@ -388,10 +408,7 @@ export async function profitAndLoss(window: ProfitWindow) {
     `writtenOff` reports that separately so a period the desk forgave millions in
     cannot read like a quiet one.
   */
-  const receivableUsd = Math.max(
-    0,
-    outstandingOf(billed._sum)
-  );
+  const receivableUsd = periodReceivable[0]?.owed ?? 0;
 
   /*
     Revenue billed on cash terms — the rest of it.

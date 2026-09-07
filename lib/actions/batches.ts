@@ -227,10 +227,32 @@ export async function sealBatch(
           id: true,
           status: true,
           batchNumber: true,
+          permanent: true,
           _count: { select: { shipments: { where: { deletedAt: null } } } },
         },
       });
       if (!batch) throw new Error(t(locale, "Batch not found."));
+      /*
+        NOT THE LOADING TABLE.
+
+        The Guangzhou and Hong Kong tables are Batch rows too — permanent ones
+        that are never consumed, because the next customer through the door
+        starts filling them again. dispatchLoadingTable is the door for those,
+        and it sweeps what is on the table into a fresh dispatch. Sealing or
+        flying the table ITSELF would move the standing table out of OPEN, and
+        the warehouse would have nowhere left to book cargo onto.
+
+        Neither screen offers it. Both endpoints are reachable without a
+        screen, which is why both ask for themselves.
+      */
+      if (batch.permanent) {
+        throw new Error(
+          t(
+            locale,
+            "That is the loading table, not a flight. Dispatch it to send what is on it."
+          )
+        );
+      }
       if (batch.status !== "OPEN") {
         throw new Error(t(locale, "This batch is already sealed."));
       }
@@ -299,6 +321,7 @@ export async function departBatch(
           id: true,
           status: true,
           batchNumber: true,
+          permanent: true,
           shipments: {
             where: { status: "READY_TO_DEPART", deletedAt: null },
             select: { id: true, origin: true },
@@ -306,7 +329,30 @@ export async function departBatch(
         },
       });
       if (!batch) throw new Error(t(locale, "Batch not found."));
-      if (batch.status === "IN_TRANSIT" || batch.status === "ARRIVED") {
+      /* The loading table is not a flight — see sealBatch above. */
+      if (batch.permanent) {
+        throw new Error(
+          t(
+            locale,
+            "That is the loading table, not a flight. Dispatch it to send what is on it."
+          )
+        );
+      }
+      /*
+        AND A FLIGHT THAT HAS LANDED CANNOT FLY AGAIN.
+
+        This tested IN_TRANSIT and ARRIVED and stopped there, so a batch that
+        had gone on to be VERIFIED or CLOSED could be departed a second time:
+        its status went back to IN_TRANSIT, the arrival was overwritten with a
+        fresh departure, and every consignment on it left the Dar floor on
+        paper while standing on it in fact.
+      */
+      if (
+        batch.status === "IN_TRANSIT" ||
+        batch.status === "ARRIVED" ||
+        batch.status === "VERIFIED" ||
+        batch.status === "CLOSED"
+      ) {
         throw new Error(t(locale, "This batch has already departed."));
       }
       if (batch.shipments.length === 0) {

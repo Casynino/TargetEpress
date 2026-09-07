@@ -76,7 +76,14 @@ export async function GET(
               */
               payments: {
                 where: { voidedAt: null },
-                select: { amount: true, currency: true },
+                select: {
+                  amount: true,
+                  currency: true,
+                  /* The fare inside the sum, and whether this transfer
+                     answered more than this one bill — see localSplit. */
+                  transportAmount: true,
+                  _count: { select: { allocations: true } },
+                },
               },
             },
           },

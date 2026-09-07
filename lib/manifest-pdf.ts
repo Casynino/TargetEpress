@@ -63,8 +63,8 @@ export type ManifestPdfInput = {
  * becomes "Documents ()" — so those are closed up here rather than printed as
  * punctuation around a hole.
  */
-export function latinLabel(text: string, fallback: string): string {
-  const kept = String(text)
+function latinOnly(value: string): string {
+  return String(value)
     .replace(/[\u2018\u2019]/g, "'")
     .replace(/[\u201c\u201d]/g, '"')
     .replace(/[^\x20-\x7E\xA0-\xFF]/g, "")
@@ -72,7 +72,29 @@ export function latinLabel(text: string, fallback: string): string {
     .replace(/\s*[-\u2014\u2013]\s*$/, "")
     .replace(/\s{2,}/g, " ")
     .trim();
-  return kept.length > 0 ? kept : fallback;
+}
+
+export function latinLabel(text: string, fallback: string): string {
+  const kept = latinOnly(text);
+  if (kept.length > 0) return kept;
+  /*
+    THE FALLBACK GOES THROUGH THE SAME SIEVE.
+
+    It did not, and almost every caller hands it a value a person typed:
+    `cargoType.name ?? CATEGORY_LABELS[...]`. Guangzhou may add its own product
+    from the register form — the field is right there, in Chinese, with no
+    script restriction on it — so a consignment of 手机壳 arrived here with a
+    Chinese description AND a Chinese fallback. The description was stripped to
+    nothing, the fallback was returned untouched, and the Helvetica renderer
+    then deleted every character of it: the customer's invoice printed a GOODS
+    block with nothing in it, and so did the carton label, the sticker sheet
+    and the pickup note. The screen showed the Chinese the whole time, so
+    nobody sending the bill could see what the printed copy had lost.
+
+    Sieved and then floored on a word that cannot itself disappear.
+  */
+  const spare = latinOnly(fallback);
+  return spare.length > 0 ? spare : "Goods";
 }
 
 /**

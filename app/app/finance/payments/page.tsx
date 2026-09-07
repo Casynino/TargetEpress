@@ -297,7 +297,17 @@ export default async function PaymentsPage() {
                     {t(locale, "Landed in")}
                   </p>
                   <div className="mt-1">
-                    {payment.account ? (
+                    {/* A cancelled payment is not money waiting to be filed.
+                        Every total on this page already leaves it out; the row
+                        used to look exactly like a live one and still offered
+                        to put it into an account, which would have posted the
+                        cash back with nothing to answer it. */}
+                    {payment.voidedAt ? (
+                      <span className="text-sm text-muted-foreground">
+                        {t(locale, "Cancelled")} ·{" "}
+                        {formatDateTime(payment.voidedAt, locale)}
+                      </span>
+                    ) : payment.account ? (
                       <span className="text-sm">{payment.account.name}</span>
                     ) : (
                       <AttributePayment
@@ -337,7 +347,10 @@ export default async function PaymentsPage() {
               </TableHeader>
               <TableBody>
                 {payments.map((payment) => (
-                  <TableRow key={payment.id}>
+                  <TableRow
+                    key={payment.id}
+                    className={payment.voidedAt ? "text-muted-foreground" : undefined}
+                  >
                     <TableCell className="font-mono text-xs tabular">
                       <Link
                         href={`/app/finance/payments/${payment.id}`}
@@ -362,7 +375,14 @@ export default async function PaymentsPage() {
                           says this. When that was not the invoice's own
                           currency, what it actually settled is the figure the
                           bill moved by, so both are shown. */}
-                      {formatMoney(payment.amount, payment.currency)}
+                      <span className={payment.voidedAt ? "line-through" : undefined}>
+                        {formatMoney(payment.amount, payment.currency)}
+                      </span>
+                      {payment.voidedAt ? (
+                        <span className="block text-xs font-normal text-muted-foreground">
+                          {t(locale, "Cancelled")}
+                        </span>
+                      ) : null}
                       {payment.creditedAmount !== null &&
                       payment.currency !== payment.invoice?.currency ? (
                         <span className="block text-xs font-normal text-muted-foreground">
@@ -381,7 +401,9 @@ export default async function PaymentsPage() {
                         naming the mobile-money account; the column went, and
                         the reference came here rather than going with it. */}
                     <TableCell className="hidden md:table-cell text-sm">
-                      {payment.account ? (
+                      {payment.voidedAt ? (
+                        "—"
+                      ) : payment.account ? (
                         payment.account.name
                       ) : (
                         <AttributePayment

@@ -186,6 +186,9 @@ export async function markFoundInChina(
               trackingNumber: true,
               status: true,
               batchId: true,
+              /* Whether the consignment ITSELF is standing on the Dar floor —
+                 see the branch below. */
+              arrivedAt: true,
               batch: { select: { batchNumber: true } },
             },
           },
@@ -207,21 +210,44 @@ export async function markFoundInChina(
       const shipment = exception.shipment;
       const flownOn = shipment.batch?.batchNumber ?? null;
 
-      /* Re-stated as a conditional claim rather than a read-then-write: two
-         desks answering the same case in the same moment produce one move and
-         one history line. */
-      const moved = await tx.shipment.updateMany({
-        where: { id: shipment.id, status: { not: "READY_TO_DEPART" } },
-        data: {
-          status: "READY_TO_DEPART",
-          /* Off the flight it was manifested on and never flew. A batch's
-             figures are worked out from the cargo currently on it, and a box
-             that stayed in China did not earn that flight anything. */
-          batchId: null,
-          departedAt: null,
-          arrivedAt: null,
-        },
-      });
+      /*
+        A CONSIGNMENT THAT HAS LANDED STAYS LANDED.
+
+        Four case types can be answered from China, and two of them are about a
+        consignment that never came off the plane at all — nothing arrived, so
+        putting it back on the loading table is exactly right.
+
+        The other two are not. A short count and a wrong batch are usually
+        raised on cargo that IS here: nine of ten cartons on the Dar floor and
+        the tenth still in Guangzhou. Answering those un-landed the whole
+        consignment — status back to READY_TO_DEPART, its flight and its
+        arrival date wiped — while the nine boxes sat in the shed. Dar could no
+        longer edit it, no bill could be raised against it, and nothing in the
+        app puts an arrival back.
+
+        So the move is made only when the consignment itself has not arrived.
+        When it has, the case still closes and the finding is still recorded —
+        the carton is in Guangzhou and will come on the next flight — and the
+        boxes that ARE here keep their arrival, their flight and their bill.
+      */
+      const landed = shipment.arrivedAt !== null;
+      const moved = landed
+        ? { count: 0 }
+        : await tx.shipment.updateMany({
+            /* Re-stated as a conditional claim rather than a read-then-write:
+               two desks answering the same case in the same moment produce one
+               move and one history line. */
+            where: { id: shipment.id, status: { not: "READY_TO_DEPART" } },
+            data: {
+              status: "READY_TO_DEPART",
+              /* Off the flight it was manifested on and never flew. A batch's
+                 figures are worked out from the cargo currently on it, and a
+                 box that stayed in China did not earn that flight anything. */
+              batchId: null,
+              departedAt: null,
+              arrivedAt: null,
+            },
+          });
 
       if (moved.count > 0) {
         await tx.shipmentStatusHistory.create({
@@ -236,6 +262,20 @@ export async function markFoundInChina(
             actorId: user.id,
           },
         });
+      } else if (landed) {
+        /* Said on the consignment's own timeline, because from the Dar floor's
+           point of view something has changed even though nothing moved: the
+           piece they were waiting for has been located, and it is in China. */
+        await tx.shipmentStatusHistory.create({
+          data: {
+            shipmentId: shipment.id,
+            fromStatus: shipment.status,
+            toStatus: shipment.status,
+            location: "Guangzhou warehouse",
+            note: `The missing piece was found in China. This consignment stays in Dar; the piece follows on a later flight. ${input.note}`,
+            actorId: user.id,
+          },
+        });
       }
 
       await tx.shipmentException.update({
@@ -244,6 +284,11 @@ export async function markFoundInChina(
           status: "CARGO_FOUND",
           resolutionType: "CARGO_FOUND",
           resolutionNote: input.note,
+          /* WHICH BUILDING, beside the finder's own words. The cargo page has
+             a line for this and nothing ever wrote it, so a case that ended
+             with the box on a shelf in Guangzhou read the same as one that
+             ended with it in Dar. The two doors are the two answers. */
+          foundLocation: "Guangzhou warehouse",
           resolvedById: user.id,
           resolvedAt: new Date(),
         },
@@ -512,6 +557,9 @@ export async function markCargoFound(
              door showed nothing at all — while its China twin, which writes
              the same outcome, showed it correctly. */
           resolutionType: "CARGO_FOUND",
+          /* And which building it turned up in — the other half of the same
+             line, which had never been written by either door. */
+          foundLocation: "Dar es Salaam warehouse",
           resolvedById: user.id,
           resolvedAt: now,
           resolutionNote: input.note,

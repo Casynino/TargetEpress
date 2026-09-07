@@ -1,5 +1,6 @@
 "use server";
 
+import type { InvoiceStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -85,6 +86,9 @@ export async function deleteCargo(
             status: true,
             amountPaid: true,
             amountAdjusted: true,
+            /* Approved credit is a debt, even with nothing paid against it —
+               see the guard below. */
+            creditStatus: true,
           },
         },
         _count: { select: { photos: true } },
@@ -125,6 +129,32 @@ export async function deleteCargo(
       );
     }
 
+    /*
+      AND AN APPROVED CREDIT IS A DEBT, WITH NOTHING PAID AGAINST IT.
+
+      The guard above asks whether money has arrived or been let go. A credit
+      sale is neither: Finance read the customer's exposure, agreed the cargo
+      could leave unpaid, and the whole bill is still owed. Nothing had been
+      paid, so this fell straight through — the delete voided the invoice and
+      the receivable vanished from the call list, the credit book, the
+      customer's own statement and the owner's owed figure. The company simply
+      stopped being owed the money.
+
+      Refused for the same reason as the line above: unwinding a debt is
+      Finance's decision, made in Finance, not a side effect of tidying a
+      cargo record away.
+    */
+    if (
+      cargo.invoice &&
+      cargo.invoice.creditStatus === "APPROVED" &&
+      cargo.invoice.status !== "VOID" &&
+      cargo.invoice.status !== "WRITTEN_OFF"
+    ) {
+      return fail(
+        `${cargo.invoice.invoiceNumber} ${t(locale, "was released on approved credit and is still owed. Settle or write it off in Finance before deleting the cargo.")}`
+      );
+    }
+
     await prisma.$transaction(async (tx) => {
       await tx.shipment.update({
         where: { id: cargo.id },
@@ -151,7 +181,11 @@ export async function deleteCargo(
         written yet. Nothing with money or a cleared difference against it
         reaches this line — both are refused above.
       */
-      if (cargo.invoice && cargo.invoice.status !== "VOID") {
+      const voidedFrom =
+        cargo.invoice && cargo.invoice.status !== "VOID"
+          ? cargo.invoice.status
+          : null;
+      if (cargo.invoice && voidedFrom) {
         await tx.invoice.update({
           where: { id: cargo.invoice.id },
           data: { status: "VOID" },
@@ -168,6 +202,13 @@ export async function deleteCargo(
           // The state at the moment of deletion, so the record can be read
           // without reconstructing it from a dozen other tables.
           metadata: {
+            /* WHAT THE DELETE DID TO THE BILL, so putting the cargo back can
+               put the bill back. Restoring used to clear deletedAt and leave
+               the invoice VOID for ever: the consignment reappeared on every
+               screen carrying a bill no payment could be recorded against and
+               no new invoice could replace, and nothing said why. Null when
+               the bill was already void and the delete left it alone. */
+            invoiceVoidedFrom: voidedFrom,
             trackingNumber: cargo.trackingNumber,
             customer: cargo.customer.name,
             description: cargo.description,
@@ -209,7 +250,13 @@ export async function restoreCargo(
   try {
     const cargo = await prisma.shipment.findUnique({
       where: { id: shipmentId },
-      select: { id: true, trackingNumber: true, deletedAt: true, status: true },
+      select: {
+        id: true,
+        trackingNumber: true,
+        deletedAt: true,
+        status: true,
+        invoice: { select: { id: true, status: true } },
+      },
     });
     if (!cargo) return fail(t(locale, "That cargo no longer exists."));
     if (!cargo.deletedAt) return fail(t(locale, "That cargo is not deleted."));
@@ -227,11 +274,49 @@ export async function restoreCargo(
       );
     }
 
+    /*
+      THE BILL COMES BACK WITH THE CARGO.
+
+      Deleting a consignment voids its invoice so a customer is not chased for
+      cargo that appears on no screen. Restoring has to undo the same thing: a
+      bill left VOID refuses every payment, cannot be replaced by a new one,
+      and quietly writes the money off — the consignment is back and it can
+      never be billed for.
+
+      The delete recorded which state it took the bill out of, so this puts
+      back exactly that: a draft returns as a draft, not as a confirmed demand
+      nobody signed off. A bill voided by anything OTHER than this delete is
+      left alone — its own door undoes it.
+    */
+    const deleteEntry = await prisma.auditLog.findFirst({
+      where: { entity: "Shipment", entityId: cargo.id, action: "cargo.delete" },
+      orderBy: { createdAt: "desc" },
+      select: { metadata: true },
+    });
+    const voidedFrom = (deleteEntry?.metadata as { invoiceVoidedFrom?: string } | null)
+      ?.invoiceVoidedFrom;
+    const putBack =
+      cargo.invoice &&
+      cargo.invoice.status === "VOID" &&
+      voidedFrom &&
+      voidedFrom !== "VOID"
+        ? (voidedFrom as InvoiceStatus)
+        : null;
+
     await prisma.$transaction(async (tx) => {
       await tx.shipment.update({
         where: { id: cargo.id },
         data: { deletedAt: null, deletedById: null, deleteReason: null },
       });
+
+      if (cargo.invoice && putBack) {
+        /* Claimed on the status the read saw, so a bill somebody reopened in
+           Finance between the two is not overwritten by this. */
+        await tx.invoice.updateMany({
+          where: { id: cargo.invoice.id, status: "VOID" },
+          data: { status: putBack },
+        });
+      }
 
       await recordAudit(
         {
@@ -239,7 +324,10 @@ export async function restoreCargo(
           action: "cargo.restore",
           entity: "Shipment",
           entityId: cargo.id,
-          summary: `Restored ${cargo.trackingNumber}`,
+          summary: putBack
+            ? `Restored ${cargo.trackingNumber} — its bill returned to ${putBack}`
+            : `Restored ${cargo.trackingNumber}`,
+          metadata: { invoiceRestoredTo: putBack },
         },
         tx
       );

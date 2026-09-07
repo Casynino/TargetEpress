@@ -142,13 +142,39 @@ export function localSplit(invoice: {
   total: Numeric;
   amountAdjusted: Numeric;
   exchangeRate?: Numeric | null;
-  payments?: { amount: Numeric; currency: string }[] | null;
+  payments?: {
+    amount: Numeric;
+    currency: string;
+    /**
+     * THE HALF THAT WAS NEVER THIS BILL'S.
+     *
+     * `amount` is what the customer handed across the counter, and on a
+     * delivery that is the freight plus the driver's fare. The fare goes
+     * straight back out to whoever drove; counting it here printed "paid
+     * 100,000" on a pickup slip for an 80,000 bill and made the remainder
+     * look cleared when 20,000 of it had already left the till.
+     */
+    transportAmount?: Numeric | null;
+    /**
+     * How many bills this one transfer answers.
+     *
+     * One customer settling three consignments hands over one sum, and every
+     * one of those three bills reads that whole sum as its own — so each of
+     * the three slips said the customer had paid the lot. There is no honest
+     * way to state one bill's share of it in shillings from figures stored in
+     * the bill's own currency, so this says so instead and the caller falls
+     * back to dollars, exactly as it does when no rate is published.
+     */
+    _count?: { allocations: number } | null;
+  }[] | null;
 }): { billLocal: number | null; paidLocal: number | null; clearedLocal: number | null } {
   const rate = invoice.exchangeRate == null ? 0 : toNumber(invoice.exchangeRate);
   if (!(rate > 0)) return { billLocal: null, paidLocal: null, clearedLocal: null };
 
   const billLocal = Math.round(toNumber(invoice.total) * rate);
   const rows = invoice.payments ?? [];
+  const merged = rows.some((p) => (p._count?.allocations ?? 1) > 1);
+  if (merged) return { billLocal, paidLocal: null, clearedLocal: null };
   const allLocal = rows.length > 0 && rows.every((p) => p.currency === "TZS");
   if (!allLocal) {
     /* Mixed or dollar payments: the bill converts, the rest cannot be restated
@@ -156,7 +182,10 @@ export function localSplit(invoice: {
     return { billLocal, paidLocal: null, clearedLocal: null };
   }
 
-  const paidLocal = rows.reduce((sum, p) => sum + toNumber(p.amount), 0);
+  const paidLocal = rows.reduce(
+    (sum, p) => sum + toNumber(p.amount) - toNumber(p.transportAmount ?? 0),
+    0
+  );
   /* The remainder, never the stored cents multiplied out — and never below
      zero, because an overpayment is not a write-off. */
   const clearedLocal =

@@ -3264,6 +3264,8 @@ const ZH: Record<string, string> = {
   "That is everything in this view.": "此视图的内容已全部显示。",
   "That is more than can be agreed in one go. Narrow the filters and repeat.": "一次能确认的数量超出上限。请收窄筛选条件后再操作。",
   "That is not a valid date.": "这不是有效日期。",
+  "That is the loading table, not a flight. Dispatch it to send what is on it.":
+    "这是装货台，不是航班。请使用「发运」将台面上的货物发出。",
   "That is the date it is already due.": "这正是当前的到期日期。",
   "That line is itself a cancellation. Cancelling it would put the money back — record a fresh movement instead.": "这一行本身就是一笔冲销。再取消它会把钱冲回去——请另行记录一笔新的资金变动。",
   "That line no longer exists.": "该行记录已不存在。",
@@ -3653,6 +3655,8 @@ const ZH: Record<string, string> = {
   "That payment is cancelled. Reinstate it before removing anything.": "该付款已取消，请先恢复后再移除附件。",
   "was cancelled, so there is nothing to attach it to.": "已被取消，无法为其添加附件。",
   "was cancelled, so there is nothing to remove it from.": "已被取消，没有附件可移除。",
+  "was released on approved credit and is still owed. Settle or write it off in Finance before deleting the cargo.":
+    "已按批准的赊账放行且仍有欠款。删除货物前，请先在财务结清或核销。",
   "Attachment added to": "已为以下记录添加附件：",
   "Attachment removed from": "已从以下记录移除附件：",
   "payment cannot have landed in it.": "的付款不可能进入该账户。",

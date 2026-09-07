@@ -404,8 +404,11 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
     const storageWaivedUsd = toNumber(invoice?.storageWaivedUsd ?? 0);
     const total = invoice ? toNumber(invoice.total) : null;
     const paid = invoice ? toNumber(invoice.amountPaid) : null;
-    const outstanding =
-      total === null || paid === null ? null : Math.max(0, total - paid);
+    /* Through the shared balance, which knows about what Finance cleared
+       without money arriving. Subtracted by hand here, this queue went on
+       ringing customers whose remainder had already been written off — the
+       bill was settled everywhere in the app except on the call list. */
+    const outstanding = invoice ? outstandingOf(invoice) : null;
     const rate = invoice?.exchangeRate ? toNumber(invoice.exchangeRate) : null;
     const lastMessage = shipment.messages[0] ?? null;
 

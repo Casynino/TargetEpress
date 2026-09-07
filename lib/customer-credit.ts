@@ -49,11 +49,33 @@ function spareOf(payment: {
      20,000 has already left the till. */
   transportAmount: Prisma.Decimal;
   currency: string;
+  /**
+   * THE RATE THIS MONEY ACTUALLY SETTLED AT.
+   *
+   * `recordPayment` writes it here at the moment the money is taken, and it is
+   * the only rate either party agreed to for this payment. What was read
+   * before was the BILL's rate as it stands now — and a bill's rate is not
+   * frozen against later correction: "Change rate" is offered on a settled
+   * bill on purpose, to fix one that was entered wrong.
+   *
+   * So correcting a bill from 2,700 to 2,600 after a shilling payment made the
+   * arithmetic here believe the payment had consumed less than it had, and the
+   * difference appeared as spendable credit. `applyCreditToInvoice` then spent
+   * that phantom money on the customer's next consignment — raising its
+   * amountPaid, writing an audit line saying a deposit had settled it, and
+   * releasing cargo against shillings nobody ever sent.
+   *
+   * Null on a same-currency payment, where there is nothing to convert, and on
+   * a merged payment answering bills that carry different frozen rates — the
+   * per-allocation fallback below covers both.
+   */
+  exchangeRate: Prisma.Decimal | null;
   allocations: {
     amount: Prisma.Decimal;
     invoice: { currency: string; exchangeRate: Prisma.Decimal | null };
   }[];
 }): number | null {
+  const settledAt = toNumber(payment.exchangeRate);
   let spent = 0;
   for (const allocation of payment.allocations) {
     const settled = toNumber(allocation.amount);
@@ -61,7 +83,10 @@ function spareOf(payment: {
       spent += settled;
       continue;
     }
-    const frozen = toNumber(allocation.invoice.exchangeRate);
+    /* The payment's own rate first; the bill's only for rows written before
+       payments carried one, and for a merged claim that deliberately carries
+       none. */
+    const frozen = settledAt || toNumber(allocation.invoice.exchangeRate);
     if (!frozen) return null;
     /* Back into what the customer handed over: a dollar bill settled from a
        shilling payment consumed `settled x rate` of it. */
@@ -80,6 +105,9 @@ const CREDIT_SELECT = {
   transportAmount: true,
   amount: true,
   currency: true,
+  /* The rate this money settled at, which is the one spareOf must convert
+     back through — never the bill's, which can be corrected afterwards. */
+  exchangeRate: true,
   receipt: { select: { receiptNumber: true } },
   allocations: {
     select: {

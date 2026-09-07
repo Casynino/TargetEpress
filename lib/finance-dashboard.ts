@@ -193,6 +193,8 @@ export async function financeDashboard(
     payable,
     invoiceCounts,
     pendingClaims,
+    batchesArrivedCount,
+    batchesClosedCount,
     batchRows,
     monthly,
   ] = await Promise.all([
@@ -288,6 +290,36 @@ export async function financeDashboard(
       .count({ where: { status: "PENDING" } })
       .catch(() => 0),
 
+    /*
+      THE TWO COUNTS ON THE VOLUME STRIP, ASKED OF THE DATABASE.
+
+      They were worked out by filtering the forty rows below — which are the
+      forty most recent batches, not the batches in the window. So "arrived"
+      quietly capped at forty on any period bigger than that, and "closed"
+      ignored the period altogether: it counted every closed flight among the
+      latest forty, whichever month the reader had chosen.
+
+      Counted on their own dates instead, in the window the rest of the strip
+      uses. The list below stays capped, because it is a table somebody reads
+      rather than a figure somebody totals.
+    */
+    prisma.batch.count({
+      where: {
+        permanent: false,
+        ...batchWhere,
+        ...originWhere,
+        arrivalDate: range,
+      },
+    }),
+    prisma.batch.count({
+      where: {
+        permanent: false,
+        ...batchWhere,
+        ...originWhere,
+        status: "CLOSED",
+        closedAt: range,
+      },
+    }),
     prisma.batch.findMany({
       where: { permanent: false, ...batchWhere, ...originWhere },
       orderBy: [{ arrivalDate: "desc" }, { createdAt: "desc" }],
@@ -387,6 +419,17 @@ export async function financeDashboard(
   // ----------------------------------------------------------------- revenue
   const expectedUsd = invoicesInWindow.reduce((n, i) => n + toNumber(i.total), 0);
   const paidOnThose = invoicesInWindow.reduce((n, i) => n + toNumber(i.amountPaid), 0);
+  /*
+    OWED, BILL BY BILL — THE SAME QUESTION THE TABLE BELOW ANSWERS.
+
+    The headline was `expectedUsd - paidOnThose` clamped once at the end, which
+    is wrong twice over on the one screen that also prints the P&L's receivable
+    beside it: it counts nothing Finance has written off, and a single customer
+    who overpaid nets off everybody else's debt before the clamp can see them.
+    The customer table three lines down already adds up `outstandingOf` per
+    row; this is that sum, so the headline and the breakdown of it agree.
+  */
+  const owedOnThose = invoicesInWindow.reduce((n, i) => n + outstandingOf(i), 0);
   const byOriginMap = new Map<string, { expectedUsd: number; collectedUsd: number }>();
   for (const inv of invoicesInWindow) {
     const key = inv.shipment?.origin ?? "—";
@@ -704,15 +747,13 @@ export async function financeDashboard(
       kgCollected,
       packages: landed.reduce((n, s) => n + s._count.packageList, 0),
       customers: new Set(landed.map((s) => s.customerId)).size,
-      batchesArrived: batchRows.filter(
-        (b) => b.arrivalDate && b.arrivalDate >= window.from && b.arrivalDate < window.to
-      ).length,
-      batchesClosed: batchRows.filter((b) => b.status === "CLOSED").length,
+      batchesArrived: batchesArrivedCount,
+      batchesClosed: batchesClosedCount,
     },
     revenue: {
       expectedUsd,
       collectedUsd: paidOnThose,
-      outstandingUsd: Math.max(0, expectedUsd - paidOnThose),
+      outstandingUsd: owedOnThose,
       collectionRate,
       byOrigin: [...byOriginMap.entries()]
         .map(([origin, v]) => ({ origin, ...v }))

@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { recordAudit, withNote } from "@/lib/audit";
+import { holdCargoUntilSettled } from "@/lib/cargo-hold";
 import { STORAGE_POLICY, storageStatus } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { toLocal } from "@/lib/fx";
@@ -274,48 +275,19 @@ export async function chargeStorageFee(
         the cargo has gone, and cancelling the note would only make the record
         disagree with the warehouse. That is a live debt for somebody to chase.
       */
+      /* Through lib/cargo-hold.ts, which this door's own logic became: two
+         other doors in Finance can reopen a settled bill the same way, and all
+         three now answer "may these boxes still leave" with one function
+         rather than three that could drift. */
       const cargo = fresh.shipment;
       const note = cargo?.pickupNote ?? null;
-      let noteOutcome: "held" | "already-collected" | "none" = "none";
-      if (cargo && note && nextStatus !== "PAID" && nextStatus !== "DRAFT") {
-        if (note.status === "USED") {
-          noteOutcome = "already-collected";
-        } else if (note.status === "ACTIVE") {
-          /*
-            THE CARGO IS HELD, THE NOTE IS NOT DESTROYED.
-
-            Reverting the consignment is enough to stop it: releaseShipment
-            refuses anything that is not READY_FOR_PICKUP, so the boxes cannot
-            walk on a clearance that storage has just made untrue.
-
-            Cancelling the note would be one-way. PickupNote.shipmentId is
-            unique, so a consignment carries one note for its whole life and a
-            cancelled one can never be replaced — the customer would pay the
-            storage and find their cargo permanently unreleasable, which is a
-            worse outcome than the one being prevented. Paying puts it back.
-          */
-          noteOutcome = "held";
-          if (cargo.status === "READY_FOR_PICKUP") {
-            await tx.shipment.update({
-              where: { id: cargo.id },
-              data: { status: "RECEIVED_AT_DAR" },
-            });
-            /* The move said nothing on the timeline, so a customer told their
-               cargo was ready read a page that still said so while the counter
-               refused them. */
-            await tx.shipmentStatusHistory.create({
-              data: {
-                shipmentId: cargo.id,
-                fromStatus: "READY_FOR_PICKUP",
-                toStatus: "RECEIVED_AT_DAR",
-                location: "Dar es Salaam warehouse",
-                note: "Storage charged. Held until the new balance is settled; the pickup note it holds stands.",
-                actorId: user.id,
-              },
-            });
-          }
-        }
-      }
+      const noteOutcome = await holdCargoUntilSettled(tx, {
+        shipment: cargo,
+        nextStatus,
+        actorId: user.id,
+        reason:
+          "Storage charged. Held until the new balance is settled; the pickup note it holds stands.",
+      });
 
       await recordAudit(
         {

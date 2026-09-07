@@ -159,9 +159,14 @@ export async function GET(
     packages: invoice.shipment.packages,
     packageType: invoice.shipment.packageType,
     routeLabel: `${AIRPORT_LABELS[invoice.shipment.origin]} \u2192 Dar es Salaam`,
-    cargoLabel:
-      invoice.shipment.cargoType?.name ??
-      CATEGORY_LABELS[invoice.shipment.cargoCategory],
+    /* Through the same sieve as the description above — it is the same
+       user-typed product name, and drawn by the same font that has no Chinese
+       in it. Left raw, the Cargo row on the customer's invoice printed as an
+       empty box. */
+    cargoLabel: latinLabel(
+      invoice.shipment.cargoType?.name ?? "",
+      CATEGORY_LABELS[invoice.shipment.cargoCategory]
+    ),
 
     currency: invoice.currency,
     // The figure that was actually billed, which is the override when Finance
