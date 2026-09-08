@@ -68,34 +68,34 @@ export function NewVersionNotice({ build }: { build: string }) {
   if (!stale) return null;
 
   /*
-    LOUD ENOUGH TO BE NOTICED, QUIET ENOUGH TO IGNORE.
+    IN THE MIDDLE, WHERE IT IS LOOKED AT.
 
-    It sat centred across the top, over the page's own heading — the one place
-    a notice can be while telling somebody their screen is stale, and it
-    covered the thing they came to read. It sits in the corner now, clear of
-    the header's own controls.
+    It has been three places. Centred and small, it read as part of the page
+    and nobody saw it. In the corner and grey, it was quieter still. The owner
+    asked for the middle and asked for it to look like something — so it is
+    centred across the top, in the brand colour, at the size of a real button,
+    and it arrives rather than simply being there: a short drop, one ring out
+    of its edge, and a slow sheen every few seconds after that.
 
-    But out of the way became invisible: a small grey pill on a dark page, the
-    same weight as everything around it, and the desk it exists for is the one
-    that never notices anything. So it is filled in the brand colour, set at
-    the size of a real button, and given a soft ring so it reads as something
-    that has just appeared rather than part of the furniture.
+    Across the MIDDLE of the top bar on a desktop, which is empty there — the
+    logo sits at one end and the language and bell at the other, and the strip
+    between them carries a notice without covering anything.
 
-    ON A PHONE IT GOES TO THE BOTTOM. Made big enough to see, it landed level
-    with the page's own heading on a narrow screen — the exact fault moving it
-    out of the centre was meant to fix. Above the tab bar there is nothing to
-    cover, and it clears the safe area so it is not under the home indicator.
+    A phone has no such gap: the language button sits dead centre between the
+    hamburger and the bell, and a centred pill lands straight on top of it. So
+    on a phone it stays centred and moves to the bottom, above the tab bar,
+    where there is nothing to cover and nothing to reach past.
 
     One sentence and one target: the whole pill is the button, with the reload
     icon on the end so what pressing it does is shown rather than spelled out
     a second time.
   */
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom)+0.75rem)] z-[60] flex justify-end px-3 print:hidden lg:inset-x-auto lg:bottom-auto lg:right-3 lg:top-16 lg:px-0">
+    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom)+0.75rem)] z-[60] flex justify-center px-4 print:hidden lg:bottom-auto lg:top-3">
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className="focus-ring pointer-events-auto inline-flex items-center gap-2.5 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-brand-foreground shadow-xl ring-4 ring-brand/30 transition-colors hover:bg-brand/90"
+        className="update-pill focus-ring pointer-events-auto inline-flex items-center gap-2.5 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-brand-foreground shadow-xl transition-colors hover:bg-brand/90"
       >
         {t("New update is up")}
         <RefreshCw className="h-4 w-4 shrink-0" />

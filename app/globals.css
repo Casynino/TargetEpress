@@ -389,6 +389,92 @@
   }
 }
 
+/*
+ * THE UPDATE PILL.
+ *
+ * A notice nobody asked for, arriving over work somebody is doing — so it has
+ * to be seen without being a nuisance. It drops in from above the edge it
+ * belongs to, flashes its ring once, and then a slow sheen crosses it every
+ * few seconds.
+ *
+ * The sheen is the one place this departs from "one flash, not a pulse". A
+ * blink demands attention on a fixed beat and is learned away within a day;
+ * a highlight travelling across a shape reads as a surface catching the light
+ * and stays legible while it happens. It is slow, it never changes the text's
+ * contrast, and it is the only thing on the screen doing it.
+ *
+ * All of it is decoration: switched off, the pill is still a button that says
+ * what it does.
+ */
+@keyframes update-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes update-ring {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--brand) 55%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 14px transparent;
+  }
+}
+
+@keyframes update-sheen {
+  0% {
+    transform: translateX(-120%);
+  }
+  /* Most of the cycle is the gap between passes: the sweep itself is quick,
+     and what stops it nagging is how long it waits before the next one. */
+  35%,
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+.update-pill {
+  position: relative;
+  overflow: hidden;
+  animation:
+    update-drop 0.32s cubic-bezier(0.16, 1, 0.3, 1) both,
+    update-ring 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+
+.update-pill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* Above the fill, below the label — a sheen that washes over the words
+     would make them unreadable for the moment it takes to cross. */
+  z-index: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    color-mix(in oklab, white 38%, transparent) 50%,
+    transparent 80%
+  );
+  animation: update-sheen 4.2s ease-in-out 1.1s infinite;
+  pointer-events: none;
+}
+
+.update-pill > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .update-pill,
+  .update-pill::after {
+    animation: none;
+  }
+}
+
 
 @layer components {
   /**
