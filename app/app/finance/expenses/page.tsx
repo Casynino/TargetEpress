@@ -21,6 +21,7 @@ import { LIVE_LEG, moneyOutRows } from "@/lib/ledger";
 import type { MoneyRow } from "@/lib/money-totals";
 import { sumShillings, sumUsd } from "@/lib/money-totals";
 import { t } from "@/lib/i18n";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -111,13 +112,48 @@ const KINDS = [
     label: "Transport out",
     hint: "The delivery fare passed on to whoever drives — never the company's money",
   },
+  /*
+    THE LAST THREE, WHICH ARE NOT SPENDING AND SAY SO.
+
+    Everything above is money gone. These three are the questions a desk asks
+    next and had to leave the page to answer: what is recorded and still owed,
+    what was only carried from one of our own accounts to another, and what
+    was withdrawn. None is added into Everything — a bill not yet paid has not
+    left, a transfer never left the business, and a cancelled cost is a
+    mistake that was taken back.
+  */
+  {
+    key: "unpaid",
+    label: "Still to pay",
+    hint: "Recorded and approved, and the money has not left yet",
+  },
+  {
+    key: "transfers",
+    /* Two words, because the label wraps at five cards across and a chip whose
+       figure sits a line lower than its neighbours is the thing a reader
+       notices instead of the figures. */
+    label: "Between accounts",
+    hint: "Carried from one of our own accounts to another — moved, not spent",
+  },
+  {
+    key: "cancelled",
+    label: "Cancelled",
+    hint: "Withdrawn after being recorded — in the list, in no total",
+  },
 ] as const;
 
 /** The chips that read the register instead of the Expense table. */
 const LEDGER_KIND_FOR = {
   claims: "COMPENSATION",
   transport: "TRANSPORT_OUT",
+  transfers: "TRANSFER_OUT",
 } as const;
+
+/** The chips that ask about a cost's STATE rather than what kind it is. */
+const STATUS_KIND_WHERE: Record<string, { status: Prisma.EnumExpenseStatusFilter }> = {
+  unpaid: { status: { in: ["PENDING", "APPROVED"] } },
+  cancelled: { status: { equals: "VOID" } },
+};
 
 const PERIODS = [
   { key: "today", label: "Today" },
@@ -215,10 +251,18 @@ export default async function ExpensesPage({
     dropping legs that could never have matched.
   */
   const ledgerKind =
-    kind === "claims" || kind === "transport" ? LEDGER_KIND_FOR[kind] : null;
-  const showsCosts = kind !== "claims" && kind !== "transport";
+    kind in LEDGER_KIND_FOR
+      ? LEDGER_KIND_FOR[kind as keyof typeof LEDGER_KIND_FOR]
+      : null;
+  const showsCosts = ledgerKind === null;
   const showsLedger =
     (kind === "all" || ledgerKind !== null) && !category && !status;
+  /*
+    Everything means everything that LEFT. A carry between our own accounts is
+    on its own chip because a desk reconciling against the register needs to
+    see it, but it never joins the total that says what the business spent.
+  */
+  const ledgerKindsForAll = ["COMPENSATION", "TRANSPORT_OUT"] as const;
 
   /*
     Three kinds of spending, and they answer different questions.
@@ -236,7 +280,7 @@ export default async function ExpensesPage({
           ? { expenseClass: "NON_OPERATING" as const }
           : kind === "executive"
             ? { category: "EXECUTIVE_DRAW" as const }
-            : {};
+            : (STATUS_KIND_WHERE[kind] ?? {});
 
   /*
     Finding one cost among hundreds.
@@ -289,6 +333,7 @@ export default async function ExpensesPage({
     unpaid,
     byCategory,
     notACost,
+    carries,
     kindTotals,
     rateRow,
     usedMost,
@@ -362,6 +407,30 @@ export default async function ExpensesPage({
             currency: true,
             amountUsd: true,
             account: { select: { name: true } },
+            /* What the row's Correct-or-cancel door needs — the same subject
+               the general ledger builds for the same line, so a fare fixed
+               from here and one fixed from the register are one action. */
+            reversesId: true,
+            reversedBy: { select: { id: true } },
+            payment: {
+              select: {
+                id: true,
+                reference: true,
+                note: true,
+                accountId: true,
+                voidReason: true,
+                voidedBy: { select: { name: true } },
+                proofs: {
+                  select: {
+                    id: true,
+                    url: true,
+                    filename: true,
+                    contentType: true,
+                    bytes: true,
+                  },
+                },
+              },
+            },
           },
         })
       : Promise.resolve([]),
@@ -426,15 +495,27 @@ export default async function ExpensesPage({
     */
     moneyOutRows({
       ...(from ? { from } : {}),
-      kinds: ["COMPENSATION", "TRANSPORT_OUT"],
+      kinds: [...ledgerKindsForAll],
+    }),
+    /* Money carried between our own accounts. Its own chip and never part of
+       Everything — it did not leave the business — but a desk reconciling this
+       page against the register's Money out needs to see it somewhere. */
+    prisma.ledgerEntry.findMany({
+      where: {
+        direction: "OUT",
+        kind: "TRANSFER_OUT",
+        ...(inWindow ? { occurredAt: inWindow } : {}),
+        ...LIVE_LEG,
+      },
+      select: { amount: true, currency: true, amountUsd: true },
     }),
     /* One total per kind, so the chips carry their own weight instead of being
        four words a reader has to click to price. */
     Promise.all(
       KINDS.map(async (k) => {
-        /* Claims and transport are register legs, not costs — their totals are
-           added from `notACost` once it has come back, below. */
-        if (k.key === "claims" || k.key === "transport") {
+        /* The three that read the register have no Expense rows to group —
+           their totals are filled in from the legs, below. */
+        if (k.key in LEDGER_KIND_FOR) {
           return { key: k.key, usd: 0, rows: [] as MoneyRow[], count: 0 };
         }
         const where =
@@ -446,12 +527,17 @@ export default async function ExpensesPage({
                 ? { expenseClass: "NON_OPERATING" as const }
                 : k.key === "executive"
                   ? { category: "EXECUTIVE_DRAW" as const }
-                  : {};
+                  : (STATUS_KIND_WHERE[k.key] ?? {});
         const rows = await prisma.expense.groupBy({
           by: ["currency"],
           where: {
             ...(inWindow ? { incurredAt: inWindow } : {}),
-            status: { not: "VOID" as const },
+            /* A withdrawn cost is in no total — except the chip whose whole
+               job is to say how much was withdrawn, which would otherwise
+               read zero and look broken. */
+            ...(STATUS_KIND_WHERE[k.key]
+              ? {}
+              : { status: { not: "VOID" as const } }),
             ...where,
           },
           _sum: { amount: true, amountUsd: true },
@@ -541,6 +627,7 @@ export default async function ExpensesPage({
   for (const [key, legs] of [
     ["claims", claimsBack],
     ["transport", faresOut],
+    ["transfers", carries],
   ] as const) {
     const chip = kindTotals.find((row) => row.key === key);
     if (!chip) continue;
@@ -672,7 +759,10 @@ export default async function ExpensesPage({
         chart does. Gold is the boss's, the same gold that marks his rows in
         the ledger, so the two screens agree without a caption.
       */}
-      <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      {/* Two columns or five, never three: ten cards divide cleanly by both,
+          and a row with two cards stranded on the end of it is the first
+          thing a reader notices about a page of figures. */}
+      <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-5">
         {KINDS.map((k) => {
           const total = kindTotals.find((row) => row.key === k.key);
           const active = kind === k.key;
@@ -684,7 +774,13 @@ export default async function ExpensesPage({
               ? 100
               : Math.round((usd / recordedUsd) * 100);
           const tone =
-            k.key === "executive"
+            k.key === "claims"
+              ? { text: "text-destructive", bar: "bg-destructive", wash: "from-destructive/[0.12]", ring: "ring-destructive/40 border-destructive/40" }
+              : k.key === "transport"
+                ? { text: "text-success", bar: "bg-success", wash: "from-success/[0.10]", ring: "ring-success/40 border-success/40" }
+                : k.key === "unpaid" || k.key === "transfers" || k.key === "cancelled"
+                  ? { text: "text-muted-foreground", bar: "bg-muted-foreground/40", wash: "from-muted-foreground/[0.07]", ring: "ring-foreground/20 border-foreground/20" }
+                  : k.key === "executive"
               ? { text: "text-warning", bar: "bg-warning", wash: "from-warning/[0.14]", ring: "ring-warning/40 border-warning/40" }
               : k.key === "flight"
                 ? { text: "text-brand", bar: "bg-brand", wash: "from-brand/[0.12]", ring: "ring-brand/40 border-brand/40" }
@@ -1013,10 +1109,59 @@ export default async function ExpensesPage({
                             there is no pending state for one to be in. */}
                         <Badge
                           variant="outline"
-                          className={`shrink-0 font-normal ${STATUS_TONE.PAID}`}
+                          className={`shrink-0 font-normal ${
+                            leg.reversedBy ? STATUS_TONE.VOID : STATUS_TONE.PAID
+                          }`}
                         >
-                          {t(locale, "Paid")}
+                          {t(locale, leg.reversedBy ? "Cancelled" : "Paid")}
                         </Badge>
+                        {/*
+                          THE SAME DOOR THE REGISTER GIVES THIS LINE.
+
+                          These rows are outgoings like any other and the desk
+                          reading them is the desk that wants to fix them, so
+                          they get the register's own correct-or-cancel rather
+                          than being sent to find the line somewhere else.
+
+                          The FIGURE is not editable from here, and that is
+                          deliberate: a fare's box feeds changePaymentAmount,
+                          which restates the WHOLE payment — correcting a
+                          46,450 transfer from its 10,000 fare would re-record
+                          the payment as 10,000 and leave the bill unpaid. The
+                          payment's own line is where its figure lives.
+                        */}
+                        {canAdjustLedger ? (
+                          <LedgerRowFix
+                            accounts={accountOptions}
+                            subject={{
+                              entryId: leg.id,
+                              paymentId: leg.payment?.id ?? null,
+                              paymentReference: leg.payment?.reference ?? null,
+                              paymentNote: leg.payment?.note ?? null,
+                              paymentAccountId: leg.payment?.accountId ?? null,
+                              amount: toNumber(leg.amount),
+                              currency: leg.currency,
+                              amountEditable: false,
+                              expenseId: null,
+                              expenseDescription: null,
+                              expenseCategory: null,
+                              expenseClass: null,
+                              expenseVendor: null,
+                              expenseNote: null,
+                              expenseAccountId: null,
+                              expenseBatchId: null,
+                              expenseIncurredAt: null,
+                              expenseStatus: null,
+                              attachments: leg.payment?.proofs ?? [],
+                              /* A line already answered by a reversing line has
+                                 nothing left to do, and a correction is itself
+                                 a line that must not be cancelled in turn. */
+                              reversed: Boolean(leg.reversedBy || leg.reversesId),
+                              voidReason: leg.payment?.voidReason ?? null,
+                              voidedByName: leg.payment?.voidedBy?.name ?? null,
+                            }}
+                          />
+                        ) : null}
                       </div>
                     </div>
                   </li>
