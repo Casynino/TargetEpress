@@ -1,17 +1,18 @@
 -- Combine Packages: several of one customer's boxes physically packed into one
 -- carton, without losing any of the originals.
 --
+-- Run once, on the production branch, BEFORE deploying the code that reads it.
+--
 -- Additive only. Nothing existing is dropped or rewritten: the combination is a
--- new table plus one nullable pointer on Package, which is what keeps it
+-- new table plus one nullable column on Package, which is what keeps it
 -- impossible for a combination to move a weight, a count or a price.
+--
+-- Run it twice and Postgres simply says the objects already exist; nothing is
+-- damaged either way.
 
-DO $$ BEGIN
-  CREATE TYPE "CombineStage" AS ENUM ('CHINA', 'DAR');
-EXCEPTION
-  WHEN duplicate_object THEN NULL;
-END $$;
+CREATE TYPE "CombineStage" AS ENUM ('CHINA', 'DAR');
 
-CREATE TABLE IF NOT EXISTS "PackageCombination" (
+CREATE TABLE "PackageCombination" (
   "id"             TEXT PRIMARY KEY,
   "reference"      TEXT NOT NULL,
   "customerId"     TEXT NOT NULL,
@@ -26,42 +27,16 @@ CREATE TABLE IF NOT EXISTS "PackageCombination" (
   "undoneReason"   TEXT
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "PackageCombination_reference_key"
-  ON "PackageCombination"("reference");
-CREATE INDEX IF NOT EXISTS "PackageCombination_customerId_idx"
-  ON "PackageCombination"("customerId");
-CREATE INDEX IF NOT EXISTS "PackageCombination_combinedAt_idx"
-  ON "PackageCombination"("combinedAt");
+CREATE UNIQUE INDEX "PackageCombination_reference_key" ON "PackageCombination"("reference");
+CREATE INDEX "PackageCombination_customerId_idx" ON "PackageCombination"("customerId");
+CREATE INDEX "PackageCombination_combinedAt_idx" ON "PackageCombination"("combinedAt");
 
-DO $$ BEGIN
-  ALTER TABLE "PackageCombination"
-    ADD CONSTRAINT "PackageCombination_customerId_fkey"
-    FOREIGN KEY ("customerId") REFERENCES "Customer"("id")
-    ON DELETE RESTRICT ON UPDATE CASCADE;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+ALTER TABLE "PackageCombination" ADD CONSTRAINT "PackageCombination_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "PackageCombination" ADD CONSTRAINT "PackageCombination_combinedById_fkey" FOREIGN KEY ("combinedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "PackageCombination" ADD CONSTRAINT "PackageCombination_undoneById_fkey" FOREIGN KEY ("undoneById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
-DO $$ BEGIN
-  ALTER TABLE "PackageCombination"
-    ADD CONSTRAINT "PackageCombination_combinedById_fkey"
-    FOREIGN KEY ("combinedById") REFERENCES "User"("id")
-    ON DELETE SET NULL ON UPDATE CASCADE;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+ALTER TABLE "Package" ADD COLUMN "combinationId" TEXT;
 
-DO $$ BEGIN
-  ALTER TABLE "PackageCombination"
-    ADD CONSTRAINT "PackageCombination_undoneById_fkey"
-    FOREIGN KEY ("undoneById") REFERENCES "User"("id")
-    ON DELETE SET NULL ON UPDATE CASCADE;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+CREATE INDEX "Package_combinationId_idx" ON "Package"("combinationId");
 
-ALTER TABLE "Package" ADD COLUMN IF NOT EXISTS "combinationId" TEXT;
-
-CREATE INDEX IF NOT EXISTS "Package_combinationId_idx"
-  ON "Package"("combinationId");
-
-DO $$ BEGIN
-  ALTER TABLE "Package"
-    ADD CONSTRAINT "Package_combinationId_fkey"
-    FOREIGN KEY ("combinationId") REFERENCES "PackageCombination"("id")
-    ON DELETE SET NULL ON UPDATE CASCADE;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+ALTER TABLE "Package" ADD CONSTRAINT "Package_combinationId_fkey" FOREIGN KEY ("combinationId") REFERENCES "PackageCombination"("id") ON DELETE SET NULL ON UPDATE CASCADE;
