@@ -2787,7 +2787,6 @@ const ZH: Record<string, string> = {
     "这笔款项没有对应的账单。请取消后重新记录。",
   "This claim covers more than one bill, so the transport on it cannot be changed here. Withdraw it and raise the payment again against the bills it should cover.":
     "此认领涵盖多张账单，因此无法在此修改其中的运输费。请撤回后，针对应涵盖的账单重新登记付款。",
-  "This page is out of date": "此页面已过期",
   "This claim covers more than one bill, so its total cannot be changed here. Withdraw it and raise the payment again against the bills it should cover.":
     "这笔申报涵盖多张账单，金额不能在此更改。请撤回后，按应对应的账单重新提交。",
   "This payment has already been recorded. Reload the page — recording it again would take the same money twice.":
@@ -3348,6 +3347,7 @@ const ZH: Record<string, string> = {
   "Bluetooth printer test": "蓝牙打印机测试",
   "Customers with more than one unpaid consignment. Pick one and tick what they are paying for.": "有多票未付货物的客户。选择一位，然后勾选客户要支付的货物。",
   "Nobody has more than one unpaid consignment right now. Search for a customer to take a payment or hold a deposit.": "目前没有客户有多于一票的未付货物。可以搜索客户来收款或登记预付款。",
+  "A new update is up": "有新版本了",
   "A newer version is live.": "已有新版本上线。",
   "Reload": "刷新",
   "Bills": "账单",
@@ -4230,7 +4230,6 @@ const ZH: Record<string, string> = {
     "记录后会进入该客户的联系记录，下一个跟他打交道的人就知道我们说过什么。",
   "Recording…": "登记中…",
   "Records deleted": "删除记录数",
-  "Refresh": "刷新",
   "Reference": "参考号",
   "Reference from the customer": "客户提供的参考号",
   "Reference, who authorised it, anything an auditor will ask about.":
@@ -4933,6 +4932,7 @@ const ZH: Record<string, string> = {
   "Untick a": "取消勾选上方的",
   "Untick anything that did not arrive.": "没到的请取消勾选。",
   "untouched": "未处理",
+  "Update now": "立即更新",
   "Update compensation": "更新赔付",
   "Urgent": "紧急",
   "urgent": "紧急",

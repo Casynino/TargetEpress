@@ -75,16 +75,16 @@ export function NewVersionNotice({ build }: { build: string }) {
     covered the thing they came to read. It sits in the corner now, clear of
     the header's own controls, where a message that is not urgent belongs.
 
-    "A newer version is live" is a sentence about the software. What the clerk
-    needs to know is about THEM: the screen they are looking at is old, which
-    is why the button they just pressed behaved oddly. So it says that, and
-    the button says what pressing it does.
+    The wording is the owner's own: a new update is up, update now. Short
+    enough to read at a glance from across a counter, and it names the thing
+    the reader cares about — there is something newer — rather than describing
+    the software's version state.
   */
   return (
     <div className="pointer-events-none fixed right-3 top-16 z-[60] flex justify-end print:hidden lg:top-16">
       <div className="pointer-events-auto flex items-center gap-2.5 rounded-full border bg-card/95 py-1.5 pl-3.5 pr-1.5 shadow-lg backdrop-blur">
         <span className="text-xs font-medium">
-          {t("This page is out of date")}
+          {t("A new update is up")}
         </span>
         <button
           type="button"
@@ -92,7 +92,7 @@ export function NewVersionNotice({ build }: { build: string }) {
           className="focus-ring inline-flex items-center gap-1.5 rounded-full bg-brand px-2.5 py-1 text-xs font-semibold text-brand-foreground hover:bg-brand/90"
         >
           <RefreshCw className="h-3.5 w-3.5" />
-          {t("Refresh")}
+          {t("Update now")}
         </button>
       </div>
     </div>
