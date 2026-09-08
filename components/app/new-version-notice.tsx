@@ -68,33 +68,29 @@ export function NewVersionNotice({ build }: { build: string }) {
   if (!stale) return null;
 
   /*
-    OUT OF THE WAY, AND IN WORDS ABOUT THE READER.
+    OUT OF THE WAY, AND ONE THING TO PRESS.
 
     It sat centred across the top, over the page's own heading — the one place
     a notice can be while telling somebody their screen is stale, and it
     covered the thing they came to read. It sits in the corner now, clear of
     the header's own controls, where a message that is not urgent belongs.
 
-    The wording is the owner's own: new update is up, update now. Short
-    enough to read at a glance from across a counter, and it names the thing
-    the reader cares about — there is something newer — rather than describing
-    the software's version state.
+    One sentence and one target: the whole pill is the button, with the reload
+    icon on the end so what pressing it does is shown rather than spelled out
+    a second time. A separate labelled button beside the sentence gave the
+    reader two things to look at for a single decision, and a wider thing to
+    miss on a phone.
   */
   return (
-    <div className="pointer-events-none fixed right-3 top-16 z-[60] flex justify-end print:hidden lg:top-16">
-      <div className="pointer-events-auto flex items-center gap-2.5 rounded-full border bg-card/95 py-1.5 pl-3.5 pr-1.5 shadow-lg backdrop-blur">
-        <span className="text-xs font-medium">
-          {t("New update is up")}
-        </span>
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="focus-ring inline-flex items-center gap-1.5 rounded-full bg-brand px-2.5 py-1 text-xs font-semibold text-brand-foreground hover:bg-brand/90"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          {t("Update now")}
-        </button>
-      </div>
+    <div className="pointer-events-none fixed right-3 top-16 z-[60] flex justify-end print:hidden">
+      <button
+        type="button"
+        onClick={() => window.location.reload()}
+        className="focus-ring pointer-events-auto inline-flex items-center gap-2 rounded-full border bg-card/95 px-3.5 py-1.5 text-xs font-medium shadow-lg backdrop-blur transition-colors hover:bg-accent"
+      >
+        {t("New update is up")}
+        <RefreshCw className="h-3.5 w-3.5 shrink-0 text-brand" />
+      </button>
     </div>
   );
 }

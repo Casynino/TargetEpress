@@ -4932,7 +4932,6 @@ const ZH: Record<string, string> = {
   "Untick a": "取消勾选上方的",
   "Untick anything that did not arrive.": "没到的请取消勾选。",
   "untouched": "未处理",
-  "Update now": "立即更新",
   "Update compensation": "更新赔付",
   "Urgent": "紧急",
   "urgent": "紧急",
