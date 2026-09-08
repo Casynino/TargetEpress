@@ -68,28 +68,37 @@ export function NewVersionNotice({ build }: { build: string }) {
   if (!stale) return null;
 
   /*
-    OUT OF THE WAY, AND ONE THING TO PRESS.
+    LOUD ENOUGH TO BE NOTICED, QUIET ENOUGH TO IGNORE.
 
     It sat centred across the top, over the page's own heading — the one place
     a notice can be while telling somebody their screen is stale, and it
     covered the thing they came to read. It sits in the corner now, clear of
-    the header's own controls, where a message that is not urgent belongs.
+    the header's own controls.
+
+    But out of the way became invisible: a small grey pill on a dark page, the
+    same weight as everything around it, and the desk it exists for is the one
+    that never notices anything. So it is filled in the brand colour, set at
+    the size of a real button, and given a soft ring so it reads as something
+    that has just appeared rather than part of the furniture.
+
+    ON A PHONE IT GOES TO THE BOTTOM. Made big enough to see, it landed level
+    with the page's own heading on a narrow screen — the exact fault moving it
+    out of the centre was meant to fix. Above the tab bar there is nothing to
+    cover, and it clears the safe area so it is not under the home indicator.
 
     One sentence and one target: the whole pill is the button, with the reload
     icon on the end so what pressing it does is shown rather than spelled out
-    a second time. A separate labelled button beside the sentence gave the
-    reader two things to look at for a single decision, and a wider thing to
-    miss on a phone.
+    a second time.
   */
   return (
-    <div className="pointer-events-none fixed right-3 top-16 z-[60] flex justify-end print:hidden">
+    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom)+0.75rem)] z-[60] flex justify-end px-3 print:hidden lg:inset-x-auto lg:bottom-auto lg:right-3 lg:top-16 lg:px-0">
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className="focus-ring pointer-events-auto inline-flex items-center gap-2 rounded-full border bg-card/95 px-3.5 py-1.5 text-xs font-medium shadow-lg backdrop-blur transition-colors hover:bg-accent"
+        className="focus-ring pointer-events-auto inline-flex items-center gap-2.5 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-brand-foreground shadow-xl ring-4 ring-brand/30 transition-colors hover:bg-brand/90"
       >
         {t("New update is up")}
-        <RefreshCw className="h-3.5 w-3.5 shrink-0 text-brand" />
+        <RefreshCw className="h-4 w-4 shrink-0" />
       </button>
     </div>
   );
