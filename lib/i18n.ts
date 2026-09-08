@@ -4551,6 +4551,8 @@ const ZH: Record<string, string> = {
   "Edit the rate per kg": "修改单价",
   "Change the agreed rate": "修改已议定的单价",
   "The rate for this cargo": "本票货物的单价",
+  "The price for this cargo": "本票货物的价格",
+  "Save the price": "保存价格",
   "Standard rate": "标准单价",
   "Change the rate book": "修改价目表",
   "— that price applies to every cargo, not just this one.": "—— 该价格适用于所有货物，不只是本票。",

@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Pencil, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Pencil, Scale, X } from "lucide-react";
 
 import { FormError, FormSuccess, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
@@ -137,24 +138,49 @@ export function RowPriceEditor({
     );
   }
 
-  return (
-    // 21rem is what the panel wants beside a price column. On a 375px phone it
-    // is wider than the card it now opens inside, so the width is a preference
-    // clamped by the viewport rather than a promise the layout cannot keep.
-    <div className="w-[21rem] max-w-full rounded-lg border bg-card p-3 text-left shadow-lift">
-      <div className="mb-2 flex items-center justify-between">
-        <p className="font-mono text-xs font-semibold">{trackingNumber}</p>
+  /*
+    A DIALOG OVER THE PAGE, NOT A PANEL INSIDE THE TABLE.
+
+    It used to open in the row it belonged to, which stretched that row to the
+    height of the whole form and shoved every consignment under it down the
+    page — so correcting one price rearranged the list the desk was reading,
+    and the row being edited ended up as a band of empty ground with the panel
+    floating in it. The table behind is left exactly as it was; the form comes
+    over it on a dim ground, the way every other correct-it door in this app
+    already opens.
+  */
+  const dialog = (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) setOpen(false);
+      }}
+    >
+    <div className="w-full max-w-sm rounded-xl border bg-card p-4 text-left shadow-lg">
+      {/* A heading that says what the form is for, and the consignment it is
+          for beneath it — the shape every other dialog in this app opens
+          with. The tracking number alone read as a label on a panel. */}
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 text-sm font-semibold">
+            <Scale className="h-4 w-4 shrink-0 text-brand" />
+            {t("The price for this cargo")}
+          </p>
+          <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+            {trackingNumber}
+          </p>
+        </div>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="focus-ring rounded p-0.5 text-muted-foreground hover:text-foreground"
+          className="focus-ring shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
           aria-label={t("Close")}
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="h-4 w-4" />
         </button>
       </div>
 
-      <form action={action} className="space-y-2">
+      <form action={action} className="space-y-3">
         <input type="hidden" name="invoiceId" value={invoiceId} />
 
         {/*
@@ -324,8 +350,12 @@ export function RowPriceEditor({
               disabled: !canOverride,
             },
           ].map((box) => (
-            <label key={box.id} className="flex-1 space-y-0.5">
-              <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">
+            /* Full-height boxes and real labels. The tiny captions and 32px
+               fields were a popover's economy — every line it grew pushed the
+               cargo underneath out of view. It opens over the page now, so it
+               is spaced like the rest of the dialogs. */
+            <label key={box.id} className="flex-1 space-y-1">
+              <span className="block text-xs font-medium text-muted-foreground">
                 {box.label}
               </span>
               <MoneyInput
@@ -335,7 +365,6 @@ export function RowPriceEditor({
                 onValueChange={box.set}
                 placeholder={box.placeholder}
                 disabled={box.disabled}
-                className="h-8 text-sm"
               />
             </label>
           ))}
@@ -356,21 +385,31 @@ export function RowPriceEditor({
           </div>
         ) : null}
 
+        {/* What the bill comes to, added up in front of the desk, above the
+            press that commits it. */}
+        <p className="rounded-lg border bg-muted/40 px-2.5 py-2 text-xs tabular-nums">
+          <span className="text-muted-foreground">
+            {(n(freight) || rateBookFreight).toFixed(2)}
+            {storage > 0 ? ` + ${storage.toFixed(2)} ${t("storage")}` : ""}
+            {n(extra) > 0 ? ` + ${n(extra).toFixed(2)}` : ""}
+            {n(off) > 0 ? ` − ${n(off).toFixed(2)}` : ""} ={" "}
+          </span>
+          <span className="font-semibold text-foreground">
+            {currency} {preview.toFixed(2)}
+          </span>
+        </p>
+
         <div className="flex items-center gap-2">
-          <p className="min-w-0 flex-1 text-xs tabular-nums">
-            <span className="text-muted-foreground">
-              {(n(freight) || rateBookFreight).toFixed(2)}
-              {storage > 0 ? ` + ${storage.toFixed(2)} ${t("storage")}` : ""}
-              {n(extra) > 0 ? ` + ${n(extra).toFixed(2)}` : ""}
-              {n(off) > 0 ? ` − ${n(off).toFixed(2)}` : ""} ={" "}
-            </span>
-            <span className="font-semibold">
-              {currency} {preview.toFixed(2)}
-            </span>
-          </p>
           <SubmitButton size="sm" variant="brand" pendingLabel={t("Saving…")}>
-            {t("Save")}
+            {t("Save the price")}
           </SubmitButton>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="focus-ring rounded text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          >
+            {t("Leave it")}
+          </button>
         </div>
 
         <FormError state={state} />
@@ -383,5 +422,10 @@ export function RowPriceEditor({
         />
       </form>
     </div>
+    </div>
   );
+
+  return typeof document === "undefined"
+    ? null
+    : createPortal(dialog, document.body);
 }
