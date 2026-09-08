@@ -11,7 +11,8 @@
  *
  * So: any ledgerEntry read that groups or filters BY DIRECTION has to exclude
  * both halves of a reversed pair — `reversesId: null` AND
- * `reversedBy: { is: null }` — or net the two directions against each other.
+ * `reversedBy: { is: null }`, or `...LIVE_LEG`, which is those two and nothing
+ * else — or net the two directions against each other.
  *
  * It reports what it cannot judge rather than staying quiet, because a total
  * this script waved through is a total nobody looks at again.
@@ -70,8 +71,14 @@ for (const file of files) {
     if (!splitsByDirection) continue;
     checked++;
 
+    /* Either written out, or spread from the one place that defines it —
+       lib/ledger.ts LIVE_LEG, which is both halves and nothing else. A reader
+       that names the constant is asking exactly the same question as one that
+       repeats it, and this check exists to find the reads that ask NEITHER. */
     const excludesBoth =
-      /reversesId:\s*null/.test(r.body) && /reversedBy:\s*\{\s*is:\s*null/.test(r.body);
+      (/reversesId:\s*null/.test(r.body) &&
+        /reversedBy:\s*\{\s*is:\s*null/.test(r.body)) ||
+      /\.\.\.LIVE_LEG\b/.test(r.body);
     /* Grouping by direction WITHOUT filtering one is the netting shape: the
        caller gets both directions and is expected to subtract. */
     const groupsBothDirections =

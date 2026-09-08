@@ -17,6 +17,8 @@ import {
 } from "@/lib/expenses";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
+import { LIVE_LEG, moneyOutRows } from "@/lib/ledger";
+import type { MoneyRow } from "@/lib/money-totals";
 import { sumShillings, sumUsd } from "@/lib/money-totals";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -54,7 +56,17 @@ const STATUS_TONE: Record<string, string> = {
 
 /** The three kinds of spending, and what each one is for. */
 const KINDS = [
-  { key: "all", label: "Everything", hint: "Every cost, whatever it belongs to" },
+  /*
+    EVERYTHING MEANS EVERYTHING THAT LEFT.
+
+    This card totalled the Expense table, so it answered "what did we file as a
+    cost" while reading as "what went out" — and the two differ by every claim
+    paid back to a customer and every delivery fare handed to a driver, neither
+    of which is a purchase and neither of which had an expense row. The owner's
+    rule is that money out is money out: it is all on this page now, and this
+    card is the register's own Money out for the period.
+  */
+  { key: "all", label: "Everything", hint: "Every shilling that left, cost or not" },
   {
     key: "flight",
     label: "Batch costs",
@@ -80,7 +92,32 @@ const KINDS = [
     label: "Executive",
     hint: "Drawn for executive use — counted like any other cost, just easy to find",
   },
+  /*
+    THE TWO THAT LEAVE A TILL WITHOUT BEING A PURCHASE.
+
+    A claim settled is company money paid back to a customer, recorded on the
+    case rather than as a cost. A delivery fare is money the customer sent with
+    their freight and the company passed straight on — it was never ours. Both
+    are real movements in the register, both are on this page now, and both
+    keep their own chip so a reader can see which part of the month was which.
+  */
+  {
+    key: "claims",
+    label: "Claims paid",
+    hint: "Paid back to customers on a case — recorded there, not as a purchase",
+  },
+  {
+    key: "transport",
+    label: "Transport out",
+    hint: "The delivery fare passed on to whoever drives — never the company's money",
+  },
 ] as const;
+
+/** The chips that read the register instead of the Expense table. */
+const LEDGER_KIND_FOR = {
+  claims: "COMPENSATION",
+  transport: "TRANSPORT_OUT",
+} as const;
 
 const PERIODS = [
   { key: "today", label: "Today" },
@@ -99,6 +136,15 @@ const STATUSES = [
 
 /** Enough rows to work through, few enough to render fast. */
 const PAGE_SIZE = 40;
+/*
+  How much of a period this page will hold in memory at once.
+
+  The list merges two records that no database can join, so a period's rows
+  are sorted and paged here. A few dozen outgoings a month makes this cap
+  unreachable in practice; a period that does reach it says so on the page
+  rather than quietly showing less than it claims.
+*/
+const LIST_CAP = 2000;
 
 /** Start of the chosen window. Null means all time. */
 function windowStart(period: string): Date | null {
@@ -156,6 +202,23 @@ export default async function ExpensesPage({
     : "";
   const accountId = params.account ?? "";
   const page = Math.max(1, Number(params.page) || 1);
+
+  /*
+    WHICH OF THE TWO RECORDS THIS VIEW IS READING.
+
+    Costs live in the Expense table. Claims paid and fares passed on live only
+    in the register, because neither is a purchase. "Everything" reads both;
+    every other chip reads one.
+
+    A category or a status is a fact about a COST — a register leg has neither
+    — so choosing either narrows the page to costs, rather than silently
+    dropping legs that could never have matched.
+  */
+  const ledgerKind =
+    kind === "claims" || kind === "transport" ? LEDGER_KIND_FOR[kind] : null;
+  const showsCosts = kind !== "claims" && kind !== "transport";
+  const showsLedger =
+    (kind === "all" || ledgerKind !== null) && !category && !status;
 
   /*
     Three kinds of spending, and they answer different questions.
@@ -218,23 +281,35 @@ export default async function ExpensesPage({
 
   const [
     expenses,
-    listCount,
+    ledgerOutgoings,
     accounts,
     dispatches,
     recorded,
     paidInWindow,
     unpaid,
     byCategory,
+    notACost,
     kindTotals,
     rateRow,
     usedMost,
   ] = await Promise.all([
-    prisma.expense.findMany({
-      where: listWhere,
-      orderBy: [{ incurredAt: "desc" }, { createdAt: "desc" }],
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-      include: {
+    /*
+      THE WHOLE WINDOW, NOT ONE PAGE OF IT.
+
+      The list is two records now — costs, and the register legs that left a
+      till without being a purchase — and neither database can sort or page
+      the other. So both come back for the period and are merged, sorted and
+      paged here, which is the only place that can see both. LIST_CAP is the
+      guard on that: this business files a few dozen outgoings a month, and a
+      period that ever exceeded the cap says so on the page rather than
+      quietly showing less than it claims.
+    */
+    showsCosts
+      ? prisma.expense.findMany({
+          where: listWhere,
+          orderBy: [{ incurredAt: "desc" }, { createdAt: "desc" }],
+          take: LIST_CAP + 1,
+          include: {
         account: { select: { name: true } },
         recordedBy: { select: { name: true } },
         approvedBy: { select: { name: true } },
@@ -245,9 +320,51 @@ export default async function ExpensesPage({
         /* Whether this row already has a ledger line — see LedgerRowFix's
            subject, where a still-unpaid cost simply has none yet. */
         ledgerEntry: { select: { id: true } },
-      },
-    }),
-    prisma.expense.count({ where: listWhere }),
+          },
+        })
+      : Promise.resolve([]),
+    /*
+      The same period's outgoings from the register: what a claim paid back to
+      a customer and a fare handed to a driver actually were, with the account
+      each left from. Its own query rather than moneyOutRows because the list
+      needs the words on the row, not just the figure — the totals above still
+      come from the shared definition, and LIVE_LEG keeps the two asking the
+      same question about what counts.
+    */
+    showsLedger
+      ? prisma.ledgerEntry.findMany({
+          where: {
+            direction: "OUT",
+            kind: ledgerKind
+              ? ledgerKind
+              : { in: ["COMPENSATION", "TRANSPORT_OUT"] },
+            ...(inWindow ? { occurredAt: inWindow } : {}),
+            ...(accountId ? { accountId } : {}),
+            ...(search
+              ? {
+                  OR: [
+                    { description: { contains: search, mode: "insensitive" as const } },
+                    { entryNumber: { contains: search, mode: "insensitive" as const } },
+                  ],
+                }
+              : {}),
+            ...LIVE_LEG,
+          },
+          orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
+          take: LIST_CAP + 1,
+          select: {
+            id: true,
+            entryNumber: true,
+            kind: true,
+            description: true,
+            occurredAt: true,
+            amount: true,
+            currency: true,
+            amountUsd: true,
+            account: { select: { name: true } },
+          },
+        })
+      : Promise.resolve([]),
     activeAccounts(),
     // Only dispatches still worth attaching a cost to. A batch that closed last
     // year is not what somebody is filing today's customs bill against.
@@ -293,10 +410,33 @@ export default async function ExpensesPage({
       orderBy: { _sum: { amountUsd: "desc" } },
       take: 8,
     }),
+    /*
+      MONEY THAT LEFT AND IS NOT ON THIS PAGE.
+
+      A claim paid back to a customer and a delivery fare handed to whoever
+      drives both leave a till, and neither is an expense: Finance records the
+      first on the case and the second is money that was never the company's.
+      So this page's total is smaller than the register's Money out for the
+      same month, and a desk that came here to find the difference had nothing
+      to read.
+
+      Named underneath the cards rather than added into them. Filing either as
+      a cost would put the fare into profit, where it does not belong, and
+      would double-count the claim, which is already carried as its own line.
+    */
+    moneyOutRows({
+      ...(from ? { from } : {}),
+      kinds: ["COMPENSATION", "TRANSPORT_OUT"],
+    }),
     /* One total per kind, so the chips carry their own weight instead of being
        four words a reader has to click to price. */
     Promise.all(
       KINDS.map(async (k) => {
+        /* Claims and transport are register legs, not costs — their totals are
+           added from `notACost` once it has come back, below. */
+        if (k.key === "claims" || k.key === "transport") {
+          return { key: k.key, usd: 0, rows: [] as MoneyRow[], count: 0 };
+        }
         const where =
           k.key === "flight"
             ? { batchId: { not: null }, expenseClass: "OPERATING" as const }
@@ -388,6 +528,33 @@ export default async function ExpensesPage({
   const paidTsh = sumShillings(paidRows, rate);
   const unpaidTsh = sumShillings(unpaidRows, rate);
   /* Figures already in shillings — never multiplied a second time. */
+  /*
+    THE CHIPS THE EXPENSE TABLE CANNOT ANSWER.
+
+    Their own totals, and their weight added into Everything — which is what
+    makes that card the register's Money out for the period rather than the
+    Expense table's subtotal of it. The four cost chips are untouched: a claim
+    is not an office cost and a fare belongs to no batch.
+  */
+  const claimsBack = notACost.filter((row) => row.kind === "COMPENSATION");
+  const faresOut = notACost.filter((row) => row.kind === "TRANSPORT_OUT");
+  for (const [key, legs] of [
+    ["claims", claimsBack],
+    ["transport", faresOut],
+  ] as const) {
+    const chip = kindTotals.find((row) => row.key === key);
+    if (!chip) continue;
+    chip.rows = legs;
+    chip.usd = sumUsd(legs, rate);
+    chip.count = legs.length;
+  }
+  const everything = kindTotals.find((row) => row.key === "all");
+  if (everything) {
+    everything.rows = [...everything.rows, ...notACost];
+    everything.usd = sumUsd(everything.rows, rate);
+    everything.count += notACost.length;
+  }
+
   const shillings = (value: number, usdFallback: number) =>
     rate ? `TSh ${Math.round(value).toLocaleString("en-US")}` : formatUsd(usdFallback);
 
@@ -435,6 +602,43 @@ export default async function ExpensesPage({
   };
 
   const filtered = Boolean(search || category || status || accountId);
+  /*
+    ONE LIST OUT OF TWO RECORDS.
+
+    A cost is dated by when it was incurred, which is what this page has always
+    sorted by; a register leg is dated by when the money moved, which is the
+    only date it has. Both are "when this outgoing belongs to the period", so
+    they sort together on one field.
+  */
+  type OutgoingRow =
+    | { sort: Date; cost: (typeof expenses)[number]; leg?: undefined }
+    | { sort: Date; leg: (typeof ledgerOutgoings)[number]; cost?: undefined };
+
+  const merged: OutgoingRow[] = [
+    ...expenses.map((cost) => ({ sort: cost.incurredAt, cost })),
+    ...ledgerOutgoings.map((leg) => ({ sort: leg.occurredAt, leg })),
+  ].sort((a, b) => b.sort.getTime() - a.sort.getTime());
+
+  /*
+    WHY THE CARDS AND THE LIST COUNT DIFFERENTLY.
+
+    A cancelled cost is a mistake that was withdrawn, so it is in no total —
+    but it stays in the list, because the page offers a Cancelled filter and a
+    register that hides its own corrections is not a record. That left the
+    cards saying twelve and the list saying fifteen with nothing to explain
+    the three, which reads as a bug. Counted and named instead, the way the
+    general ledger names its own.
+  */
+  const cancelledRows = merged.filter(
+    (row) => row.cost?.status === "VOID"
+  ).length;
+
+  /* Said out loud rather than silently truncated — see LIST_CAP. */
+  const overCap =
+    expenses.length > LIST_CAP || ledgerOutgoings.length > LIST_CAP;
+
+  const listCount = merged.length;
+  const pageRows = merged.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const pages = Math.max(1, Math.ceil(listCount / PAGE_SIZE));
   const firstOnPage = listCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const lastOnPage = Math.min(page * PAGE_SIZE, listCount);
@@ -560,7 +764,7 @@ export default async function ExpensesPage({
         The one thing the cards above cannot say.
 
         This line used to open "17 costs recorded this month · TSh 39,409,011"
-        — both of which the Everything card already carries, in bigger type,
+        — both of which the All costs card already carries, in bigger type,
         four inches higher. What is left is the only fact that is not up
         there: whether any of it is still owed.
       */}
@@ -708,11 +912,15 @@ export default async function ExpensesPage({
       <p className="mb-2 text-xs text-muted-foreground">
         {listCount === 0
           ? t(locale, "Nothing matches.")
-          : `${t(locale, "Showing")} ${firstOnPage}–${lastOnPage} ${t(locale, "of")} ${listCount} ${t(locale, listCount === 1 ? "cost" : "costs")}`}
+          : `${t(locale, "Showing")} ${firstOnPage}–${lastOnPage} ${t(locale, "of")} ${listCount} ${t(locale, listCount === 1 ? "outgoing" : "outgoings")}`}
+        {cancelledRows > 0
+          ? ` · ${cancelledRows} ${t(locale, "cancelled, not counted")}`
+          : ""}
         {filtered ? ` · ${t(locale, "filtered")}` : ""}
+        {overCap ? ` · ${t(locale, "more than this page can hold — narrow the period")}` : ""}
       </p>
 
-      {expenses.length === 0 ? (
+      {pageRows.length === 0 ? (
         <EmptyState
           title={
             filtered
@@ -735,7 +943,87 @@ export default async function ExpensesPage({
       ) : (
         <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
           <ul className="divide-y">
-            {expenses.map((expense) => {
+            {pageRows.map((row) => {
+              /*
+                THE REGISTER'S OWN OUTGOINGS, IN THE SAME LIST.
+
+                A claim paid back and a fare passed on left a till exactly as a
+                cost does, and the owner's rule is that money out is money out
+                — so they are rows here rather than a figure somewhere else.
+                They carry no Edit or Cancel: neither was recorded on this
+                page, and each is corrected where it was made — the claim on
+                its case, the fare on the payment that carried it. The entry
+                number is the link to both.
+              */
+              if (row.leg) {
+                const leg = row.leg;
+                const claim = leg.kind === "COMPENSATION";
+                return (
+                  <li key={leg.id} className="px-4 py-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                      <div className="min-w-0">
+                        <p className="font-medium">
+                          {leg.description ??
+                            t(locale, claim ? "Claim paid" : "Transport out")}
+                          <span
+                            className={cn(
+                              "ml-2 rounded px-1.5 py-0.5 text-[11px] font-normal",
+                              claim
+                                ? "bg-destructive/15 text-destructive"
+                                : "bg-muted text-muted-foreground"
+                            )}
+                          >
+                            {t(
+                              locale,
+                              claim
+                                ? "Paid back on a claim"
+                                : "Transport — never the company's money"
+                            )}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                          <Link
+                            href={`/app/finance/transactions/${leg.id}`}
+                            className="font-mono hover:text-brand"
+                          >
+                            {leg.entryNumber}
+                          </Link>
+                          <span>·</span>
+                          <span>{formatDate(leg.occurredAt, locale)}</span>
+                          {leg.account ? (
+                            <>
+                              <span>·</span>
+                              <span>
+                                {t(locale, "paid from")} {leg.account.name}
+                              </span>
+                            </>
+                          ) : null}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3">
+                        <div className="text-right">
+                          <p className="font-mono text-sm font-medium tabular-nums">
+                            {formatMoney(leg.amount, leg.currency)}
+                          </p>
+                          <p className="font-mono text-[11px] text-muted-foreground tabular-nums">
+                            {formatUsd(toNumber(leg.amountUsd))}
+                          </p>
+                        </div>
+                        {/* A register leg exists BECAUSE the money moved —
+                            there is no pending state for one to be in. */}
+                        <Badge
+                          variant="outline"
+                          className={`shrink-0 font-normal ${STATUS_TONE.PAID}`}
+                        >
+                          {t(locale, "Paid")}
+                        </Badge>
+                      </div>
+                    </div>
+                  </li>
+                );
+              }
+
+              const expense = row.cost;
               const usd = toNumber(expense.amountUsd);
               return (
                 <li key={expense.id} className="px-4 py-2.5">

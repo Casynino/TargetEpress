@@ -187,6 +187,20 @@ export const MONEY_OUT_KINDS = [
 ] satisfies LedgerKind[];
 
 /**
+ * A LEG THAT STILL MEANS SOMETHING.
+ *
+ * Not a reversal, and not a line that has been reversed. Cancelling a cost
+ * answers its line with one going the other way, so without the second test
+ * the cancelled cost stays in the month's spending and the money that came
+ * back is not shown at all. Exported so a caller needing its own `select` can
+ * ask the same question rather than writing a second version of it.
+ */
+export const LIVE_LEG = {
+  reversesId: null,
+  reversedBy: { is: null },
+} as const;
+
+/**
  * Those lines, as rows rather than a total.
  *
  * Rows, because shillings are added up as shillings and only foreign money
@@ -194,7 +208,16 @@ export const MONEY_OUT_KINDS = [
  * wants one figure passes these to sumShillings or sumUsd; a caller that wants
  * to say "4 payments out" counts them.
  */
-export async function moneyOutRows(window: { from?: Date; to?: Date } = {}) {
+export async function moneyOutRows(
+  window: {
+    from?: Date;
+    to?: Date;
+    /* A narrower slice of the same definition — the Expenses page asks for
+       exactly the outgoings that are NOT costs, so it can name the difference
+       between its own total and the register's. */
+    kinds?: (typeof MONEY_OUT_KINDS)[number][];
+  } = {}
+) {
   const occurredAt =
     window.from || window.to
       ? {
@@ -206,15 +229,10 @@ export async function moneyOutRows(window: { from?: Date; to?: Date } = {}) {
   return prisma.ledgerEntry.findMany({
     where: {
       direction: "OUT",
-      kind: { in: MONEY_OUT_KINDS },
+      kind: { in: window.kinds ?? MONEY_OUT_KINDS },
       ...(occurredAt ? { occurredAt } : {}),
-      /* Not a reversal, and not a line that has been reversed. Cancelling a
-         cost answers its line with one going the other way, so without the
-         second test the cancelled cost stays in the month's spending and the
-         money that came back is not shown at all. */
-      reversesId: null,
-      reversedBy: { is: null },
+      ...LIVE_LEG,
     },
-    select: { amount: true, currency: true, amountUsd: true },
+    select: { kind: true, amount: true, currency: true, amountUsd: true },
   });
 }
