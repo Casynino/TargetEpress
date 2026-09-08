@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Boxes, PackageX, TriangleAlert } from "lucide-react";
 
+import { CombinePackages } from "@/components/app/combine-packages";
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
 import { useT } from "@/components/app/locale-provider";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
@@ -431,6 +432,32 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
         initialSort={{ columnId: "daysHeld", direction: "desc" }}
         emptyTitle={t("No cargo matches")}
         emptyDescription={t("Try a different search, or clear the filters.")}
+        /*
+          BOXES ACTUALLY PACKED INTO ONE CARTON.
+
+          The floor repacks a customer's cargo on arrival and then has one
+          parcel standing where three were. Ticking the rows and pressing this
+          records that fact — it prices nothing, moves no money and leaves
+          every consignment's own weight, count and bill exactly as they were.
+
+          Only for cargo still on the floor: once a consignment is ready for
+          pickup the paperwork is out and the boxes are the counter's, so the
+          action refuses it and the button does not offer it.
+        */
+        bulkActions={(selected, clear) => (
+          <CombinePackages
+            rows={selected
+              .filter((r) => r.status === "RECEIVED_AT_DAR")
+              .map((r) => ({
+                shipmentId: r.id,
+                trackingNumber: r.trackingNumber,
+                customerName: r.customerName,
+                weightKg: r.weightHereKg,
+                packages: r.packagesHere,
+              }))}
+            onDone={clear}
+          />
+        )}
         renderExpanded={(row) => (
           <dl className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             {[

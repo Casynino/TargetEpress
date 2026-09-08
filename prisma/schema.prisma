@@ -494,6 +494,9 @@ model User {
 
   @@index([role])
   @@index([department, active])
+  /// Boxes this person taped together, and any they opened again.
+  packageCombinations     PackageCombination[] @relation("PackageCombinationBy")
+  packageCombinationUndos PackageCombination[] @relation("PackageCombinationUndoneBy")
 }
 
 // ---------------------------------------------------------------------------
@@ -573,6 +576,8 @@ model Customer {
   @@index([createdAt])
   /// The credit customer list, and it alone — most customers have no facility.
   @@index([creditLimitUsd])
+  /// Their boxes packed into one carton — never anybody else's.
+  packageCombinations PackageCombination[]
 }
 
 /// One number a customer registers cargo from.
@@ -2373,6 +2378,88 @@ model FieldChange {
 /// this and what does it cost"; a package token answers "which box is this, and
 /// have the other four arrived". Both are useful and they are not the same
 /// question.
+/// Which floor packed the boxes together. The logic is identical on both — see
+/// combinePackages — and only the screen that offers it differs.
+enum CombineStage {
+  CHINA
+  DAR
+}
+
+/// SEVERAL BOXES PHYSICALLY PACKED INTO ONE, WITHOUT LOSING ANY OF THEM.
+///
+/// A customer's cargo arrives as three separate boxes and the warehouse tapes
+/// them into one carton. That is a fact about the CARGO, not about the money:
+/// each box keeps its own row, its own label, its own QR and its own weight,
+/// and every bill behind them is untouched.
+///
+/// WHY THIS OWNS NO COUNT AND NO WEIGHT THAT ANY TOTAL READS.
+///
+/// A consignment is priced at Dar check-in from Shipment.weightKg and
+/// Shipment.packages. The manifest totals the same two columns, and the signed
+/// batch statement freezes them. So a combination that minted a package row,
+/// or nudged either figure, would inflate the manifest, the statement and the
+/// per-item price all at once — and re-pricing a consignment because somebody
+/// taped two boxes together is the one thing the owner ruled out. It is a
+/// relation over rows that already exist. `statedWeightKg` below is what the
+/// desk wrote on the carton, for the floor to read; nothing prices from it.
+///
+/// NOT Merge Payment. That combines several charges into one payment and lives
+/// in PaymentAllocation. This combines several boxes into one parcel. A
+/// customer can have both and neither knows about the other.
+model PackageCombination {
+  id String @id @default(cuid())
+
+  /// Written on the carton: CP-000042.
+  reference String @unique
+
+  /// DELIBERATELY NO QR OF ITS OWN.
+  ///
+  /// Every box inside keeps its own label and its own token, and the scanner,
+  /// the public tracking page and the release counter go on resolving those
+  /// exactly as before — a combined carton changes no scan anywhere in the
+  /// app. A token here would have to resolve to several consignments at once,
+  /// which the scan target cannot express, and the first thing it would break
+  /// is the counter. The clerk opens the carton and scans the boxes, which is
+  /// what they do to check the contents anyway.
+
+  /// THE SAME-CUSTOMER RULE, STATED BY THE ROW.
+  ///
+  /// Boxes belonging to two customers must never be taped together, and the
+  /// action refuses it — but the column carries the rule too, so a future
+  /// writer cannot produce a combination that spans two people by accident.
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  stage CombineStage
+
+  /// What the desk wrote on the combined carton, when they weighed it.
+  /// Null means nobody did, and screens show the sum of the members instead.
+  /// NEVER read by quote(), autoPriceShipments or any invoice.
+  statedWeightKg Decimal? @db.Decimal(10, 3)
+
+  note String?
+
+  combinedAt   DateTime @default(now())
+  combinedById String?
+  combinedBy   User?    @relation("PackageCombinationBy", fields: [combinedById], references: [id], onDelete: SetNull)
+  /// Kept beside the relation, the way FieldChange keeps actorName: the owner
+  /// asked to see who combined them, and that has to survive the account being
+  /// closed years later.
+  combinedByName String?
+
+  /// Opened again. The row is never deleted — the same append-only habit the
+  /// ledger has, so "these three were once one carton" stays answerable.
+  undoneAt     DateTime?
+  undoneById   String?
+  undoneBy     User?     @relation("PackageCombinationUndoneBy", fields: [undoneById], references: [id], onDelete: SetNull)
+  undoneReason String?
+
+  members Package[]
+
+  @@index([customerId])
+  @@index([combinedAt])
+}
+
 model Package {
   id String @id @default(cuid())
 
@@ -2400,12 +2487,24 @@ model Package {
   /// Handed over at the counter.
   deliveredAt DateTime?
 
+  /// THE CARTON THIS BOX WAS PACKED INTO, IF IT WAS.
+  ///
+  /// Null on almost every box. Set, it means the box is physically inside a
+  /// combined parcel — it still has its own weight, its own label and its own
+  /// tick on the manifest, and it is still counted exactly once everywhere.
+  /// Nulled again when a combination is undone, which is why this is the
+  /// column the concurrency claim tests: two desks combining the same box at
+  /// once, and the second finds it already spoken for.
+  combinationId String?
+  combination   PackageCombination? @relation(fields: [combinationId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([shipmentId, sequence])
   @@index([shipmentId])
   @@index([receivedAt])
+  @@index([combinationId])
 }
 
 /// Every sign-in attempt, kept for the admin's view of an account.

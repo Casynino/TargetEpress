@@ -263,6 +263,20 @@ export async function releaseShipment(
                   sequence: true,
                   receivedAt: true,
                   deliveredAt: true,
+                  /* Whether this box is taped inside a carton with somebody
+                     else's consignment — see the refusal below. */
+                  combination: {
+                    select: {
+                      reference: true,
+                      undoneAt: true,
+                      members: {
+                        select: {
+                          reference: true,
+                          shipment: { select: { trackingNumber: true } },
+                        },
+                      },
+                    },
+                  },
                 },
                 orderBy: { sequence: "asc" },
               },
@@ -355,6 +369,40 @@ export async function releaseShipment(
         const missing = progress.missing.map((n) => `P${n}`).join(", ");
         throw new Error(
           `${t(locale, "Only")} ${progress.received}/${progress.total} ${t(locale, "packages have been checked in. Still missing:")} ${missing}${t(locale, ". Do not release a partial consignment.")}`
+        );
+      }
+
+      /*
+        A TAPED CARTON GOES OUT WHOLE OR NOT AT ALL.
+
+        Boxes packed together travel as one parcel, and this note clears ONE
+        consignment. Handing the carton over would hand over its siblings too —
+        cargo that may be unpaid, may belong to a bill nobody has settled, and
+        is certainly not on this note. The counter opens the carton first; the
+        boxes inside keep their own labels and each consignment is then
+        released on its own paperwork.
+
+        Refused rather than resolved here on purpose: releasing several
+        consignments at once is a different decision, with several bills behind
+        it, and it is not one a clerk should make by pressing this button.
+      */
+      const taped = note.shipment.packageList.find(
+        (box) => box.combination !== null && box.combination.undoneAt === null
+      );
+      if (taped?.combination) {
+        const others = Array.from(
+          new Set(
+            taped.combination.members
+              .map((m) => m.shipment.trackingNumber)
+              .filter((tn) => tn !== note.shipment.trackingNumber)
+          )
+        );
+        throw new Error(
+          `${t(locale, "This cargo is packed inside combined package")} ${taped.combination.reference}` +
+            (others.length
+              ? ` ${t(locale, "together with")} ${others.join(", ")}`
+              : "") +
+            `. ${t(locale, "Open the combined package first, then release each consignment on its own.")}`
         );
       }
 

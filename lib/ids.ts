@@ -25,6 +25,19 @@ async function nextSequence(
 
 const pad = (n: number, width = 6) => String(n).padStart(width, "0");
 
+/**
+ * The number printed on a carton several boxes were packed into: CP-000042.
+ *
+ * Its own run, deliberately not a TX number: a combined carton is not a
+ * consignment, has no bill and is counted by nothing. A reader who sees CP on
+ * a label knows immediately that the boxes inside keep their own TX-…-P
+ * references, which is the whole point of the feature.
+ */
+export async function nextCombinationReference(tx: TxClient) {
+  const n = await nextSequence(tx, "packageCombination");
+  return `CP-${pad(n)}`;
+}
+
 export async function nextTrackingNumber(tx: TxClient) {
   const n = await nextSequence(tx, "shipment");
   return `TX-${pad(n)}`;

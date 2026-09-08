@@ -918,6 +918,36 @@ export function canAmendCargo(
 }
 
 /**
+ * WHEN BOXES MAY BE TAPED TOGETHER.
+ *
+ * Two statuses and no more, because those are the only two where the boxes are
+ * demonstrably in the hands of the desk doing the work: on Guangzhou's shelf
+ * before the flight, or on Dar's floor after it. In the air nobody can repack
+ * anything; once a consignment is ready for pickup, delivered or cancelled the
+ * carton is either gone or the subject of a case.
+ *
+ * The custody rule then routes each to the right floor with no new permission —
+ * READY_TO_DEPART is OUTBOUND so Guangzhou's shipment.amendOutbound answers it,
+ * RECEIVED_AT_DAR is LANDED so Dar's shipment.amendLanded does, and the manager
+ * and the owner hold both. That is "the same feature on both floors" for free.
+ */
+export const COMBINABLE_STATUSES: readonly ShipmentStatus[] = [
+  "READY_TO_DEPART",
+  "RECEIVED_AT_DAR",
+];
+
+export function canCombinePackages(
+  role: Role | undefined | null,
+  status: ShipmentStatus
+) {
+  return (
+    COMBINABLE_STATUSES.includes(status) &&
+    can(role, "shipment.edit") &&
+    canAmendCargo(role, status)
+  );
+}
+
+/**
  * Route guard table, evaluated longest-prefix-first in middleware. The /app
  * layout only requires a session — each data-bearing page re-guards itself
  * with requirePermission, and that pair is the whole defence. Anything under

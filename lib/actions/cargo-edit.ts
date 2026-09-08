@@ -158,7 +158,13 @@ export async function updateCargo(
         packageList: {
           /* receivedAt and deliveredAt, because a scanned box is not deleted
              by lowering a number — see the guard below. */
-          select: { sequence: true, receivedAt: true, deliveredAt: true },
+          select: {
+            sequence: true,
+            receivedAt: true,
+            deliveredAt: true,
+            /* And whether it is taped inside a carton — same guard. */
+            combinationId: true,
+          },
           orderBy: { sequence: "asc" },
         },
       },
@@ -390,6 +396,17 @@ export async function updateCargo(
               t(
                 locale,
                 "Some of those boxes have already been checked in or handed over, so the count cannot be lowered past them. Raise a case instead."
+              )
+            );
+          }
+          /* And a box taped inside a carton is a box somebody is holding. The
+             foreign key would refuse this anyway, but as a raw database error
+             at a warehouse counter — this is the sentence instead. */
+          if (doomed.some((pkg) => pkg.combinationId !== null)) {
+            throw new Error(
+              t(
+                locale,
+                "Some of those boxes are packed inside a combined package. Open the combined package first, then lower the count."
               )
             );
           }

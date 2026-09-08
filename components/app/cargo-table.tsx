@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Printer, QrCode } from "lucide-react";
 
+import { CombinePackages } from "@/components/app/combine-packages";
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
 import { useLocale, useT } from "@/components/app/locale-provider";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
@@ -225,6 +226,33 @@ export function ShipmentsTable({
       }
       bulkActions={(selected, clear) => (
         <>
+          {/*
+            BOXES ACTUALLY PACKED INTO ONE CARTON.
+
+            Both floors reach this list, and the action decides which of them
+            may act on a given consignment — Guangzhou's while it waits for the
+            flight, Dar's once it has landed. The rows offered are only the two
+            statuses where the boxes are demonstrably in somebody's hands; a
+            consignment in the air is in nobody's.
+
+            It records a physical fact and nothing else: no price moves, no
+            bill changes, and each consignment keeps its own weight and count.
+          */}
+          <CombinePackages
+            rows={selected
+              .filter(
+                (r) =>
+                  r.status === "READY_TO_DEPART" || r.status === "RECEIVED_AT_DAR"
+              )
+              .map((r) => ({
+                shipmentId: r.id,
+                trackingNumber: r.trackingNumber,
+                customerName: r.customerName,
+                weightKg: r.weightKg,
+                packages: r.packages,
+              }))}
+            onDone={clear}
+          />
           <Button
             type="button"
             variant="outline"
