@@ -685,7 +685,14 @@ export default async function FollowUpPage({
                           so it says "TSh" like the rest of the app; spelled out
                           here it said "TZS", which made the same amount look
                           like two currencies between this list and the bill. */}
-                      <div className="font-semibold">
+                      {/* Red, like the Cash owed card this column adds up to.
+                          The figures were the plain body colour while the
+                          total above them was red, so the one number a desk
+                          reads down the page to find the big debts had no more
+                          weight on the row than the tracking number beside it.
+                          The two lines that are NOT a debt keep their own
+                          colours: paid stays green, not billed stays muted. */}
+                      <div className="font-semibold text-destructive">
                         {row.outstandingLocal !== null
                           ? formatLocal(
                               row.outstandingLocal,
@@ -787,29 +794,6 @@ export default async function FollowUpPage({
                       was already a link and nobody found it, because a link
                       that looks like text is not a door.
                     */}
-                    {/* The price per kilo, or per piece — see the note in the
-                        cargo cell for why it is an icon and not a link. */}
-                    {row.invoiceId && canDiscount && row.ratePricedOn > 0 ? (
-                      <IconHint
-                        label={
-                          row.agreedRate === null
-                            ? t(locale, "Set a special rate for this cargo")
-                            : t(locale, "Change the agreed rate")
-                        }
-                      >
-                        <EditFreightRate
-                          asIcon
-                          invoiceId={row.invoiceId}
-                          currency={row.currency}
-                          standard={row.standardRate}
-                          agreed={row.agreedRate}
-                          perItem={row.ratePerItem}
-                          pricedOn={row.ratePricedOn}
-                          reason={row.agreedRateReason}
-                        />
-                      </IconHint>
-                    ) : null}
-
                     {row.trackingNumber ? (
                       <IconHint label={t(locale, "Open the cargo")}>
                         <Link
@@ -846,6 +830,37 @@ export default async function FollowUpPage({
                       >
                         <MessageCircle className="h-3.5 w-3.5" />
                       </a>
+                      </IconHint>
+                    ) : null}
+
+                    {/*
+                      NEXT TO THE MESSAGE, BECAUSE IT IS PART OF THE SAME CALL.
+
+                      The price per kilo is what the customer rings about, and
+                      the clerk answers it in the same breath as they message
+                      them — so it sits beside the WhatsApp door rather than at
+                      the head of the row, where it was the first thing on
+                      every line of a hundred-row queue and the last thing
+                      anybody needed. See the cargo cell for why it is an icon.
+                    */}
+                    {row.invoiceId && canDiscount && row.ratePricedOn > 0 ? (
+                      <IconHint
+                        label={
+                          row.agreedRate === null
+                            ? t(locale, "Set a special rate for this cargo")
+                            : t(locale, "Change the agreed rate")
+                        }
+                      >
+                        <EditFreightRate
+                          asIcon
+                          invoiceId={row.invoiceId}
+                          currency={row.currency}
+                          standard={row.standardRate}
+                          agreed={row.agreedRate}
+                          perItem={row.ratePerItem}
+                          pricedOn={row.ratePricedOn}
+                          reason={row.agreedRateReason}
+                        />
                       </IconHint>
                     ) : null}
 
