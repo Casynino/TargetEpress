@@ -118,10 +118,21 @@ export function RowPriceEditor({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="focus-ring inline-flex min-h-[44px] items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-brand sm:min-h-0 sm:py-1"
+        /* A bordered control, not muted text with an icon in front of it.
+           Plain text beside a price column reads as a caption — the same thing
+           that hid the register's own fix-it door until it was given edges. */
+        className="focus-ring inline-flex min-h-[44px] items-center gap-1.5 whitespace-nowrap rounded-full border bg-card px-2.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-brand sm:min-h-0 sm:h-7"
       >
-        <Pencil className="h-3 w-3" />
+        <Pencil className="h-3.5 w-3.5" />
         {t("Edit")}
+        {/* A cargo already carrying an agreed rate says so before it is
+            opened: this is the only place on the flight list where that fact
+            can be seen at a glance. */}
+        {agreedRate !== null && agreedRate !== undefined ? (
+          <span className="rounded bg-brand/15 px-1 py-px text-[10px] font-semibold text-brand">
+            {t("Special rate")}
+          </span>
+        ) : null}
       </button>
     );
   }
@@ -155,36 +166,60 @@ export function RowPriceEditor({
           line above, and the answer on the same line as the button that
           commits it.
         */}
+        {/*
+          WHAT THIS CARGO IS PRICED AT, THE SAME THREE LINES THE DIALOG SHOWS.
+
+          This was one sentence of working with a "fix the rate" link after it,
+          and the link goes to the RATE BOOK — the price for every consignment
+          the company will ever carry. A desk wanting to give one customer a
+          figure had the whole book offered to them and nothing else, so the
+          only per-cargo move on this panel was typing a freight total by hand.
+          Named the same way here as everywhere else, so a reader moving
+          between the flight list and the cargo page reads one thing.
+        */}
+        <dl className="space-y-1 rounded-lg border bg-muted/40 px-2.5 py-2 text-[11px]">
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-muted-foreground">{t("Standard rate")}</dt>
+            <dd className="tabular-nums font-medium">
+              {standardRate === null
+                ? t("not recorded")
+                : `${currency} ${standardRate.toFixed(2)} ${unit}`}
+            </dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-muted-foreground">{t("Current rate")}</dt>
+            <dd className="tabular-nums font-medium">
+              {agreedRate === null || agreedRate === undefined
+                ? standardRate === null
+                  ? t("not recorded")
+                  : `${currency} ${standardRate.toFixed(2)} ${unit}`
+                : `${currency} ${agreedRate.toFixed(2)} ${unit}`}
+            </dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-muted-foreground">{t("Special rate")}</dt>
+            <dd
+              className={
+                agreedRate === null || agreedRate === undefined
+                  ? "text-muted-foreground"
+                  : "font-semibold text-brand"
+              }
+            >
+              {agreedRate === null || agreedRate === undefined ? t("No") : t("Yes")}
+            </dd>
+          </div>
+        </dl>
+        {/* Kept, and told apart from the box above it. Changing the book is a
+            decision about every consignment the company carries; the box is a
+            decision about this one. */}
         <p className="text-[11px] text-muted-foreground">
-          {/* Divided by the CHARGEABLE weight. Dividing by actual weight on a
-              parcel billed at the 1 kg minimum printed an implied rate double
-              the published one, beside a "fix the rate" link — inviting
-              Finance to correct a rate book that was right. */}
-          {(chargeableKg ?? weightKg) > 0 ? (
-            <>
-              {/* The weight as it actually is, not rounded to one decimal.
-                  A 10.75 kg consignment printed "10.8 kg × 12.50 = 134.38",
-                  and 10.8 × 12.50 is 135.00 — a working that does not
-                  multiply out, on the line whose whole job is to show Finance
-                  where the figure came from. formatWeight is what every other
-                  screen states a weight with. */}
-              <span className="tabular-nums text-foreground">
-                {formatWeight(chargeableKg ?? weightKg)} ×{" "}
-                {(rateBookFreight / (chargeableKg ?? weightKg)).toFixed(2)}
-              </span>{" "}
-              ={" "}
-            </>
-          ) : null}
-          <span className="tabular-nums text-foreground">
-            {rateBookFreight.toFixed(2)}
-          </span>{" "}
-          {t("from the rate book")} ·{" "}
           <a
             href="/app/finance/pricing"
             className="text-brand underline underline-offset-2"
           >
-            {t("fix the rate")}
-          </a>
+            {t("Change the rate book")}
+          </a>{" "}
+          {t("— that price applies to every cargo, not just this one.")}
         </p>
 
         {/*
@@ -213,21 +248,42 @@ export function RowPriceEditor({
               }}
               placeholder={standardRate === null ? "" : standardRate.toFixed(2)}
             />
+            {/* The arithmetic and what it gives away, worded exactly as the
+                cargo page's dialog words it — two screens describing the same
+                concession two ways is how a desk starts checking one against
+                the other. */}
             <span className="block text-[11px] text-muted-foreground">
               {rate.trim() === "" ? (
-                <>
-                  {t("Standard")}{" "}
-                  <span className="tabular-nums text-foreground">
-                    {currency} {standardRate === null ? "—" : standardRate.toFixed(2)} {unit}
-                  </span>
-                </>
+                t("Leave it empty to price this cargo from the rate book.")
               ) : (
                 <span className="tabular-nums">
-                  {n(rate).toFixed(2)} × {perItem ? pieces : formatWeight(pricedOn)}{" "}
+                  {n(rate).toFixed(2)} ×{" "}
+                  {/* formatWeight carries its own unit — saying "kg" after it
+                      printed "4 kg kg". */}
+                  {perItem
+                    ? `${pieces} ${t(pieces === 1 ? "piece" : "pieces")}`
+                    : formatWeight(pricedOn)}{" "}
                   ={" "}
                   <span className="font-semibold text-foreground">
-                    {currency} {(fromRate ?? 0).toLocaleString()}
+                    {currency} {(fromRate ?? 0).toFixed(2)}
                   </span>
+                  {standardRate !== null &&
+                  Math.abs(standardRate - n(rate)) > 0.005 ? (
+                    <>
+                      {" · "}
+                      <span
+                        className={
+                          standardRate - n(rate) > 0
+                            ? "text-success"
+                            : "text-warning"
+                        }
+                      >
+                        {standardRate - n(rate) > 0 ? "−" : "+"}
+                        {currency} {Math.abs(standardRate - n(rate)).toFixed(2)}{" "}
+                        {unit} {t("against the book")}
+                      </span>
+                    </>
+                  ) : null}
                 </span>
               )}
             </span>
