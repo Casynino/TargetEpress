@@ -4554,6 +4554,8 @@ const ZH: Record<string, string> = {
   "not recorded": "未记录",
   "Current rate": "当前单价",
   "Special rate": "特惠价",
+  "Show every flight": "显示全部航班",
+  "special rate — standard": "特惠价 —— 标准价",
   "Yes": "是",
   "No": "否",
   "against the book": "相对价目表",

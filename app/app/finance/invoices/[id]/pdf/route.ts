@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { AIRPORT_LABELS, CATEGORY_LABELS } from "@/lib/cargo";
 import { accountsForInvoice } from "@/lib/company-settings";
+import { rateFactsOf } from "@/lib/agreed-rate";
 import { formatDate, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { renderInvoicePdf } from "@/lib/invoice-pdf";
@@ -78,6 +79,9 @@ export async function GET(
       currency: true,
       freightCost: true,
       freightOverride: true,
+      /* The rate agreed for this consignment, so the customer's own copy of
+         the bill can show the working — see freightNote below. */
+      freightRateOverride: true,
       storageCharge: true,
       storageDays: true,
       storageWaivedUsd: true,
@@ -99,6 +103,11 @@ export async function GET(
           ...selectText("description"),
           weightKg: true,
           packages: true,
+          /* What the rate book charged and what it charged it on, so the
+             agreed rate can be printed with the standard one beside it. */
+          quotedRate: true,
+          quotedMethod: true,
+          chargeableKg: true,
           packageType: true,
           origin: true,
           cargoCategory: true,
@@ -169,6 +178,34 @@ export async function GET(
     ),
 
     currency: invoice.currency,
+    /*
+      HOW THAT FIGURE WAS REACHED, ON THE COPY THE CUSTOMER KEEPS.
+
+      The bill on screen has always printed the rate and the quantity it was
+      applied to; this document printed the route and a total. On a
+      consignment carrying a rate somebody agreed that is the difference
+      between a concession the customer can see and a number they cannot
+      check — and the owner's rule is that a special rate is never hidden.
+
+      Composed here rather than in the renderer, which does no arithmetic by
+      design. The agreed rate leads and the book's follows it, so the figure
+      can never read as what the cargo has always cost.
+    */
+    freightNote: (() => {
+      const facts = rateFactsOf(invoice, invoice.shipment);
+      const route = `${AIRPORT_LABELS[invoice.shipment.origin]} \u2192 Dar es Salaam`;
+      if (facts.agreedRate === null) return route;
+      const unit = facts.ratePerItem ? " each" : "/kg";
+      const applied = facts.ratePerItem
+        ? `${facts.ratePricedOn} pcs`
+        : `${facts.ratePricedOn} kg`;
+      const standard =
+        facts.standardRate === null ||
+        Math.abs(facts.standardRate - facts.agreedRate) < 0.005
+          ? ""
+          : ` — special rate, standard ${invoice.currency} ${facts.standardRate.toFixed(2)}${unit}`;
+      return `${route} · ${invoice.currency} ${facts.agreedRate.toFixed(2)}${unit} × ${applied}${standard}`;
+    })(),
     // The figure that was actually billed, which is the override when Finance
     // set one — the same coalesce the total was computed from.
     freight:

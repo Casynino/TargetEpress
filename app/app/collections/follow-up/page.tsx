@@ -75,6 +75,8 @@ export default async function FollowUpPage({
     record?: string;
     sort?: string;
     page?: string;
+    /** One flight, for a desk working through what landed on it. */
+    batch?: string;
   }>;
 }) {
   const user = await requirePermission("collections.view");
@@ -96,7 +98,8 @@ export default async function FollowUpPage({
   const canDecideCredit = can(user.role, "credit.approve");
   const canRecord = can(user.role, "payment.record");
   const canCollect = !canRecord && can(user.role, "payment.submit");
-  const { filter, q, record, sort, page } = await searchParams;
+  const { filter, q, record, sort, page, batch } = await searchParams;
+  const onBatch = batch?.trim() ?? "";
   const query = q?.trim() ?? "";
 
   // Credit only for a reader entitled to it. Every desk that can open this page
@@ -205,9 +208,36 @@ export default async function FollowUpPage({
   const order = (FOLLOW_UP_SORTS.find((o) => o.key === sort)?.key ??
     "newest") as FollowUpSort;
 
+  /* Every link on this page keeps what is already chosen — narrowing to a
+     flight must not silently drop the band, the sort or the search. */
+  const link = (next: Record<string, string | undefined>) => {
+    const params = new URLSearchParams();
+    const current: Record<string, string | undefined> = {
+      filter: active,
+      q: query || undefined,
+      sort,
+      batch: onBatch || undefined,
+      ...next,
+    };
+    for (const [key, value] of Object.entries(current)) {
+      if (value) params.set(key, value);
+    }
+    const qs = params.toString();
+    return qs ? `/app/collections/follow-up?${qs}` : "/app/collections/follow-up";
+  };
+
   const needle = query.toLowerCase();
   const visible = rows
     .filter((row) => matchesFilter(row, active))
+    /*
+      ONE FLIGHT AT A TIME.
+
+      A desk chasing the money for a batch that landed on Tuesday is working a
+      flight, not a queue — and the tracking numbers on it are scattered
+      through a hundred rows. The chip on each row sets this, so narrowing to a
+      flight is one press on the row that prompted the thought.
+    */
+    .filter((row) => (onBatch === "" ? true : row.batchNumber === onBatch))
     .filter((row) =>
       needle.length === 0
         ? true
@@ -217,6 +247,9 @@ export default async function FollowUpPage({
             row.invoiceNumber ?? "",
             row.customerPhone ?? "",
             row.description ?? "",
+            /* Typing a flight number finds its consignments, the same way it
+               does on the register and the verify queue. */
+            row.batchNumber ?? "",
           ]
             .join(" ")
             .toLowerCase()
@@ -314,10 +347,25 @@ export default async function FollowUpPage({
           >
             <input type="hidden" name="filter" value={active} />
           </SearchBox>
-          {query ? (
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              {visible.length} {t(locale, "of")} {rows.length} {t(locale, "match")}
-              {" · "}
+          {query || onBatch ? (
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <span>
+                {visible.length} {t(locale, "of")} {rows.length} {t(locale, "match")}
+              </span>
+              {/* Named, because a queue quietly showing one flight's worth of a
+                  hundred rows reads as a queue that has emptied. */}
+              {onBatch ? (
+                <span className="inline-flex items-center gap-1 rounded bg-brand/15 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-brand">
+                  {onBatch}
+                  <Link
+                    href={link({ batch: undefined })}
+                    aria-label={t(locale, "Show every flight")}
+                    className="focus-ring rounded hover:text-foreground"
+                  >
+                    ×
+                  </Link>
+                </span>
+              ) : null}
               <Link
                 href={`/app/collections/follow-up?filter=${active}`}
                 className="underline-offset-2 hover:underline"
@@ -545,10 +593,27 @@ export default async function FollowUpPage({
                       money and the dates, not what is in the boxes, and a line
                       per row reporting that absence is a line the reader learns
                       to skip. */}
-                  {row.description || row.credit?.batchNumber ? (
+                  {row.description ? (
                     <div className="max-w-[16rem] truncate text-xs text-muted-foreground">
-                      {row.description || row.credit?.batchNumber}
+                      {row.description}
                     </div>
+                  ) : null}
+                  {/*
+                    WHICH FLIGHT, ON THE ROW.
+
+                    One customer has three consignments on this list and the
+                    rows read identically — same name, same next action, three
+                    boxes on three different aircraft. The clerk with the phone
+                    to their ear has to be able to say which one, and was
+                    opening each bill to find out.
+                  */}
+                  {row.batchNumber ? (
+                    <Link
+                      href={link({ batch: row.batchNumber, page: undefined })}
+                      className="mt-0.5 inline-block rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground hover:text-brand"
+                    >
+                      {row.batchNumber}
+                    </Link>
                   ) : null}
                 </td>
                 <td className="hidden p-3 lg:table-cell">

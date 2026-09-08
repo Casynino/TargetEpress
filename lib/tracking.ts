@@ -471,6 +471,9 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
           totalLocal: true,
           freightCost: true,
           freightOverride: true,
+          /* The rate agreed for this consignment, so the customer's own copy can
+             say what it was rather than going silent — see the note below. */
+          freightRateOverride: true,
           storageDays: true,
           storageCharge: true,
           otherCharges: true,
@@ -604,16 +607,48 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
               A customer could see what they owe and never how it was reached,
               so the figure arrived as a number to be taken on trust. This is
               the rate and what it was applied to — the same line the invoice
-              itself carries. Only where the system priced it: a freight figure
-              Finance typed over has no rate to show, and inventing one would
-              be worse than showing none.
+              itself carries.
+
+              IT USED TO GO SILENT ON EXACTLY THE BILLS THAT NEEDED IT. Any
+              freight Finance had moved suppressed this note, on the reasoning
+              that a typed total has no rate behind it and inventing one would
+              be worse than showing none. That is still true of a typed total.
+              It is not true of a rate somebody agreed: the customer who was
+              given 11.50 saw an amount with no working at all, on the one
+              screen they can check for themselves. The agreed rate is stored
+              now, so it can be shown — with the book's rate beside it, because
+              a special price printed alone reads as the price.
             */
-            note:
-              invoice.freightOverride === null && shipment.quotedRate !== null
-                ? shipment.quotedMethod === "FIXED_PER_ITEM"
-                  ? `${shipment.quoteCurrency ?? "USD"} ${toNumber(shipment.quotedRate).toFixed(2)} × ${shipment.packages} ${shipment.packages === 1 ? "kipande" : "vipande"}`
-                  : `${shipment.quoteCurrency ?? "USD"} ${toNumber(shipment.quotedRate).toFixed(2)}/kg × ${toNumber(shipment.chargeableKg ?? shipment.weightKg)} kg`
-                : null,
+            note: (() => {
+              const money = shipment.quoteCurrency ?? "USD";
+              const perItem = shipment.quotedMethod === "FIXED_PER_ITEM";
+              const applied = perItem
+                ? `${shipment.packages} ${shipment.packages === 1 ? "kipande" : "vipande"}`
+                : `${toNumber(shipment.chargeableKg ?? shipment.weightKg)} kg`;
+              const unit = perItem ? "" : "/kg";
+              const agreed =
+                invoice.freightRateOverride === null
+                  ? null
+                  : toNumber(invoice.freightRateOverride);
+              const book =
+                shipment.quotedRate === null ? null : toNumber(shipment.quotedRate);
+
+              if (agreed !== null) {
+                /* Both figures, in that order, so nobody reads the agreed one
+                   as what the cargo has always cost. */
+                return (
+                  `${money} ${agreed.toFixed(2)}${unit} × ${applied}` +
+                  (book === null || Math.abs(book - agreed) < 0.005
+                    ? ""
+                    : ` — bei maalum, kawaida ni ${money} ${book.toFixed(2)}${unit}`)
+                );
+              }
+              /* A total typed straight over the freight still shows nothing:
+                 there is no rate behind it, and a made-up one would be worse
+                 than none. */
+              if (invoice.freightOverride !== null || book === null) return null;
+              return `${money} ${book.toFixed(2)}${unit} × ${applied}`;
+            })(),
           },
           ...(toNumber(invoice.storageCharge) > 0
             ? [

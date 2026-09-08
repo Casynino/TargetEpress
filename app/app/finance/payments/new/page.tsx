@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Banknote, MessageCircle, ReceiptText, Search, Users, Wallet } from "lucide-react";
 
+import { rateFactsOf } from "@/lib/agreed-rate";
 import { Button } from "@/components/ui/button";
 
 import { CustomerPaymentForm, type OpenBill } from "@/components/app/customer-payment-form";
@@ -507,6 +508,10 @@ export default async function RecordCustomerPaymentPage({
           /* Read so the per-bill actions beside the form can act on the bill
              itself: what it comes to, and what is already off it. */
           discount: true,
+          /* The rate agreed for this one consignment, so a merged payment can
+             show and change each cargo's own price — see OpenBill. */
+          freightRateOverride: true,
+          freightOverrideReason: true,
           storageCharge: true,
           storageWaivedUsd: true,
           /* So the credit control can decide whether to show itself without
@@ -526,6 +531,13 @@ export default async function RecordCustomerPaymentPage({
                  different aircraft weeks apart, and the clerk taking one
                  payment for all of them is asked which is which. */
               batch: { select: { batchNumber: true } },
+              /* What the rate book charged and what it charged it on, so each
+                 row can state its own price against the standard one. */
+              quotedRate: true,
+              quotedMethod: true,
+              chargeableKg: true,
+              weightKg: true,
+              packages: true,
             },
           },
         },
@@ -564,6 +576,8 @@ export default async function RecordCustomerPaymentPage({
       storageUncharged: storageUncharged(invoice),
       /* And why, when there is none — see storageFreeDaysLeft. */
       storageFreeDaysLeft: storageFreeDaysLeft(invoice.shipment),
+      /* Each consignment keeps its own price across a merge — see OpenBill. */
+      ...rateFactsOf(invoice, invoice.shipment),
       trackingNumber: invoice.shipment.trackingNumber,
       description: cargoText(locale, invoice.shipment, "description"),
       batchNumber: invoice.shipment.batch?.batchNumber ?? null,

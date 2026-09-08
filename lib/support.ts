@@ -193,31 +193,62 @@ export type FollowUpCredit = {
  * a two-kilo minimum must not have a message telling the customer otherwise.
  * Per-item pricing has no weight minimum, so it says none.
  */
-export function freightBasisOf(shipment: {
-  quotedRate: Prisma.Decimal | null;
-  quotedMethod: string | null;
-  chargeableKg: Prisma.Decimal | null;
-  quoteCurrency: string | null;
-  weightKg: Prisma.Decimal | null;
-}): string | null {
-  if (shipment.quotedRate === null) return null;
+export function freightBasisOf(
+  shipment: {
+    quotedRate: Prisma.Decimal | null;
+    quotedMethod: string | null;
+    chargeableKg: Prisma.Decimal | null;
+    quoteCurrency: string | null;
+    weightKg: Prisma.Decimal | null;
+  },
+  /*
+    THE RATE THE CUSTOMER IS ACTUALLY BEING BILLED AT.
+
+    This line goes into the message a customer receives, and it was composed
+    from the rate BOOK alone. So a large customer given USD 11.50/kg was sent
+    "Rate: USD 13.50/KG" beside a total worked out at 11.50 — the company
+    quoting one price and charging another, in writing, to the person best
+    placed to notice.
+
+    Optional because two of the three callers hand a shipment with no bill in
+    scope; where the bill is known the agreed rate wins, and the book's is
+    named beside it so the concession is visible rather than passed off as the
+    standard price.
+  */
+  invoice?: { freightRateOverride: Prisma.Decimal | null } | null
+): string | null {
+  const agreedRate =
+    invoice?.freightRateOverride == null
+      ? null
+      : toNumber(invoice.freightRateOverride);
+  if (shipment.quotedRate === null && agreedRate === null) return null;
   const currency = shipment.quoteCurrency ?? "USD";
   /* To the cent, always. formatMoney trims a trailing zero — right for a
      screen, wrong in a price quoted to a customer, where "USD 13.5/KG" reads
      as a figure somebody typed rather than one the system holds. */
-  const rate = `${currency} ${toNumber(shipment.quotedRate).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  const cents = (v: number) =>
+    v.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  const book =
+    shipment.quotedRate === null ? null : toNumber(shipment.quotedRate);
+  const chargedRate = agreedRate ?? book!;
+  const rate = `${currency} ${cents(chargedRate)}`;
+  /* Said in the message itself, never left for the customer to work out. */
+  const special =
+    agreedRate !== null && book !== null && Math.abs(book - agreedRate) >= 0.005
+      ? ` (special rate — standard ${currency} ${cents(book)})`
+      : "";
 
-  if (shipment.quotedMethod === "FIXED_PER_ITEM") return `${rate}/pcs`;
+  if (shipment.quotedMethod === "FIXED_PER_ITEM") return `${rate}/pcs${special}`;
 
   const charged = shipment.chargeableKg === null ? null : toNumber(shipment.chargeableKg);
   const actual = shipment.weightKg === null ? null : toNumber(shipment.weightKg);
   const minimumApplied =
     charged !== null && actual !== null && charged > actual + 0.0005;
 
-  return `${rate}/KG${minimumApplied ? ` (Minimum ${charged} KG)` : ""}`;
+  return `${rate}/KG${minimumApplied ? ` (Minimum ${charged} KG)` : ""}${special}`;
 }
 
 export type FollowUpRow = {
@@ -244,6 +275,16 @@ export type FollowUpRow = {
   description: string;
   /** The same cargo, in English, for the message that leaves the building. */
   descriptionForCustomer: string;
+  /**
+   * WHICH FLIGHT THIS ONE CAME ON.
+   *
+   * One customer has three consignments on this list and the rows read
+   * identically — same name, same "Chase payment", three different boxes on
+   * three different aircraft. The clerk ringing them has to be able to say
+   * which, and had to open each bill to find out. Null while a consignment has
+   * no flight yet, and on a credit whose cargo has already gone.
+   */
+  batchNumber: string | null;
   status: string;
   customerId: string;
   customerName: string;
@@ -345,6 +386,9 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
     select: {
       id: true,
       trackingNumber: true,
+      /* Which flight it came on — see FollowUpRow.batchNumber. A customer with
+         three consignments on this list is asked which one is being chased. */
+      batch: { select: { batchNumber: true } },
       ...selectText("description"),
       status: true,
       arrivedAt: true,
@@ -372,6 +416,9 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
           exchangeRate: true,
           currency: true,
           discount: true,
+          /* The rate agreed for this consignment — the chasing message must
+             quote what the customer is billed at, not the book. */
+          freightRateOverride: true,
           storageCharge: true,
           localCurrency: true,
           sentAt: true,
@@ -485,6 +532,7 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       kind: "cash" as const,
       credit: null,
       trackingNumber: shipment.trackingNumber,
+      batchNumber: shipment.batch?.batchNumber ?? null,
       description: cargoText(locale, shipment, "description"),
       /*
         THE CUSTOMER'S COPY, NEVER THE CLERK'S LANGUAGE.
@@ -508,7 +556,9 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       arrivedAt: shipment.arrivedAt?.toISOString() ?? null,
       daysInWarehouse: shipment.arrivedAt ? daysBetween(shipment.arrivedAt) : 0,
       weightKg: shipment.weightKg === null ? null : toNumber(shipment.weightKg),
-      freightBasis: freightBasisOf(shipment),
+      /* With the bill, so the call list and the message it sends quote
+         the rate the customer is actually being charged. */
+      freightBasis: freightBasisOf(shipment, invoice),
       exchangeRate: rate,
       storageDays,
       storageCharge:
@@ -622,6 +672,9 @@ function creditFollowUpRow(r: CreditRow): FollowUpRow {
       batchNumber: r.batchNumber,
     },
     trackingNumber: r.trackingNumber,
+    /* The credit engine already carries it — see FollowUpCredit — and the
+       column reads one field whichever kind of row it is on. */
+    batchNumber: r.batchNumber,
     /* Empty on purpose. The credit engine carries the money and the dates, not
        what is in the boxes, and a row that spends a line saying it does not know
        the cargo description teaches the reader to stop reading rows. */

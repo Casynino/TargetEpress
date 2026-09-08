@@ -17,6 +17,7 @@ import { activeAccounts } from "@/lib/accounts";
 import { accountsForInvoice } from "@/lib/company-settings";
 import { LOCAL_CURRENCY, formatLocal, toLocal } from "@/lib/fx";
 import { MESSAGE_KIND_LABELS, composeMessage, trackLink, whatsappLink } from "@/lib/messages";
+import { rateFactsOf } from "@/lib/agreed-rate";
 import { freightBasisOf } from "@/lib/support";
 import { AIRPORT_LABELS, CATEGORY_LABELS, METHOD_LABELS } from "@/lib/cargo";
 import {
@@ -264,23 +265,44 @@ export default async function InvoicePage({
 
   // How the freight figure was reached, in one line. Assembled here because it
   // is the only part of the document that has to reach into the rate book.
+  const rateFacts = rateFactsOf(invoice, shipment);
   const freightNote = [
     `${t(locale, AIRPORT_LABELS[shipment.origin])} — ${t(locale, "Dar es Salaam")}`,
     shipment.quotedMethod
       ? t(locale, METHOD_LABELS[shipment.quotedMethod])
       : t(locale, "Weight-based"),
-    shipment.quotedRate
-      ? `${money(toNumber(shipment.quotedRate), currency)}${
-          shipment.quotedMethod === "FIXED_PER_ITEM"
-            ? ` ${t(locale, "each")}`
-            : "/kg"
+    /*
+      THE RATE THIS BILL WAS ACTUALLY WORKED OUT AT.
+
+      This line is the customer's own working, and it printed the rate BOOK's
+      figure — so a consignment agreed at 11.50 showed "USD 13.50/kg × 4 kg"
+      above a freight line of 46.00, three numbers on one document that cannot
+      all be true. The agreed rate leads where there is one, and the book's is
+      named after it, because a special price printed alone reads as the price.
+    */
+    rateFacts.agreedRate !== null
+      ? `${money(rateFacts.agreedRate, currency)}${
+          rateFacts.ratePerItem ? ` ${t(locale, "each")}` : "/kg"
         }`
-      : null,
+      : shipment.quotedRate
+        ? `${money(toNumber(shipment.quotedRate), currency)}${
+            shipment.quotedMethod === "FIXED_PER_ITEM"
+              ? ` ${t(locale, "each")}`
+              : "/kg"
+          }`
+        : null,
     shipment.quotedMethod === "FIXED_PER_ITEM"
       ? `× ${formatPackages(shipment.packages, shipment.packageType, locale)}`
       : shipment.chargeableKg
         ? `× ${toNumber(shipment.chargeableKg).toFixed(2)} ${t(locale, "kg chargeable")}`
         : null,
+    /* Named on the face of the bill, not left to be noticed. */
+    rateFacts.agreedRate !== null && rateFacts.standardRate !== null
+      ? `(${t(locale, "special rate — standard")} ${money(
+          rateFacts.standardRate,
+          currency
+        )}${rateFacts.ratePerItem ? ` ${t(locale, "each")}` : "/kg"})`
+      : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -645,7 +667,10 @@ export default async function InvoicePage({
                   chasing it cannot state the same rate two ways. It said
                   "USD 13.50/kg" here and the queue said nothing at all.
                 */
-                freightBasis: freightBasisOf(shipment),
+                /* With the bill — see the note in freightBasisOf: without it
+                   the message quoted the book while the total charged the
+                   agreed rate. */
+                freightBasis: freightBasisOf(shipment, invoice),
                 // The rate frozen on THIS invoice. Publishing a new rate
                 // tomorrow must not restate what this customer was quoted.
                 exchangeRate: invoiceRate,

@@ -14,7 +14,9 @@ import {
   IdempotencyKey,
   useIdempotencyKey,
 } from "@/components/app/idempotency-key";
+import { AgreedRate } from "@/components/app/agreed-rate";
 import { BillActions } from "@/components/app/bill-actions";
+import { EditFreightRate } from "@/components/app/edit-freight-rate";
 import { PaymentDifference } from "@/components/app/payment-difference";
 import { PaymentProofField } from "@/components/app/payment-proof-field";
 import { TransportSplit } from "@/components/app/transport-split";
@@ -51,6 +53,20 @@ export type OpenBill = {
   storageUncharged: number;
   /** Free days left when nothing has accrued, so the screen can say so. */
   storageFreeDaysLeft: number | null;
+  /*
+    WHAT THIS ONE CONSIGNMENT WAS PRICED AT.
+
+    A merged payment settles several bills at once and each keeps its own
+    price — one at a rate Finance agreed, the next at the book's. The panel
+    beside this list can only ever address a single bill, so the rate belongs
+    on the ROW, where there is one of them per cargo and no ambiguity about
+    which is being changed. See lib/agreed-rate.ts for the derivation.
+  */
+  standardRate: number | null;
+  agreedRate: number | null;
+  agreedRateReason: string | null;
+  ratePerItem: boolean;
+  ratePricedOn: number;
   /** NONE, REQUESTED or APPROVED — whether credit can still be asked for. */
   creditStatus: string;
   /**
@@ -711,6 +727,42 @@ export function CustomerPaymentForm({
                       ) : null}
                     </span>
                   </label>
+
+                  {/*
+                    THE PRICE THIS CARGO WAS WORKED OUT AT, PER ROW.
+
+                    Point of the merge screen: one customer, several
+                    consignments, and each may be priced differently. Saying it
+                    on the row is the only place it can be said without a
+                    reader having to guess which bill a figure in the panel
+                    belongs to — and the same row is where it is changed.
+
+                    Outside the <label>, because a button inside one toggles
+                    the tick it is nested in.
+                  */}
+                  {bill.agreedRate !== null || (canDiscount && bill.ratePricedOn > 0) ? (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-5 pb-3 pl-[3.25rem] text-xs">
+                      <AgreedRate
+                        standard={bill.standardRate}
+                        agreed={bill.agreedRate}
+                        currency={bill.currency}
+                        perItem={bill.ratePerItem}
+                        reason={bill.agreedRateReason}
+                        className="w-full"
+                      />
+                      {canDiscount && bill.ratePricedOn > 0 ? (
+                        <EditFreightRate
+                          invoiceId={bill.invoiceId}
+                          currency={bill.currency}
+                          standard={bill.standardRate}
+                          agreed={bill.agreedRate}
+                          perItem={bill.ratePerItem}
+                          pricedOn={bill.ratePricedOn}
+                          reason={bill.agreedRateReason}
+                        />
+                      ) : null}
+                    </div>
+                  ) : null}
 
                   {/* Only when somebody has asked to pay part of a bill. */}
                   {split && on ? (

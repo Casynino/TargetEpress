@@ -1098,7 +1098,9 @@ export default async function ShipmentDetailPage({
                          sent from here was missing the one line that makes the
                          total checkable, while the same message sent from the
                          queue had it. */
-                      freightBasis: freightBasisOf(shipment),
+                      /* With the bill, so a customer given a special rate
+                         is quoted the rate they are actually billed at. */
+                      freightBasis: freightBasisOf(shipment, shipment.invoice),
                       amountUsd: toNumber(shipment.invoice.total),
                       amountLocal:
                         shipment.invoice.totalLocal === null
