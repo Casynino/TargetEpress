@@ -621,13 +621,13 @@ export default async function FollowUpPage({
                     </Link>
                   ) : null}
                   {/*
-                    "BUT WE AGREED ELEVEN FIFTY" — ANSWERED ON THE ROW.
+                    A SPECIAL PRICE IS STATED HERE; CHANGING IT IS AN ICON.
 
-                    This is the screen where somebody is on the phone to the
-                    customer, and the price is what the call is about. The row
-                    says what the cargo was priced at and changes it from
-                    there, rather than sending the clerk to find the bill
-                    mid-conversation.
+                    The fact belongs beside the cargo, because that is what it
+                    is a fact about. The control does not: every other action
+                    on this row lives in one group of icons at the end of it,
+                    and a worded link under the tracking number made the column
+                    three lines tall on every row of a hundred-row queue.
                   */}
                   {row.invoiceId && row.agreedRate !== null ? (
                     <AgreedRate
@@ -638,19 +638,6 @@ export default async function FollowUpPage({
                       reason={row.agreedRateReason}
                       className="mt-1 max-w-[18rem]"
                     />
-                  ) : null}
-                  {row.invoiceId && canDiscount && row.ratePricedOn > 0 ? (
-                    <div className="mt-1 text-xs">
-                      <EditFreightRate
-                        invoiceId={row.invoiceId}
-                        currency={row.currency}
-                        standard={row.standardRate}
-                        agreed={row.agreedRate}
-                        perItem={row.ratePerItem}
-                        pricedOn={row.ratePricedOn}
-                        reason={row.agreedRateReason}
-                      />
-                    </div>
                   ) : null}
                 </td>
                 <td className="hidden p-3 lg:table-cell">
@@ -800,6 +787,29 @@ export default async function FollowUpPage({
                       was already a link and nobody found it, because a link
                       that looks like text is not a door.
                     */}
+                    {/* The price per kilo, or per piece — see the note in the
+                        cargo cell for why it is an icon and not a link. */}
+                    {row.invoiceId && canDiscount && row.ratePricedOn > 0 ? (
+                      <IconHint
+                        label={
+                          row.agreedRate === null
+                            ? t(locale, "Set a special rate for this cargo")
+                            : t(locale, "Change the agreed rate")
+                        }
+                      >
+                        <EditFreightRate
+                          asIcon
+                          invoiceId={row.invoiceId}
+                          currency={row.currency}
+                          standard={row.standardRate}
+                          agreed={row.agreedRate}
+                          perItem={row.ratePerItem}
+                          pricedOn={row.ratePricedOn}
+                          reason={row.agreedRateReason}
+                        />
+                      </IconHint>
+                    ) : null}
+
                     {row.trackingNumber ? (
                       <IconHint label={t(locale, "Open the cargo")}>
                         <Link

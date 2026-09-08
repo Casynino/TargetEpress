@@ -36,6 +36,7 @@ export function EditFreightRate({
   perItem = false,
   pricedOn,
   reason = null,
+  asIcon = false,
   onSaved,
 }: {
   invoiceId: string;
@@ -51,6 +52,17 @@ export function EditFreightRate({
   pricedOn: number;
   /** Why, when the desk gave a reason last time. */
   reason?: string | null;
+  /**
+   * AN ICON, WHERE THE ROW ALREADY HAS A COLUMN OF THEM.
+   *
+   * On the call list every other action on a row — open the cargo, message
+   * them, take the money — is a bordered icon in one group at the end of it.
+   * A worded link under the cargo instead put a seventh control somewhere none
+   * of the others live, on every row of a hundred-row queue, and made the
+   * column of tracking numbers three lines tall. The dialog it opens is the
+   * same one either way.
+   */
+  asIcon?: boolean;
   /**
    * Called once the change has actually saved.
    *
@@ -92,6 +104,26 @@ export function EditFreightRate({
       : null;
 
   if (!open) {
+    if (asIcon) {
+      return (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={`${t("Edit the rate")} ${unit}`}
+          /* The same 7x7 bordered square its neighbours are, and brand-tinted
+             when this cargo already carries an agreed rate, so a specially
+             priced row can be picked out of the queue without opening it. */
+          className={
+            "focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors " +
+            (agreed === null
+              ? "border-brand/40 text-brand hover:bg-brand/10"
+              : "border-brand bg-brand/15 text-brand hover:bg-brand/25")
+          }
+        >
+          <Scale className="h-3.5 w-3.5" />
+        </button>
+      );
+    }
     return (
       <button
         type="button"

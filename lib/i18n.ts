@@ -4572,6 +4572,7 @@ const ZH: Record<string, string> = {
   "Note (optional) — agreed with the customer, large cargo…": "备注（选填）—— 与客户约定、大宗货物……",
   "Save the rate": "保存单价",
   "Special rate for this cargo": "此票货物的特惠价",
+  "Set a special rate for this cargo": "为本票货物设置特惠价",
   "the rate book's own figure for this cargo was not recorded": "本票货物的价目表原价未记录",
   "Status": "状态",
   "Status changed": "状态变更",
