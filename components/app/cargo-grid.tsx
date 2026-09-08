@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 
+import { CombinePackages } from "@/components/app/combine-packages";
 import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -271,6 +272,7 @@ export function CargoGrid({
   batchId,
   canPrintLabel = false,
   showPrice = false,
+  canCombine = false,
 }: {
   cells: CargoCell[];
   /** Set to allow selecting cargo and printing their stickers together. */
@@ -283,10 +285,31 @@ export function CargoGrid({
   canPrintLabel?: boolean;
   /** Finance and the CEO only. See lib/rbac, finance.view. */
   showPrice?: boolean;
+  /**
+   * Whether this desk may tape boxes together — Guangzhou's own floor, before
+   * the flight. The loading table is the only cargo list China has in its
+   * menu, so it is the only place they can be offered it.
+   */
+  canCombine?: boolean;
 }) {
   const [filter, setFilter] = useState<string>("ALL");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("received");
+  /*
+    WHICH ROWS ARE TICKED.
+
+    Only ever used for combining, so it lives here rather than in the shared
+    DataTable: this grid draws its own cards and its own table, and adopting
+    that component wholesale would rewrite a screen the packing desk has open
+    all day for the sake of one button.
+  */
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const toggle = (id: string) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   const t = useT();
 
   const sorted = useMemo(() => {
@@ -401,6 +424,41 @@ export function CargoGrid({
             ))
           : null}
 
+        {/*
+          THE ONE BAR, WHERE THE TICKS ARE.
+
+          It appears only once something is ticked, so a packer who never
+          combines anything sees the screen they always saw. The dialog behind
+          it is the same one the Dar floor uses — the wording of a physical
+          fact should not depend on which warehouse is looking at it.
+        */}
+        {canCombine && picked.size > 0 ? (
+          <span className="flex items-center gap-2 rounded-full border border-brand/40 bg-brand/10 py-1 pl-3 pr-1">
+            <span className="text-sm font-medium text-brand">
+              {picked.size} {t("selected")}
+            </span>
+            <CombinePackages
+              rows={sorted
+                .filter((c) => picked.has(c.id))
+                .map((c) => ({
+                  shipmentId: c.id,
+                  trackingNumber: c.trackingNumber,
+                  customerName: c.customerName,
+                  weightKg: c.weightKg,
+                  packages: c.packages,
+                }))}
+              onDone={() => setPicked(new Set())}
+            />
+            <button
+              type="button"
+              onClick={() => setPicked(new Set())}
+              className="focus-ring rounded-full px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              {t("Clear")}
+            </button>
+          </span>
+        ) : null}
+
         {batchId && canPrintLabel ? (
           <Link
             href={`/app/batches/${batchId}/stickers`}
@@ -456,12 +514,26 @@ export function CargoGrid({
             )}
           >
             <div className="flex items-start justify-between gap-3">
-              <Link
-                href={`/app/cargo/${cell.trackingNumber}`}
-                className="font-mono text-sm font-semibold hover:text-brand"
-              >
-                {cell.trackingNumber}
-              </Link>
+              <span className="flex min-w-0 items-center gap-2">
+                {/* Ticked to be taped together — see `picked`. Offered only on
+                    the floor that may do it, so every other reader's list is
+                    exactly as it was. */}
+                {canCombine ? (
+                  <input
+                    type="checkbox"
+                    checked={picked.has(cell.id)}
+                    onChange={() => toggle(cell.id)}
+                    aria-label={`${t("Combine packages")} ${cell.trackingNumber}`}
+                    className="h-5 w-5 shrink-0 accent-[var(--brand)]"
+                  />
+                ) : null}
+                <Link
+                  href={`/app/cargo/${cell.trackingNumber}`}
+                  className="truncate font-mono text-sm font-semibold hover:text-brand"
+                >
+                  {cell.trackingNumber}
+                </Link>
+              </span>
               <span className="shrink-0 text-xs">
                 {cell.verification === "EXCEPTION" ? (
                   <span className="font-medium text-destructive">{t("Flagged")}</span>
@@ -514,6 +586,11 @@ export function CargoGrid({
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
+                  {canCombine ? (
+                    <th className="w-9 px-3 py-2 font-medium">
+                      <span className="sr-only">{t("Combine packages")}</span>
+                    </th>
+                  ) : null}
                   <th className="px-3 py-2 font-medium">{t("Date received")}</th>
                   <th className="px-3 py-2 font-medium">{t("Tracking")}</th>
                   <th className="px-3 py-2 font-medium">{t("Customer")}</th>
@@ -564,6 +641,17 @@ export function CargoGrid({
                       cell.verification === "EXCEPTION" && "bg-destructive/5"
                     )}
                   >
+                    {canCombine ? (
+                      <td className="px-3 py-1.5">
+                        <input
+                          type="checkbox"
+                          checked={picked.has(cell.id)}
+                          onChange={() => toggle(cell.id)}
+                          aria-label={`${t("Combine packages")} ${cell.trackingNumber}`}
+                          className="h-4 w-4 accent-[var(--brand)]"
+                        />
+                      </td>
+                    ) : null}
                     <td className="whitespace-nowrap px-3 py-1.5 text-xs text-muted-foreground">
                       {cell.receivedLabel}
                     </td>

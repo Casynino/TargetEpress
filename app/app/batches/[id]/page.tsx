@@ -20,6 +20,7 @@ import { formatDate, formatDayMonth, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
+import { canCombinePackages } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cargoText, viewerLocale } from "@/lib/viewer";
 
@@ -311,6 +312,13 @@ export default async function LoadingTablePage({
               }))}
               batchId={batch.id}
               canPrintLabel={can(user.role, "label.print")}
+              /*
+                Taping boxes together, on the one cargo list China has in its
+                menu. Every row here is waiting for the flight, which is one of
+                the two states where a combine is allowed at all — the action
+                re-checks it, and re-checks custody, whatever this passes.
+              */
+              canCombine={canCombinePackages(user.role, "READY_TO_DEPART")}
             />
           </div>
         )}
