@@ -6,6 +6,7 @@ import { BILLED_INVOICE_STATUSES } from "@/lib/constants";
 import { creditForPeriod } from "@/lib/credit-queries";
 import { formatMonthYear, toNumber } from "@/lib/format";
 import { BASE_CURRENCY, currentRateValue } from "@/lib/fx";
+import { moneyOutRows } from "@/lib/ledger";
 import type { Locale } from "@/lib/locale";
 import {
   LOCAL_CURRENCY,
@@ -191,6 +192,7 @@ export async function profitAndLoss(window: ProfitWindow) {
     byCategory,
     special,
     transferFees,
+    compensations,
     credit,
   ] = await Promise.all([
     // Accrual revenue: bills raised in the window that Finance has confirmed.
@@ -260,7 +262,15 @@ export async function profitAndLoss(window: ProfitWindow) {
          revenue. The reversal on the ledger says the same thing on the cash
          side; this keeps the P&L agreeing with it. */
       where: { paidAt: range, voidedAt: null },
-      select: { creditedAmount: true, amount: true },
+      /* transportAmount and its rate, because creditedAmount is the cargo half
+         and the delivery half landed in the account too — see cashIn. */
+      select: {
+        creditedAmount: true,
+        amount: true,
+        currency: true,
+        transportAmount: true,
+        exchangeRate: true,
+      },
     }),
     // Accrual costs: dated when the cost was incurred, which is what puts a
     // flight's customs bill in the month it flew rather than the month it was
@@ -274,15 +284,22 @@ export async function profitAndLoss(window: ProfitWindow) {
       shillings and it reads TSh 20,007 — a figure the owner never typed. The
       error is per row, so the busiest month drifts furthest.
     */
-    // Cash out: money that actually left an account — ALL of it, including the
-    // special class. Profit and cash answer different questions: a
-    // non-operating payment does not belong in the margin, but it absolutely
-    // left the bank, and a cash figure that pretends otherwise will not
-    // reconcile against a statement.
-    prisma.expense.findMany({
-      where: { paidAt: range, status: "PAID" },
-      select: { amount: true, currency: true, amountUsd: true },
-    }),
+    /*
+      Cash out: money that actually left an account — ALL of it, including the
+      special class. Profit and cash answer different questions: a
+      non-operating payment does not belong in the margin, but it absolutely
+      left the bank, and a cash figure that pretends otherwise will not
+      reconcile against a statement.
+
+      Which is why it cannot be read off the Expense table. A customer paid
+      back after a claim, and a delivery fare passed to whoever drives, are
+      both money gone out of a till with no expense behind them — so this
+      figure sat below the register's own Money out on every month that had
+      either, on the one line whose whole job is to reconcile against a
+      statement. The register is the source, through the definition every
+      money screen in the app now shares.
+    */
+    moneyOutRows({ from: window.from, to: window.to }),
     /* Grouped in code for the same reason: GROUP BY would sum the snapshots. */
     prisma.expense.findMany({
       where: {
@@ -321,6 +338,31 @@ export async function profitAndLoss(window: ProfitWindow) {
       where: { occurredAt: range, fee: { gt: 0 } },
       select: { fee: true, fromAccount: { select: { currency: true } } },
     }),
+    /*
+      WHAT WAS PAID BACK TO CUSTOMERS.
+
+      Exactly the argument the bank charges above are counted on. A claim
+      settled is company money leaving a company account against cargo that was
+      lost, damaged or short — as real a cost as fuel — and it passes through
+      no expense row, because Finance records it on the case rather than as a
+      purchase. So it reduced cash and appeared in no cost line, which
+      overstates profit by the whole of every claim ever paid.
+
+      Dated by the day it was paid, because that is the only date the register
+      carries for it. Cancelled payouts are excluded the way every other
+      figure in this app excludes them: the reversing line and the line it
+      answers both drop out.
+    */
+    prisma.ledgerEntry.findMany({
+      where: {
+        direction: "OUT",
+        kind: "COMPENSATION",
+        occurredAt: range,
+        reversesId: null,
+        reversedBy: { is: null },
+      },
+      select: { amount: true, currency: true, amountUsd: true },
+    }),
     // The credit inside the revenue above, on the revenue line's own window and
     // the revenue line's own treatment of a write-off. Asked of the credit
     // engine, never worked out here.
@@ -330,11 +372,30 @@ export async function profitAndLoss(window: ProfitWindow) {
   const writtenOffPaid = toNumber(writtenOff._sum.amountPaid);
   const revenue = toNumber(billed._sum.total) + writtenOffPaid;
   const writtenOffUsd = toNumber(writtenOff._sum.total) - writtenOffPaid;
-  const cashIn = collected.reduce(
-    (sum, payment) =>
-      sum + toNumber(payment.creditedAmount ?? payment.amount),
-    0
-  );
+  /*
+    THE FARE LANDED TOO, AND IT LEAVES AGAIN BELOW.
+
+    creditedAmount is the cargo half of what the customer sent. A customer
+    settling a consignment often sends the freight and the delivery in one
+    transfer, and the whole lump reached the account — so cash in said less
+    than the register's Money in for the month, while cashOut now carries the
+    fare going back out to whoever drives. Both sides or neither: counting the
+    fare on one only makes the month's net cash wrong by every delivery.
+
+    Restated at the rate the payment itself settled at, so the two sides speak
+    about the same money at the same rate. A fare that arrived in shillings
+    against a shilling bill has no frozen rate and is converted at today's,
+    the same treatment sumUsd gives any other shilling row.
+  */
+  const paymentRate = await currentRateValue();
+  const cashIn = collected.reduce((sum, payment) => {
+    const cargo = toNumber(payment.creditedAmount ?? payment.amount);
+    const fare = toNumber(payment.transportAmount);
+    if (fare === 0) return sum + cargo;
+    if (payment.currency === BASE_CURRENCY) return sum + cargo + fare;
+    const at = toNumber(payment.exchangeRate) || paymentRate;
+    return sum + cargo + (at ? fare / at : 0);
+  }, 0);
 
   /*
     A fee is recorded in the source account's currency: dollars on the one USD
@@ -376,8 +437,11 @@ export async function profitAndLoss(window: ProfitWindow) {
   /* The same rows the category breakdown below is built from — they used to be
      fetched a second time with one column fewer, which is a whole extra read of
      every operating cost in the window for nothing. */
-  const costs = sumUsd(asRows(byCategory), rate) + feeUsd;
-  const costsLocal = sumShillings(asRows(byCategory), rate) + feeLocal;
+  const compensationUsd = sumUsd(asRows(compensations), rate);
+  const compensationLocal = sumShillings(asRows(compensations), rate);
+  const costs = sumUsd(asRows(byCategory), rate) + feeUsd + compensationUsd;
+  const costsLocal =
+    sumShillings(asRows(byCategory), rate) + feeLocal + compensationLocal;
   const cashOut = sumUsd(asRows(paidOut), rate) + feeUsd;
   const cashOutLocal = sumShillings(asRows(paidOut), rate) + feeLocal;
 
@@ -471,6 +535,10 @@ export async function profitAndLoss(window: ProfitWindow) {
     cashOut,
     netCash: cashIn - cashOut,
     bankCharges: feeUsd,
+    /* Reported on its own line for the same reason bank charges are: it is
+       inside `costs` and inside nothing on the Expenses page, so a reader
+       comparing the two needs a name for the difference. */
+    compensationPaid: compensationUsd,
     /*
       The same figures in shillings, for the screens that lead in them.
 

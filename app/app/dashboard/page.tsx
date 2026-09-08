@@ -87,7 +87,7 @@ import { outstandingOf } from "@/lib/invoice-balance";
 import { t } from "@/lib/i18n";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { activeAccounts } from "@/lib/accounts";
-import { accountBalances } from "@/lib/ledger";
+import { accountBalances, moneyOutRows } from "@/lib/ledger";
 import {
   agingInWarehouse,
   attentionItems,
@@ -1607,29 +1607,15 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       select: { amount: true, currency: true, amountUsd: true },
     }),
     /*
-      WHAT WENT OUT, NOT WHAT MOVED.
+      WHAT WENT OUT, NOT WHAT MOVED — and the same definition Finance reads.
 
-      Every OUT line was counted here, which meant shifting money from the till
-      to the bank read as spending it, and cancelling a customer payment — a
-      reversing OUT line dated today — read as spending it too. Only real
-      outgoings count: costs and what the company paid a customer back.
-      Reversing lines are excluded by the same test, since a reversal answers a
-      line that was already counted or was never spending at all.
+      Every OUT line was counted here once, which meant carrying money from the
+      till to the bank read as spending it. Narrowing that to costs and refunds
+      fixed the transfer and lost the delivery fare, which is money out of a
+      till with no expense behind it. Both mistakes now live one place, where
+      the Finance overview reads them too — see MONEY_OUT_KINDS.
     */
-    prisma.ledgerEntry.findMany({
-      where: {
-        direction: "OUT",
-        occurredAt: { gte: monthStart },
-        kind: { in: ["EXPENSE", "COMPENSATION"] },
-        /* Not a reversal, and not a line that has been reversed. Cancelling a
-           cost answers its line with an ADJUSTMENT going the other way, so
-           without the second test the cancelled cost stays in the month's
-           spending and the money that came back is not shown at all. */
-        reversesId: null,
-        reversedBy: { is: null },
-      },
-      select: { amount: true, currency: true, amountUsd: true },
-    }),
+    moneyOutRows({ from: monthStart }),
     /* The credit book, from the one place that computes it — the same figures
        the settlements page prints, so the desk cannot read one number here and a
        different one there. */
@@ -2080,7 +2066,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
           }
           hint={t(
             locale,
-            "Fuel, customs, the clearing agent, rent — what has actually left an account since the 1st."
+            "Fuel, customs, rent, a customer paid back, a delivery fare handed on — everything that has actually left an account since the 1st. Money carried between our own accounts is not spending and is not counted."
           )}
           href="/app/finance/transactions?direction=OUT&period=month"
         />

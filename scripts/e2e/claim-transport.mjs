@@ -85,7 +85,14 @@ const shown = await page.evaluate((fare) => {
   return el.parentElement?.innerText.replace(/\s+/g, " ") ?? null;
 }, fare);
 await wait(600);
-const preview = await page.evaluate(() => document.getElementById("sub-transport")?.parentElement?.innerText.replace(/\s+/g, " ") ?? "");
+/* The split is stated below the two fields, not beside the box — the fare and
+   the till it is settled from share a row now, so the sentence belongs to the
+   dialog rather than to the input's own parent. */
+const preview = await page.evaluate(() => {
+  const field = document.getElementById("sub-transport");
+  const panel = field?.closest('[role="dialog"]') ?? field?.closest("form") ?? document.body;
+  return panel.innerText.replace(/\s+/g, " ");
+});
 preview.includes((total - fare).toLocaleString())
   ? ok(`the dialog says the bill gets the rest: ${(total - fare).toLocaleString()}`)
   : bad(`the dialog does not show ${(total - fare).toLocaleString()} — it says "${preview}"`);

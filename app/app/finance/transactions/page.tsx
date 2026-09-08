@@ -740,7 +740,7 @@ export default async function LedgerPage({
             v: shillings(outTsh, outUsd),
             tone: "text-destructive",
             wash: "from-destructive/10",
-            hint: t(locale, "Costs paid and money moved out"),
+            hint: t(locale, "Costs, refunds, transport passed on — and moves between our own accounts"),
           },
           {
             k: t(locale, "Net"),

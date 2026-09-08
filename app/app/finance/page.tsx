@@ -41,7 +41,7 @@ import { currentRate, formatUsd } from "@/lib/fx";
 import { formatShillingTotal, LOCAL_CURRENCY } from "@/lib/money";
 import { figureSize } from "@/lib/figure-size";
 import { t } from "@/lib/i18n";
-import { accountBalances } from "@/lib/ledger";
+import { accountBalances, moneyOutRows } from "@/lib/ledger";
 import {
   agingInWarehouse,
   cashFlowByMonth,
@@ -136,8 +136,8 @@ export default async function FinanceOverviewPage() {
       /* `currency`, because a shilling payment must be added up as shillings —
          see lib/money-totals.ts. Without it this tile disagreed with the
          ledger's own MONEY IN by four shillings on the same month. */
-      /* transportAmount, because `amount` is the WHOLE transfer and part of it
-         was never the company's — see the shilling sum below. */
+      /* transportAmount, because the dollar column is the cargo half while
+         `amount` is the whole transfer — see the sum below. */
       select: {
         amount: true,
         creditedAmount: true,
@@ -173,13 +173,17 @@ export default async function FinanceOverviewPage() {
           select: { amount: true, creditedAmount: true },
         })
       : Promise.resolve(null),
-    seesCompanyMoney
-      ? prisma.expense.groupBy({
-          by: ["currency"],
-          where: { status: "PAID", paidAt: { gte: monthStart } },
-          _sum: { amount: true, amountUsd: true },
-        })
-      : Promise.resolve(null),
+    /*
+      WHAT LEFT, NOT WHAT WAS FILED AS A COST.
+
+      This tile added up the Expense table, so it could only ever show costs.
+      A customer paid back and a delivery fare handed to a driver are money
+      out of a till with no expense behind them, and both were invisible here
+      while the general ledger counted them — one business, two answers, on
+      the same month. The register is the source now, through the definition
+      every screen shares.
+    */
+    seesCompanyMoney ? moneyOutRows({ from: monthStart }) : Promise.resolve(null),
     seesCompanyMoney
       ? prisma.expense.groupBy({
           by: ["currency"],
@@ -207,28 +211,32 @@ export default async function FinanceOverviewPage() {
     stay for the cards that state one, and for the no-rate fallback.
   */
   /*
-    THE FARE IS NOT COLLECTION, AND NOT NET.
+    THE FARE IS IN, AND IT IS ALSO OUT.
 
-    The dollar side of these cards reads creditedAmount, which is already the
-    cargo half, so it was right. The shilling side read `amount` — the whole
-    transfer — so every delivery fare a customer sent counted as money the
-    business took in, while the matching payment out of the till counts as
-    nothing on this page at all. "Collected this month" and "Net this month"
-    were both overstated by every fare, in the currency the owner actually
-    reads them in.
+    A customer settling a consignment often sends the freight and the delivery
+    in one transfer. The whole lump landed in an account, so it is money in —
+    the same figure the register's MONEY IN shows for the month. The delivery
+    half is then handed to whoever drives, and that leg is counted in Out this
+    month below. Both sides or neither: taking the fare off this card while
+    the payment out of the till was counted nowhere made a month of transport
+    look like money the business kept.
   */
-  const collectedMonthTsh = sumShillings(
-    collectedThisMonth.map((p) => ({
-      currency: p.currency,
-      amount: toNumber(p.amount) - toNumber(p.transportAmount),
-      amountUsd: p.creditedAmount ?? p.amount,
-    })),
-    rate
-  );
-  const collectedMonth = collectedThisMonth.reduce(
-    (sum, p) => sum + toNumber(p.creditedAmount ?? p.amount),
-    0
-  );
+  const monthPayments = collectedThisMonth.map((p) => ({
+    currency: p.currency,
+    /* The whole transfer, as it landed. */
+    amount: toNumber(p.amount),
+    /*
+      The dollar side of the same lump. creditedAmount is the cargo half, so
+      the fare is added back on — but only for money that arrived in dollars,
+      because sumUsd converts a shilling row from `amount` above and would
+      otherwise count the fare twice.
+    */
+    amountUsd:
+      toNumber(p.creditedAmount ?? p.amount) +
+      (p.currency === LOCAL_CURRENCY ? 0 : toNumber(p.transportAmount)),
+  }));
+  const collectedMonthTsh = sumShillings(monthPayments, rate);
+  const collectedMonth = sumUsd(monthPayments, rate);
   const clearedNotCollected = activeNotes.reduce(
     (sum, note) => sum + toNumber(note.shipment.invoice?.total ?? 0),
     0
@@ -260,11 +268,7 @@ export default async function FinanceOverviewPage() {
     (sum, p) => sum + toNumber(p.creditedAmount ?? p.amount),
     0
   );
-  const spendRows = (spendThisMonth ?? []).map((row) => ({
-    currency: row.currency,
-    amount: row._sum.amount,
-    amountUsd: row._sum.amountUsd,
-  }));
+  const spendRows = spendThisMonth ?? [];
   const owedRows = (unpaidCosts ?? []).map((row) => ({
     currency: row.currency,
     amount: row._sum.amount,
@@ -491,7 +495,7 @@ export default async function FinanceOverviewPage() {
               v: shillings(collectedMonthTsh, collectedMonth),
               tone: "text-success",
               wash: "from-success/10",
-              hint: t(locale, "Cargo money — transport not counted"),
+              hint: t(locale, "Everything that landed, transport included"),
             },
             ...(seesCompanyMoney
               ? [
@@ -500,7 +504,7 @@ export default async function FinanceOverviewPage() {
                     v: shillings(spentTsh, spentUsd),
                     tone: "text-destructive",
                     wash: "from-destructive/10",
-                    hint: t(locale, "Costs paid"),
+                    hint: t(locale, "Costs, refunds and transport passed on"),
                   },
                   {
                     k: t(locale, "Net this month"),

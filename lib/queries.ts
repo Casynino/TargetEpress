@@ -20,6 +20,8 @@ import type { ExceptionType } from "@prisma/client";
 import type { Locale } from "@/lib/locale";
 import { REJECTED_NEEDING_A_CALL } from "@/lib/collections";
 import { sequenceFromBatchNumber } from "@/lib/cargo";
+import { currentRateValue } from "@/lib/fx";
+import { MONEY_OUT_KINDS } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -368,12 +370,35 @@ export async function cashFlowByMonth(now = new Date(), locale: Locale = "en") {
   const year = now.getFullYear();
   const from = new Date(Date.UTC(year, 0, 1));
 
+  /* For the handful of fares that arrived in shillings against a shilling
+     bill, where no rate was frozen onto the payment itself. */
+  const published = await currentRateValue();
+  const fallbackRate = published && published > 0 ? published : null;
+
   const [inRows, outRows] = await Promise.all([
     prisma.$queryRaw<{ month: number; total: Prisma.Decimal }[]>(
       Prisma.sql`
         SELECT
-          EXTRACT(MONTH FROM "paidAt")::int                      AS month,
-          COALESCE(SUM(COALESCE("creditedAmount", "amount")), 0) AS total
+          EXTRACT(MONTH FROM "paidAt")::int AS month,
+          COALESCE(SUM(
+            COALESCE("creditedAmount", "amount")
+            /*
+              THE DELIVERY HALF, WHICH ALSO LANDED.
+
+              creditedAmount is the cargo half, so a bar built on it alone
+              showed a month taking in less than the register did — and the
+              fare leaving again is counted in Money out below. Restated at
+              the rate the payment itself settled at, so both bars speak
+              about the same money at the same rate.
+            */
+            + CASE
+                WHEN "transportAmount" = 0 THEN 0
+                WHEN "currency" = 'USD' THEN "transportAmount"
+                WHEN "exchangeRate" IS NOT NULL THEN "transportAmount" / "exchangeRate"
+                WHEN ${fallbackRate}::numeric IS NOT NULL THEN "transportAmount" / ${fallbackRate}::numeric
+                ELSE 0
+              END
+          ), 0) AS total
         FROM "Payment"
         WHERE "paidAt" >= ${from}
           AND "voidedAt" IS NULL
@@ -381,14 +406,30 @@ export async function cashFlowByMonth(now = new Date(), locale: Locale = "en") {
         ORDER BY 1
       `
     ),
+    /*
+      WHAT LEFT AN ACCOUNT, NOT WHAT WAS FILED AS A COST.
+
+      This bar read the Expense table, so it drew costs and nothing else: a
+      customer paid back and a delivery fare handed to a driver are money gone
+      with no expense behind them, and the chart showed a month spending less
+      than the register did on the same month. The register is the source now,
+      through the definition every money screen shares — and it dates the bar
+      by when the money actually moved rather than when the cost was incurred,
+      which is what a cash chart is.
+    */
     prisma.$queryRaw<{ month: number; total: Prisma.Decimal }[]>(
       Prisma.sql`
         SELECT
-          EXTRACT(MONTH FROM "incurredAt")::int AS month,
-          COALESCE(SUM("amountUsd"), 0)         AS total
-        FROM "Expense"
-        WHERE "incurredAt" >= ${from}
-          AND "status" <> 'VOID'
+          EXTRACT(MONTH FROM e."occurredAt")::int AS month,
+          COALESCE(SUM(e."amountUsd"), 0)         AS total
+        FROM "LedgerEntry" e
+        WHERE e."occurredAt" >= ${from}
+          AND e."direction" = 'OUT'
+          AND e."kind"::text = ANY(${MONEY_OUT_KINDS})
+          AND e."reversesId" IS NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM "LedgerEntry" r WHERE r."reversesId" = e."id"
+          )
         GROUP BY 1
         ORDER BY 1
       `

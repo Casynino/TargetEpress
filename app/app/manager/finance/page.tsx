@@ -312,6 +312,11 @@ export default async function ManagerFinance({
     { label: "Gross profit", value: grossProfit, strong: true },
     { label: "Operating expenses — no flight against them", value: -dash.expenses.officeUsd },
     { label: "Bank charges on our own transfers", value: -pl.bankCharges },
+    /* Same reason as the line above it: a claim settled is company money gone
+       against cargo that was lost or damaged, and it is recorded on the case
+       rather than as a purchase — so it is in the cost line and on no expense
+       list, and without a name here the two would not add up. */
+    { label: "Paid back to customers on claims", value: -pl.compensationPaid },
     {
       label: profitable ? "Net profit" : "Net loss",
       value: pl.profit,

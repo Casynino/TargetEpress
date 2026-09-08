@@ -523,7 +523,7 @@ export default async function ManagerHome() {
               label={t(locale, "Spent today")}
               usd={finance.expensesTodayUsd}
               rate={rate}
-              hint={t(locale, "costs booked since midnight")}
+              hint={t(locale, "everything that left an account since midnight")}
               icon={Banknote}
               href="/app/finance/expenses"
             />

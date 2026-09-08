@@ -632,7 +632,16 @@ export async function managerOverview(
     finance: {
       revenueTodayUsd: plToday.revenue,
       collectedTodayUsd: plToday.cashIn,
-      expensesTodayUsd: plToday.costs,
+      /*
+        WHAT LEFT TODAY, NOT WHAT WAS FILED AS A COST TODAY.
+
+        The tile beside it is cash collected, so this has to be cash paid or
+        the pair does not net to anything. `costs` is the accrual figure — it
+        dates a cost by the day it was incurred and knows nothing of a customer
+        refunded or a delivery fare passed on, both of which are money out of a
+        till today. `cashOut` is the register's own answer.
+      */
+      expensesTodayUsd: plToday.cashOut,
       expensesThisMonthUsd: fin.pl.costs,
       outstandingUsd: fin.position.receivableUsd,
       creditOutstandingUsd: credit.outstandingUsd,

@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import type { LedgerDirection, LedgerKind } from "@prisma/client";
 
 import { nextLedgerNumber } from "@/lib/ids";
+import { prisma } from "@/lib/prisma";
 import type { TxClient } from "@/lib/prisma";
 
 /**
@@ -147,4 +148,73 @@ export async function accountBalances(
     JOIN "CompanyAccount" a ON a."id" = e."accountId"
     GROUP BY e."accountId", a."currency"
   `);
+}
+
+/**
+ * MONEY THAT ACTUALLY LEFT THE BUSINESS.
+ *
+ * "What went out this month" was asked in three places and answered three
+ * different ways. The Finance overview added up the Expense table, so a
+ * customer refunded and a delivery fare handed to a driver — money genuinely
+ * gone out of a till — appeared nowhere on it. The owner's dashboard read the
+ * register but only for costs and refunds, so it missed the fare too. The
+ * general ledger counted every line and was the only one right, which is why
+ * it always showed more going out than the cards above it, on the same month,
+ * in the same business.
+ *
+ * One definition now, and it lives here. A movement is money out if it took
+ * money out of the company: a cost, a customer paid back, a fare passed on.
+ * A transfer between our own accounts is not — carrying cash from the tin to
+ * the bank spends nothing — and neither half of a cancelled pair is, since a
+ * reversal answers a line that was already counted.
+ */
+export const MONEY_OUT_KINDS = [
+  "EXPENSE",
+  "COMPENSATION",
+  /*
+    The delivery fare.
+
+    The customer sends it in the same transfer as the cargo money, so the
+    whole lump is in Money in — and it is handed straight to whoever drives,
+    so it has to be in Money out as well. Counting it on one side only makes
+    the business look like it kept shillings it never had.
+  */
+  "TRANSPORT_OUT",
+  /* A withdrawn feature left one row of this kind behind — TSh 100,000 that
+     really did leave CRDB. Nothing writes it any more, and leaving it out
+     would hide money that is gone. */
+  "EXECUTIVE_DRAW",
+] satisfies LedgerKind[];
+
+/**
+ * Those lines, as rows rather than a total.
+ *
+ * Rows, because shillings are added up as shillings and only foreign money
+ * goes through the dollar snapshot — see lib/money-totals.ts. A caller that
+ * wants one figure passes these to sumShillings or sumUsd; a caller that wants
+ * to say "4 payments out" counts them.
+ */
+export async function moneyOutRows(window: { from?: Date; to?: Date } = {}) {
+  const occurredAt =
+    window.from || window.to
+      ? {
+          ...(window.from ? { gte: window.from } : {}),
+          ...(window.to ? { lt: window.to } : {}),
+        }
+      : undefined;
+
+  return prisma.ledgerEntry.findMany({
+    where: {
+      direction: "OUT",
+      kind: { in: MONEY_OUT_KINDS },
+      ...(occurredAt ? { occurredAt } : {}),
+      /* Not a reversal, and not a line that has been reversed. Cancelling a
+         cost answers its line with one going the other way, so without the
+         second test the cancelled cost stays in the month's spending and the
+         money that came back is not shown at all. */
+      reversesId: null,
+      reversedBy: { is: null },
+    },
+    select: { amount: true, currency: true, amountUsd: true },
+  });
 }
