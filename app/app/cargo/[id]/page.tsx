@@ -1146,6 +1146,34 @@ export default async function ShipmentDetailPage({
             canChargeStorage={can(user.role, "invoice.edit")}
             invoiceTotal={shipment.invoice ? toNumber(shipment.invoice.total) : 0}
             canChangeRate={can(user.role, "invoice.rate")}
+            /*
+              THE PRICE PER KILO, WHICH IS NOT THE EXCHANGE RATE ABOVE IT.
+
+              `quotedRate` is the rate book's own figure for this cargo, stamped
+              when Dar priced it and never overwritten by an agreement — which
+              is what lets every screen print the two side by side instead of
+              passing the agreed one off as the price.
+
+              `chargeableKg` is what the freight was actually billed on, the
+              1 kg minimum already applied, so a 0.4 kg parcel agreed at 11.50
+              bills 11.50 and not 4.60. Per-item cargo is multiplied by its
+              pieces instead, the same way the rate book priced it.
+            */
+            standardRate={
+              shipment.quotedRate === null ? null : toNumber(shipment.quotedRate)
+            }
+            agreedRate={
+              shipment.invoice?.freightRateOverride == null
+                ? null
+                : toNumber(shipment.invoice.freightRateOverride)
+            }
+            agreedRateReason={shipment.invoice?.freightOverrideReason ?? null}
+            ratePerItem={shipment.quotedMethod === "FIXED_PER_ITEM"}
+            ratePricedOn={
+              shipment.quotedMethod === "FIXED_PER_ITEM"
+                ? shipment.packages
+                : toNumber(shipment.chargeableKg) || toNumber(shipment.weightKg)
+            }
             /* Credit granted means the cargo may go before the money does —
                without this the server can issue a credit note and no button in
                the interface can ask it to. */

@@ -11,9 +11,11 @@ import {
 } from "@/components/app/idempotency-key";
 import { PaymentProofField } from "@/components/app/payment-proof-field";
 import { PaymentDateField } from "@/components/app/payment-date-field";
+import { AgreedRate } from "@/components/app/agreed-rate";
 import { ChangeRate } from "@/components/app/change-rate";
 import { AddStorage } from "@/components/app/add-storage";
 import { PaymentDifference } from "@/components/app/payment-difference";
+import { EditFreightRate } from "@/components/app/edit-freight-rate";
 import { GiveDiscount } from "@/components/app/give-discount";
 import { TransportSplit } from "@/components/app/transport-split";
 import { WaiveStorage } from "@/components/app/waive-storage";
@@ -116,6 +118,24 @@ export type PaymentPanelProps = {
   invoiceTotal?: number;
   /** fx.manage — the same permission the invoice edit demands. */
   canChangeRate?: boolean;
+  /*
+    THE FREIGHT RATE AGREED FOR THIS CONSIGNMENT — not the exchange rate above.
+
+    Two different things called "rate" sit on this panel. `canChangeRate` moves
+    the USD→TZS figure a bill converts at; these move the price per kilo, or per
+    piece, that the freight was worked out from. Both change what the customer
+    owes, which is why both are Finance's.
+  */
+  /** The rate book's own rate for this cargo. Null where none was recorded. */
+  standardRate?: number | null;
+  /** What Finance agreed for this consignment, when they have. */
+  agreedRate?: number | null;
+  /** Why they agreed it, when the desk said. */
+  agreedRateReason?: string | null;
+  /** Per-piece cargo is priced per item, not per kilo. */
+  ratePerItem?: boolean;
+  /** The chargeable weight, or the piece count — what the rate multiplies. */
+  ratePricedOn?: number;
   /** DRAFT while the system's price is waiting on Finance to sign it off. */
   invoiceStatus: string | null;
   /**
@@ -517,6 +537,19 @@ export function PaymentPanel({
                 rate={props.invoiceRate}
               />
             ) : null}
+            {/* The price per kilo, beside the exchange rate it is not — see
+                the props' own note on the two things called "rate". */}
+            {props.canDiscount && props.invoiceId && (props.ratePricedOn ?? 0) > 0 ? (
+              <EditFreightRate
+                invoiceId={props.invoiceId}
+                currency={props.currency}
+                standard={props.standardRate ?? null}
+                agreed={props.agreedRate ?? null}
+                perItem={props.ratePerItem}
+                pricedOn={props.ratePricedOn ?? 0}
+                reason={props.agreedRateReason ?? null}
+              />
+            ) : null}
             {props.canChangeRate && props.invoiceId ? (
               <ChangeRate
                 invoiceId={props.invoiceId}
@@ -681,6 +714,32 @@ export function PaymentPanel({
               />
             </div>
           ) : null}
+          {/* The price per kilo or per piece this cargo was worked out from —
+              the conversation the desk is having when a large customer asks
+              for a figure, so it belongs beside the discount and not on a
+              screen away. */}
+          {props.canDiscount && props.invoiceId && (props.ratePricedOn ?? 0) > 0 ? (
+            <div className="text-xs">
+              <EditFreightRate
+                invoiceId={props.invoiceId}
+                currency={props.currency}
+                standard={props.standardRate ?? null}
+                agreed={props.agreedRate ?? null}
+                perItem={props.ratePerItem}
+                pricedOn={props.ratePricedOn ?? 0}
+                reason={props.agreedRateReason ?? null}
+              />
+            </div>
+          ) : null}
+          {/* And what was agreed, stated wherever the price is. A panel that
+              showed only the discounted figure would read as the price. */}
+          <AgreedRate
+            standard={props.standardRate ?? null}
+            agreed={props.agreedRate ?? null}
+            currency={props.currency}
+            perItem={props.ratePerItem}
+            reason={props.agreedRateReason ?? null}
+          />
           {/*
             NO STANDALONE WRITE-OFF ON THIS PANEL EITHER.
 

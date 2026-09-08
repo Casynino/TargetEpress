@@ -275,6 +275,11 @@ export async function submissionQueue(
           /* What is already off this bill, so the discount control opens on
              the truth rather than on zero. */
           discount: true,
+          /* The rate Finance agreed for this consignment, and why — so the
+             claim can both SAY a special rate was used and offer to change it
+             without sending the desk to the bill's own page. */
+          freightRateOverride: true,
+          freightOverrideReason: true,
           customer: { select: { id: true, name: true, phone: true } },
           /* The flight, because one customer sends on several of them and the
              desk has to know which consignment a transfer answers. Without it
@@ -285,6 +290,14 @@ export async function submissionQueue(
               trackingNumber: true,
               description: true,
               batch: { select: { batchNumber: true } },
+              /* What the rate book charged for this cargo and what it charged
+                 it ON — the figure an agreed rate is a departure FROM, printed
+                 beside it so a special price never reads as the price. */
+              quotedRate: true,
+              quotedMethod: true,
+              chargeableKg: true,
+              weightKg: true,
+              packages: true,
             },
           },
         },

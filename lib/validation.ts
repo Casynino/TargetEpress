@@ -225,6 +225,39 @@ export const discountSchema = z.object({
 });
 
 /**
+ * THE FREIGHT RATE AGREED FOR ONE CONSIGNMENT, AND ONLY THAT ONE.
+ *
+ * A large customer is given USD 11.50/kg where the rate book says 12.50. The
+ * desk types the rate they agreed — that is the number said on the phone — and
+ * the freight follows from it, at the weight or the piece count the rate book
+ * already priced this cargo on.
+ *
+ * `PricingRule` is untouched by this. It is one bill's price, never a new price
+ * list, and an empty rate clears it so the book stands again.
+ *
+ * Banded like every other rate here: a rate book runs from cents per item to a
+ * few hundred a kilo, and a mistyped digit that multiplies by a weight is a
+ * bill nobody notices until the customer does.
+ */
+export const freightRateSchema = z.object({
+  /** One bill. A rate belongs to a consignment, never to a list of them. */
+  invoiceId: z.string().min(1),
+  /* Empty clears the agreed rate and hands the bill back to the rate book. */
+  freightRate: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? Number(v) : null))
+    .refine(
+      (v) => v === null || (Number.isFinite(v) && v >= 0 && v <= 100_000),
+      "That rate is not a figure this rate book could hold."
+    ),
+  /* Optional — see discountSchema above. The rate before, the rate after and
+     the book's own rate are all on the audit line either way. */
+  reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
+});
+
+/**
  * Moving the rate a single bill is quoted at.
  *
  * Banded like every other rate in the app, so a mistyped digit is refused

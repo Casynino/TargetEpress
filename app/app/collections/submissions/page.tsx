@@ -21,6 +21,7 @@ import { outstandingOf } from "@/lib/invoice-balance";
 import { t } from "@/lib/i18n";
 import { formatLocal, formatUsd } from "@/lib/money";
 import { sumShillings, sumUsd, type MoneyRow } from "@/lib/money-totals";
+import { rateFactsOf } from "@/lib/agreed-rate";
 import { activeAccounts } from "@/lib/accounts";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -597,6 +598,9 @@ export default async function SubmissionsPage({
                         invoiceDiscount: toNumber(row.invoice.discount),
                         canDiscount,
                         canChangeRate,
+                        /* One derivation, shared with every other screen that
+                           states this — see lib/agreed-rate.ts. */
+                        ...rateFactsOf(row.invoice, row.invoice.shipment),
                         coversManyBills: row.allocations.length > 1,
                         customerName: row.invoice.customer.name,
                         customerPhone: row.invoice.customer.phone,

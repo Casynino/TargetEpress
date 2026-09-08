@@ -32,6 +32,9 @@ export function RowPriceEditor({
   weightKg,
   chargeableKg,
   freightOverride,
+  agreedRate,
+  perItem = false,
+  pieces = 1,
   storage,
   otherCharges,
   discount,
@@ -46,6 +49,12 @@ export function RowPriceEditor({
   /** What the freight was actually billed on — 1 kg minimum applied. */
   chargeableKg?: number;
   freightOverride: number | null;
+  /** The rate Finance agreed for this consignment, if they have. */
+  agreedRate?: number | null;
+  /** Per-piece cargo is priced per item, not per kilo. */
+  perItem?: boolean;
+  /** How many pieces, for the per-item rates. */
+  pieces?: number;
   storage: number;
   otherCharges: number;
   discount: number;
@@ -62,11 +71,32 @@ export function RowPriceEditor({
   const [freight, setFreight] = useState(
     freightOverride === null ? "" : String(freightOverride)
   );
+  /*
+    THE RATE, WHICH IS THE NUMBER ACTUALLY AGREED.
+
+    A large customer is given 11.50 where the book says 12.50. That is what was
+    said on the phone; the freight is what falls out of it. Typing the rate and
+    letting the total follow is both fewer keystrokes and the figure the desk
+    can check against what they promised.
+
+    Typing a freight directly still works and clears the rate — a total nobody
+    derived from a rate should not claim to have been.
+  */
+  const [rate, setRate] = useState(agreedRate === null || agreedRate === undefined ? "" : String(agreedRate));
+  /* What the rate book prices this cargo on: pieces, or the chargeable weight
+     with the 1 kg minimum already applied. */
+  const pricedOn = perItem ? pieces : (chargeableKg ?? weightKg);
+  const standardRate = pricedOn > 0 ? rateBookFreight / pricedOn : null;
+  const unit = perItem ? t("per item") : t("per kg");
   const [extra, setExtra] = useState(otherCharges ? String(otherCharges) : "");
   const [off, setOff] = useState(discount ? String(discount) : "");
 
   const n = (v: string) => (v.trim() === "" ? 0 : Number(v));
-  const effectiveFreight = freight.trim() === "" ? rateBookFreight : n(freight);
+  /* A typed rate wins, exactly as it does on the server. */
+  const fromRate =
+    rate.trim() === "" ? null : Math.round(n(rate) * pricedOn * 100) / 100;
+  const effectiveFreight =
+    fromRate ?? (freight.trim() === "" ? rateBookFreight : n(freight));
   const preview = effectiveFreight + storage + n(extra) - n(off);
 
   if (!open) {
@@ -143,14 +173,65 @@ export function RowPriceEditor({
           </a>
         </p>
 
+        {/*
+          THE RATE, ON ITS OWN LINE, ABOVE THE TOTALS IT PRODUCES.
+
+          The owner's flow: open the cargo, type the rate agreed with the
+          customer, save. So the rate is the first thing on the form and the
+          freight below follows it — rather than making the desk multiply
+          11.50 by 3.4 kg in their head and type the answer.
+        */}
+        {canOverride && pricedOn > 0 ? (
+          <label className="block space-y-0.5">
+            <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">
+              {t("Rate")} {unit}
+            </span>
+            <MoneyInput
+              id={`rate-${invoiceId}`}
+              name="freightRateOverride"
+              decimals={2}
+              value={rate}
+              onValueChange={(raw) => {
+                setRate(raw);
+                /* The freight box is the derived figure while a rate is
+                   typed; clearing the rate hands it back. */
+                setFreight("");
+              }}
+              placeholder={standardRate === null ? "" : standardRate.toFixed(2)}
+            />
+            <span className="block text-[11px] text-muted-foreground">
+              {rate.trim() === "" ? (
+                <>
+                  {t("Standard")}{" "}
+                  <span className="tabular-nums text-foreground">
+                    {currency} {standardRate === null ? "—" : standardRate.toFixed(2)} {unit}
+                  </span>
+                </>
+              ) : (
+                <span className="tabular-nums">
+                  {n(rate).toFixed(2)} × {perItem ? pieces : formatWeight(pricedOn)}{" "}
+                  ={" "}
+                  <span className="font-semibold text-foreground">
+                    {currency} {(fromRate ?? 0).toLocaleString()}
+                  </span>
+                </span>
+              )}
+            </span>
+          </label>
+        ) : null}
+
         <div className="flex gap-2">
           {[
             {
               id: `freight-${invoiceId}`,
               name: "freightOverride",
               label: t("Freight"),
-              value: freight,
-              set: setFreight,
+              value: fromRate === null ? freight : fromRate.toFixed(2),
+              set: (v: string) => {
+                setFreight(v);
+                /* A total typed by hand is not a rate anybody agreed. */
+                setRate("");
+              },
               placeholder: rateBookFreight.toFixed(2),
               disabled: !canOverride,
             },

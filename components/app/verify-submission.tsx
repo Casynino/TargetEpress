@@ -12,7 +12,9 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { MoneyInput } from "@/components/ui/money-input";
 import { PaymentDateField } from "@/components/app/payment-date-field";
 import { PaymentProofField } from "@/components/app/payment-proof-field";
+import { AgreedRate } from "@/components/app/agreed-rate";
 import { ChangeRate } from "@/components/app/change-rate";
+import { EditFreightRate } from "@/components/app/edit-freight-rate";
 import { GiveDiscount } from "@/components/app/give-discount";
 import { PaymentDifference } from "@/components/app/payment-difference";
 import { TransportSplit } from "@/components/app/transport-split";
@@ -79,6 +81,19 @@ export function VerifySubmission({
     canDiscount: boolean;
     canChangeRate: boolean;
     canAdjust: boolean;
+    /*
+      THE PRICE PER KILO — not the exchange rate beside it.
+
+      Two things here are called a rate: canChangeRate moves what the bill
+      converts at, these are what the freight was worked out from. A claim
+      answering several bills carries none of them, because a rate belongs to
+      one consignment and there is no single answer across three.
+    */
+    standardRate: number | null;
+    agreedRate: number | null;
+    agreedRateReason: string | null;
+    ratePerItem: boolean;
+    ratePricedOn: number;
   } | null;
   accounts: { id: string; name: string; currency: string }[];
   /**
@@ -405,6 +420,21 @@ export function VerifySubmission({
           </div>
         ) : null}
 
+        {/* The price per kilo, where Finance is deciding the figure. */}
+        {bill?.canDiscount && bill.ratePricedOn > 0 ? (
+          <div className="text-xs">
+            <EditFreightRate
+              invoiceId={bill.invoiceId}
+              currency={billCurrency}
+              standard={bill.standardRate}
+              agreed={bill.agreedRate}
+              perItem={bill.ratePerItem}
+              pricedOn={bill.ratePricedOn}
+              reason={bill.agreedRateReason}
+            />
+          </div>
+        ) : null}
+
         {bill?.canChangeRate ? (
           <div className="text-xs">
             <ChangeRate
@@ -414,6 +444,18 @@ export function VerifySubmission({
               total={bill.total}
             />
           </div>
+        ) : null}
+
+        {/* And what was agreed, so a figure built on a special rate can never
+            be confirmed without the desk being told it is one. */}
+        {bill ? (
+          <AgreedRate
+            standard={bill.standardRate}
+            agreed={bill.agreedRate}
+            currency={billCurrency}
+            perItem={bill.ratePerItem}
+            reason={bill.agreedRateReason}
+          />
         ) : null}
 
         {/* WHAT THIS SETTLES, AT THE RATE FROZEN ON THE BILL.

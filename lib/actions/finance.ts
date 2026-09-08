@@ -53,6 +53,7 @@ import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import {
   discountSchema,
+  freightRateSchema,
   invoiceRateSchema,
   customerPaymentSchema,
   firstError,
@@ -234,6 +235,10 @@ export async function generateInvoice(
         // ignored. A stored override the total does not honour is a row that
         // contradicts itself, and the invoice document reads one of the two.
         freightOverride: null,
+        /* The rate the override was worked out from goes with it. Left
+           standing, a re-priced bill would still claim a special rate on every
+           screen that reads the column, against a total built from the book. */
+        freightRateOverride: null,
         freightOverrideReason: null,
         total: new Prisma.Decimal(total),
         exchangeRate: rate === null ? null : new Prisma.Decimal(rate),
@@ -341,6 +346,7 @@ export async function confirmInvoicePrice(
           discount: true,
           otherCharges: true,
           freightOverride: true,
+          freightRateOverride: true,
           /* The three the deposit needs: whose money may settle this, in what
              currency, and what has already been put against it. */
           customerId: true,
@@ -807,6 +813,26 @@ export async function adjustInvoice(
         (v) => v === null || (Number.isFinite(v) && v >= 0),
         "That freight amount is not valid."
       ),
+    /**
+     * THE RATE FINANCE AGREED, RATHER THAN THE TOTAL.
+     *
+     * A large customer is given USD 11.50/kg where the book says 12.50. The
+     * desk should type the rate they agreed — that is the number said on the
+     * phone — and the freight follows from it, at the chargeable weight or the
+     * piece count the rate book prices on.
+     *
+     * The rate book itself is untouched: this is one consignment's price, not
+     * a new price list. An empty string clears it and the book stands again.
+     */
+    freightRateOverride: z
+      .string()
+      .trim()
+      .optional()
+      .transform((v) => (v && v.length > 0 ? Number(v) : null))
+      .refine(
+        (v) => v === null || (Number.isFinite(v) && v >= 0),
+        "That rate is not valid."
+      ),
     freightOverrideReason: z.string().trim().optional(),
     /**
      * The storage charge, as Finance decides it should stand.
@@ -847,6 +873,7 @@ export async function adjustInvoice(
           invoiceNumber: true,
           freightCost: true,
           freightOverride: true,
+          freightRateOverride: true,
           storageCharge: true,
           storageWaivedUsd: true,
           storageWaiveReason: true,
@@ -873,6 +900,15 @@ export async function adjustInvoice(
               cargoTypeId: true,
               weightKg: true,
               packages: true,
+              /* What the rate book prices this cargo ON — per kilo, or per
+                 piece — so an agreed rate can be turned into a freight figure
+                 the same way the rate book turned its own rate into one. */
+              quotedMethod: true,
+              chargeableKg: true,
+              /* The rate book's own rate for this cargo — the figure an agreed
+                 rate is a departure FROM, and what every screen prints beside
+                 it so a discount never reads as the original price. */
+              quotedRate: true,
               /* Whether the boxes are cleared to leave, and on what — a bill
                  corrected upward has to be able to stop them. */
               status: true,
@@ -926,7 +962,16 @@ export async function adjustInvoice(
         invoice.freightOverride === null
           ? null
           : toNumber(invoice.freightOverride);
-      const overrideChanged = input.freightOverride !== previousOverride;
+      const previousAgreedRate =
+        invoice.freightRateOverride === null
+          ? null
+          : toNumber(invoice.freightRateOverride);
+      /* Either way of moving the freight is the same authority: a rate agreed
+         for one consignment changes what the customer owes exactly as much as
+         a typed total does. */
+      const overrideChanged =
+        input.freightOverride !== previousOverride ||
+        input.freightRateOverride !== previousAgreedRate;
 
       /*
         ANY MOVE OF THE FREIGHT FIGURE, NOT ONLY SETTING ONE.
@@ -1002,7 +1047,36 @@ export async function adjustInvoice(
         figure of its own simply does not tick it.
       */
       const repricing = Boolean(input.repriceFromWeight);
-      const overrideNow = repricing ? null : input.freightOverride;
+
+      /*
+        AN AGREED RATE IS A FREIGHT FIGURE, WORKED OUT THE SAME WAY.
+
+        The rate book multiplies its rate by the chargeable weight, or by the
+        piece count for the per-item rates. A rate Finance agreed for this one
+        consignment is multiplied by exactly the same quantity, so the two are
+        comparable and the desk never has to do the arithmetic.
+
+        `chargeableKg` is what the bill was actually raised on — the 1 kg
+        minimum already applied — so a 0.4 kg parcel agreed at 11.50 bills
+        11.50, not 4.60. Falling back to the scale weight only for a bill
+        raised before that column existed.
+      */
+      const pricedOn =
+        invoice.shipment.quotedMethod === "FIXED_PER_ITEM"
+          ? invoice.shipment.packages
+          : toNumber(invoice.shipment.chargeableKg) ||
+            toNumber(invoice.shipment.weightKg);
+      const agreedRate = repricing ? null : input.freightRateOverride;
+      const fromAgreedRate =
+        agreedRate === null
+          ? null
+          : Math.round(agreedRate * pricedOn * 100) / 100;
+
+      /* A typed rate wins over a typed total: it is the more specific answer,
+         and it is the one the desk actually agreed with the customer. */
+      const overrideNow = repricing
+        ? null
+        : (fromAgreedRate ?? input.freightOverride);
       const freight = overrideNow ?? rateBookFreightNow;
       /*
         Storage: the clock proposes, Finance decides.
@@ -1120,6 +1194,12 @@ export async function adjustInvoice(
           otherCharges: new Prisma.Decimal(input.otherCharges),
           freightOverride:
             overrideNow === null ? null : new Prisma.Decimal(overrideNow),
+          /* Kept beside the freight it produced, so every screen can say what
+             was agreed per kilo rather than making somebody divide a total by
+             a weight to find out. Cleared with the override, and null when the
+             desk typed a total instead of a rate. */
+          freightRateOverride:
+            agreedRate === null ? null : new Prisma.Decimal(agreedRate),
           freightOverrideReason:
             overrideNow === null ? null : input.freightOverrideReason || null,
           /*
@@ -1331,6 +1411,10 @@ export async function adjustInvoice(
               exchangeRate:
                 invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate),
               notes: invoice.notes,
+              /* The whole rate story, so the log answers "what was agreed and
+                 what does the book say" without anybody opening the bill. */
+              agreedRate: previousAgreedRate,
+              freightOverride: previousOverride,
             },
             after: {
               discount: input.discount,
@@ -1338,6 +1422,20 @@ export async function adjustInvoice(
               otherCharges: input.otherCharges,
               exchangeRate: rate,
               notes: input.notes ?? null,
+              agreedRate,
+              freightOverride: overrideNow,
+              /* Named rather than left to be worked out from the two above:
+                 the book's own rate for this cargo, and what the agreed one
+                 takes off it per kilo or per piece. */
+              standardRate:
+                invoice.shipment.quotedRate === null
+                  ? null
+                  : toNumber(invoice.shipment.quotedRate),
+              ratePricedOn: pricedOn,
+              rateUnit:
+                invoice.shipment.quotedMethod === "FIXED_PER_ITEM"
+                  ? "item"
+                  : "kg",
             },
           },
         },
@@ -1615,6 +1713,247 @@ export async function applyInvoiceDiscount(
     revalidatePath("/app/collections/follow-up");
     revalidatePath("/app/cargo");
     return ok({ total: result.total });
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
+/**
+ * THE FREIGHT RATE FINANCE AGREED FOR ONE CONSIGNMENT.
+ *
+ * A large customer is given USD 11.50/kg where the book says 12.50. Until now
+ * that meant leaving the payment, opening the bill, working out 11.50 x 3.4 kg
+ * by hand and typing the answer into a freight box — so the books recorded a
+ * total somebody computed and nothing at all about the rate they agreed.
+ *
+ * The desk types the RATE, because the rate is what was said on the phone, and
+ * the freight follows from it at the quantity the rate book already priced this
+ * cargo on: the chargeable weight, or the piece count for the per-item rates.
+ * Both figures are stored — see Invoice.freightRateOverride — so every screen
+ * can say "standard 12.50, agreed 11.50, one dollar off" instead of printing
+ * 11.50 as though it had always been the price.
+ *
+ * WHAT IT DOES NOT TOUCH. `PricingRule` is the rate book and is not read or
+ * written here: this is one bill's price, never a new price list, so the next
+ * consignment — this customer's or anybody else's — is quoted from the book
+ * exactly as before. `freightCost` keeps the book's own figure beside the
+ * agreed one, which is what makes the comparison possible at all.
+ *
+ * THE TOTAL IS REBUILT FROM ITS OWN PARTS, not re-derived. Storage, other
+ * charges and the discount stay exactly as they were: what moved is freight,
+ * so the new total is the old one with the old freight taken out and the new
+ * one put in. Repeating adjustInvoice's whole rebuild here would be a second
+ * definition of what a bill comes to, and the two would disagree the first
+ * time either changed.
+ */
+export async function setFreightRate(
+  _prev: ActionResult<{ total: number; freight: number }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ total: number; freight: number }>> {
+  const locale = await viewerLocale();
+  try {
+    /* The same permission a discount takes, and for the same reason: this is a
+       figure off a bill. ADMIN, MANAGER and FINANCE hold it; Customer Care
+       deliberately does not, and no warehouse role comes near it. Enforced
+       here because the action is reachable without the control. */
+    const user = await authorize("invoice.discount");
+    const parsed = freightRateSchema.safeParse(
+      Object.fromEntries(formData) as Record<string, string>
+    );
+    if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+    const input = parsed.data;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const invoice = await tx.invoice.findUnique({
+        where: { id: input.invoiceId },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          status: true,
+          currency: true,
+          total: true,
+          amountPaid: true,
+          amountAdjusted: true,
+          exchangeRate: true,
+          freightCost: true,
+          freightOverride: true,
+          freightRateOverride: true,
+          freightOverrideReason: true,
+          shipment: {
+            select: {
+              id: true,
+              trackingNumber: true,
+              status: true,
+              packages: true,
+              weightKg: true,
+              chargeableKg: true,
+              quotedMethod: true,
+              quotedRate: true,
+              quoteCurrency: true,
+              /* What holdCargoUntilSettled reads to decide whether the boxes
+                 can still be stopped, or have already gone out on a note. */
+              pickupNote: { select: { noteNumber: true, status: true } },
+            },
+          },
+        },
+      });
+      if (!invoice) throw new Error("That bill no longer exists.");
+
+      /*
+        WHAT THE RATE IS MULTIPLIED BY, DECIDED THE WAY THE RATE BOOK DECIDED IT.
+
+        Per-item cargo is priced per piece and everything else per kilo, so a
+        rate typed against a five-piece consignment must never be multiplied by
+        its weight. `chargeableKg` is what the bill was actually raised on, the
+        1 kg minimum already applied, so a 0.4 kg parcel agreed at 11.50 bills
+        11.50 rather than 4.60.
+      */
+      const perItem = invoice.shipment.quotedMethod === "FIXED_PER_ITEM";
+      const pricedOn = perItem
+        ? invoice.shipment.packages
+        : toNumber(invoice.shipment.chargeableKg) ||
+          toNumber(invoice.shipment.weightKg);
+      if (!perItem && pricedOn <= 0) {
+        throw new Error(
+          "This consignment has no confirmed weight yet, so a rate cannot be turned into a freight figure. Check it in against the manifest first."
+        );
+      }
+
+      const wasRate =
+        invoice.freightRateOverride === null
+          ? null
+          : toNumber(invoice.freightRateOverride);
+      const bookFreight = toNumber(invoice.freightCost);
+      const freightBefore = toNumber(invoice.freightOverride ?? invoice.freightCost);
+      const freightAfter =
+        input.freightRate === null
+          ? bookFreight
+          : Math.round(input.freightRate * pricedOn * 100) / 100;
+
+      /* Freight out, freight in, everything else untouched. */
+      const total =
+        Math.round((toNumber(invoice.total) - freightBefore + freightAfter) * 100) /
+        100;
+      const paid = toNumber(invoice.amountPaid);
+
+      if (total < 0) throw new Error("That rate leaves the bill below zero.");
+      if (total < paid - 0.005) {
+        throw new Error(
+          `${invoice.invoiceNumber} has ${invoice.currency} ${paid.toFixed(2)} paid against it, so it cannot be re-priced to ${total.toFixed(2)}. Handing the difference back is a refund, not a change of rate.`
+        );
+      }
+
+      const rate =
+        invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate);
+      const nextStatus = invoiceStatusFor(
+        invoice.status,
+        paid,
+        total,
+        toNumber(invoice.amountAdjusted)
+      );
+
+      /* The claim re-states what this transaction read, so two desks agreeing
+         two rates at once cannot both win — the second unwinds whole. */
+      const claimed = await tx.invoice.updateMany({
+        where: {
+          id: invoice.id,
+          amountPaid: invoice.amountPaid,
+          freightOverride: invoice.freightOverride,
+          freightRateOverride: invoice.freightRateOverride,
+        },
+        data: {
+          freightRateOverride:
+            input.freightRate === null
+              ? null
+              : new Prisma.Decimal(input.freightRate),
+          /* Cleared together with the rate: a bill handed back to the book has
+             no agreed figure of any kind on it. */
+          freightOverride:
+            input.freightRate === null ? null : new Prisma.Decimal(freightAfter),
+          freightOverrideReason:
+            input.freightRate === null ? null : input.reason || null,
+          total: new Prisma.Decimal(total),
+          totalLocal:
+            rate === null ? null : new Prisma.Decimal(toLocal(total, rate)),
+          ...(nextStatus ? { status: nextStatus } : {}),
+        },
+      });
+      if (claimed.count === 0) {
+        throw new Error(
+          "This bill changed a moment ago. Reload the page and look again."
+        );
+      }
+
+      /* A rate that puts the bill back up reopens a settled balance, and the
+         cargo goes back on the shelf with it — the same hold the correction
+         and storage doors use, so all three answer "may these boxes leave"
+         identically. */
+      const holdOutcome = await holdCargoUntilSettled(tx, {
+        shipment: invoice.shipment,
+        nextStatus,
+        actorId: user.id,
+        reason: `${invoice.invoiceNumber}: re-priced at an agreed rate. Held until the new balance is settled; the pickup note it holds stands.`,
+      });
+
+      const standardRate =
+        invoice.shipment.quotedRate === null
+          ? null
+          : toNumber(invoice.shipment.quotedRate);
+      const unit = perItem ? "item" : "kg";
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "invoice.freightRate",
+          entity: "Invoice",
+          entityId: invoice.id,
+          summary: withNote(
+            `${invoice.invoiceNumber} (${invoice.shipment.trackingNumber}): ` +
+              (input.freightRate === null
+                ? `agreed rate cleared, back to the rate book — freight ${freightBefore.toFixed(2)} → ${freightAfter.toFixed(2)} ${invoice.currency}`
+                : `rate ${wasRate === null ? `${standardRate === null ? "book" : standardRate.toFixed(2)}` : wasRate.toFixed(2)} → ` +
+                  `${input.freightRate.toFixed(2)} ${invoice.currency}/${unit} ` +
+                  `× ${pricedOn} ${perItem ? "pcs" : "kg"}, freight ` +
+                  `${freightBefore.toFixed(2)} → ${freightAfter.toFixed(2)}, bill now ${total.toFixed(2)}`),
+            input.reason
+          ),
+          metadata: {
+            /* The whole rate story on the line, so "what was agreed and what
+               does the book say" is answered without opening the bill. */
+            trackingNumber: invoice.shipment.trackingNumber,
+            standardRate,
+            rateBefore: wasRate,
+            rateAfter: input.freightRate,
+            rateDifference:
+              input.freightRate === null || standardRate === null
+                ? null
+                : Math.round((standardRate - input.freightRate) * 100) / 100,
+            rateUnit: unit,
+            pricedOn,
+            freightBefore,
+            freightAfter,
+            bookFreight,
+            totalBefore: toNumber(invoice.total),
+            totalAfter: total,
+            amountPaid: paid,
+            statusBefore: invoice.status,
+            statusAfter: nextStatus ?? invoice.status,
+            cargoHold: holdOutcome,
+            reason: input.reason ?? null,
+          },
+        },
+        tx
+      );
+
+      return { total, freight: freightAfter, invoiceId: invoice.id };
+    });
+
+    revalidatePath("/app/finance/invoices");
+    revalidatePath(`/app/finance/invoices/${result.invoiceId}`);
+    revalidatePath("/app/collections/follow-up");
+    revalidatePath("/app/finance/verify");
+    revalidatePath("/app/cargo");
+    return ok({ total: result.total, freight: result.freight });
   } catch (error) {
     return fail(t(locale, toActionError(error)));
   }

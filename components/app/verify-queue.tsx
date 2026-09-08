@@ -11,6 +11,7 @@ import {
   SelectAllTick,
 } from "@/components/app/bulk-select";
 import { verifySubmissions } from "@/lib/actions/submission-bulk";
+import { rateFactsOf } from "@/lib/agreed-rate";
 import { activeAccounts } from "@/lib/accounts";
 import { claimBatches, shortfallBill, submissionQueue } from "@/lib/collections";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
@@ -456,6 +457,9 @@ export async function VerifyQueue() {
                           invoiceDiscount: toNumber(row.invoice.discount),
                           canDiscount,
                           canChangeRate,
+                          /* One derivation, shared with every other screen
+                             that states this — see lib/agreed-rate.ts. */
+                          ...rateFactsOf(row.invoice, row.invoice.shipment),
                           coversManyBills: row.allocations.length > 1,
                           customerName: row.invoice.customer.name,
                           customerPhone: row.invoice.customer.phone,
@@ -512,6 +516,18 @@ export async function VerifyQueue() {
                           canDiscount,
                           canChangeRate,
                           canAdjust,
+                          /* A claim answering several bills has no single rate
+                             — see the prop's own note — so the control is
+                             withheld there rather than picking one of them. */
+                          ...(row.allocations.length > 1
+                            ? {
+                                standardRate: null,
+                                agreedRate: null,
+                                agreedRateReason: null,
+                                ratePerItem: false,
+                                ratePricedOn: 0,
+                              }
+                            : rateFactsOf(row.invoice, row.invoice.shipment)),
                         }}
                         accounts={accounts.map((a) => ({
                           id: a.id,

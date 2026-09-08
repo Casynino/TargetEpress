@@ -15,6 +15,10 @@ type Figures = {
   freightCost: Prisma.Decimal;
   storageDays: number;
   storageCharge: Prisma.Decimal;
+  /* Cleared, never carried — see the note where these are built. */
+  freightOverride: null;
+  freightRateOverride: null;
+  freightOverrideReason: null;
   total: Prisma.Decimal;
   exchangeRate: Prisma.Decimal | null;
   localCurrency: string;
@@ -185,6 +189,24 @@ export async function autoPriceShipments(
       freightCost: new Prisma.Decimal(quoted.total),
       storageDays,
       storageCharge: new Prisma.Decimal(storageCharge),
+      /*
+        A DRAFT RE-PRICED FROM THE BOOK CARRIES NO AGREED FIGURE.
+
+        `total` above is built from the book's freight, so an override left
+        standing is a row that contradicts itself: the bill's own page and its
+        PDF both print `freightOverride ?? freightCost` as the freight line,
+        and that line then stops summing to the total printed under it. A rate
+        column left behind is worse again — the consignment would claim a
+        special rate on every screen while being billed at the book's.
+
+        Check-in is re-runnable by design and this is the re-quote, so what a
+        desk agreed before the boxes were weighed is deliberately dropped. It
+        is DROPPED, not ignored: the audit line for the agreement is still on
+        the record, and Finance can agree it again against the real weight.
+      */
+      freightOverride: null,
+      freightRateOverride: null,
+      freightOverrideReason: null,
       total: new Prisma.Decimal(total),
       exchangeRate: rate === null ? null : new Prisma.Decimal(rate),
       localCurrency: LOCAL_CURRENCY,

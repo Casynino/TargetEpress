@@ -14,7 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { AgreedRate } from "@/components/app/agreed-rate";
 import { ChangeRate } from "@/components/app/change-rate";
+import { EditFreightRate } from "@/components/app/edit-freight-rate";
 import { GiveDiscount } from "@/components/app/give-discount";
 import { TransportSplit } from "@/components/app/transport-split";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,6 +63,20 @@ export type SubmissionSubject = {
   invoiceDiscount: number;
   canDiscount: boolean;
   canChangeRate: boolean;
+  /*
+    THE FREIGHT RATE — not the exchange rate beside it.
+
+    Two things on this dialog are called a rate: `canChangeRate` moves the
+    USD→TZS figure the bill converts at, and these are the price per kilo, or
+    per piece, the freight was worked out from. A claim covering several bills
+    carries none of them: a rate belongs to one consignment, and there is no
+    single answer across three.
+  */
+  standardRate: number | null;
+  agreedRate: number | null;
+  agreedRateReason: string | null;
+  ratePerItem: boolean;
+  ratePricedOn: number;
   customerName: string;
   customerPhone: string | null;
   amount: number;
@@ -605,6 +621,24 @@ export function SubmissionCorrection({
                           currency={subject.invoiceCurrency}
                           current={subject.invoiceDiscount}
                           rate={subject.invoiceRate}
+                        />
+                      </div>
+                    ) : null}
+                    {/* The price per kilo, where Hawa is already looking at
+                        what the customer sent. Not offered on a claim covering
+                        several bills — see the subject's own note. */}
+                    {subject.canDiscount &&
+                    !subject.coversManyBills &&
+                    subject.ratePricedOn > 0 ? (
+                      <div className="text-xs">
+                        <EditFreightRate
+                          invoiceId={subject.invoiceId}
+                          currency={subject.invoiceCurrency}
+                          standard={subject.standardRate}
+                          agreed={subject.agreedRate}
+                          perItem={subject.ratePerItem}
+                          pricedOn={subject.ratePricedOn}
+                          reason={subject.agreedRateReason}
                         />
                       </div>
                     ) : null}

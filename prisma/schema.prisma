@@ -1441,6 +1441,22 @@ model Invoice {
   /// number, and the point of the rate book is that every departure from it is
   /// visible and explained.
   freightOverride       Decimal?  @db.Decimal(12, 2)
+  /// THE RATE FINANCE AGREED FOR THIS CONSIGNMENT, AND ONLY THIS ONE.
+  ///
+  /// A large customer is given USD 11.50/kg where the book says 12.50. That is
+  /// a fact about one consignment, never about the rate book: `PricingRule` is
+  /// untouched, every other cargo keeps its own price, and the next booking is
+  /// quoted from the book as before.
+  ///
+  /// Stored beside the freight it produced rather than instead of it, for the
+  /// same reason `freightCost` survives an override: a bill that shows only
+  /// 11.50 reads as if that were the price all along. Both figures are kept so
+  /// every screen can say standard 12.50, agreed 11.50, one dollar off — and
+  /// so nobody has to divide a total by a weight to find out what was agreed.
+  ///
+  /// In the rate book's own unit: per kg for weight-priced cargo, per item for
+  /// the per-piece rates. `Shipment.quotedMethod` says which.
+  freightRateOverride   Decimal?  @db.Decimal(12, 2)
   freightOverrideReason String?
   /// Free storage runs out after a grace period; after that each day is
   /// chargeable. Both the count and the money are stored so an invoice can be
