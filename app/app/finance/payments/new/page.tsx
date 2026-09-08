@@ -602,6 +602,25 @@ export default async function RecordCustomerPaymentPage({
   const payableBills = bills.filter((bill) => bill.payable && !bill.claim);
   /* Today's published rate, for any bill that was raised without one. */
   const rate = await currentRateValue();
+  /*
+    ONE BILL'S SHARE OF THE REMINDER, IN SHILLINGS.
+
+    A bill raised before a rate was ever published carries none of its own, and
+    this quoted it at zero: the customer was messaged a line reading "TSh 0"
+    beside their tracking number, and the total underneath silently left that
+    bill out — so the figure they were asked for was short by a whole
+    consignment.
+
+    Today's published rate is the honest answer for a bill that has none. It is
+    what the counter will convert at when they walk in, and it is what the
+    comment above already said this rate was here for. With no rate published
+    at all there is nothing truthful to convert with, and formatShillingTotal
+    falls back to dollars.
+  */
+  const inShillings = (outstanding: number, frozen: number | null) => {
+    const at = frozen ?? rate;
+    return at === null ? 0 : outstanding * at;
+  };
 
   return (
     <div className="w-full">
@@ -639,20 +658,14 @@ export default async function RecordCustomerPaymentPage({
                       trackingNumber: b.trackingNumber,
                       description: b.description,
                       amount: formatShillingTotal(
-                        b.exchangeRate === null
-                          ? 0
-                          : b.outstanding * b.exchangeRate,
+                        inShillings(b.outstanding, b.exchangeRate),
                         b.outstanding,
                         rate
                       ),
                     })),
                     total: formatShillingTotal(
                       payableBills.reduce(
-                        (sum, b) =>
-                          sum +
-                          (b.exchangeRate === null
-                            ? 0
-                            : b.outstanding * b.exchangeRate),
+                        (sum, b) => sum + inShillings(b.outstanding, b.exchangeRate),
                         0
                       ),
                       payableBills.reduce((sum, b) => sum + b.outstanding, 0),

@@ -5,6 +5,7 @@ import { Pencil, X } from "lucide-react";
 
 import { FormError, FormSuccess, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
+import { formatWeight } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MoneyInput } from "@/components/ui/money-input";
@@ -117,8 +118,14 @@ export function RowPriceEditor({
               Finance to correct a rate book that was right. */}
           {(chargeableKg ?? weightKg) > 0 ? (
             <>
+              {/* The weight as it actually is, not rounded to one decimal.
+                  A 10.75 kg consignment printed "10.8 kg × 12.50 = 134.38",
+                  and 10.8 × 12.50 is 135.00 — a working that does not
+                  multiply out, on the line whose whole job is to show Finance
+                  where the figure came from. formatWeight is what every other
+                  screen states a weight with. */}
               <span className="tabular-nums text-foreground">
-                {(chargeableKg ?? weightKg).toFixed(1)} kg ×{" "}
+                {formatWeight(chargeableKg ?? weightKg)} ×{" "}
                 {(rateBookFreight / (chargeableKg ?? weightKg)).toFixed(2)}
               </span>{" "}
               ={" "}

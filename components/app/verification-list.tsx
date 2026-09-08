@@ -265,7 +265,16 @@ export function VerificationList({
                   batchId={batchId}
                   shipment={shipment}
                   locked={batchStatus !== "ARRIVED"}
-          photosDurable={photosDurable}
+                  photosDurable={photosDurable}
+                  /* The row has always accepted these and the table never
+                     passed them, so the tick existed on the phone card and
+                     nowhere on the desktop table — which is where a clerk
+                     works a flight of eighty-seven. "Accept an armful" could
+                     not be reached from the screen it was built for. */
+                  picked={picked.has(shipment.id)}
+                  onPick={
+                    shipment.verification ? undefined : () => pick(shipment.id)
+                  }
                 />
               ))}
             </tbody>

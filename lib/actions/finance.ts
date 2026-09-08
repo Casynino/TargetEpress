@@ -7,7 +7,11 @@ import { z } from "zod";
 import { recordAudit, withNote } from "@/lib/audit";
 import { settleBatchIfClear } from "@/lib/batch-close";
 import { applyCreditToInvoice } from "@/lib/customer-credit";
-import { STORAGE_POLICY, storageDaysFor } from "@/lib/constants";
+import {
+  EXCEPTION_OPEN_STATUSES,
+  STORAGE_POLICY,
+  storageDaysFor,
+} from "@/lib/constants";
 import {
   PICKUP_LOCKING_STATUSES,
   PICKUP_LOCKING_TYPES,
@@ -359,6 +363,15 @@ export async function confirmInvoicePrice(
               packages: true,
               arrivedAt: true,
               deliveredAt: true,
+              customerId: true,
+              /* The two facts that decide whether a deposit settling this bill
+                 may also release the cargo — see the block after the credit is
+                 applied. */
+              pickupNote: { select: { id: true } },
+              exceptions: {
+                where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } },
+                select: { id: true },
+              },
             },
           },
         },
@@ -550,6 +563,58 @@ export async function confirmInvoicePrice(
               ) ?? undefined,
           },
         });
+
+        /*
+          A DEPOSIT THAT SETTLES THE BILL RELEASES THE CARGO TOO.
+
+          The bill went to PAID and the consignment stayed on the shelf. Every
+          other door that settles a bill in full issues the note that lets the
+          boxes out — the counter does it, and finding lost cargo does it — but
+          a customer who had paid in advance, whose bill was settled by their
+          own deposit the moment Dar priced it, was left waiting for somebody
+          to notice and issue one by hand. Nothing on any screen said so: the
+          bill read PAID and the cargo read RECEIVED_AT_DAR.
+
+          The same four conditions the counter applies, for the same reasons:
+          the bill is actually settled, the boxes are on the Dar floor, no note
+          exists already (PickupNote.shipmentId is unique), and no investigation
+          is holding the cargo. And the same authority — a note is only ever
+          minted by somebody holding pickupNote.issue.
+        */
+        const settledNow =
+          nowPaid + toNumber(invoice.amountAdjusted) + 0.005 >= total;
+        if (
+          settledNow &&
+          shipment.status === "RECEIVED_AT_DAR" &&
+          shipment.pickupNote == null &&
+          shipment.exceptions.length === 0 &&
+          can(user.role, "pickupNote.issue")
+        ) {
+          const note = await tx.pickupNote.create({
+            data: {
+              noteNumber: await nextPickupNoteNumber(tx),
+              shipmentId: shipment.id,
+              customerId: shipment.customerId,
+              amountPaid: new Prisma.Decimal(nowPaid),
+              currency: invoice.currency,
+              issuedById: user.id,
+            },
+          });
+          await tx.shipment.update({
+            where: { id: shipment.id },
+            data: { status: "READY_FOR_PICKUP", readyForPickup: new Date() },
+          });
+          await tx.shipmentStatusHistory.create({
+            data: {
+              shipmentId: shipment.id,
+              fromStatus: "RECEIVED_AT_DAR",
+              toStatus: "READY_FOR_PICKUP",
+              location: "Dar es Salaam warehouse",
+              note: `Settled from the customer's deposit when the price was confirmed. Pickup note ${note.noteNumber} issued.`,
+              actorId: user.id,
+            },
+          });
+        }
       }
 
       // Keep the working on the shipment in step with the confirmed figure.
@@ -4247,10 +4312,32 @@ export async function recordCustomerPayment(
                    the company would owe it twice. */
                 Math.round(
                   ([...credited.values()].reduce((sum, n) => sum + n, 0) +
-                    (rateUsed
-                      ? (forBills - allocated) /
-                        (input.currency === LOCAL_CURRENCY ? rateUsed : 1)
-                      : 0)) *
+                    /*
+                      THE LEFTOVER IS STILL WORTH SOMETHING.
+
+                      Valued at `rateUsed` — the one rate the bills agree on —
+                      and dropped entirely when they do not. So a customer who
+                      sent more than their three bills came to, on bills frozen
+                      at two different rates, had the excess valued at nothing:
+                      this column understated by exactly their credit, and
+                      "Collected this month" on the Finance overview reads it
+                      as the dollar figure for every payment.
+
+                      There is no single rate to use, but there is an honest
+                      one: the bill this payment is anchored to. That is what
+                      every other reader falls back to when a merged payment
+                      carries no rate of its own — spareOf does exactly this —
+                      so the leftover is valued the same way rather than at
+                      zero. Only when the anchor has no rate either is there
+                      nothing truthful to convert with.
+                    */
+                    (() => {
+                      const spare = forBills - allocated;
+                      if (spare <= 0.005) return 0;
+                      if (input.currency !== LOCAL_CURRENCY) return spare;
+                      const at = rateUsed ?? toNumber(anchor?.exchangeRate);
+                      return at ? spare / at : 0;
+                    })()) *
                     100
                 ) / 100
               : /* Same rule in one currency: what this payment is worth
