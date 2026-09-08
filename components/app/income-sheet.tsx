@@ -148,7 +148,15 @@ export function IncomeSheetTable({
               tone: "text-brand",
               facts: [
                 { k: t("Kg"), v: row.kg.toFixed(1), tone: "" },
-                { k: t("Rate"), v: perKg(row.sellRate), tone: "text-muted-foreground" },
+                {
+                  k: t("Rate"),
+                  /* The same caveat the table carries — see the note there. */
+                  v:
+                    row.specialRates > 0
+                      ? `${perKg(row.sellRate)} · ${row.specialRates} ${t("special")}`
+                      : perKg(row.sellRate),
+                  tone: "text-muted-foreground",
+                },
                 { k: "$", v: usd(row.worthUsd), tone: "" },
                 { k: "TZS", v: tsh(row.worthUsd, row.rate), tone: "" },
                 { k: t("Costs"), v: usd(row.expensesUsd), tone: "text-destructive" },
@@ -368,6 +376,23 @@ export function IncomeSheetTable({
                   <td className={cell}>{row.kg.toFixed(1)}</td>
                   <td className={cn(cell, "text-muted-foreground")}>
                     {perKg(row.sellRate)}
+                    {/*
+                      WHY THIS AVERAGE SITS UNDER THE RATE BOOK.
+
+                      The figure above is what the flight took divided by what
+                      it carried, not a rate anybody set. One consignment given
+                      a special price pulls it below the book with nothing here
+                      to say why, and the reader is left comparing an average
+                      against a rate and concluding somebody undercharged.
+                    */}
+                    {row.specialRates > 0 ? (
+                      <span
+                        className="ml-1 rounded bg-brand/15 px-1 py-0.5 text-[10px] font-semibold text-brand"
+                        title={t("Consignments on this flight priced at a rate Finance agreed")}
+                      >
+                        {row.specialRates} {t("special")}
+                      </span>
+                    ) : null}
                   </td>
                   <td className={cell}>{usd(row.worthUsd)}</td>
                   <td className={cell}>{tsh(row.worthUsd, row.rate)}</td>

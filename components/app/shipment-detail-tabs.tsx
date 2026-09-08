@@ -92,6 +92,22 @@ export type CargoLine = {
       invoiceId: string;
       rateBookFreight: number;
       freightOverride: number | null;
+      /*
+        THE RATE, AND WHAT IT IS MULTIPLIED BY.
+
+        The editor has taken these since it was written and nothing passed
+        them, which left it wrong in three ways on this screen: per-item cargo
+        had the typed rate multiplied by KILOS in the preview while the server
+        multiplied by pieces, so the desk saw 300 and 75 was stored; the
+        "standard" it showed was the freight total divided by a weight rather
+        than the rate book's own figure; and reopening the panel on a bill that
+        already carried an agreed rate showed an empty box, so the next Save
+        quietly cleared the rate while keeping the total.
+      */
+      agreedRate: number | null;
+      standardRate: number | null;
+      perItem: boolean;
+      pieces: number;
       storage: number;
       otherCharges: number;
       discount: number;
@@ -455,6 +471,10 @@ export function ShipmentDetailTabs({
                       currency={line.price.currency}
                       rateBookFreight={line.price.edit.rateBookFreight}
                       freightOverride={line.price.edit.freightOverride}
+                      agreedRate={line.price.edit.agreedRate}
+                      standardRate={line.price.edit.standardRate}
+                      perItem={line.price.edit.perItem}
+                      pieces={line.price.edit.pieces}
                       storage={line.price.edit.storage}
                       otherCharges={line.price.edit.otherCharges}
                       discount={line.price.edit.discount}

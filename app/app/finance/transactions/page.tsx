@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { activeAccounts } from "@/lib/accounts";
+import { rateFactsOf } from "@/lib/agreed-rate";
 import { LedgerRowFix } from "@/components/app/ledger-row-fix";
 import { RecordIncome } from "@/components/app/record-income";
 import { creditNotInTheLedger } from "@/lib/credit-queries";
@@ -349,12 +350,21 @@ export default async function LedgerPage({
                     select: {
                       trackingNumber: true,
                       ...selectText("description"),
+                      /* The book's own rate, so the marker can name what the
+                         agreed one departed from. */
+                      quotedRate: true,
+                      quotedMethod: true,
                     },
                   },
                   /* The bill and its own frozen rate, so a write-off stored
                      in dollars can be said in the shillings on this row. */
                   total: true,
                   exchangeRate: true,
+                  /* Whether this consignment was priced at a rate somebody
+                     agreed rather than the book's. The register is where an
+                     auditor reads the money back, so a figure built on a
+                     concession has to say so here too. */
+                  freightRateOverride: true,
                 },
               },
               /*
@@ -667,6 +677,29 @@ export default async function LedgerPage({
    * expense type and a more useful one, and the red debit column has already
    * said which way the money went.
    */
+  /**
+   * "Rate 11.50, standard 13.50" — or nothing at all, which is almost every
+   * row. Built from the two stored figures and never from a division: see
+   * lib/agreed-rate.ts for why the freight total cannot be divided back.
+   */
+  const agreedRateLabel = (
+    invoice:
+      | {
+          freightRateOverride: Prisma.Decimal | null;
+          shipment: { quotedRate: Prisma.Decimal | null; quotedMethod: string | null } | null;
+        }
+      | null
+      | undefined
+  ) => {
+    if (!invoice) return null;
+    const facts = rateFactsOf(invoice, invoice.shipment ? { ...invoice.shipment, chargeableKg: null, weightKg: null, packages: 0 } : null);
+    if (facts.agreedRate === null) return null;
+    const unit = facts.ratePerItem ? t(locale, "per item") : t(locale, "per kg");
+    return facts.standardRate === null
+      ? `${t(locale, "Special rate")} ${facts.agreedRate.toFixed(2)} ${unit}`
+      : `${facts.agreedRate.toFixed(2)} ${unit} · ${t(locale, "standard")} ${facts.standardRate.toFixed(2)}`;
+  };
+
   const typeOf = (entry: (typeof entries)[number]) => {
     if (entry.reversesId) return t(locale, "Correction");
     if (entry.expense) {
@@ -942,6 +975,8 @@ export default async function LedgerPage({
             let title = entry.description;
             let purpose: string | null = null;
             const clearedOnRow = writtenOffOnRow(entry);
+            /* Same wording as the table below — see agreedRateLabel. */
+            const agreedOnRow = agreedRateLabel(entry.payment?.invoice);
             if (entry.payment) {
               title =
                 entry.payment.invoice?.customer.name ??
@@ -1030,6 +1065,20 @@ export default async function LedgerPage({
                         {clearedOnRow ? (
                           <span className="ml-0.5 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-[11px] font-medium text-warning">
                             {clearedOnRow} {t(locale, "written off")}
+                          </span>
+                        ) : null}
+                        {/*
+                          A FIGURE BUILT ON A CONCESSION SAYS SO HERE TOO.
+
+                          The register is where the money is read back months
+                          later, and a payment against a consignment priced at
+                          a rate somebody agreed looked exactly like one priced
+                          from the book. Both rates, in that order, so the
+                          agreed one can never read as the standard.
+                        */}
+                        {agreedOnRow ? (
+                          <span className="ml-0.5 whitespace-nowrap rounded bg-brand/15 px-1.5 py-0.5 text-[11px] font-medium text-brand">
+                            {agreedOnRow}
                           </span>
                         ) : null}
                         </p>
@@ -1251,6 +1300,9 @@ export default async function LedgerPage({
                    second fact. */
                 const collectedBy =
                   entry.payment?.submission?.submittedBy?.name ?? null;
+                /* Composed here rather than in the markup so the table and the
+                   phone list below cannot word it two ways. */
+                const agreedOnRow = agreedRateLabel(entry.payment?.invoice);
 
                 return (
                   <TableRow

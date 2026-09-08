@@ -9,6 +9,8 @@ import {
   Search,
 } from "lucide-react";
 
+import { AgreedRate } from "@/components/app/agreed-rate";
+import { EditFreightRate } from "@/components/app/edit-freight-rate";
 import { CreditOnRow } from "@/components/app/ask-for-credit";
 import { RecordPaymentDialog } from "@/components/app/record-payment-dialog";
 import { IconHint } from "@/components/app/icon-hint";
@@ -97,6 +99,9 @@ export default async function FollowUpPage({
      alone, and it is what makes the credit icon a different job for them. */
   const canDecideCredit = can(user.role, "credit.approve");
   const canRecord = can(user.role, "payment.record");
+  /* The same permission the rate action demands — Finance, the manager and
+     the owner. Support may chase a bill, not re-price one. */
+  const canDiscount = can(user.role, "invoice.discount");
   const canCollect = !canRecord && can(user.role, "payment.submit");
   const { filter, q, record, sort, page, batch } = await searchParams;
   const onBatch = batch?.trim() ?? "";
@@ -614,6 +619,38 @@ export default async function FollowUpPage({
                     >
                       {row.batchNumber}
                     </Link>
+                  ) : null}
+                  {/*
+                    "BUT WE AGREED ELEVEN FIFTY" — ANSWERED ON THE ROW.
+
+                    This is the screen where somebody is on the phone to the
+                    customer, and the price is what the call is about. The row
+                    says what the cargo was priced at and changes it from
+                    there, rather than sending the clerk to find the bill
+                    mid-conversation.
+                  */}
+                  {row.invoiceId && row.agreedRate !== null ? (
+                    <AgreedRate
+                      standard={row.standardRate}
+                      agreed={row.agreedRate}
+                      currency={row.currency}
+                      perItem={row.ratePerItem}
+                      reason={row.agreedRateReason}
+                      className="mt-1 max-w-[18rem]"
+                    />
+                  ) : null}
+                  {row.invoiceId && canDiscount && row.ratePricedOn > 0 ? (
+                    <div className="mt-1 text-xs">
+                      <EditFreightRate
+                        invoiceId={row.invoiceId}
+                        currency={row.currency}
+                        standard={row.standardRate}
+                        agreed={row.agreedRate}
+                        perItem={row.ratePerItem}
+                        pricedOn={row.ratePricedOn}
+                        reason={row.agreedRateReason}
+                      />
+                    </div>
                   ) : null}
                 </td>
                 <td className="hidden p-3 lg:table-cell">

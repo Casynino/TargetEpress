@@ -32,6 +32,14 @@ export type IncomeRow = {
   kg: number;
   worthUsd: number;
   sellRate: number | null;
+  /**
+   * How many consignments on this flight were priced at a rate Finance agreed.
+   *
+   * The Rate beside it is an average, not a rate anybody set — see where this
+   * is counted. Zero on almost every flight, which is why the sheet says
+   * nothing at all rather than printing "0 special".
+   */
+  specialRates: number;
   profitUsd: number | null;
 
   // Goods sold
@@ -159,6 +167,34 @@ export async function incomeSheet(
     },
   });
 
+  /*
+    HOW MANY CONSIGNMENTS ON EACH FLIGHT WERE PRICED AT AN AGREED RATE.
+
+    The Rate column here is an AVERAGE — what the flight actually took divided
+    by what it carried — not a rate anybody set. A single consignment given a
+    special price drags it below the rate book with nothing on the sheet to say
+    why, and the reader is left comparing an average against a rate and
+    concluding somebody has been undercharging.
+
+    A count, not a figure: the flight has no single agreed rate, and inventing
+    an average of the agreed ones would be a second number nobody set. Which
+    consignments they are is on the flight's own page.
+  */
+  const specialByBatch = new Map<string, number>();
+  /* Counted from the SHIPMENTS, because that is the side that knows the
+     flight — an invoice groupBy cannot reach through to the batch. */
+  const specialRows = await prisma.shipment.findMany({
+    where: {
+      batchId: { in: statements.map((s) => s.batchId) },
+      invoice: { freightRateOverride: { not: null } },
+    },
+    select: { batchId: true },
+  });
+  for (const row of specialRows) {
+    if (!row.batchId) continue;
+    specialByBatch.set(row.batchId, (specialByBatch.get(row.batchId) ?? 0) + 1);
+  }
+
   const all: IncomeRow[] = statements.map((s) => {
     const kg = toNumber(s.kgReceived);
     const sellRate = s.sellRate === null ? null : toNumber(s.sellRate);
@@ -166,6 +202,7 @@ export async function incomeSheet(
     return {
       batchId: s.batchId,
       batchNumber: s.batch.batchNumber,
+      specialRates: specialByBatch.get(s.batchId) ?? 0,
       month: (s.batch.arrivalDate ?? s.batch.departureDate ?? s.submittedAt)
         .toISOString()
         .slice(0, 7),

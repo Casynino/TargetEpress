@@ -33,6 +33,7 @@ export function RowPriceEditor({
   chargeableKg,
   freightOverride,
   agreedRate,
+  standardRate: bookRate = null,
   perItem = false,
   pieces = 1,
   storage,
@@ -51,6 +52,16 @@ export function RowPriceEditor({
   freightOverride: number | null;
   /** The rate Finance agreed for this consignment, if they have. */
   agreedRate?: number | null;
+  /**
+   * THE RATE BOOK'S OWN RATE, READ RATHER THAN DIVIDED OUT.
+   *
+   * `rateBookFreight / pricedOn` looks like the same answer and is not: on a
+   * bill whose freight was typed over it divides the TYPED total, so the
+   * "standard" shown was whatever somebody had already agreed. The book's
+   * figure is stamped on the shipment when Dar prices it and never overwritten
+   * by an agreement, which is the whole reason the two can be shown together.
+   */
+  standardRate?: number | null;
   /** Per-piece cargo is priced per item, not per kilo. */
   perItem?: boolean;
   /** How many pieces, for the per-item rates. */
@@ -86,7 +97,10 @@ export function RowPriceEditor({
   /* What the rate book prices this cargo on: pieces, or the chargeable weight
      with the 1 kg minimum already applied. */
   const pricedOn = perItem ? pieces : (chargeableKg ?? weightKg);
-  const standardRate = pricedOn > 0 ? rateBookFreight / pricedOn : null;
+  /* The book's own figure where the page passed one; the division only as a
+     fallback for callers that have not been given it yet — see the prop. */
+  const standardRate =
+    bookRate ?? (pricedOn > 0 ? rateBookFreight / pricedOn : null);
   const unit = perItem ? t("per item") : t("per kg");
   const [extra, setExtra] = useState(otherCharges ? String(otherCharges) : "");
   const [off, setOff] = useState(discount ? String(discount) : "");

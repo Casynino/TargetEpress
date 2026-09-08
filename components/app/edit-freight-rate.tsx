@@ -99,7 +99,17 @@ export function EditFreightRate({
         className="focus-ring inline-flex items-center gap-1 rounded font-medium text-brand underline-offset-2 hover:underline"
       >
         <Scale className="h-3.5 w-3.5" />
-        {agreed === null ? t("Edit the rate per kg") : t("Change the agreed rate")}
+        {/*
+          THE UNIT THE CARGO IS ACTUALLY CHARGED IN.
+
+          This said "per kg" on every consignment, including the per-piece
+          rates — so a desk pricing five cartons of electronics was invited to
+          set a rate per kilo on cargo that is not sold by weight, and had to
+          open the box to find out what the figure would be multiplied by.
+        */}
+        {agreed === null
+          ? `${t("Edit the rate")} ${unit}`
+          : t("Change the agreed rate")}
       </button>
     );
   }

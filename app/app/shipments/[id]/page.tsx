@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { FileText, Plane, Users, PackagePlus } from "lucide-react";
 
+import { rateFactsOf } from "@/lib/agreed-rate";
 import { PageHeader } from "@/components/app/page-header";
 import {
   ShipmentDetailTabs,
@@ -99,6 +100,10 @@ export default async function ShipmentPage({
               status: true,
               freightCost: true,
               freightOverride: true,
+              /* The rate behind the override, so the inline editor opens on
+                 what was agreed instead of an empty box that clears it. */
+              freightRateOverride: true,
+              freightOverrideReason: true,
               storageCharge: true,
               otherCharges: true,
               discount: true,
@@ -146,7 +151,10 @@ export default async function ShipmentPage({
       )
     : new Map<string, never>();
 
-  const cargo: CargoLine[] = dispatch.shipments.map((item) => ({
+  const cargo: CargoLine[] = dispatch.shipments.map((item) => {
+    /* What this consignment was priced at, worked out once per row. */
+    const rateFacts = rateFactsOf(item.invoice, item);
+    return {
     id: item.id,
     trackingNumber: item.trackingNumber,
     cartonRef: item.cartonRef,
@@ -221,13 +229,22 @@ export default async function ShipmentPage({
                       item.invoice.freightOverride === null
                         ? null
                         : toNumber(item.invoice.freightOverride),
+                    /* One derivation, shared with every other screen that
+                       states this — see lib/agreed-rate.ts. Without it the
+                       editor multiplied a per-item rate by kilos and cleared a
+                       stored rate the next time it was opened. */
+                    agreedRate: rateFacts.agreedRate,
+                    standardRate: rateFacts.standardRate,
+                    perItem: rateFacts.ratePerItem,
+                    pieces: rateFacts.ratePricedOn,
                     storage: toNumber(item.invoice.storageCharge),
                     otherCharges: toNumber(item.invoice.otherCharges),
                     discount: toNumber(item.invoice.discount),
                   },
           }
         : null,
-  }));
+    };
+  });
 
   const canConfirm = can(user.role, "invoice.manage");
 

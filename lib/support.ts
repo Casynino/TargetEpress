@@ -14,6 +14,7 @@ import {
   type CreditAlert,
   type CreditRow,
 } from "@/lib/credit-queries";
+import { rateFactsOf } from "@/lib/agreed-rate";
 import { toNumber } from "@/lib/format";
 import { outstandingOf } from "@/lib/invoice-balance";
 import { t } from "@/lib/i18n";
@@ -322,6 +323,19 @@ export type FollowUpRow = {
   outstanding: number | null;
   /** What the BILL is priced in — the currency `outstanding` is stated in. */
   currency: string;
+  /*
+    WHAT THIS CONSIGNMENT WAS PRICED AT.
+
+    The clerk on this list is on the phone to the customer, and "but we agreed
+    eleven fifty" is the sentence the row has to be able to answer. So the rate
+    is stated on the row and changed from it, rather than by leaving the call
+    to find the bill. See lib/agreed-rate.ts for the derivation.
+  */
+  standardRate: number | null;
+  agreedRate: number | null;
+  agreedRateReason: string | null;
+  ratePerItem: boolean;
+  ratePricedOn: number;
   /** What is already off it, so a discount box opens on the truth. */
   invoiceDiscount: number;
   /** Storage on the bill, so the counter can forgive it without leaving. */
@@ -389,6 +403,9 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       /* Which flight it came on — see FollowUpRow.batchNumber. A customer with
          three consignments on this list is asked which one is being chased. */
       batch: { select: { batchNumber: true } },
+      /* What a per-piece rate multiplies. The weight side is already selected
+         below, for the line the customer reads. */
+      packages: true,
       ...selectText("description"),
       status: true,
       arrivedAt: true,
@@ -533,6 +550,7 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       credit: null,
       trackingNumber: shipment.trackingNumber,
       batchNumber: shipment.batch?.batchNumber ?? null,
+      ...rateFactsOf(invoice, shipment),
       description: cargoText(locale, shipment, "description"),
       /*
         THE CUSTOMER'S COPY, NEVER THE CLERK'S LANGUAGE.
@@ -675,6 +693,9 @@ function creditFollowUpRow(r: CreditRow): FollowUpRow {
     /* The credit engine already carries it — see FollowUpCredit — and the
        column reads one field whichever kind of row it is on. */
     batchNumber: r.batchNumber,
+    /* A credit row has no consignment in scope — its cargo has usually gone —
+       so there is nothing here to price and the controls withhold themselves. */
+    ...rateFactsOf(null, null),
     /* Empty on purpose. The credit engine carries the money and the dates, not
        what is in the boxes, and a row that spends a line saying it does not know
        the cargo description teaches the reader to stop reading rows. */
