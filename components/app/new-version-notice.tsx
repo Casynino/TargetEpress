@@ -75,7 +75,7 @@ export function NewVersionNotice({ build }: { build: string }) {
     covered the thing they came to read. It sits in the corner now, clear of
     the header's own controls, where a message that is not urgent belongs.
 
-    The wording is the owner's own: a new update is up, update now. Short
+    The wording is the owner's own: new update is up, update now. Short
     enough to read at a glance from across a counter, and it names the thing
     the reader cares about — there is something newer — rather than describing
     the software's version state.
@@ -84,7 +84,7 @@ export function NewVersionNotice({ build }: { build: string }) {
     <div className="pointer-events-none fixed right-3 top-16 z-[60] flex justify-end print:hidden lg:top-16">
       <div className="pointer-events-auto flex items-center gap-2.5 rounded-full border bg-card/95 py-1.5 pl-3.5 pr-1.5 shadow-lg backdrop-blur">
         <span className="text-xs font-medium">
-          {t("A new update is up")}
+          {t("New update is up")}
         </span>
         <button
           type="button"
