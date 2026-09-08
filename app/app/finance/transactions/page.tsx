@@ -675,6 +675,20 @@ export default async function LedgerPage({
         EXPENSE_CATEGORY_LABELS[entry.expense.category] ?? entry.expense.category
       );
     }
+    /*
+      THE FARE IS NOT A SALE, AND IT CARRIES A PAYMENT ID.
+
+      A customer who sends the freight and the delivery in one transfer leaves
+      two lines on this register under one name and one receipt: the whole lump
+      arriving, and the delivery half going out again. Both hang off the same
+      payment, so the test below claimed both — and the money LEAVING for a
+      driver was labelled "Cash sale", in the row above the sale it was taken
+      out of. The kind is asked first, because what a line IS beats what it is
+      attached to.
+    */
+    if (entry.kind === "TRANSPORT_OUT") {
+      return t(locale, KIND_LABEL.TRANSPORT_OUT);
+    }
     if (entry.payment) {
       return entry.payment.invoice?.creditStatus === "APPROVED"
         ? t(locale, "Credit payment")
@@ -1001,6 +1015,14 @@ export default async function LedgerPage({
                           </span>
                         ) : null}
                         {title}
+                        {/* The same mark the table carries — see the note
+                            there. One transfer leaves two rows under one name,
+                            and this is which of the two. */}
+                        {entry.kind === "TRANSPORT_OUT" ? (
+                          <span className="ml-1.5 whitespace-nowrap rounded bg-brand/15 px-1.5 py-0.5 text-[11px] font-semibold text-brand">
+                            {t(locale, "Transport")}
+                          </span>
+                        ) : null}
                       </p>
                       {purpose || clearedOnRow ? (
                         <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
@@ -1281,6 +1303,24 @@ export default async function LedgerPage({
                           </span>
                         ) : null}
                         {title}
+                        {/*
+                          THE SECOND LINE UNDER THE SAME NAME.
+
+                          One transfer carrying the freight and the delivery
+                          leaves two rows here with the same customer, the same
+                          receipt and the same tracking number — one for the
+                          money arriving and one for the fare going out again.
+                          The type column now names it, but the two rows still
+                          read as a duplicate at a glance, and a reader
+                          scanning names finds the same person twice with no
+                          way to tell which is which. This is that way, on the
+                          line their eye is already on.
+                        */}
+                        {entry.kind === "TRANSPORT_OUT" ? (
+                          <span className="ml-1.5 whitespace-nowrap rounded bg-brand/15 px-1.5 py-0.5 text-[11px] font-semibold text-brand no-underline">
+                            {t(locale, "Transport")}
+                          </span>
+                        ) : null}
                       </Link>
                       {/* Wraps rather than truncates. Squeezed onto one line a
                           long cargo description and a run of codes compete for
