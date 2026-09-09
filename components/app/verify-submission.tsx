@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { BadgeCheck, X } from "lucide-react";
+import { BadgeCheck, Ban, X } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
@@ -22,6 +22,7 @@ import {
   rejectPaymentSubmission,
   verifyPaymentSubmission,
 } from "@/lib/actions/collections";
+import { withdrawSubmission } from "@/lib/actions/submission-corrections";
 import type { ActionResult } from "@/lib/actions/types";
 
 /**
@@ -42,6 +43,13 @@ import type { ActionResult } from "@/lib/actions/types";
  */
 export function VerifySubmission({
   submissionId,
+  /**
+   * Whether this desk may take the claim off the queue without ruling on it.
+   *
+   * Finance's own permission, not Support's — see the button. Passed rather
+   * than assumed so a screen that should not offer it simply does not.
+   */
+  canCancel = false,
   accounts,
   currency = "TZS",
   transport = 0,
@@ -60,6 +68,7 @@ export function VerifySubmission({
   bill = null,
 }: {
   submissionId: string;
+  canCancel?: boolean;
   /** Today, yyyy-mm-dd from the server, so the date picker and the action
       agree about what day it is. */
   today: string;
@@ -165,7 +174,7 @@ export function VerifySubmission({
    */
   clearsOn?: string | null;
 }) {
-  const [mode, setMode] = useState<"idle" | "verify" | "reject">("idle");
+  const [mode, setMode] = useState<"idle" | "verify" | "reject" | "cancel">("idle");
   /*
     Support's answer, and Finance's to change.
 
@@ -244,6 +253,11 @@ export function VerifySubmission({
     rejectPaymentSubmission,
     { ok: true }
   );
+  /* Taking the claim off the queue without ruling on it — see the button. */
+  const [cancelState, cancel] = useActionState<ActionResult, FormData>(
+    withdrawSubmission,
+    { ok: true }
+  );
 
   if (mode === "idle") {
     return (
@@ -254,7 +268,10 @@ export function VerifySubmission({
           className="focus-ring inline-flex items-center gap-1.5 rounded-full bg-success px-3.5 py-1.5 text-xs font-semibold text-success-foreground transition-colors hover:bg-success/90"
         >
           <BadgeCheck className="h-3.5 w-3.5" />
-          {t("Verify payment")}
+          {/* The row already says what it is. "Verify payment" beside a
+              payment, on the Verify payments queue, spent width saying the
+              word twice. */}
+          {t("Verify")}
         </button>
         <button
           type="button"
@@ -263,6 +280,31 @@ export function VerifySubmission({
         >
           {t("Send it back")}
         </button>
+        {/*
+          TAKING IT OFF THE QUEUE WITHOUT RULING ON IT.
+
+          Send it back is a decision about the CLAIM: Support is told it is
+          wrong and asked to correct it, and the desk waits. This is different
+          — it is Finance saying the claim should never have been raised, so it
+          leaves as if it never was, and Finance records or merges the money
+          themselves. Two things need that: a mistake Finance can simply fix
+          faster than the round trip, and a payment that has to go into a merge,
+          which cannot happen while a claim is standing against the bill.
+
+          Withdrawn, not rejected. "Finance said no" and "this was sent up by
+          mistake" are different facts about a customer, and a queue that
+          conflates them tells the next person to ring somebody about nothing.
+        */}
+        {canCancel ? (
+          <button
+            type="button"
+            onClick={() => setMode("cancel")}
+            className="focus-ring inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
+          >
+            <Ban className="h-3.5 w-3.5" />
+            {t("Cancel it")}
+          </button>
+        ) : null}
       </div>
     );
   }
@@ -593,6 +635,45 @@ export function VerifySubmission({
           document.body
         )
       : null;
+  }
+
+  if (mode === "cancel") {
+    return (
+      <form action={cancel} className="space-y-2 rounded-lg border bg-card p-3">
+        <input type="hidden" name="submissionId" value={submissionId} />
+        <p className="text-sm font-semibold">{t("Cancel this claim?")}</p>
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          {t(
+            "It leaves the queue as if it was never sent up. Nobody is told the customer's money was refused — nothing has moved. The bill goes back to being unpaid, so you can record it yourself or put it into a merged payment."
+          )}
+        </p>
+        <div className="space-y-1">
+          <Label htmlFor={`cancel-${submissionId}`} className="text-xs">
+            {t("Why")}{" "}
+            <span className="text-muted-foreground">{t("(optional)")}</span>
+          </Label>
+          <Input
+            id={`cancel-${submissionId}`}
+            name="reason"
+            placeholder={t("e.g. recording it here instead, going into a merged payment")}
+            className="h-9 text-sm"
+          />
+        </div>
+        <FormError state={cancelState} />
+        <div className="flex items-center gap-2">
+          <SubmitButton size="sm" variant="outline" pendingLabel={t("Cancelling…")}>
+            {t("Yes, cancel it")}
+          </SubmitButton>
+          <button
+            type="button"
+            onClick={() => setMode("idle")}
+            className="focus-ring rounded text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          >
+            {t("Leave it")}
+          </button>
+        </div>
+      </form>
+    );
   }
 
   return (

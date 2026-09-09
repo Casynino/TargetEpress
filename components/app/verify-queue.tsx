@@ -490,6 +490,13 @@ export async function VerifyQueue() {
                       />
                       <VerifySubmission
                         submissionId={row.id}
+                        /*
+                          Finance may take a claim off this queue without
+                          ruling on it — see the button. payment.verify,
+                          because it is the same desk that would otherwise be
+                          waiting on Support to correct and resend.
+                        */
+                        canCancel={can(viewer?.role, "payment.verify")}
                         today={TODAY}
                         /* The same header the correction dialog carries, so
                            the decision and the facts it rests on are on one
