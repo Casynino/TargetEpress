@@ -20,6 +20,7 @@ import type { ExceptionType } from "@prisma/client";
 import type { Locale } from "@/lib/locale";
 import { REJECTED_NEEDING_A_CALL } from "@/lib/collections";
 import { sequenceFromBatchNumber } from "@/lib/cargo";
+import { COMPANY } from "@/lib/constants";
 import { currentRateValue } from "@/lib/fx";
 import { MONEY_OUT_KINDS } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
@@ -114,6 +115,16 @@ export async function monthlyVolume(now = new Date(), locale: Locale = "en") {
         COUNT(*)                                AS count
       FROM "Shipment"
       WHERE "registeredAt" >= ${from}
+        /*
+          DELETED CARGO IS COUNTED NOWHERE BUT THE DELETE HISTORY.
+
+          Named here because this is raw SQL. The client extension that hides
+          deleted consignments intercepts MODEL operations only — a
+          $queryRaw goes straight past it — so this chart counted deleted
+          registrations while every other volume figure in the app did not,
+          and the year's total on the owner's screen ran above the truth.
+        */
+        AND "deletedAt" IS NULL
       GROUP BY 1, 2
       ORDER BY 1, 2
     `
@@ -164,6 +175,12 @@ export async function monthlyVolume(now = new Date(), locale: Locale = "en") {
  * every shipment read already, and naming it merely opts out of the automatic
  * filter to apply the identical one by hand. Both counted the same population
  * all along, which is what made converging them safe.
+ *
+ * That reassurance holds for THIS function and not for its neighbour. The
+ * extension wraps model operations; `monthlyVolume` above is raw SQL and went
+ * straight past it, so it counted deleted cargo for as long as it existed.
+ * Anything reading `FROM "Shipment"` by hand has to write the condition by
+ * hand — see the note inside that query.
  */
 export async function volumeInWindow(from: Date, to: Date) {
   const range = { gte: from, lt: to };
@@ -183,7 +200,12 @@ export async function corridorPerformance() {
       arrivedAt: { not: null },
       deliveredAt: { not: null },
     },
-    select: { departedAt: true, arrivedAt: true, deliveredAt: true },
+    select: {
+      registeredAt: true,
+      departedAt: true,
+      arrivedAt: true,
+      deliveredAt: true,
+    },
     orderBy: { deliveredAt: "desc" },
     take: 400,
   });
@@ -194,17 +216,46 @@ export async function corridorPerformance() {
       ? null
       : values.reduce((sum, n) => sum + n, 0) / values.length;
 
+  /*
+    THREE SPANS, EACH ENDING WHERE THE NEXT BEGINS.
+
+    `departedAt` on a consignment is the DEPARTURE DATE, stamped at midnight —
+    it is a date on a waybill, not a take-off time — and `arrivedAt` is the
+    moment the Dar floor checks the box off the manifest. So this middle span
+    is flight plus clearance plus however long the boxes waited to be scanned,
+    which is what "Ours to control" means on the tile that prints it. It has
+    never been the flight itself and the app cannot know that time.
+  */
   const flight = delivered.map((s) => days(s.departedAt!, s.arrivedAt!));
   const dwell = delivered.map((s) => days(s.arrivedAt!, s.deliveredAt!));
 
-  // The public promise is three days. Measure it on the leg we own.
-  const withinPromise = flight.filter((d) => d <= 3).length;
+  /*
+    THE PROMISE IS MEASURED THE WAY THE CUSTOMER COUNTS IT.
+
+    "Your cargo reaches Tanzania in 3-10 days" starts when the customer hands
+    the goods over in Guangzhou, not when a plane leaves — the days spent
+    waiting for the next flight are days the customer is waiting too, and they
+    are ours. It ends when the cargo reaches our Dar warehouse, which is the
+    point the promise names; the wait for the customer to come and collect is
+    the separate figure above.
+
+    It was `flight <= 3` before: the wrong leg, graded against a promise of
+    three days the business stopped making when the rate card moved to 3-10.
+    Both errors pushed the same way, and the owner's home screen read 0%.
+  */
+  const toTanzania = delivered.map((s) => days(s.registeredAt, s.arrivedAt!));
+  const withinPromise = toTanzania.filter(
+    (d) => d <= COMPANY.promiseMaxDays
+  ).length;
 
   return {
     sample: delivered.length,
     avgFlightDays: mean(flight),
     avgDwellDays: mean(dwell),
-    promiseRate: flight.length ? (withinPromise / flight.length) * 100 : null,
+    avgToTanzaniaDays: mean(toTanzania),
+    promiseRate: toTanzania.length
+      ? (withinPromise / toTanzania.length) * 100
+      : null,
   };
 }
 
@@ -225,28 +276,49 @@ export async function corridorPerformance() {
  */
 export async function monthlyRevenue(now = new Date(), locale: Locale = "en") {
   const year = now.getFullYear();
-  const from = new Date(Date.UTC(year, 0, 1));
+  /*
+    LAST DECEMBER IS READ, AND NOT DRAWN.
 
-  const rows = await prisma.$queryRaw<{ month: number; total: Prisma.Decimal }[]>(
+    The chart is this year's months, so the query used to start on 1 January —
+    and in January that left the tile beside it with nothing to compare
+    against. It fell through to "first month with takings", which a business
+    in its third year read on the first of every January.
+
+    So the window opens a month earlier and the extra month is returned on its
+    own rather than added to the chart, where it would put a thirteenth bar
+    labelled with a month from a different year.
+  */
+  const prevFrom = new Date(Date.UTC(year - 1, 11, 1));
+
+  const rows = await prisma.$queryRaw<
+    { year: number; month: number; total: Prisma.Decimal }[]
+  >(
     Prisma.sql`
       SELECT
+        EXTRACT(YEAR FROM "paidAt")::int                   AS year,
         EXTRACT(MONTH FROM "paidAt")::int                  AS month,
         COALESCE(SUM(COALESCE("creditedAmount", "amount")), 0) AS total
       FROM "Payment"
-      WHERE "paidAt" >= ${from} AND "voidedAt" IS NULL
-      GROUP BY 1
-      ORDER BY 1
+      WHERE "paidAt" >= ${prevFrom} AND "voidedAt" IS NULL
+      GROUP BY 1, 2
+      ORDER BY 1, 2
     `
   );
 
   const values = Array.from({ length: 12 }, () => 0);
-  for (const row of rows) values[row.month - 1] = toNumber(row.total);
+  let lastDecember = 0;
+  for (const row of rows) {
+    if (row.year === year) values[row.month - 1] = toNumber(row.total);
+    else lastDecember = toNumber(row.total);
+  }
 
   const upto = now.getMonth() + 1;
   return {
     labels: monthLabels(locale, upto),
     values: values.slice(0, upto),
     currentIndex: now.getMonth(),
+    /** The calendar month before this one, across the year boundary. */
+    previousMonth: now.getMonth() === 0 ? lastDecember : values[now.getMonth() - 1],
   };
 }
 
@@ -1025,8 +1097,20 @@ export const executiveStats = cache(async function executiveStats() {
     prisma.shipment.count({
       where: { status: "DELIVERED", deliveredAt: { gte: monthStart } },
     }),
+    /*
+      FLIGHTS, NOT THE TWO LOADING TABLES.
+
+      Guangzhou and Hong Kong each keep one permanent table that is OPEN
+      forever by design, so counting every OPEN batch put a standing 2 into
+      this tile and the owner read four live flights on a morning there were
+      two. Every other screen that counts batches says `permanent: false`;
+      this one did not.
+    */
     prisma.batch.count({
-      where: { status: { in: ["OPEN", "READY_TO_DEPART", "IN_TRANSIT", "ARRIVED"] } },
+      where: {
+        permanent: false,
+        status: { in: ["OPEN", "READY_TO_DEPART", "IN_TRANSIT", "ARRIVED"] },
+      },
     }),
     prisma.shipmentException.count({ where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } } }),
     prisma.user.count({ where: { active: true } }),

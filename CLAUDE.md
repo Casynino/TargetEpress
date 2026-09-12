@@ -44,4 +44,4 @@ Commit and push straight to `main` automatically. No branches, no asking. **Neve
 
 ## Verifying
 
-There is a real dev server (`npx next dev -p 3177`) and a local Postgres. Log in over the CSRF endpoint and drive the real forms with puppeteer-core rather than trusting that it compiles. Demo logins are `<role>@targetexpress.co.tz` with `SEED_ADMIN_PASSWORD` from `.env`.
+There is a real dev server (`npx next dev -p 3188` — another project on this machine owns 3177, and hitting it signs you into a different company's app) and a local Postgres. Log in over the CSRF endpoint and drive the real forms with puppeteer-core rather than trusting that it compiles. Demo logins are `<role>@targetexpress.co.tz` with `SEED_ADMIN_PASSWORD` from `.env`.

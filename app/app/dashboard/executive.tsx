@@ -14,8 +14,10 @@ import {
   Banknote,
   Boxes,
   ChartNoAxesCombined,
+  CreditCard,
   ClipboardCheck,
   Clock,
+  HandCoins,
   Hourglass,
   Landmark,
   Package,
@@ -24,6 +26,7 @@ import {
   Plane,
   Printer,
   QrCode,
+  Receipt,
   Scale,
   ShieldCheck,
   ScanLine,
@@ -93,7 +96,9 @@ import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/forma
 import { t } from "@/lib/i18n";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { activeAccounts } from "@/lib/accounts";
+import { COMPANY } from "@/lib/constants";
 import { accountBalances } from "@/lib/ledger";
+import { managerOverview } from "@/lib/manager-overview";
 import {
   agingInWarehouse,
   attentionItems,
@@ -126,7 +131,7 @@ import { viewerLocale } from "@/lib/viewer";
 
 import type { Role } from "@prisma/client";
 
-import { percentDelta as delta } from "@/lib/format";
+import { percentDeltaLabel } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // CEO — the whole business on one screen
@@ -173,6 +178,7 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
     flow,
     owed,
     creditWarnings,
+    money,
   ] = await Promise.all([
     executiveStats(),
     monthlyVolume(new Date(), locale),
@@ -192,6 +198,18 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
        one exposure that belongs to no desk's cargo: it is not a box anybody is
        holding, it is money that left the building on a promise. */
     creditAlerts(),
+    /*
+      THE SAME OBJECT THE COMMAND CENTRE READS.
+
+      The owner told us he sees less on his own home screen than the manager
+      does, and he was right: today's takings, today's billing, today's
+      spending, the credit out on trust and the month's margin were all on
+      /app/manager and none of them here. Read from managerOverview rather
+      than re-derived, because two screens deriving the same day's money two
+      ways is how they end up disagreeing — which is the other half of what he
+      reported.
+    */
+    managerOverview(locale),
   ]);
   const execRate = execRateRow ? toNumber(execRateRow.rate) : null;
   const execTsh = (usd: number) =>
@@ -246,7 +264,10 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
   const netThisMonth = flow.net[flow.net.length - 1] ?? 0;
 
   const thisMonthRevenue = revenue.values[revenue.values.length - 1] ?? 0;
-  const lastMonthRevenue = revenue.values[revenue.values.length - 2] ?? 0;
+  /* Across the year boundary too — read from the query rather than by
+     stepping back one slot in a list that starts at January. */
+  const lastMonthRevenue = revenue.previousMonth;
+  const revenueChange = percentDeltaLabel(thisMonthRevenue, lastMonthRevenue);
   const deliveredShare =
     stats.active + stats.deliveredThisMonth > 0
       ? (stats.deliveredThisMonth / (stats.active + stats.deliveredThisMonth)) * 100
@@ -322,6 +343,92 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
         ]}
       />
 
+      {/*
+        TODAY'S MONEY, ON THE OWNER'S OWN SCREEN.
+
+        Everything on this row already existed — on /app/manager, which the
+        owner can open and which is titled for somebody else. He said it
+        plainly: the owner should see more than the manager, not less. These
+        are the five figures a person who owns the business asks about before
+        anything else, and the one thing his home screen could not answer was
+        "what came in today".
+
+        Same source as the command centre's row, so the two cannot drift.
+      */}
+      <div>
+        <SectionLabel
+          action={{ href: "/app/finance", label: t(locale, "The money, in full") }}
+        >
+          {t(locale, "The money · today")}
+        </SectionLabel>
+        <div className="grid grid-cols-2 items-start gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          <MoneyTile
+            label={t(locale, "Collected today")}
+            usd={money.finance.collectedTodayUsd}
+            rate={execRate}
+            hint={t(locale, "what customers actually handed over")}
+            icon={HandCoins}
+            tone={money.finance.collectedTodayUsd > 0 ? "good" : "default"}
+            href="/app/finance/payments"
+          />
+          <MoneyTile
+            label={t(locale, "Billed today")}
+            usd={money.finance.revenueTodayUsd}
+            rate={execRate}
+            hint={t(locale, "invoiced today, not yet money")}
+            icon={Receipt}
+            href="/app/finance/invoices"
+          />
+          <MoneyTile
+            label={t(locale, "Spent today")}
+            usd={money.finance.expensesTodayUsd}
+            rate={execRate}
+            hint={t(locale, "everything that left an account since midnight")}
+            icon={Banknote}
+            tone={money.finance.expensesTodayUsd > 0 ? "warn" : "default"}
+            href="/app/finance/expenses"
+          />
+          <MoneyTile
+            label={t(locale, "Credit outstanding")}
+            usd={money.finance.creditOutstandingUsd}
+            rate={execRate}
+            hint={t(locale, "cargo released on a promise, never cash")}
+            icon={CreditCard}
+            tone={money.finance.creditOutstandingUsd > 0 ? "warn" : "default"}
+            href="/app/finance/credit"
+          />
+          {/*
+            WHAT THE MONTH KEPT, AND WHAT SHARE THAT IS.
+
+            The figure is the money; the ring is the margin. Putting the
+            percentage in both places printed "99%" twice on one card.
+
+            The ring is empty where nothing was billed — a margin off a zero
+            base is not 0%, it is not a number yet.
+          */}
+          <KpiCard
+            label={t(locale, "Profit this month")}
+            value={execTsh(money.finance.profitThisMonthUsd)}
+            ringPct={money.finance.marginPct ?? undefined}
+            ringLabel={t(locale, "Share of this month's billing left after costs")}
+            hint={
+              money.finance.marginPct === null
+                ? t(locale, "nothing billed this month yet")
+                : t(locale, "of everything billed this month survives its costs")
+            }
+            icon={ChartNoAxesCombined}
+            tone={
+              money.finance.profitThisMonthUsd < 0
+                ? "warning"
+                : money.finance.marginPct !== null && money.finance.marginPct >= 20
+                  ? "success"
+                  : "brand"
+            }
+            href="/app/manager/reports"
+          />
+        </div>
+      </div>
+
       <div>
         <SectionLabel
           action={{ href: "/app/finance", label: t(locale, "Full position") }}
@@ -343,16 +450,32 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
           One card in dollars in a row of shillings does not read as more
           precise. It reads as a different unit nobody warned you about.
         */}
+        {/*
+          FREIGHT, NAMED — BECAUSE THE BAR BELOW IT COUNTS MORE.
+
+          A customer often sends the freight and the delivery fare in one
+          transfer. This tile and its trend are the cargo half only; "Money in
+          and out" further down adds the fare back, because the fare leaving
+          again is counted in the same chart's Money out. Both are right and
+          they do not match, so the tile says which one it is instead of
+          leaving the owner to find two figures for one month.
+        */}
         <MoneyTile
-          label={t(locale, "Revenue this month")}
+          label={t(locale, "Freight revenue this month")}
           usd={thisMonthRevenue}
           rate={execRate}
           count={
-            lastMonthRevenue > 0
-              ? `${thisMonthRevenue >= lastMonthRevenue ? "+" : ""}${delta(thisMonthRevenue, lastMonthRevenue)?.toFixed(0) ?? 0}% ${t(locale, "on last month")}`
-              : t(locale, "first month with takings")
+            revenueChange
+              ? `${revenueChange} ${t(locale, "on last month")}`
+              : /* Only genuinely the first month if nothing was ever
+                   collected. A quiet month after busy ones is not the
+                   business's first, and saying so made the owner doubt a
+                   figure that was right. */
+                stats.allTimeCollected > thisMonthRevenue
+                ? t(locale, "nothing came in last month")
+                : t(locale, "first month with takings")
           }
-          hint={`${execTsh(stats.allTimeCollected)} ${t(locale, "all time")}`}
+          hint={`${execTsh(stats.allTimeCollected)} ${t(locale, "all time")} · ${t(locale, "the delivery fare is not ours")}`}
           icon={Banknote}
           tone="good"
           trend={revenue.values}
@@ -374,18 +497,39 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
           label={t(locale, "Delivered this month")}
           numeric={stats.deliveredThisMonth}
           ringPct={deliveredShare}
-          ringLabel={t(locale, "Share of the month's cargo delivered")}
+          /* The ring divides this month's deliveries by everything still
+             moving plus them — and "still moving" is the whole corridor, not
+             this month's registrations. Said as "the month's cargo", it named
+             a population the figure was never measured against. */
+          ringLabel={t(locale, "Delivered this month against everything still moving")}
           hint={`${stats.active} ${t(locale, "still moving")}`}
           icon={Truck}
           tone="brand"
         />
+        {/*
+          THE PROMISE THE BUSINESS ACTUALLY MAKES.
+
+          This said "Within 3-day promise" and measured departure → Dar
+          check-in, so it graded the corridor against a promise retired months
+          ago, on the wrong leg, and showed the owner 0%. It now counts the
+          span the customer counts: handed over in China → reached our Dar
+          warehouse, against the 3-10 days on the rate card.
+        */}
         <KpiCard
           delay={3}
-          label={t(locale, "Within 3-day promise")}
+          label={`${t(locale, "Within the")} ${COMPANY.promiseDays} ${t(locale, "day promise")}`}
           value={perf.promiseRate === null ? "—" : `${perf.promiseRate.toFixed(0)}%`}
-          ringPct={perf.promiseRate ?? 0}
+          /* No ring where there is nothing measured. A `?? 0` drew a full
+             0% ring beside a dash, which reads as "we met the promise on
+             none of it" rather than "no cargo has completed the journey
+             yet" — the first thing the owner saw and called wrong. */
+          ringPct={perf.promiseRate ?? undefined}
           ringLabel={t(locale, "Promise adherence")}
-          hint={`${t(locale, "Over")} ${perf.sample} ${t(locale, "delivered")}`}
+          hint={
+            perf.avgToTanzaniaDays === null
+              ? `${t(locale, "Over")} ${perf.sample} ${t(locale, "delivered")}`
+              : `${t(locale, "China → Dar, averaging")} ${perf.avgToTanzaniaDays.toFixed(1)} ${t(locale, "days")}`
+          }
           icon={Timer}
           tone={
             perf.promiseRate === null
@@ -439,13 +583,22 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
                   {t(locale, "What arrived against what it cost, this year")}
                 </p>
               </div>
-              <p
-                className={`shrink-0 text-right font-mono text-xs font-semibold ${
-                  netThisMonth < 0 ? "text-signal" : "text-success"
-                }`}
-              >
-                {netThisMonth < 0 ? "−" : "+"}
-                {execTsh(Math.abs(netThisMonth))}
+              {/* The bars run across the year; this figure is THIS MONTH
+                  alone. Unlabelled beside a caption ending "this year", it
+                  read as the year's net — which is a different and much
+                  larger number. */}
+              <p className="shrink-0 text-right">
+                <span
+                  className={`block font-mono text-xs font-semibold ${
+                    netThisMonth < 0 ? "text-signal" : "text-success"
+                  }`}
+                >
+                  {netThisMonth < 0 ? "−" : "+"}
+                  {execTsh(Math.abs(netThisMonth))}
+                </span>
+                <span className="block text-[10px] text-muted-foreground">
+                  {t(locale, "this month")}
+                </span>
               </p>
             </div>
             <FlowBars

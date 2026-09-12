@@ -4,6 +4,7 @@ import { ArrowDownRight, ArrowRight, ArrowUpRight, type LucideIcon } from "lucid
 import { CountUp } from "@/components/app/count-up";
 import { Ring } from "@/components/charts/ring";
 import { Sparkline } from "@/components/charts/sparkline";
+import { changeSize } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Tone = "brand" | "signal" | "success" | "warning" | "info" | "danger";
@@ -194,7 +195,10 @@ export function KpiCard({
                 )}
               >
                 <DeltaIcon className="h-3 w-3" />
-                {Math.abs(delta).toFixed(Math.abs(delta) % 1 === 0 ? 0 : 1)}%
+                {/* A month that was almost nothing makes the next one read
+                    "+1204382%". The arrow already carries the direction; past
+                    ten times over the multiple is what a person can use. */}
+                {changeSize(delta)}
               </span>
             ) : null}
             {hint ? (

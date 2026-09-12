@@ -58,6 +58,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  COMPANY,
   EXCEPTION_OPEN_STATUSES,
   STORAGE_POLICY,
 } from "@/lib/constants";
@@ -1458,14 +1459,19 @@ async function DarDashboard({
                 icon: Clock,
               },
               {
-                label: t(locale, "Within the 3-day promise"),
+                /* The same span the owner's screen grades: handed over in
+                   China → reached our Dar warehouse, against the 3-10 days
+                   the rate card promises. It measured departure → check-in
+                   against a three-day promise, which is neither the leg the
+                   customer counts nor a promise the business still makes. */
+                label: `${t(locale, "Within the")} ${COMPANY.promiseDays} ${t(locale, "day promise")}`,
                 value:
                   perf.promiseRate === null
                     ? "—"
                     : `${perf.promiseRate.toFixed(0)}%`,
                 note: t(
                   locale,
-                  "Share of cargo checked in within 3 days of departure."
+                  "Handed over in China → reached our Dar warehouse."
                 ),
                 icon: Timer,
               },
@@ -2322,13 +2328,20 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                   {t(locale, "What arrived against what it cost, this year")}
                 </p>
               </div>
-              <p
-                className={`shrink-0 text-right font-mono text-xs font-semibold ${
-                  netThisMonth < 0 ? "text-signal" : "text-success"
-                }`}
-              >
-                {netThisMonth < 0 ? "−" : "+"}
-                {tsh(Math.abs(netThisMonth))}
+              {/* This month alone, beside a caption that ends "this year".
+                  Unlabelled it read as the year's net. */}
+              <p className="shrink-0 text-right">
+                <span
+                  className={`block font-mono text-xs font-semibold ${
+                    netThisMonth < 0 ? "text-signal" : "text-success"
+                  }`}
+                >
+                  {netThisMonth < 0 ? "−" : "+"}
+                  {tsh(Math.abs(netThisMonth))}
+                </span>
+                <span className="block text-[10px] text-muted-foreground">
+                  {t(locale, "this month")}
+                </span>
               </p>
             </div>
             <FlowBars

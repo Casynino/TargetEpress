@@ -234,3 +234,42 @@ export function percentDelta(current: number, previous: number): number | undefi
   if (!previous) return undefined;
   return ((current - previous) / previous) * 100;
 }
+
+/**
+ * The same change, said so somebody can read it.
+ *
+ * A percentage divides by last month, so one quiet month followed by a normal
+ * one prints "+1204382% on last month" — arithmetically exact and worth
+ * nothing to the person reading it, who then doubts the figure above it as
+ * well. Past ten times over, the multiple is the honest way to say it.
+ *
+ * Null where there is nothing to compare against: percentDelta refuses a base
+ * of zero, and a caller that prints "0%" there states a comparison that was
+ * never made.
+ */
+export function percentDeltaLabel(
+  current: number,
+  previous: number
+): string | null {
+  const pct = percentDelta(current, previous);
+  if (pct === undefined) return null;
+  return `${pct > 0 && pct < CHANGE_AS_MULTIPLE ? "+" : ""}${changeSize(pct)}`;
+}
+
+/** Past ten times over, a percentage stops being readable. */
+const CHANGE_AS_MULTIPLE = 900;
+
+/**
+ * The size of a change, unsigned — "12%", "1.5%", "×54".
+ *
+ * Shared so the delta chip on a card and the sentence beside a money figure
+ * cannot disagree about the same movement.
+ */
+export function changeSize(pct: number): string {
+  const size = Math.abs(pct);
+  if (size >= CHANGE_AS_MULTIPLE) {
+    const times = 1 + size / 100;
+    return `×${times >= 100 ? Math.round(times).toLocaleString("en-US") : times.toFixed(1)}`;
+  }
+  return `${size.toFixed(size % 1 === 0 ? 0 : 1)}%`;
+}

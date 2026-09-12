@@ -547,7 +547,11 @@ export function RailStat({
       </div>
       {ringPct !== undefined ? (
         <Ring value={ringPct} tone={tone} label={ringLabel ?? label} size={44} stroke={4}>
-          {Math.round(ringPct)}%
+          {/* An overpaid bill, or a month whose collections settled last
+              month's invoices, takes this past 100 — and four digits do not
+              fit inside a 44px ring, so it printed over its own arc. The ring
+              is already drawn full at 100; past that the sign says so. */}
+          {ringPct > 100 ? ">100%" : `${Math.round(ringPct)}%`}
         </Ring>
       ) : null}
     </div>

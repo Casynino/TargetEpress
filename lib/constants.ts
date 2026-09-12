@@ -45,6 +45,17 @@ export const COMPANY = {
   promiseEn: "Your cargo reaches Tanzania in 3-10 days.",
   /** The same figure on its own, for stat tiles. */
   promiseDays: "3-10",
+  /**
+   * The promise as NUMBERS, for the screens that measure against it.
+   *
+   * The dashboards used to test `days <= 3` with a comment saying the public
+   * promise was three days. It had not been for months, so the owner's home
+   * screen graded the corridor against a promise the business no longer makes
+   * and reported nearly every consignment late. Kept beside the words so the
+   * next person who rewrites the promise changes both in one place.
+   */
+  promiseMinDays: 3,
+  promiseMaxDays: 10,
   taglineSw: "Kutoka China kwa bei nafuu",
   taglineEn: "From China, at a fair price",
 
