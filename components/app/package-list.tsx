@@ -86,7 +86,7 @@ export async function PackageList({
                 {pkg.deliveredAt ? (
                   <Badge variant="outline" className="gap-1 text-xs">
                     <PackageCheck className="h-3 w-3" />
-                    {t(locale, "Collected")}
+                    {t(locale, "Picked up")}
                   </Badge>
                 ) : pkg.receivedAt ? (
                   <Badge variant="outline" className="gap-1 text-xs">

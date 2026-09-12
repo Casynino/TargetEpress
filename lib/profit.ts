@@ -370,7 +370,24 @@ export async function profitAndLoss(window: ProfitWindow) {
   ]);
 
   const writtenOffPaid = toNumber(writtenOff._sum.amountPaid);
-  const revenue = toNumber(billed._sum.total) + writtenOffPaid;
+  /*
+    NET OF WHAT FINANCE CLEARED WITHOUT MONEY.
+
+    A customer sends 4,424,000 against a 4,424,625 bill, Finance clears the 625
+    and the cargo goes. That 625 is never arriving, and the receivable already
+    knows it — lib/queries.ts subtracts amountAdjusted per bill. Revenue did
+    not, so a partly waived bill counted its whole face here and the waiver
+    inflated both the profit and the margin by exactly the money the company
+    had formally given up.
+
+    A bill written off IN FULL was already handled, which is what made the gap
+    easy to miss: the write-off is excluded from this population and only the
+    cash taken on it is added back. A PARTIAL waiver leaves the bill inside it.
+  */
+  const revenue =
+    toNumber(billed._sum.total) -
+    toNumber(billed._sum.amountAdjusted) +
+    writtenOffPaid;
   const writtenOffUsd = toNumber(writtenOff._sum.total) - writtenOffPaid;
   /*
     THE FARE LANDED TOO, AND IT LEAVES AGAIN BELOW.

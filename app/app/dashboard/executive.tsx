@@ -361,7 +361,7 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
         >
           {t(locale, "The money · today")}
         </SectionLabel>
-        <div className="grid grid-cols-2 items-start gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 items-start gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MoneyTile
             label={t(locale, "Collected today")}
             usd={money.finance.collectedTodayUsd}
@@ -397,35 +397,6 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
             tone={money.finance.creditOutstandingUsd > 0 ? "warn" : "default"}
             href="/app/finance/credit"
           />
-          {/*
-            WHAT THE MONTH KEPT, AND WHAT SHARE THAT IS.
-
-            The figure is the money; the ring is the margin. Putting the
-            percentage in both places printed "99%" twice on one card.
-
-            The ring is empty where nothing was billed — a margin off a zero
-            base is not 0%, it is not a number yet.
-          */}
-          <KpiCard
-            label={t(locale, "Profit this month")}
-            value={execTsh(money.finance.profitThisMonthUsd)}
-            ringPct={money.finance.marginPct ?? undefined}
-            ringLabel={t(locale, "Share of this month's billing left after costs")}
-            hint={
-              money.finance.marginPct === null
-                ? t(locale, "nothing billed this month yet")
-                : t(locale, "of everything billed this month survives its costs")
-            }
-            icon={ChartNoAxesCombined}
-            tone={
-              money.finance.profitThisMonthUsd < 0
-                ? "warning"
-                : money.finance.marginPct !== null && money.finance.marginPct >= 20
-                  ? "success"
-                  : "brand"
-            }
-            href="/app/manager/reports"
-          />
         </div>
       </div>
 
@@ -435,7 +406,7 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
         >
           {t(locale, "Business health · right now")}
         </SectionLabel>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {/*
           Shillings lead here too.
 
@@ -461,7 +432,7 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
           leaving the owner to find two figures for one month.
         */}
         <MoneyTile
-          label={t(locale, "Freight revenue this month")}
+          label={t(locale, "Freight collected this month")}
           usd={thisMonthRevenue}
           rate={execRate}
           count={
@@ -475,7 +446,7 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
                 ? t(locale, "nothing came in last month")
                 : t(locale, "first month with takings")
           }
-          hint={`${execTsh(stats.allTimeCollected)} ${t(locale, "all time")} · ${t(locale, "the delivery fare is not ours")}`}
+          hint={`${execTsh(stats.allTimeCollected)} ${t(locale, "received all time")} · ${t(locale, "the delivery fare is not ours")}`}
           icon={Banknote}
           tone="good"
           trend={revenue.values}
@@ -487,7 +458,9 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
           label={t(locale, "Outstanding")}
           usd={stats.outstanding}
           rate={execRate}
-          hint={t(locale, "Owed to us by customers")}
+          /* Every open bill, not this month's — it sits between two tiles
+             that are both month figures, and read as one. */
+          hint={t(locale, "Owed on every unpaid bill, not just this month")}
           icon={Wallet}
           tone={stats.outstanding > 0 ? "warn" : "good"}
           href="/app/finance/invoices?status=UNPAID"
@@ -539,7 +512,80 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
                 : "warning"
           }
         />
+        {/*
+          BILLED LESS COSTS — WHICH IS NOT MONEY IN THE BANK.
+
+          The owner asked how the month could show a profit of 48m when 8.3m
+          had come in. It could because this figure counts bills RAISED, not
+          money RECEIVED: the other 39.8m was standing with customers, most of
+          it against cargo still on our own Dar floor.
+
+          Nothing about the arithmetic was wrong. The card said "Profit", sat
+          in a row headed "the money · today" beside three cash tiles, and
+          showed one term of a three-term sum with the other two nowhere on the
+          page. So it now says what it is, stands with the other month figures
+          rather than the day's cash, and prints both halves underneath —
+          billed and cost — which is the only way the figure can be checked.
+
+          `billed` is arithmetic on two numbers already here, not a fourth
+          opinion about what revenue means: profitAndLoss defines profit as
+          revenue less costs and managerOverview returns both.
+        */}
+        <KpiCard
+          delay={4}
+          label={t(locale, "Billed this month, less costs")}
+          value={execTsh(money.finance.profitThisMonthUsd)}
+          ringPct={money.finance.marginPct ?? undefined}
+          ringLabel={t(locale, "Share of this month's billing left after costs")}
+          hint={
+            money.finance.marginPct === null
+              ? t(locale, "nothing billed this month yet")
+              : /* "cost" alone is already a row counter in the dictionary
+                   ("3 costs"), so the two halves reuse the labels the manager
+                   page prints under the same figure. */
+                `${t(locale, "Billed")} ${execTsh(
+                  money.finance.profitThisMonthUsd + money.finance.expensesThisMonthUsd
+                )} · ${t(locale, "What it cost")} ${execTsh(money.finance.expensesThisMonthUsd)}`
+          }
+          icon={ChartNoAxesCombined}
+          tone={
+            money.finance.profitThisMonthUsd < 0
+              ? "warning"
+              : money.finance.marginPct !== null && money.finance.marginPct >= 20
+                ? "success"
+                : "brand"
+          }
+          href="/app/manager/reports"
+        />
         </div>
+        {/*
+          THE SENTENCE THAT STOPS THE CARD BEING MISREAD.
+
+          Said once, under the row, rather than crammed into a 48px ring: the
+          money figure above is what was invoiced, and Outstanding beside it is
+          how much of that nobody has paid yet.
+
+          The second half only appears when it is true. A margin above 95% on a
+          corridor that buys space from an airline means the flight's own costs
+          have not been entered — the app warns about this per flight already
+          ("A batch with no costs recorded reads as pure profit"), and this is
+          the screen the owner actually opens.
+        */}
+        <p className="mt-2 text-xs leading-snug text-muted-foreground">
+          {t(
+            locale,
+            "Billed less costs is what was invoiced this month, not money received. What has not been paid is under Outstanding."
+          )}
+          {money.finance.marginPct !== null && money.finance.marginPct > 95 ? (
+            <span className="text-warning">
+              {" "}
+              {t(
+                locale,
+                "Almost no costs are recorded for this month, so this reads higher than the business earned — the flights' freight, customs and clearing have not been entered."
+              )}
+            </span>
+          ) : null}
+        </p>
       </div>
 
       {/* Where all of it is, whether the money is keeping up, and how old the

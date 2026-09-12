@@ -690,7 +690,12 @@ const ZH: Record<string, string> = {
   "Collect from": "提货地点",
   "Collect the customer's proof and hand it to Finance":
     "收取客户的付款凭证并交给财务",
-  "Collected": "已提货",
+  /* 已收款, not 已提货. This key sits on money columns in Finance, the
+     manager's books and every batch statement — "cargo picked up" was
+     printed over shillings on all of them. The five screens that did mean
+     a collected BOX now say "Picked up". */
+  "Collected": "已收款",
+  "Picked up": "已提货",
   "collected": "已提走",
   "Collected all time": "累计收款",
   "Collected by": "提货人",
@@ -4339,6 +4344,14 @@ const ZH: Record<string, string> = {
   "Revenue billed": "开单收入",
   "Revenue this month": "本月收入",
   "Freight revenue this month": "本月运费收入",
+  "Freight collected this month": "本月运费收款",
+  "received all time": "累计收款",
+  "Owed on every unpaid bill, not just this month": "全部未付账单欠款，不限本月",
+  "Billed this month, less costs": "本月开单减成本",
+  "Billed less costs is what was invoiced this month, not money received. What has not been paid is under Outstanding.":
+    "开单减成本是本月已开出的账单扣除成本，并非已收到的款项。未付部分见“欠款”。",
+  "Almost no costs are recorded for this month, so this reads higher than the business earned — the flights' freight, customs and clearing have not been entered.":
+    "本月几乎没有录入成本，因此该数字高于实际经营所得 —— 航班的运费、清关与报关费用尚未录入。",
   "The money, in full": "资金全貌",
   "The money · today": "今日资金",
   "Margin this month": "本月利润率",

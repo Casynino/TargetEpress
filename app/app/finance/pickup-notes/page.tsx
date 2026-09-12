@@ -34,7 +34,7 @@ const TONE = {
 
 const FILTERS = [
   { key: "ACTIVE", label: "Waiting to be collected" },
-  { key: "USED", label: "Collected" },
+  { key: "USED", label: "Picked up" },
   { key: "CANCELLED", label: "Cancelled" },
   { key: "", label: "Everything" },
 ] as const;

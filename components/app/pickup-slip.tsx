@@ -161,7 +161,7 @@ export async function PickupSlip({ data }: { data: PickupSlipData }) {
               }}
             >
               {data.status === "USED"
-                ? t(locale, "Collected")
+                ? t(locale, "Picked up")
                 : t(locale, "Cancelled")}
             </p>
           ) : null}

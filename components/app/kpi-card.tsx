@@ -158,7 +158,19 @@ export function KpiCard({
             size={48}
             stroke={5}
           >
-            {Math.round(ringPct)}%
+            {/*
+              99.64% IS NOT 100%.
+
+              A margin of 99.64 rounded to "100%" beside the words "everything
+              billed survives its costs", on a month where TSh 174,034 of costs
+              had in fact been recorded. Rounding up to a whole is a stronger
+              claim than the figure supports, and it is the exact claim the
+              owner queried. Only the last step down is special-cased: a
+              genuinely costless month still reads 100%.
+            */}
+            {ringPct < 100 && Math.round(ringPct) === 100
+              ? `${Math.floor(ringPct * 10) / 10}%`
+              : `${Math.round(ringPct)}%`}
           </Ring>
         ) : null}
       </div>

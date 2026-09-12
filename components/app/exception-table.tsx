@@ -592,7 +592,7 @@ function CaseRecord({
                   key={pkg.sequence}
                   title={
                     pkg.deliveredAt
-                      ? t("Collected")
+                      ? t("Picked up")
                       : pkg.receivedAt
                         ? t("In the Dar warehouse")
                         : t("Not accounted for")

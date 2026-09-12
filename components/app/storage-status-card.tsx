@@ -49,7 +49,7 @@ export function StorageStatusCard({
 
   const tone = status.collected
     ? {
-        key: "Collected",
+        key: "Picked up",
         icon: PackageCheck,
         text: "text-muted-foreground",
         edge: "border-l-muted-foreground/40",
