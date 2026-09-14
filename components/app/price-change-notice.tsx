@@ -80,21 +80,52 @@ export function PriceChangeNotice({
 
   const difference = Math.round((totalAfter - totalBefore) * 100) / 100;
   const money = (n: number) => `${currency} ${Math.abs(n).toFixed(2)}`;
+  /*
+    A RUN THAT ENDS WHERE IT STARTED.
+
+    A desk mistypes a rate, sees the bill jump, and types it back. The customer
+    owes exactly what they always owed — but three rows were written and the
+    panel shouted at Finance about a change that, in the end, was not one.
+    Still worth their glance: a live bill moved twice. Not worth the alarm.
+  */
+  const netZero = Math.abs(difference) <= 0.005;
 
   return (
-    <div className="no-print mb-6 rounded-xl border border-warning/40 bg-warning/5 p-4">
+    <div
+      className={
+        "no-print mb-6 rounded-xl border p-4 " +
+        (netZero ? "border-border bg-muted/40" : "border-warning/40 bg-warning/5")
+      }
+    >
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-warning/15 text-warning">
+        <span
+          className={
+            "mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg " +
+            (netZero
+              ? "bg-muted text-muted-foreground"
+              : "bg-warning/15 text-warning")
+          }
+        >
           <Scale className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-semibold">{t("This price was changed")}</p>
+          <p className="font-semibold">
+            {netZero
+              ? t("This price was changed and put back")
+              : t("This price was changed")}
+          </p>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {t("The new figure is already on the bill and the customer can be sent it. Finance has not checked it yet.")}
+            {netZero
+              ? t("The bill is back at the figure it started on, so the customer owes what they always owed. Finance has not checked it yet.")
+              : t("The new figure is already on the bill and the customer can be sent it. Finance has not checked it yet.")}
           </p>
 
           <p className="mt-3 font-mono text-sm tabular-nums">
-            <span className="text-muted-foreground line-through">
+            <span
+              className={
+                netZero ? "text-muted-foreground" : "text-muted-foreground line-through"
+              }
+            >
               {money(totalBefore)}
             </span>
             {" → "}
@@ -135,7 +166,10 @@ export function PriceChangeNotice({
               and a reader seeing one arrow would assume it goes back one step. */}
           {steps > 1 ? (
             <p className="mt-1 text-[11px] text-muted-foreground">
-              {t("Changed")} {steps} {t("times. Putting it back goes to where the bill started.")}
+              {t("Changed")} {steps}{" "}
+              {netZero
+                ? t("times, ending on the original figure.")
+                : t("times. Putting it back goes to where the bill started.")}
             </p>
           ) : null}
 

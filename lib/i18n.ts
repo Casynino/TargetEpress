@@ -4347,6 +4347,10 @@ const ZH: Record<string, string> = {
   "Freight collected this month": "本月运费收款",
   "a colleague": "同事",
   "This price was changed": "该价格已被修改",
+  "This price was changed and put back": "该价格曾被修改，现已改回",
+  "The bill is back at the figure it started on, so the customer owes what they always owed. Finance has not checked it yet.":
+    "账单已恢复到最初的金额，客户应付金额不变。财务尚未核对。",
+  "times, ending on the original figure.": "次，最终回到最初的金额。",
   "The new figure is already on the bill and the customer can be sent it. Finance has not checked it yet.":
     "新金额已生效并可发送给客户。财务尚未核对。",
   "Changed by": "修改人",
