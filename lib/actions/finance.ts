@@ -28,6 +28,7 @@ import {
   toLocal,
 } from "@/lib/fx";
 import { postLedgerEntry } from "@/lib/ledger";
+import { recordPriceChange } from "@/lib/price-changes";
 import { quote } from "@/lib/pricing";
 import {
   nextInvoiceNumber,
@@ -1355,6 +1356,52 @@ export async function adjustInvoice(
                 toNumber(invoice.amountAdjusted)
               ) ?? undefined,
           },
+        });
+      }
+
+      /*
+        A PRICE THAT MOVES IS NEVER QUIET.
+
+        Customer Care may now change any figure on a bill — the owner's
+        instruction is that whoever agrees a price with a customer is whoever
+        types it, with no limit and no waiting. What replaces the block is
+        this: a row Finance is shown, saying what the bill was, what it is, and
+        who moved it, with one press to put it back.
+
+        Only for desks that cannot sign a price off themselves. Finance moving
+        a price is not news to Finance, and a queue listing its own work is a
+        queue nobody reads.
+
+        Written inside this transaction, so the record and the change land
+        together or neither does — a price that moved without its row would be
+        exactly the silent change this exists to prevent.
+      */
+      if (
+        !can(user.role, "invoice.priceConfirm") &&
+        Math.abs(total - toNumber(invoice.total)) > 0.005
+      ) {
+        await recordPriceChange(tx, {
+          invoiceId: invoice.id,
+          actorId: user.id,
+          currency: invoice.currency,
+          totalBefore: toNumber(invoice.total),
+          freightBefore:
+            invoice.freightOverride === null
+              ? null
+              : toNumber(invoice.freightOverride),
+          rateBefore:
+            invoice.freightRateOverride === null
+              ? null
+              : toNumber(invoice.freightRateOverride),
+          storageBefore: toNumber(invoice.storageCharge),
+          otherBefore: toNumber(invoice.otherCharges),
+          discountBefore: toNumber(invoice.discount),
+          totalAfter: total,
+          reason:
+            input.freightOverrideReason ||
+            input.storageReason ||
+            input.correctionReason ||
+            null,
         });
       }
 

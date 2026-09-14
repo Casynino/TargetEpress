@@ -6,7 +6,7 @@ import { Download, FileClock, MessageCircle } from "lucide-react";
 import { CreditRequest } from "@/components/app/credit-request";
 import { InvoiceDocument } from "@/components/app/invoice-document";
 import { InvoiceEditor } from "@/components/app/invoice-editor";
-import { PriceRequestPanel } from "@/components/app/price-request-panel";
+import { PriceChangeNotice } from "@/components/app/price-change-notice";
 import { MessageComposer } from "@/components/app/message-composer";
 import { SmartBack } from "@/components/app/smart-back";
 import { InvoiceVoid } from "@/components/app/invoice-void";
@@ -67,15 +67,14 @@ export default async function InvoicePage({
          nobody has to open the audit log to find out who let cargo go unpaid. */
       creditRequestedBy: { select: { name: true } },
       creditDecidedBy: { select: { name: true } },
-      /* The price the counter has asked Finance to agree, and the last few it
-         ruled on. Newest first: the panel shows the waiting one and the page
-         below it says what happened to the others. */
-      priceRequests: {
-        orderBy: { requestedAt: "desc" },
+      /* Every time this bill's price moved. Newest first — the notice shows
+         the one nobody has checked yet. */
+      priceChanges: {
+        orderBy: { changedAt: "desc" },
         take: 5,
         include: {
-          requestedBy: { select: { name: true } },
-          decidedBy: { select: { name: true } },
+          changedBy: { select: { name: true } },
+          reviewedBy: { select: { name: true } },
         },
       },
       /*
@@ -257,9 +256,9 @@ export default async function InvoicePage({
     behind both.
   */
   const isDraft = invoice.status === "DRAFT";
-  /* The one price holding this bill, if any. The rest of the list is history
-     the panel prints underneath. */
-  const pendingPrice = invoice.priceRequests.find((r) => r.status === "PENDING");
+  /* The most recent change nobody has checked. Not a hold — the bill already
+     carries it; this is what makes it visible that it moved. */
+  const uncheckedPrice = invoice.priceChanges.find((c) => c.status === "UNSEEN");
   /* A draft is nobody's demand for money, so the desk that raises bills may
      drop its own; a confirmed figure has been quoted to a customer, and taking
      that back is the owner's. Written-off bills belong to a closed statement,
@@ -449,36 +448,22 @@ export default async function InvoicePage({
       ) : null}
 
       {/*
-        ABOVE THE FIGURES, BECAUSE IT CONTRADICTS THEM.
+        ABOVE THE FIGURES, BECAUSE IT EXPLAINS THEM.
 
-        The total printed below this is what the customer owes today, and it is
-        not what is being asked for. A reader who scrolls past this panel quotes
-        the wrong number down the phone, which is the whole reason it is loud
-        and first rather than tucked into the editor.
+        The total below is already the new one. What a reader cannot tell from
+        it is that it moved this morning, who moved it, and what it was — which
+        is the whole of what the owner asked to be able to see.
       */}
-      {pendingPrice ? (
-        <PriceRequestPanel
-          requestId={pendingPrice.id}
+      {uncheckedPrice ? (
+        <PriceChangeNotice
+          changeId={uncheckedPrice.id}
           currency={currency}
-          standingTotal={toNumber(invoice.total)}
-          proposedTotal={toNumber(pendingPrice.proposedTotal)}
-          freightFrom={toNumber(pendingPrice.freightAtTime)}
-          freightTo={
-            pendingPrice.clearsFreightOverride
-              ? toNumber(invoice.freightCost)
-              : pendingPrice.freightOverride === null
-                ? toNumber(pendingPrice.freightAtTime)
-                : toNumber(pendingPrice.freightOverride)
-          }
-          reason={pendingPrice.reason}
-          askedBy={pendingPrice.requestedBy?.name ?? t(locale, "a colleague")}
-          askedAt={formatDateTime(pendingPrice.requestedAt, locale)}
-          /* Holding the authority is not enough: whoever asked may not agree
-             their own. The action checks the same thing against the person. */
-          canDecide={
-            canDiscount && pendingPrice.requestedById !== user.id
-          }
-          canWithdraw={pendingPrice.requestedById === user.id}
+          totalBefore={toNumber(uncheckedPrice.totalBefore)}
+          totalAfter={toNumber(uncheckedPrice.totalAfter)}
+          reason={uncheckedPrice.reason}
+          changedBy={uncheckedPrice.changedBy?.name ?? t(locale, "a colleague")}
+          changedAt={formatDateTime(uncheckedPrice.changedAt, locale)}
+          canReview={can(user.role, "invoice.priceConfirm")}
         />
       ) : null}
 
@@ -514,8 +499,6 @@ export default async function InvoicePage({
             canCorrect={can(user.role, "ledger.adjust")}
             alreadyPaid={toNumber(invoice.amountPaid)}
             canDiscount={canDiscount}
-            canRequestPrice={can(user.role, "invoice.priceRequest")}
-            pendingRequest={pendingPrice !== undefined}
           />
         </div>
       ) : null}

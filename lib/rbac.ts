@@ -149,10 +149,6 @@ export type Permission =
      thing the owner wanted kept back: until it is given, nothing is owed and
      no cargo may go. */
   | "invoice.priceConfirm"
-  /* Asking Finance to agree a price the counter agreed with a customer. The
-     desk that holds this is asking, not deciding — invoice.discount is the
-     deciding. */
-  | "invoice.priceRequest"
   | "invoice.discount"
   | "invoice.rate"
   | "invoice.storage.waive"
@@ -522,25 +518,24 @@ const CUSTOMER_CARE: Permission[] = [
   "invoice.manage",
   "invoice.edit",
   /*
-    ASKING FOR A PRICE, WHICH IS NOT AGREEING ONE.
+    THE PRICE, WITHOUT A LIMIT — AND NEVER SILENTLY.
 
-    The counter settles a figure with a customer on the phone. Before this, the
-    freight box was simply locked to them and the conversation ended in a call
-    to somebody else — the desk could not type the number they had just agreed.
-    They type it now and it becomes a request: nothing on the bill moves, the
-    customer still owes the confirmed figure, and Finance rules on it.
-  */
-  "invoice.priceRequest",
-  /*
-    NO DISCOUNT FROM THIS DESK.
+    This desk lost the discount once, on the reasoning that giving money away
+    belongs to Finance. The owner has drawn the line back: whoever agrees a
+    figure with a customer is whoever changes the bill, and the counter is
+    where that conversation happens. Freight, discount, storage, extra charges
+    — all of it applies exactly as typed, the invoice moves with it, and the
+    customer can be sent the new figure immediately.
 
-    This desk did hold it, on the reasoning that whoever agrees a price with a
-    customer is whoever agrees a discount with them. The owner has since drawn
-    the line differently: giving money away is Finance's, the manager's and his
-    own, and Support asks rather than decides. What Support keeps is the rate —
-    the line below — because agreeing what today's shillings are worth against
-    a dollar bill is the conversation they are actually having on the phone.
+    What replaces the block is a record. Every price this desk moves writes an
+    InvoicePriceChange standing UNSEEN, so Finance is told what changed, by
+    whom, from what to what — and can put it back in one press. The control is
+    that nothing is quiet, not that nothing is allowed.
+
+    invoice.priceConfirm is deliberately still absent: signing a price off, and
+    reviewing what this desk did, stay with Finance.
   */
+  "invoice.discount",
   /*
     THE RATE ON ONE BILL — NOT THE RATE BOOK.
 

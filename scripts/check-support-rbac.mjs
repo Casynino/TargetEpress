@@ -48,11 +48,11 @@ const MUST_NOT = {
     manager's, and Support asks rather than decides. lib/rbac.ts says so in
     full; this list is the gate that keeps it said.
   */
-  "Apply discounts": "invoice.discount",
-  /* Signing a price off is what makes a bill real and lets cargo go. This desk
-     asks for a price (invoice.priceRequest, below); it never agrees one. The
-     two used to be the same permission, so Support could set a figure and sign
-     it off in the same breath. */
+  /* Signing a price off is what makes a bill real and lets cargo go, and it is
+     what marks another desk's price change as checked. This desk CHANGES
+     prices (invoice.discount, below) and never signs one off — including its
+     own. The two used to be one permission, so Support could set a figure and
+     sign it off in the same breath. */
   "Sign off a price": "invoice.priceConfirm",
 };
 
@@ -69,8 +69,10 @@ const MUST_HAVE = {
   "Agree the rate on one bill": "invoice.rate",
   "Waive storage": "invoice.storage.waive",
   "Send invoices": "invoice.send",
-  // Asking Finance for a price agreed at the counter. Asking, never deciding.
-  "Ask Finance for a price": "invoice.priceRequest",
+  /* Change any figure on a bill — the owner's instruction is that whoever
+     agrees a price with a customer is whoever types it, with no limit. Every
+     change this desk makes is written up for Finance to see and put back. */
+  "Change the price on a bill": "invoice.discount",
   "Manage support tickets": "ticket.manage",
   "Manage sourcing requests": "sourcing.manage",
   "Contact customers": "message.send",

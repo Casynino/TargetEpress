@@ -257,18 +257,6 @@ export async function releaseShipment(
               trackingNumber: true,
               status: true,
               packageType: true,
-              /* A price the counter has asked Finance to agree — see the
-                 refusal below. Only the waiting one matters. */
-              invoice: {
-                select: {
-                  invoiceNumber: true,
-                  priceRequests: {
-                    where: { status: "PENDING" },
-                    select: { proposedTotal: true },
-                    take: 1,
-                  },
-                },
-              },
               packageList: {
                 select: {
                   id: true,
@@ -398,23 +386,6 @@ export async function releaseShipment(
         consignments at once is a different decision, with several bills behind
         it, and it is not one a clerk should make by pressing this button.
       */
-      /*
-        A PRICE IN DISPUTE KEEPS THE BOXES.
-
-        Customer Care has agreed a figure with the customer and Finance has not
-        ruled on it yet. Handing the cargo over now settles the argument by
-        default — whatever is agreed afterwards is owed by somebody who already
-        has their goods, which is the position the whole request flow exists to
-        avoid. The bill itself is untouched and still collectable; it is the
-        handover that waits.
-      */
-      const waitingPrice = note.shipment.invoice?.priceRequests?.[0];
-      if (waitingPrice) {
-        throw new Error(
-          `${t(locale, "A price on")} ${note.shipment.invoice?.invoiceNumber ?? note.shipment.trackingNumber} ${t(locale, "is waiting on Finance. The cargo cannot be released until they agree or refuse it.")}`
-        );
-      }
-
       const taped = note.shipment.packageList.find(
         (box) => box.combination !== null && box.combination.undoneAt === null
       );

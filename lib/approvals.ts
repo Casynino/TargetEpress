@@ -99,14 +99,14 @@ const QUEUES: Record<QueueKey, QueueDef> = {
   },
   prices: {
     key: "prices",
-    label: "Prices to agree",
+    label: "Price changes to check",
+    /* Not "to approve". The bill has already moved and the customer may
+       already have been sent it — what is waiting is Finance knowing, not
+       Finance deciding. */
     detail:
-      "Figures Customer Care agreed at the counter. The bill does not move and the cargo stays until one of these is ruled on.",
-    /* The bill itself, because that is the only place both the standing figure
-       and the asked-for one are side by side — which is what the decision is
-       actually about. The collections queue lists them. */
+      "Bills Customer Care re-priced at the counter. Already in force — check them and put any back that should not stand.",
     href: "/app/collections/follow-up",
-    permission: "invoice.discount",
+    permission: "invoice.priceConfirm",
   },
   statements: {
     key: "statements",
@@ -194,22 +194,21 @@ export function draftInvoices() {
 }
 
 /**
- * Prices the counter agreed and Finance has not ruled on, oldest first.
+ * Prices the counter moved that Finance has not looked at, oldest first.
  *
- * A DIFFERENT QUEUE FROM THE DRAFTS ABOVE, and the difference matters: a draft
- * is a bill nobody has priced yet, while one of these is a bill with a good
- * price on it that somebody wants changed. A draft holds revenue; one of these
- * holds a customer standing at a counter having been told a figure.
+ * A DIFFERENT QUEUE FROM THE DRAFTS ABOVE, and the difference matters. A draft
+ * is a bill nobody has priced yet and it holds revenue until somebody does.
+ * One of these is a bill that has ALREADY been re-priced and is already in
+ * force — it holds nothing at all. It is on this board for the one reason the
+ * owner asked for: so a price cannot move without Finance knowing it moved.
  *
- * The value on the row is what the bill WOULD come to, not what it says today —
- * the row exists to be compared against the standing total, and printing the
- * standing total twice would answer nothing.
+ * The value is what the bills now come to, which is what the customers now owe.
  */
-export function waitingPriceRequests() {
-  return prisma.invoicePriceRequest.findMany({
-    where: { status: "PENDING" },
-    select: { proposedTotal: true, requestedAt: true },
-    orderBy: { requestedAt: "asc" },
+export function uncheckedPriceChanges() {
+  return prisma.invoicePriceChange.findMany({
+    where: { status: "UNSEEN" },
+    select: { totalAfter: true, changedAt: true },
+    orderBy: { changedAt: "asc" },
   });
 }
 
@@ -226,7 +225,7 @@ export async function approvalQueues(now = new Date()): Promise<ApprovalQueue[]>
 
     draftInvoices(),
 
-    waitingPriceRequests(),
+    uncheckedPriceChanges(),
 
     /* Raised, not yet ruled on, on the shared list rather than a shorter one
        written here. EXCEPTION_OPEN_STATUSES is what the exceptions queue, the
@@ -314,8 +313,8 @@ export async function approvalQueues(now = new Date()): Promise<ApprovalQueue[]>
     {
       ...QUEUES.prices,
       count: prices.length,
-      valueUsd: prices.reduce((n, r) => n + toNumber(r.proposedTotal), 0),
-      oldestDays: daysSince(prices[0]?.requestedAt, now),
+      valueUsd: prices.reduce((n, r) => n + toNumber(r.totalAfter), 0),
+      oldestDays: daysSince(prices[0]?.changedAt, now),
     },
     {
       ...QUEUES.statements,
