@@ -49,39 +49,28 @@ export async function reviewPriceChange(
     return fail("Say whether the price stands or goes back.");
   }
 
-  const change = await prisma.invoicePriceChange.findUnique({
+  /* The row the panel names tells us WHICH BILL; the run is what is ruled on.
+     A desk that mistyped and fixed it leaves two rows, and agreeing or undoing
+     one of them alone leaves the other standing against nothing. */
+  const named = await prisma.invoicePriceChange.findUnique({
     where: { id: changeId },
-    select: {
-      id: true,
-      status: true,
-      currency: true,
-      totalBefore: true,
-      freightBefore: true,
-      rateBefore: true,
-      storageBefore: true,
-      otherBefore: true,
-      discountBefore: true,
-      totalAfter: true,
-      invoiceId: true,
-      invoice: {
-        select: {
-          invoiceNumber: true,
-          total: true,
-          notes: true,
-          exchangeRate: true,
-          shipment: { select: { trackingNumber: true } },
-        },
-      },
-    },
+    select: { invoiceId: true, status: true },
   });
-  if (!change) return fail("That price change no longer exists.");
-  if (change.status !== "UNSEEN") {
+  if (!named) return fail("That price change no longer exists.");
+  if (named.status !== "UNSEEN") {
     return fail("Somebody has already looked at this one.");
   }
 
+  const run = await uncheckedRun(named.invoiceId);
+  if (run.length === 0) return fail("Somebody has already looked at this one.");
+  /* Where the bill stood before the desk started, and where it stands now. */
+  const first = run[0];
+  const last = run[run.length - 1];
+  const ids = run.map((r) => r.id);
+
   if (decision === "CONFIRM") {
     const seen = await prisma.invoicePriceChange.updateMany({
-      where: { id: change.id, status: "UNSEEN" },
+      where: { id: { in: ids }, status: "UNSEEN" },
       data: {
         status: "CONFIRMED",
         reviewedById: user.id,
@@ -95,16 +84,17 @@ export async function reviewPriceChange(
       actor: user,
       action: "invoice.priceConfirmed",
       entity: "Invoice",
-      entityId: change.invoiceId,
-      summary: `Agreed the price on ${change.invoice.shipment?.trackingNumber ?? change.invoice.invoiceNumber}`,
+      entityId: named.invoiceId,
+      summary: `Agreed the price on ${last.invoice.shipment?.trackingNumber ?? last.invoice.invoiceNumber}: ${toNumber(first.totalBefore).toFixed(2)} → ${toNumber(last.totalAfter).toFixed(2)}`,
       metadata: {
-        changeId: change.id,
-        from: toNumber(change.totalBefore),
-        to: toNumber(change.totalAfter),
+        changeIds: ids,
+        from: toNumber(first.totalBefore),
+        to: toNumber(last.totalAfter),
+        steps: run.length,
         note: note || null,
       },
     });
-    revalidatePath(`/app/finance/invoices/${change.invoiceId}`);
+    revalidatePath(`/app/finance/invoices/${named.invoiceId}`);
     revalidatePath("/app/collections/follow-up");
     return ok({ reverted: false });
   }
@@ -121,23 +111,25 @@ export async function reviewPriceChange(
 
     Claimed first, so two people cannot both revert and double-apply.
   */
+  const claimedAt = new Date();
   const claimed = await prisma.invoicePriceChange.updateMany({
-    where: { id: change.id, status: "UNSEEN" },
+    where: { id: { in: ids }, status: "UNSEEN" },
     data: {
       status: "REVERTED",
       reviewedById: user.id,
-      reviewedAt: new Date(),
+      reviewedAt: claimedAt,
       reviewNote: note || null,
     },
   });
   if (claimed.count === 0) return fail("Somebody has already looked at this one.");
 
-  const applied = await restoreTo(change, note || "Price put back by Finance");
+  /* To where the bill stood before the desk started — `first`, not `last`. */
+  const applied = await restoreTo(first, note || "Price put back by Finance");
   if (!applied.ok) {
-    /* Nothing moved, so the row goes back to UNSEEN rather than standing as
+    /* Nothing moved, so the rows go back to UNSEEN rather than standing as
        reverted against a bill that still carries the new price. */
     await prisma.invoicePriceChange.updateMany({
-      where: { id: change.id, status: "REVERTED", reviewedById: user.id },
+      where: { id: { in: ids }, status: "REVERTED", reviewedById: user.id },
       data: {
         status: "UNSEEN",
         reviewedById: null,
@@ -148,24 +140,70 @@ export async function reviewPriceChange(
     return fail(applied.error);
   }
 
+  /* The restore is itself a price change, and Finance made it — so it writes
+     no row of its own. Nothing to clean up here, unlike the desk's undo. */
+
   await recordAudit({
     actor: user,
     action: "invoice.priceReverted",
     entity: "Invoice",
-    entityId: change.invoiceId,
-    summary: `Put the price on ${change.invoice.shipment?.trackingNumber ?? change.invoice.invoiceNumber} back to ${change.currency} ${toNumber(change.totalBefore).toFixed(2)}`,
+    entityId: named.invoiceId,
+    summary: `Put the price on ${last.invoice.shipment?.trackingNumber ?? last.invoice.invoiceNumber} back to ${first.currency} ${toNumber(first.totalBefore).toFixed(2)}`,
     metadata: {
-      changeId: change.id,
-      undid: toNumber(change.totalAfter),
-      restored: toNumber(change.totalBefore),
+      changeIds: ids,
+      undid: toNumber(last.totalAfter),
+      restored: toNumber(first.totalBefore),
+      steps: run.length,
       note: note || null,
     },
   });
 
-  revalidatePath(`/app/finance/invoices/${change.invoiceId}`);
+  revalidatePath(`/app/finance/invoices/${named.invoiceId}`);
   revalidatePath("/app/collections/follow-up");
   revalidatePath("/app/finance");
   return ok({ reverted: true });
+}
+
+
+/**
+ * EVERY CHANGE ON THIS BILL NOBODY HAS LOOKED AT, OLDEST FIRST.
+ *
+ * A desk that gets a figure wrong and fixes it leaves TWO rows: 8,893.75 →
+ * 16,364.50, then 16,364.50 → 8,182.25. Read one at a time, "put it back"
+ * restores 16,364.50 — the typo, which is the one figure nobody ever wanted,
+ * and the bill's real starting price disappears behind it.
+ *
+ * So a run of unchecked changes is treated as one thing: the reader is shown
+ * where the bill started and where it is now, and putting it back means
+ * putting it back to before the desk started, not to the step before last.
+ */
+async function uncheckedRun(invoiceId: string) {
+  return prisma.invoicePriceChange.findMany({
+    where: { invoiceId, status: "UNSEEN" },
+    orderBy: { changedAt: "asc" },
+    select: {
+      id: true,
+      status: true,
+      currency: true,
+      changedById: true,
+      invoiceId: true,
+      totalBefore: true,
+      totalAfter: true,
+      discountBefore: true,
+      otherBefore: true,
+      storageBefore: true,
+      freightBefore: true,
+      rateBefore: true,
+      invoice: {
+        select: {
+          invoiceNumber: true,
+          exchangeRate: true,
+          notes: true,
+          shipment: { select: { trackingNumber: true } },
+        },
+      },
+    },
+  });
 }
 
 /**
@@ -247,54 +285,47 @@ export async function undoPriceChange(
   const changeId = String(formData.get("changeId") ?? "");
   if (!changeId) return fail("Missing the price change.");
 
-  const change = await prisma.invoicePriceChange.findUnique({
+  const named = await prisma.invoicePriceChange.findUnique({
     where: { id: changeId },
-    select: {
-      id: true,
-      status: true,
-      currency: true,
-      changedById: true,
-      invoiceId: true,
-      totalBefore: true,
-      totalAfter: true,
-      discountBefore: true,
-      otherBefore: true,
-      storageBefore: true,
-      freightBefore: true,
-      rateBefore: true,
-      invoice: {
-        select: {
-          invoiceNumber: true,
-          exchangeRate: true,
-          notes: true,
-          shipment: { select: { trackingNumber: true } },
-        },
-      },
-    },
+    select: { invoiceId: true, status: true },
   });
-  if (!change) return fail("That price change no longer exists.");
-  if (change.status !== "UNSEEN") {
+  if (!named) return fail("That price change no longer exists.");
+  if (named.status !== "UNSEEN") {
     return fail(
       "Finance has already looked at this one. Change the price again if it is wrong — that goes up as a new change."
     );
   }
-  if (change.changedById !== user.id) {
-    return fail("Only the person who made this change can take it back.");
+
+  /* The whole run, so a desk that mistyped and corrected itself goes back to
+     the price the bill actually started at rather than to its own typo. */
+  const run = await uncheckedRun(named.invoiceId);
+  if (run.length === 0) return fail("Finance has already looked at this one.");
+  const first = run[0];
+  const last = run[run.length - 1];
+  const ids = run.map((r) => r.id);
+
+  /* Every step of it has to be yours. Taking back a run that somebody else
+     started would undo their work under your name. */
+  if (run.some((r) => r.changedById !== user.id)) {
+    return fail(
+      "Somebody else has also changed this price. Ask Finance to put it back."
+    );
   }
 
   const claimedAt = new Date();
   const claimed = await prisma.invoicePriceChange.updateMany({
-    where: { id: change.id, status: "UNSEEN", changedById: user.id },
+    where: { id: { in: ids }, status: "UNSEEN", changedById: user.id },
     data: { status: "UNDONE", reviewedAt: claimedAt },
   });
   if (claimed.count === 0) {
     return fail("Finance looked at this a moment ago. Reload to see what they said.");
   }
 
-  const applied = await restoreTo(change, "Undone by the desk that made it");
+  /* To where the bill stood before this desk started — `first`, not `last`. */
+  const applied = await restoreTo(first, "Undone by the desk that made it");
   if (!applied.ok) {
     await prisma.invoicePriceChange.updateMany({
-      where: { id: change.id, status: "UNDONE", changedById: user.id },
+      where: { id: { in: ids }, status: "UNDONE", changedById: user.id },
       data: { status: "UNSEEN", reviewedAt: null },
     });
     return fail(applied.error);
@@ -315,7 +346,7 @@ export async function undoPriceChange(
   */
   await prisma.invoicePriceChange.deleteMany({
     where: {
-      invoiceId: change.invoiceId,
+      invoiceId: named.invoiceId,
       changedById: user.id,
       status: "UNSEEN",
       changedAt: { gte: claimedAt },
@@ -326,16 +357,17 @@ export async function undoPriceChange(
     actor: user,
     action: "invoice.priceUndone",
     entity: "Invoice",
-    entityId: change.invoiceId,
-    summary: `Took back the price change on ${change.invoice.shipment?.trackingNumber ?? change.invoice.invoiceNumber}: back to ${change.currency} ${toNumber(change.totalBefore).toFixed(2)}`,
+    entityId: named.invoiceId,
+    summary: `Took back ${run.length === 1 ? "the price change" : `${run.length} price changes`} on ${last.invoice.shipment?.trackingNumber ?? last.invoice.invoiceNumber}: back to ${first.currency} ${toNumber(first.totalBefore).toFixed(2)}`,
     metadata: {
-      changeId: change.id,
-      undid: toNumber(change.totalAfter),
-      restored: toNumber(change.totalBefore),
+      changeIds: ids,
+      undid: toNumber(last.totalAfter),
+      restored: toNumber(first.totalBefore),
+      steps: run.length,
     },
   });
 
-  revalidatePath(`/app/finance/invoices/${change.invoiceId}`);
+  revalidatePath(`/app/finance/invoices/${named.invoiceId}`);
   revalidatePath("/app/collections/follow-up");
   return ok({ undone: true });
 }

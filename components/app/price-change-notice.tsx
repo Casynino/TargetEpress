@@ -31,6 +31,10 @@ export function PriceChangeNotice({
   currency,
   totalBefore,
   totalAfter,
+  rateBefore = null,
+  rateAfter = null,
+  perItem = false,
+  steps = 1,
   reason,
   changedBy,
   changedAt,
@@ -39,8 +43,22 @@ export function PriceChangeNotice({
 }: {
   changeId: string;
   currency: string;
+  /** Where the bill stood before this desk started — not before its last step. */
   totalBefore: number;
   totalAfter: number;
+  /**
+   * THE RATE, WHICH IS WHERE THE MISTAKE IS ACTUALLY LEGIBLE.
+   *
+   * A bill going from 8,893.75 to 16,364.50 says nothing to a reader; the same
+   * change said as 12.50/kg to 23.00/kg is obviously wrong at a glance on a
+   * corridor whose book rate is 12.50. Null where the freight was typed as a
+   * lump with no rate behind it, which is a real case and not an error.
+   */
+  rateBefore?: number | null;
+  rateAfter?: number | null;
+  perItem?: boolean;
+  /** How many edits this run is. More than one means a desk corrected itself. */
+  steps?: number;
   reason: string | null;
   changedBy: string;
   changedAt: string;
@@ -95,6 +113,31 @@ export function PriceChangeNotice({
               </span>
             ) : null}
           </p>
+
+          {/* The rate is what makes a wrong figure obvious. 12.50 → 23.00 on a
+              corridor billed at 12.50 reads as a mistake; the totals it
+              produces do not. */}
+          {rateBefore !== null && rateAfter !== null &&
+          Math.abs(rateAfter - rateBefore) > 0.0005 ? (
+            <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
+              <span className="line-through">
+                {currency} {rateBefore.toFixed(2)}
+              </span>
+              {" → "}
+              <span className="font-semibold text-foreground">
+                {currency} {rateAfter.toFixed(2)}
+              </span>{" "}
+              {perItem ? t("per item") : t("per kg")}
+            </p>
+          ) : null}
+
+          {/* Said plainly, because "put it back" goes to the start of the run
+              and a reader seeing one arrow would assume it goes back one step. */}
+          {steps > 1 ? (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {t("Changed")} {steps} {t("times. Putting it back goes to where the bill started.")}
+            </p>
+          ) : null}
 
           {reason ? (
             <p className="mt-2 rounded-lg border bg-card px-3 py-2 text-sm">

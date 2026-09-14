@@ -258,7 +258,19 @@ export default async function InvoicePage({
   const isDraft = invoice.status === "DRAFT";
   /* The most recent change nobody has checked. Not a hold — the bill already
      carries it; this is what makes it visible that it moved. */
-  const uncheckedPrice = invoice.priceChanges.find((c) => c.status === "UNSEEN");
+  /*
+    THE WHOLE RUN NOBODY HAS LOOKED AT, NOT JUST THE LAST STEP.
+
+    A desk that mistyped and fixed it leaves two rows. Showing only the newest
+    told the reader the bill came from the typo, and offered to "put it back"
+    to exactly the figure nobody wanted. Oldest gives where the bill started;
+    newest gives where it is now.
+  */
+  const uncheckedRun = invoice.priceChanges
+    .filter((c) => c.status === "UNSEEN")
+    .sort((a, b) => a.changedAt.getTime() - b.changedAt.getTime());
+  const runStart = uncheckedRun[0];
+  const uncheckedPrice = uncheckedRun[uncheckedRun.length - 1];
   /* A draft is nobody's demand for money, so the desk that raises bills may
      drop its own; a confirmed figure has been quoted to a customer, and taking
      that back is the owner's. Written-off bills belong to a closed statement,
@@ -454,19 +466,30 @@ export default async function InvoicePage({
         it is that it moved this morning, who moved it, and what it was — which
         is the whole of what the owner asked to be able to see.
       */}
-      {uncheckedPrice ? (
+      {uncheckedPrice && runStart ? (
         <PriceChangeNotice
           changeId={uncheckedPrice.id}
           currency={currency}
-          totalBefore={toNumber(uncheckedPrice.totalBefore)}
+          totalBefore={toNumber(runStart.totalBefore)}
           totalAfter={toNumber(uncheckedPrice.totalAfter)}
+          /* The rate the bill carried when the run began, against the one it
+             carries now — read from the row and from the bill, never divided
+             out of a total that may also hold storage and a discount. */
+          rateBefore={
+            runStart.rateBefore === null
+              ? rateFacts.standardRate
+              : toNumber(runStart.rateBefore)
+          }
+          rateAfter={rateFacts.agreedRate ?? rateFacts.standardRate}
+          perItem={rateFacts.ratePerItem}
+          steps={uncheckedRun.length}
           reason={uncheckedPrice.reason}
           changedBy={uncheckedPrice.changedBy?.name ?? t(locale, "a colleague")}
           changedAt={formatDateTime(uncheckedPrice.changedAt, locale)}
           canReview={can(user.role, "invoice.priceConfirm")}
           /* Her own, and only while nobody has looked. The action checks the
              same two things against the row. */
-          canUndo={uncheckedPrice.changedById === user.id}
+          canUndo={uncheckedRun.every((c) => c.changedById === user.id)}
         />
       ) : null}
 

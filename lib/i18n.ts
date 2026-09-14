@@ -4350,6 +4350,8 @@ const ZH: Record<string, string> = {
   "The new figure is already on the bill and the customer can be sent it. Finance has not checked it yet.":
     "新金额已生效并可发送给客户。财务尚未核对。",
   "Changed by": "修改人",
+  "Changed": "共修改",
+  "times. Putting it back goes to where the bill started.": "次。改回将恢复到账单最初的金额。",
   "Checked — this price is fine": "已核对 —— 该价格没有问题",
   "Put it back": "改回原价",
   "Undo this change": "撤销此修改",
