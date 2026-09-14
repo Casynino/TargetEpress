@@ -143,6 +143,16 @@ export type Permission =
   | "finance.view"
   | "invoice.manage"
   | "invoice.edit" // change a bill before the customer has paid anything
+  /* SIGNING OFF A PRICE, WHICH IS WHAT MAKES A BILL REAL.
+     Split out of invoice.manage because that one also opens the PDF and raises
+     the bill, and Customer Care needs both at the counter. This is the narrow
+     thing the owner wanted kept back: until it is given, nothing is owed and
+     no cargo may go. */
+  | "invoice.priceConfirm"
+  /* Asking Finance to agree a price the counter agreed with a customer. The
+     desk that holds this is asking, not deciding — invoice.discount is the
+     deciding. */
+  | "invoice.priceRequest"
   | "invoice.discount"
   | "invoice.rate"
   | "invoice.storage.waive"
@@ -502,8 +512,25 @@ const CUSTOMER_CARE: Permission[] = [
   "shipment.attach",
   "batch.view",
   "finance.view",
+  /*
+    KEPT: raising a bill, opening its PDF and sending it. Deliberately WITHOUT
+    invoice.priceConfirm, which used to ride along inside this one — signing a
+    price off is what makes a bill real and lets cargo go, and the owner asked
+    for that to be Finance's alone. The desk that agrees a figure with a
+    customer now asks for it through invoice.priceRequest below.
+  */
   "invoice.manage",
   "invoice.edit",
+  /*
+    ASKING FOR A PRICE, WHICH IS NOT AGREEING ONE.
+
+    The counter settles a figure with a customer on the phone. Before this, the
+    freight box was simply locked to them and the conversation ended in a call
+    to somebody else — the desk could not type the number they had just agreed.
+    They type it now and it becomes a request: nothing on the bill moves, the
+    customer still owes the confirmed figure, and Finance rules on it.
+  */
+  "invoice.priceRequest",
   /*
     NO DISCOUNT FROM THIS DESK.
 
@@ -619,6 +646,9 @@ const FINANCE: Permission[] = [
   "finance.view",
   "invoice.manage",
   "invoice.edit",
+  /* Signing a price off is this desk's, and the owner asked for it to stop
+     being Support's: until it is given nothing is owed and no cargo goes. */
+  "invoice.priceConfirm",
   "invoice.discount",
   "invoice.rate",
   "invoice.storage.waive",

@@ -456,6 +456,8 @@ model User {
   reviewedPayments      PaymentSubmission[]     @relation("ReviewedPayments")
   adjustmentsMade       InvoiceAdjustment[]     @relation("AdjustmentsMade")
   adjustmentsReversed   InvoiceAdjustment[]     @relation("AdjustmentsReversed")
+  priceRequestsMade     InvoicePriceRequest[]   @relation("PriceRequestsMade")
+  priceRequestsDecided  InvoicePriceRequest[]   @relation("PriceRequestsDecided")
   issuedReceipts        Receipt[]
   issuedPickupNotes     PickupNote[]
   releasedDeliveries    DeliveryRecord[]
@@ -1507,6 +1509,9 @@ model Invoice {
 
   /// Every clearing decision, kept for ever. See InvoiceAdjustment.
   adjustments    InvoiceAdjustment[]
+
+  /// Prices Support has asked Finance to agree. See InvoicePriceRequest.
+  priceRequests  InvoicePriceRequest[]
   status         InvoiceStatus       @default(UNPAID)
   /// When this bill was given up on, and who decided. Set only alongside
   /// status WRITTEN_OFF — the status says what it is, these say who owns it.
@@ -3367,6 +3372,100 @@ model PaymentAllocation {
 /// standing, exactly as a wrong ledger line is answered by a reversing line
 /// rather than an edit — so "this was cleared in September and un-cleared in
 /// October" is a thing the book can still say a year later.
+/// WHAT A PRICE REQUEST IS WAITING ON.
+///
+/// PENDING is the only state that holds a bill. The other three are history:
+/// the row stays for ever either way, because "who asked for 60.00 and who
+/// said no" is the question this table exists to answer.
+enum PriceRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+/// A PRICE SUPPORT HAS ASKED FINANCE TO AGREE.
+///
+/// The counter agrees a figure with a customer on the phone; moving the
+/// freight on a bill is giving money away, and that decision is Finance's,
+/// the manager's and the owner's. Before this existed the two facts could not
+/// both be true, so Support simply could not type the number they had just
+/// agreed — the field was locked and the conversation ended in a phone call to
+/// somebody else.
+///
+/// So the desk types it and it becomes a REQUEST. NOTHING ON THE BILL MOVES.
+/// The customer still owes the confirmed figure, every screen still shows it,
+/// and the proposal sits here until somebody with the authority rules on it.
+///
+/// The proposed figures are stored as the FINAL amounts the bill should carry,
+/// not as deltas — a delta applied days later against a bill that has since
+/// moved lands somewhere nobody agreed. Approving re-submits these through
+/// adjustInvoice under the APPROVER's own session, so the price moves through
+/// exactly one code path with exactly one set of guards, and the approver's
+/// name is the one on the change.
+model InvoicePriceRequest {
+  id String @id @default(cuid())
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  /// The freight the desk is asking for. Null means "leave the freight alone",
+  /// which is not the same as asking for the rate book's figure — that is
+  /// `clearsFreightOverride` below.
+  freightOverride Decimal? @db.Decimal(12, 2)
+
+  /// Asking to DROP an agreed price and go back to the rate book. Stored apart
+  /// from the figure because null cannot say the difference between "leave it"
+  /// and "clear it", and clearing one moves what a customer owes just as much
+  /// as setting one.
+  clearsFreightOverride Boolean @default(false)
+
+  /// The rate per kg or per piece the desk agreed, where they agreed a rate
+  /// rather than a lump. Kept beside the freight it produced for the same
+  /// reason the invoice keeps it: so a screen can say what was agreed per kilo
+  /// without dividing a total by a weight.
+  freightRateOverride Decimal? @db.Decimal(12, 2)
+
+  /// Null on each of these means "leave it alone".
+  storageCharge Decimal? @db.Decimal(12, 2)
+  otherCharges  Decimal? @db.Decimal(12, 2)
+
+  /// NOT OPTIONAL, unlike the reason on an adjustment Finance makes itself.
+  /// This row exists to be read by somebody who was not on the call, and a
+  /// request with no reason cannot be ruled on — only guessed at.
+  reason String
+
+  /// The bill as it stood when the desk asked, so the row explains itself
+  /// without re-deriving a history that has since moved on.
+  currency       String
+  totalAtTime    Decimal @db.Decimal(12, 2)
+  freightAtTime  Decimal @db.Decimal(12, 2)
+  /// What the bill would come to if this is agreed. Stored rather than derived
+  /// so the queue can show the difference without loading the rate book for
+  /// every waiting row.
+  proposedTotal  Decimal @db.Decimal(12, 2)
+
+  status PriceRequestStatus @default(PENDING)
+
+  requestedById String?
+  requestedBy   User?    @relation("PriceRequestsMade", fields: [requestedById], references: [id], onDelete: SetNull)
+  requestedAt   DateTime @default(now())
+
+  /// One pair for both outcomes: `status` already says which it was, and two
+  /// nullable pairs would allow the impossible state of being agreed and
+  /// refused at once. The same shape the credit decision uses.
+  decidedById  String?
+  decidedBy    User?     @relation("PriceRequestsDecided", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt    DateTime?
+  /// Finance's words back to the desk. Read at the counter, so it is written
+  /// for the customer's ear, not the file.
+  decisionNote String?
+
+  /// The queue reads PENDING oldest-first; the invoice page reads its own.
+  @@index([status, requestedAt])
+  @@index([invoiceId, status])
+}
+
 model InvoiceAdjustment {
   id String @id @default(cuid())
 

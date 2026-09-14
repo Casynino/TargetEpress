@@ -49,6 +49,11 @@ const MUST_NOT = {
     full; this list is the gate that keeps it said.
   */
   "Apply discounts": "invoice.discount",
+  /* Signing a price off is what makes a bill real and lets cargo go. This desk
+     asks for a price (invoice.priceRequest, below); it never agrees one. The
+     two used to be the same permission, so Support could set a figure and sign
+     it off in the same breath. */
+  "Sign off a price": "invoice.priceConfirm",
 };
 
 /** Straight from the spec's "Customer Support CAN" list. */
@@ -64,6 +69,8 @@ const MUST_HAVE = {
   "Agree the rate on one bill": "invoice.rate",
   "Waive storage": "invoice.storage.waive",
   "Send invoices": "invoice.send",
+  // Asking Finance for a price agreed at the counter. Asking, never deciding.
+  "Ask Finance for a price": "invoice.priceRequest",
   "Manage support tickets": "ticket.manage",
   "Manage sourcing requests": "sourcing.manage",
   "Contact customers": "message.send",

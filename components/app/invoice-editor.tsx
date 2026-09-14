@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { MoneyInput } from "@/components/ui/money-input";
 import { Textarea } from "@/components/ui/textarea";
 import { adjustInvoice } from "@/lib/actions/finance";
+import { requestPriceChange } from "@/lib/actions/price-requests";
+import type { ActionResult } from "@/lib/actions/types";
 
 /**
  * Editing a bill before it is paid.
@@ -37,6 +39,8 @@ export function InvoiceEditor({
   canCorrect = false,
   alreadyPaid = 0,
   canDiscount,
+  canRequestPrice = false,
+  pendingRequest = false,
 }: {
   invoiceId: string;
   currency: string;
@@ -56,8 +60,29 @@ export function InvoiceEditor({
   /** What the customer has handed over. The floor a correction cannot go under. */
   alreadyPaid?: number;
   canDiscount: boolean;
+  /**
+   * MAY ASK FOR A PRICE, MAY NOT AGREE ONE.
+   *
+   * Customer Care settles a figure with a customer at the counter and cannot
+   * sign it off. With this, the freight box opens to them and the whole panel
+   * becomes a request: the bill does not move, Finance rules, and the note and
+   * the exchange rate — the two things this desk owns outright — still save on
+   * the same press.
+   */
+  canRequestPrice?: boolean;
+  /** A price is already waiting on Finance, so a second cannot be sent. */
+  pendingRequest?: boolean;
 }) {
-  const [state, action] = useActionState(adjustInvoice, undefined);
+  /* Whoever may agree a price edits the bill directly. Everyone else who may
+     touch it at all is asking. */
+  const asking = !canDiscount && canRequestPrice;
+  /* One panel, two doors. Typed to the shape both share — the panel only ever
+     reads `ok` and `error` off it. */
+  const submit = (asking ? requestPriceChange : adjustInvoice) as (
+    prev: ActionResult<unknown> | undefined,
+    formData: FormData
+  ) => Promise<ActionResult<unknown>>;
+  const [state, action] = useActionState(submit, undefined);
   const t = useT();
   const [open, setOpen] = useState(false);
   const [discountDraft, setDiscountDraft] = useState(String(discount || ""));
@@ -87,6 +112,12 @@ export function InvoiceEditor({
     The number that moved was the one they could not see.
   */
   const freightNow = freightDraft.trim() === "" ? freight : num(freightDraft);
+  /* Whether this press is a save or a request. The action decides it again
+     from the bill itself — this only chooses what the button says. */
+  const moneyMoved =
+    Math.abs(freightNow - (freightOverride ?? freight)) > 0.005 ||
+    Math.abs(num(storageDraft) - storage) > 0.005 ||
+    Math.abs(num(otherDraft) - otherCharges) > 0.005;
   const total =
     freightNow + num(storageDraft) + num(otherDraft) - num(discountDraft);
   /* Off the clock's figure by more than a cent: the reason field appears, and
@@ -126,11 +157,17 @@ export function InvoiceEditor({
         className="flex w-full items-center justify-between gap-3 p-4 text-left"
       >
         <div>
-          <p className="font-semibold">{t("Adjust this invoice")}</p>
+          <p className="font-semibold">
+            {asking ? t("Ask Finance for a price") : t("Adjust this invoice")}
+          </p>
           <p className="text-sm text-muted-foreground">
-            {t(
-              "Freight, extra charges, discount, exchange rate and notes — before it is paid."
-            )}
+            {asking
+              ? t(
+                  "Type what you agreed with the customer. Finance agrees it before the bill moves; the note and the rate save straight away."
+                )
+              : t(
+                  "Freight, extra charges, discount, exchange rate and notes — before it is paid."
+                )}
           </p>
         </div>
         <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-brand">
@@ -278,13 +315,17 @@ export function InvoiceEditor({
                 value={freightDraft}
                 onValueChange={setFreightDraft}
                 placeholder={freight.toFixed(2)}
-                disabled={(locked && !canCorrect) || !canDiscount}
+                disabled={(locked && !canCorrect) || (!canDiscount && !asking)}
               />
               <p className="text-xs text-muted-foreground">
                 {t("The rate book says")} {currency} {freight.toFixed(2)}.{" "}
-                {t(
-                  "Leave blank to use it. Anything else is recorded as a variance against the price list, with your reason."
-                )}
+                {asking
+                  ? t(
+                      "Leave blank to use it. Anything else is sent to Finance to agree — the customer keeps owing the figure on the bill until they do."
+                    )
+                  : t(
+                      "Leave blank to use it. Anything else is recorded as a variance against the price list, with your reason."
+                    )}
               </p>
             </div>
 
@@ -389,9 +430,43 @@ export function InvoiceEditor({
             ) : null}
           </div>
 
+          {/*
+            THE REASON FINANCE READS.
+
+            Shown only when a money figure has actually moved, and required by
+            the action rather than only asked for here. Somebody who was not on
+            the call has to rule on this, and a request that says nothing can
+            only be guessed at. Fixing a note is not asking for anything, so it
+            does not demand one.
+          */}
+          {asking && moneyMoved ? (
+            <div className="space-y-1.5 rounded-lg border border-brand/30 bg-brand/5 p-3">
+              <Label htmlFor="reason">
+                {t("What was agreed, and with whom")}
+              </Label>
+              <Input
+                id="reason"
+                name="reason"
+                placeholder={t("e.g. agreed USD 11.50/kg with Mr Juma, regular customer")}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                {t("Finance reads this before agreeing the price.")}
+              </p>
+            </div>
+          ) : null}
+
+          {asking && pendingRequest ? (
+            <p className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs text-warning">
+              {t("A price on this bill is already waiting on Finance. Take that one back before sending another.")}
+            </p>
+          ) : null}
+
           <div className="flex gap-2">
-            <SubmitButton pendingLabel={t("Saving…")} disabled={total < 0}>
-              {t("Save changes")}
+            <SubmitButton
+              pendingLabel={asking && moneyMoved ? t("Sending…") : t("Saving…")}
+              disabled={total < 0 || (asking && moneyMoved && pendingRequest)}
+            >
+              {asking && moneyMoved ? t("Send to Finance") : t("Save changes")}
             </SubmitButton>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               {t("Cancel")}

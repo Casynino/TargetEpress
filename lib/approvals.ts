@@ -48,6 +48,7 @@ export type QueueKey =
   | "credit"
   | "payments"
   | "drafts"
+  | "prices"
   | "statements"
   | "payroll"
   | "claims";
@@ -62,7 +63,8 @@ export type QueueDef = {
   permission:
     | "credit.approve"
     | "payment.verify"
-    | "invoice.manage"
+    | "invoice.priceConfirm"
+    | "invoice.discount"
     | "exception.approve"
     | "payroll.approve"
     | "statement.review";
@@ -93,7 +95,18 @@ const QUEUES: Record<QueueKey, QueueDef> = {
        show him one. The collections queue is where a draft is actually acted
        on. */
     href: "/app/collections/follow-up",
-    permission: "invoice.manage",
+    permission: "invoice.priceConfirm",
+  },
+  prices: {
+    key: "prices",
+    label: "Prices to agree",
+    detail:
+      "Figures Customer Care agreed at the counter. The bill does not move and the cargo stays until one of these is ruled on.",
+    /* The bill itself, because that is the only place both the standing figure
+       and the asked-for one are side by side — which is what the decision is
+       actually about. The collections queue lists them. */
+    href: "/app/collections/follow-up",
+    permission: "invoice.discount",
   },
   statements: {
     key: "statements",
@@ -180,17 +193,40 @@ export function draftInvoices() {
   });
 }
 
+/**
+ * Prices the counter agreed and Finance has not ruled on, oldest first.
+ *
+ * A DIFFERENT QUEUE FROM THE DRAFTS ABOVE, and the difference matters: a draft
+ * is a bill nobody has priced yet, while one of these is a bill with a good
+ * price on it that somebody wants changed. A draft holds revenue; one of these
+ * holds a customer standing at a counter having been told a figure.
+ *
+ * The value on the row is what the bill WOULD come to, not what it says today —
+ * the row exists to be compared against the standing total, and printing the
+ * standing total twice would answer nothing.
+ */
+export function waitingPriceRequests() {
+  return prisma.invoicePriceRequest.findMany({
+    where: { status: "PENDING" },
+    select: { proposedTotal: true, requestedAt: true },
+    orderBy: { requestedAt: "asc" },
+  });
+}
+
 const DAY = 86_400_000;
 const daysSince = (d: Date | null | undefined, now: Date) =>
   d ? Math.max(0, Math.floor((now.getTime() - d.getTime()) / DAY)) : null;
 
 export async function approvalQueues(now = new Date()): Promise<ApprovalQueue[]> {
-  const [credit, payments, drafts, claims, payroll, statements, rate] = await Promise.all([
+  const [credit, payments, drafts, prices, claims, payroll, statements, rate] =
+    await Promise.all([
     pendingCreditRequests(now),
 
     pendingPaymentSubmissions(),
 
     draftInvoices(),
+
+    waitingPriceRequests(),
 
     /* Raised, not yet ruled on, on the shared list rather than a shorter one
        written here. EXCEPTION_OPEN_STATUSES is what the exceptions queue, the
@@ -274,6 +310,12 @@ export async function approvalQueues(now = new Date()): Promise<ApprovalQueue[]>
       count: drafts.length,
       valueUsd: drafts.reduce((n, d) => n + toNumber(d.total), 0),
       oldestDays: daysSince(drafts[0]?.issuedAt, now),
+    },
+    {
+      ...QUEUES.prices,
+      count: prices.length,
+      valueUsd: prices.reduce((n, r) => n + toNumber(r.proposedTotal), 0),
+      oldestDays: daysSince(prices[0]?.requestedAt, now),
     },
     {
       ...QUEUES.statements,

@@ -327,7 +327,7 @@ export async function confirmInvoicePrice(
 ): Promise<ActionResult<{ invoiceNumber: string; total: number }>> {
   let user: SessionUser;
   try {
-    user = await authorize("invoice.manage");
+    user = await authorize("invoice.priceConfirm");
   } catch (error) {
     return fail(toActionError(error));
   }
@@ -693,7 +693,7 @@ export async function confirmBatchPrices(
 ): Promise<ActionResult<{ confirmed: number; skipped: number; blocked: string[] }>> {
   let user: SessionUser;
   try {
-    user = await authorize("invoice.manage");
+    user = await authorize("invoice.priceConfirm");
   } catch (error) {
     return fail(toActionError(error));
   }

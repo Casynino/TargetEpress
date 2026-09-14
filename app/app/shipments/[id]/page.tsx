@@ -246,7 +246,9 @@ export default async function ShipmentPage({
     };
   });
 
-  const canConfirm = can(user.role, "invoice.manage");
+  /* Signing the price off, which is narrower than managing the bill: Support
+     raises it and prints it, Finance is what makes it real. */
+  const canConfirm = can(user.role, "invoice.priceConfirm");
 
   /*
     Whether this flight's books can be shut, and what is stopping them.
