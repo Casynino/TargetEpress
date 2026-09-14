@@ -6,7 +6,10 @@ import { Scale, Check, Undo2 } from "lucide-react";
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
-import { reviewPriceChange } from "@/lib/actions/price-changes";
+import {
+  reviewPriceChange,
+  undoPriceChange,
+} from "@/lib/actions/price-changes";
 import type { ActionResult } from "@/lib/actions/types";
 
 /**
@@ -32,6 +35,7 @@ export function PriceChangeNotice({
   changedBy,
   changedAt,
   canReview,
+  canUndo = false,
 }: {
   changeId: string;
   currency: string;
@@ -42,6 +46,8 @@ export function PriceChangeNotice({
   changedAt: string;
   /** Holds invoice.priceConfirm — Finance, the manager, the owner. */
   canReview: boolean;
+  /** Made this change, and nobody has looked at it yet. */
+  canUndo?: boolean;
 }) {
   const t = useT();
   const [mode, setMode] = useState<null | "revert">(null);
@@ -49,6 +55,10 @@ export function PriceChangeNotice({
     ActionResult<{ reverted: boolean }> | undefined,
     FormData
   >(reviewPriceChange, undefined);
+  const [undo, undoAction] = useActionState<
+    ActionResult<{ undone: boolean }> | undefined,
+    FormData
+  >(undoPriceChange, undefined);
 
   const difference = Math.round((totalAfter - totalBefore) * 100) / 100;
   const money = (n: number) => `${currency} ${Math.abs(n).toFixed(2)}`;
@@ -97,6 +107,7 @@ export function PriceChangeNotice({
           </p>
 
           <FormError state={state} />
+          <FormError state={undo} />
 
           {canReview ? (
             mode === null ? (
@@ -145,6 +156,21 @@ export function PriceChangeNotice({
                 </div>
               </form>
             )
+          ) : canUndo ? (
+            /* The desk that made it, before anybody has looked. Taking it back
+               puts the bill in exactly the state it was in — not a second
+               change typed from memory. */
+            <form action={undoAction} className="mt-3">
+              <input type="hidden" name="changeId" value={changeId} />
+              <SubmitButton
+                size="sm"
+                variant="outline"
+                pendingLabel={t("Putting it back…")}
+              >
+                <Undo2 className="mr-1.5 h-3.5 w-3.5" />
+                {`${t("Undo this change")} — ${t("back to")} ${money(totalBefore)}`}
+              </SubmitButton>
+            </form>
           ) : (
             <p className="mt-3 text-xs text-muted-foreground">
               {t("Finance will check this change.")}

@@ -3376,12 +3376,15 @@ model PaymentAllocation {
 /// WHERE A PRICE CHANGE HAS GOT TO.
 ///
 /// UNSEEN is not a hold. The bill has ALREADY moved and the customer can
-/// already be sent it — this only says Finance has not looked yet. The other
-/// two are what Finance did about it.
+/// already be sent it — this only says nobody has looked yet. The other three
+/// are the ways a row stops needing to be looked at.
 enum PriceChangeStatus {
   UNSEEN
   CONFIRMED
+  /// Finance put the bill back.
   REVERTED
+  /// The desk took its own change back before anybody had to look at it.
+  UNDONE
 }
 
 /// A PRICE THE COUNTER CHANGED, FLAGGED FOR FINANCE TO SEE.

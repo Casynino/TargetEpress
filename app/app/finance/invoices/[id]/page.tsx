@@ -464,6 +464,9 @@ export default async function InvoicePage({
           changedBy={uncheckedPrice.changedBy?.name ?? t(locale, "a colleague")}
           changedAt={formatDateTime(uncheckedPrice.changedAt, locale)}
           canReview={can(user.role, "invoice.priceConfirm")}
+          /* Her own, and only while nobody has looked. The action checks the
+             same two things against the row. */
+          canUndo={uncheckedPrice.changedById === user.id}
         />
       ) : null}
 

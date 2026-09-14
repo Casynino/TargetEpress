@@ -8,7 +8,7 @@
 -- unique index and no hold — a bill may collect any number of these over its
 -- life, and none of them stops anything.
 
-CREATE TYPE "PriceChangeStatus" AS ENUM ('UNSEEN', 'CONFIRMED', 'REVERTED');
+CREATE TYPE "PriceChangeStatus" AS ENUM ('UNSEEN', 'CONFIRMED', 'REVERTED', 'UNDONE');
 
 CREATE TABLE "InvoicePriceChange" (
   "id"             TEXT PRIMARY KEY,

@@ -4352,6 +4352,8 @@ const ZH: Record<string, string> = {
   "Changed by": "修改人",
   "Checked — this price is fine": "已核对 —— 该价格没有问题",
   "Put it back": "改回原价",
+  "Undo this change": "撤销此修改",
+  "back to": "恢复为",
   "Why it goes back — the desk reads this": "改回的原因 —— 前台会看到",
   "Putting it back…": "正在改回…",
   "Put it back to": "改回",
