@@ -512,8 +512,8 @@ const CUSTOMER_CARE: Permission[] = [
     KEPT: raising a bill, opening its PDF and sending it. Deliberately WITHOUT
     invoice.priceConfirm, which used to ride along inside this one — signing a
     price off is what makes a bill real and lets cargo go, and the owner asked
-    for that to be Finance's alone. The desk that agrees a figure with a
-    customer now asks for it through invoice.priceRequest below.
+    for that to be Finance's alone. Changing a price is invoice.discount below,
+    which this desk does hold — what it cannot do is mark the change checked.
   */
   "invoice.manage",
   "invoice.edit",
