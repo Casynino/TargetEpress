@@ -325,6 +325,47 @@ export function PaymentPanel({
             ? Math.round(props.outstanding * activeRate)
             : Math.round((props.outstanding / activeRate) * 100) / 100;
 
+  /*
+    WHAT IS LEFT, IN BOTH MONIES, ALWAYS.
+
+    A customer settles one bill with a handful of dollars and the rest in
+    shillings, and after the first tranche the clerk has to know what is still
+    owed in the money the NEXT one is coming in. The panel restated the
+    remainder only when the tender currency differed from the bill's, so a
+    dollar bill being paid in dollars showed the shilling figure nowhere — and
+    the desk worked it out on a phone, at whatever rate they remembered.
+
+    Converted at the rate frozen onto the invoice, never today's: that is the
+    rate the customer was quoted and the rate every tranche of this bill will
+    settle at, however many days apart they arrive.
+  */
+  const owedInBill = props.outstanding;
+  const owedInOther =
+    owedInBill === null || !rateUsable
+      ? null
+      : props.currency === "TZS"
+        ? Math.round((owedInBill / activeRate) * 100) / 100
+        : Math.round(owedInBill * activeRate);
+  const otherCurrency = props.currency === "TZS" ? "USD" : "TZS";
+  const owedBoth =
+    owedInBill === null
+      ? null
+      : `${props.currency} ${owedInBill.toFixed(2)}` +
+        (owedInOther === null
+          ? ""
+          : ` · ${otherCurrency} ${
+              otherCurrency === "TZS"
+                ? owedInOther.toLocaleString("en-US")
+                : owedInOther.toFixed(2)
+            }`);
+
+  /* Only once a tranche has landed. On an untouched bill the amount box
+     already opens on the full figure and a second statement of it is noise. */
+  const partPaid =
+    props.invoiceTotal !== undefined &&
+    props.outstanding !== null &&
+    props.invoiceTotal - props.outstanding > 0.005;
+
   const fare = Math.max(0, Number(transport) || 0);
 
   /*
@@ -506,9 +547,9 @@ export function PaymentPanel({
         <span className={settled ? "text-sm" : "text-base"}>
           {t(settled ? "Settled in full" : "Record payment")}
         </span>
-        {!settled && props.outstanding !== null ? (
+        {!settled && owedBoth !== null ? (
           <span className="ml-auto font-mono text-sm tabular-nums text-brand">
-            {props.currency} {props.outstanding.toFixed(2)}
+            {owedBoth}
           </span>
         ) : null}
       </button>
@@ -578,6 +619,34 @@ export function PaymentPanel({
           {/* WHAT ACTUALLY REACHED THE ACCOUNT. The clerk types the two halves;
               this is their sum, and it is what the bank statement will show. */}
           <input type="hidden" name="amount" value={totalShown} />
+
+          {/*
+            WHAT IS STILL OWED, BEFORE THE BOX THAT WILL CHANGE IT.
+
+            Above the amount rather than below it: this is the figure the clerk
+            is typing AGAINST, and on a bill being settled in two currencies it
+            is the one they most need while the customer is still on the phone.
+            Both monies, so a second tranche in the other one needs no
+            arithmetic done on a phone.
+          */}
+          {owedBoth !== null && partPaid ? (
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-lg border bg-muted/40 px-2.5 py-2">
+              <span className="text-[11px] text-muted-foreground">
+                {t("Still owing on this bill")}
+              </span>
+              <span className="font-mono text-sm font-semibold tabular-nums">
+                {owedBoth}
+              </span>
+              {props.invoiceTotal ? (
+                <span className="w-full text-[11px] text-muted-foreground">
+                  {t("Bill")} {props.currency} {props.invoiceTotal.toFixed(2)} ·{" "}
+                  {t("paid so far")} {props.currency}{" "}
+                  {(props.invoiceTotal - (props.outstanding ?? 0)).toFixed(2)}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
             <div className="space-y-1.5">
               <Label htmlFor="cargoShown" className="text-xs">

@@ -3411,6 +3411,8 @@ const ZH: Record<string, string> = {
   "That is more than the bill still owes.": "这超过了账单尚欠的金额。",
   "This closes the balance. No money moves and the payment stays exactly as it was.": "此操作结清余额。没有资金变动，付款记录保持原样。",
   "Still owing": "尚欠",
+  "Still owing on this bill": "该账单仍欠",
+  "paid so far": "已付",
   "Clearing…": "正在冲销…",
   "waiting on you to agree it": "等待你核实",
   "That looks like the whole transfer, transport included.": "这看起来是含运输费的转账总额。",
