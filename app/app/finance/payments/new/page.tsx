@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { Banknote, MessageCircle, ReceiptText, Search, Users, Wallet } from "lucide-react";
 
 import { rateFactsOf } from "@/lib/agreed-rate";
+import { poolShareFor } from "@/lib/minimum-pool";
+import { MinimumPoolNote } from "@/components/app/minimum-pool-note";
 import { Button } from "@/components/ui/button";
 
 import { CustomerPaymentForm, type OpenBill } from "@/components/app/customer-payment-form";
@@ -512,6 +514,10 @@ export default async function RecordCustomerPaymentPage({
              show and change each cargo's own price — see OpenBill. */
           freightRateOverride: true,
           freightOverrideReason: true,
+          /* The freight actually on the bill, so the screen can compare what
+             this customer is being charged against what one minimum comes to. */
+          freightCost: true,
+          freightOverride: true,
           storageCharge: true,
           storageWaivedUsd: true,
           /* So the credit control can decide whether to show itself without
@@ -520,6 +526,7 @@ export default async function RecordCustomerPaymentPage({
           shipment: {
             select: {
               trackingNumber: true,
+              id: true,
               status: true,
               /* The two dates the storage clock runs between. */
               arrivedAt: true,
@@ -561,6 +568,58 @@ export default async function RecordCustomerPaymentPage({
   /* Settled bills are dropped here rather than shown greyed out: this screen is
      a decision about money that is in somebody's hand right now, and a list of
      bills that need nothing is noise in front of it. */
+  /*
+    A MINIMUM THIS CUSTOMER IS PAYING MORE THAN ONCE.
+
+    Check-in pools the route's minimum across a customer's cargo on one flight,
+    but it only touches a price that is still a draft. Bills raised and
+    confirmed before that rule existed — and any pair whose second parcel
+    landed after the first was signed off — still carry the minimum twice, and
+    nothing in the app was ever going to notice.
+
+    This screen is where somebody looks at all of one customer's open bills at
+    once, so it is where the arithmetic can be checked. Read-only: it says what
+    the bills SHOULD come to and leaves the correcting to Finance, because
+    re-pricing a confirmed bill is a decision somebody makes, not something a
+    page does while being looked at.
+  */
+  const overcharged = await (async () => {
+    const seen = new Set<string>();
+    const groups: {
+      share: Awaited<ReturnType<typeof poolShareFor>>;
+      billed: number;
+      invoiceIds: string[];
+    }[] = [];
+    for (const invoice of customer.invoices) {
+      if (seen.has(invoice.shipment.id)) continue;
+      const share = await poolShareFor(invoice.shipment.id);
+      if (!share) continue;
+      share.memberTrackings.forEach((tn) => seen.add(tn));
+      const members = customer.invoices.filter((i) =>
+        share.memberTrackings.includes(i.shipment.trackingNumber)
+      );
+      members.forEach((m) => seen.add(m.shipment.id));
+      /* What the pool is being charged today against what one minimum comes
+         to. Freight only: storage is per consignment and is not pooled. */
+      const billed = members.reduce(
+        (n, m) =>
+          n +
+          (m.freightOverride === null
+            ? toNumber(m.freightCost)
+            : toNumber(m.freightOverride)),
+        0
+      );
+      if (billed > share.pooledFreight + 0.005) {
+        groups.push({
+          share,
+          billed: Math.round(billed * 100) / 100,
+          invoiceIds: members.map((m) => m.id),
+        });
+      }
+    }
+    return groups;
+  })();
+
   const bills: OpenBill[] = customer.invoices
     .map((invoice) => ({
       invoiceId: invoice.id,
@@ -700,6 +759,62 @@ export default async function RecordCustomerPaymentPage({
           ) : null
         }
       />
+      {/*
+        A MINIMUM THIS CUSTOMER IS PAYING TWICE, BEFORE THEY PAY IT.
+
+        Above the form, because the figure the clerk is about to take is the
+        wrong one and every second of the conversation afterwards is a refund.
+        It states what the bills come to and what they should come to, and
+        leaves the correcting to Finance — re-pricing a confirmed bill is a
+        decision somebody makes, not something a page does while being looked
+        at.
+      */}
+      {overcharged.map((group) =>
+        group.share === null ? null : (
+          <div
+            key={group.invoiceIds.join("-")}
+            className="mb-6 rounded-xl border border-warning/40 bg-warning/5 p-4"
+          >
+            <p className="text-sm font-semibold text-warning">
+              {t(locale, "This customer is being charged the minimum more than once")}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t(
+                locale,
+                "These consignments travelled on one flight. The route's minimum is charged once across all of them, and these bills each carry their own."
+              )}
+            </p>
+            <MinimumPoolNote
+              share={group.share}
+              thisTracking=""
+              locale={locale}
+              className="mt-3 bg-card"
+            />
+            <p className="mt-3 text-sm">
+              <span className="text-muted-foreground">
+                {t(locale, "The bills ask for")}{" "}
+              </span>
+              <span className="font-mono font-semibold tabular-nums">
+                {group.share.currency} {group.billed.toFixed(2)}
+              </span>
+              <span className="text-muted-foreground">
+                {" "}
+                · {t(locale, "they should ask for")}{" "}
+              </span>
+              <span className="font-mono font-semibold tabular-nums text-success">
+                {group.share.currency} {group.share.pooledFreight.toFixed(2)}
+              </span>
+            </p>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              {t(
+                locale,
+                "Open the bill that should carry nothing and set its Air freight to 0.00 before taking the money."
+              )}
+            </p>
+          </div>
+        )
+      )}
+
       <CustomerPaymentForm
         canRecord={canRecord}
         customerId={customer.id}

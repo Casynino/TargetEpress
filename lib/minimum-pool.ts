@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { Prisma } from "@prisma/client";
+
 import { toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { quote, type QuoteContext } from "@/lib/pricing";
@@ -108,6 +110,7 @@ export async function poolShareFor(
       cargoTypeId: true,
       weightKg: true,
       packages: true,
+      invoice: { select: { status: true, freightCost: true, freightOverride: true } },
     },
   });
   /* No flight, no pool: a minimum is shared across one aircraft's cargo, and a
@@ -140,7 +143,9 @@ export async function poolShareFor(
       cargoTypeId: true,
       weightKg: true,
       packages: true,
-      invoice: { select: { status: true, freightCost: true } },
+      invoice: {
+        select: { status: true, freightCost: true, freightOverride: true },
+      },
     },
   });
 
@@ -152,8 +157,32 @@ export async function poolShareFor(
     billedAlready: boolean;
   };
 
+  /*
+    THE ASKING CONSIGNMENT IS JUDGED BY THE SAME TEST AS ITS SIBLINGS.
+
+    This said `billedAlready: false` for whichever one was asked about, so the
+    already-billed rule below could only ever see the OTHERS. Ask about the
+    light parcel and the heavy one looked billed; ask about the heavy one and
+    the light one did — and the pool named a different carrier depending on who
+    was asking. Two screens reading the same flight disagreed about which bill
+    carried the charge.
+  */
+  const billedOf = (inv: {
+    status: string;
+    freightCost: Prisma.Decimal;
+    freightOverride: Prisma.Decimal | null;
+  } | null) =>
+    inv !== null &&
+    inv.status !== "DRAFT" &&
+    toNumber(inv.freightOverride ?? inv.freightCost) > CENT;
+
   const members: Member[] = [
-    { id: me.id, trackingNumber: me.trackingNumber, q: mine, billedAlready: false },
+    {
+      id: me.id,
+      trackingNumber: me.trackingNumber,
+      q: mine,
+      billedAlready: billedOf(me.invoice),
+    },
   ];
 
   for (const sib of siblings) {
@@ -182,10 +211,7 @@ export async function poolShareFor(
       id: sib.id,
       trackingNumber: sib.trackingNumber,
       q,
-      billedAlready:
-        sib.invoice !== null &&
-        sib.invoice.status !== "DRAFT" &&
-        toNumber(sib.invoice.freightCost) > CENT,
+      billedAlready: billedOf(sib.invoice),
     });
   }
 

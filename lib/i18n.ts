@@ -4357,6 +4357,13 @@ const ZH: Record<string, string> = {
     "新金额已生效并可发送给客户。财务尚未核对。",
   "Changed by": "修改人",
   "Charged once for this flight": "该航班仅收取一次",
+  "This customer is being charged the minimum more than once": "该客户被重复收取了最低计费",
+  "These consignments travelled on one flight. The route's minimum is charged once across all of them, and these bills each carry their own.":
+    "这些货物同机运输。该航线的最低计费应在全部货物上合并收取一次，而这些账单各自都收了一次。",
+  "The bills ask for": "账单合计要求",
+  "they should ask for": "应为",
+  "Open the bill that should carry nothing and set its Air freight to 0.00 before taking the money.":
+    "收款前，请打开应为零的那张账单，将其空运费改为 0.00。",
   "These parcels travelled together and together they weigh less than the route's minimum, so the minimum is charged once across all of them — not once for each.":
     "这些包裹同机运输，合计重量低于该航线的最低计费重量，因此最低计费重量按全部包裹合并收取一次，而非每件各收一次。",
   "These parcels travelled together and are billed on what they weigh together, on one of the bills.":
@@ -4368,6 +4375,7 @@ const ZH: Record<string, string> = {
   "Total due": "应付合计",
   "Charged on this bill, covering all the cargo above.": "费用记在本账单，涵盖上述全部货物。",
   "Charged on": "费用记在",
+  "The whole charge belongs on": "全部费用应记在",
   "so this bill asks for nothing.": "因此本账单无需付款。",
   "Changed": "共修改",
   "times. Putting it back goes to where the bill started.": "次。改回将恢复到账单最初的金额。",

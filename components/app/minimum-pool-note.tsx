@@ -29,8 +29,14 @@ export function MinimumPoolNote({
   className,
 }: {
   share: PoolShare;
-  /** The consignment whose page this is, so its own row can be marked. */
-  thisTracking: string;
+  /**
+   * The consignment whose page this is, so its own row can be marked.
+   *
+   * Empty where the table is not on one bill's page — the merge screen looks
+   * at a customer's whole flight at once, and there "this bill asks for
+   * nothing" names a bill the reader is not looking at.
+   */
+  thisTracking?: string;
   locale: Locale;
   className?: string;
 }) {
@@ -115,9 +121,11 @@ export function MinimumPoolNote({
       {/* Which bill actually asks for it. Without this the reader knows the
           figure and not where to pay it. */}
       <p className="mt-2 text-xs text-muted-foreground">
-        {share.carries
-          ? t(locale, "Charged on this bill, covering all the cargo above.")
-          : `${t(locale, "Charged on")} ${share.carrierTracking}, ${t(locale, "so this bill asks for nothing.")}`}
+        {!thisTracking
+          ? `${t(locale, "The whole charge belongs on")} ${share.carrierTracking}.`
+          : share.carries
+            ? t(locale, "Charged on this bill, covering all the cargo above.")
+            : `${t(locale, "Charged on")} ${share.carrierTracking}, ${t(locale, "so this bill asks for nothing.")}`}
       </p>
     </div>
   );

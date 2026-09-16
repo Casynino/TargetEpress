@@ -207,6 +207,28 @@ async function check(label: string, ids: string[], expectSum: number, detail?: s
   await wipe();
 }
 
+// 10. THE POOL MUST NAME THE SAME CARRIER WHICHEVER MEMBER IS ASKED.
+{
+  const a = await ship(0.8), b = await ship(0.1);
+  await autoPriceShipments([a.id, b.id], ACTOR);
+  /* Both bills confirmed and both carrying freight — the state every bill
+     raised before this rule is in. Asking about one used to treat the other
+     as "already billed" and itself as not, so the two answers named different
+     carriers and two screens disagreed about which bill holds the charge. */
+  await prisma.invoice.updateMany({
+    where: { shipmentId: { in: [a.id, b.id] } },
+    data: { status: "UNPAID" },
+  });
+  await prisma.invoice.updateMany({ where: { shipmentId: b.id }, data: { freightCost: 13.5, total: 13.5 } });
+  const { poolShareFor } = await import("@/lib/minimum-pool");
+  const sa = await poolShareFor(a.id);
+  const sb = await poolShareFor(b.id);
+  const agree = sa?.carrierTracking === sb?.carrierTracking;
+  if (!agree) fails++;
+  console.log(`${agree ? "  ok  " : "  FAIL"}  ${"same carrier whichever member is asked".padEnd(46)} ${sa?.carrierTracking} / ${sb?.carrierTracking}`);
+  await wipe();
+}
+
 await wipe();
 console.log(fails === 0 ? "\nEvery case correct." : `\n${fails} FAILED`);
 await prisma.$disconnect();
