@@ -52,6 +52,23 @@ export function invoiceStatusFor(
   if (current === "VOID" || current === "WRITTEN_OFF" || current === "DRAFT") {
     return null;
   }
+  /*
+    NOTHING IS OWED, SO NOTHING IS OUTSTANDING.
+
+    A bill can legitimately come to zero: one of a customer's consignments on a
+    flight carries the whole charge and its siblings carry none, because the
+    route's minimum billable weight is charged once and not once per parcel.
+
+    It returned UNPAID — nobody had paid, and nobody had cleared anything, both
+    true and both beside the point. The pickup gate reads this status, so a
+    parcel with nothing to pay could never be released: the desk was asked for
+    money the bill did not ask for, and the only ways out were to invent a
+    payment or to forgive a debt that never existed.
+
+    Tested before the paid/adjusted branch, because on a zero bill both of
+    those are zero too and the old branch answered first.
+  */
+  if (total <= 0.005) return "PAID";
   /* Untouched by either — nobody has paid and nobody has cleared anything. */
   if (paid <= 0.005 && adjusted <= 0.005) return "UNPAID";
   /* Overpaying settles it too: a customer who sent more than the bill asked
