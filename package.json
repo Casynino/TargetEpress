@@ -2,7 +2,7 @@
   "name": "target-express",
   "version": "0.1.0",
   "private": true,
-  "description": "Target Express Air Cargo — public tracking site + internal air cargo operations system (China → Tanzania).",
+  "description": "Target Express Air Cargo \u2014 public tracking site + internal air cargo operations system (China \u2192 Tanzania).",
   "engines": {
     "node": ">=18.18"
   },
@@ -25,7 +25,9 @@
     "verify:packages": "tsx --conditions=react-server prisma/verify-packages.ts",
     "verify:tracking": "tsx --conditions=react-server prisma/verify-tracking-hold.ts",
     "verify:investigations": "tsx --conditions=react-server prisma/verify-investigations.ts",
-    "finance:check": "tsx --conditions=react-server scripts/finance-check.mts"
+    "finance:check": "tsx --conditions=react-server scripts/finance-check.mts",
+    "check:pooling": "tsx --conditions=react-server scripts/check-minimum-pooling.mts",
+    "check:invoice-status": "tsx scripts/check-invoice-status.mts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
