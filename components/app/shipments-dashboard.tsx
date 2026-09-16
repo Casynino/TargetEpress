@@ -98,14 +98,21 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 /*
-  Active flights and history are two different questions.
+  ACTIVE IS WHAT HAS LANDED AND IS NOT FINISHED WITH.
 
-  A closed flight is finished: its books are shut, nothing can land on it, and
-  it is only opened again to be read. Leaving it in the working list meant the
-  board grew forever and "all shipments" answered neither "what am I working
-  on" nor "what did we fly in March". Active is now the default and the closed
-  ones live behind History.
+  It used to mean "anything not closed", which swept in the flights still in
+  the air — so Active counted every dispatch on the board, read the same as
+  Everything, and told a desk in Dar nothing about what was in front of them.
+  The owner: the active ones should be the ones that have already arrived, and
+  a flight in the air stays under In transit until it lands.
+
+  So Active is ARRIVED plus VERIFIED: on the ground, and still somebody's work.
+  A flight in the air has no cargo to clear, no bill to chase and nothing to
+  check in — it is watched, not worked. A closed flight is finished: its books
+  are shut, nothing can land on it, and it is opened again only to be read.
 */
+/** On the ground in Dar, and not yet finished with. */
+const ACTIVE_STATUSES = ["ARRIVED", "VERIFIED"];
 const FILTERS = [
   { key: "active", label: "Active" },
   { key: "IN_TRANSIT", label: "In transit" },
@@ -185,8 +192,8 @@ export function ShipmentsDashboard({
     const by = (status: string) => inMonth.filter((r) => r.status === status).length;
     return {
       all: inMonth.length,
-      /* Everything that has not had a line drawn under it. */
-      active: inMonth.filter((r) => r.status !== "CLOSED").length,
+      /* Landed and still being worked — see ACTIVE_STATUSES. */
+      active: inMonth.filter((r) => ACTIVE_STATUSES.includes(r.status)).length,
       IN_TRANSIT: by("IN_TRANSIT"),
       ARRIVED: by("ARRIVED"),
       VERIFIED: by("VERIFIED"),
@@ -197,7 +204,11 @@ export function ShipmentsDashboard({
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((row) => {
-      if (filter === "active" ? row.status === "CLOSED" : filter !== "all" && row.status !== filter) {
+      if (
+        filter === "active"
+          ? !ACTIVE_STATUSES.includes(row.status)
+          : filter !== "all" && row.status !== filter
+      ) {
         return false;
       }
       if (month !== "all" && row.month !== month) return false;
