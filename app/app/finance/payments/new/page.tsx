@@ -590,6 +590,7 @@ export default async function RecordCustomerPaymentPage({
       share: Awaited<ReturnType<typeof poolShareFor>>;
       billed: number;
       invoiceIds: string[];
+      lines: { trackingNumber: string; from: number; to: number }[];
     }[] = [];
     for (const invoice of customer.invoices) {
       if (seen.has(invoice.shipment.id)) continue;
@@ -615,6 +616,21 @@ export default async function RecordCustomerPaymentPage({
           share,
           billed: Math.round(billed * 100) / 100,
           invoiceIds: members.map((m) => m.id),
+          /* Exactly what each bill would become, so the desk agrees to the
+             change rather than to a description of it. The carrier keeps the
+             whole charge and everything else goes to nothing — the same rule
+             the action applies, stated here so the two cannot disagree. */
+          lines: members.map((m) => ({
+            trackingNumber: m.shipment.trackingNumber,
+            from:
+              m.freightOverride === null
+                ? toNumber(m.freightCost)
+                : toNumber(m.freightOverride),
+            to:
+              m.shipment.trackingNumber === share.carrierTracking
+                ? share.pooledFreight
+                : 0,
+          })),
         });
       }
     }
@@ -812,7 +828,10 @@ export default async function RecordCustomerPaymentPage({
             {can(viewer.role, "invoice.discount") ? (
               <ApplyPooledMinimum
                 invoiceId={group.invoiceIds[0]}
-                correctedLabel={`${group.share.currency} ${group.share.pooledFreight.toFixed(2)}`}
+                currency={group.share.currency}
+                billed={group.billed}
+                corrected={group.share.pooledFreight}
+                lines={group.lines}
               />
             ) : (
               <p className="mt-1.5 text-xs text-muted-foreground">

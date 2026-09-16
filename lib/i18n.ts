@@ -4366,6 +4366,13 @@ const ZH: Record<string, string> = {
   "These bills now ask for": "这些账单现在应收",
   "Correcting…": "正在更正…",
   "Correct it": "更正",
+  "This is what will change": "以下内容将被更改",
+  "The customer goes from": "客户应付金额由",
+  "Nothing else moves: the weights, the tracking numbers, the flight and any pickup notes stay exactly as they are, and no cargo record is deleted. A bill that goes to nothing is marked settled so its cargo can still be released. It is recorded against your name.":
+    "其他内容不变：重量、运单号、航班及提货单均保持原样，不会删除任何货物记录。金额变为零的账单会标记为已结清，其货物仍可放行。此操作会记录在你的名下。",
+  "There is no one-press undo. To put it back, open each bill and set its Air freight to what it was.":
+    "没有一键撤销。若要恢复，请逐张打开账单，将空运费改回原值。",
+  "Yes, correct it": "确认更正",
   "they should ask for": "应为",
   "Open the bill that should carry nothing and set its Air freight to 0.00 before taking the money.":
     "收款前，请打开应为零的那张账单，将其空运费改为 0.00。",
