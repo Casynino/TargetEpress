@@ -504,7 +504,22 @@ export async function confirmInvoicePrice(
           exchangeRate: rate === null ? null : new Prisma.Decimal(rate),
           localCurrency: LOCAL_CURRENCY,
           totalLocal: totalLocal === null ? null : new Prisma.Decimal(totalLocal),
-          status: "UNPAID",
+          /*
+            A CONFIRMED BILL THAT ASKS FOR NOTHING IS SETTLED, NOT UNPAID.
+
+            This wrote UNPAID whatever the figure was, and the pickup gate
+            reads that word rather than the total — so a bill confirmed at
+            USD 0.00 refused its own cargo with "USD 0 is still outstanding".
+            A consignment can legitimately come to nothing: one of a
+            customer's parcels on a flight carries the route's minimum and its
+            siblings carry none.
+
+            There is no way round it from a desk either. A payment of zero is
+            refused by the payment schema, and clearing the balance is refused
+            on a bill with nothing left owing — so the parcel simply stayed in
+            the warehouse.
+          */
+          status: total <= 0.005 ? "PAID" : "UNPAID",
           confirmedAt: new Date(),
           confirmedById: user.id,
           /*

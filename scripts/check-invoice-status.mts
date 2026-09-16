@@ -10,6 +10,13 @@ import { invoiceStatusFor } from "@/lib/invoice-status";
 
 const cases: [string, string, number, number, number, string | null][] = [
   ["zero bill, nothing paid",      "UNPAID",  0,     0,     0,        "PAID"],
+  /* The pickup gate reads this word, not the total. A consignment can come to
+     nothing — one of a customer's parcels on a flight carries the route's
+     minimum and its siblings carry none — and the warehouse refused to hand
+     over a parcel that owed nothing, saying "USD 0 is still outstanding".
+     There was no way round it either: a payment of zero is refused by the
+     payment schema, and clearing a balance is refused when nothing is owing. */
+  ["zero bill, confirmed",         "UNPAID",  0,     0,     0,        "PAID"],
   ["zero bill, rounding dust",     "UNPAID",  0,     0.004, 0,        "PAID"],
   ["normal unpaid",                "UNPAID",  0,     13.5,  0,        "UNPAID"],
   ["part paid",                    "UNPAID",  5,     13.5,  0,        "PARTIALLY_PAID"],
