@@ -4356,6 +4356,19 @@ const ZH: Record<string, string> = {
   "The new figure is already on the bill and the customer can be sent it. Finance has not checked it yet.":
     "新金额已生效并可发送给客户。财务尚未核对。",
   "Changed by": "修改人",
+  "Charged once for this flight": "该航班仅收取一次",
+  "These parcels travelled together and together they weigh less than the route's minimum, so the minimum is charged once across all of them — not once for each.":
+    "这些包裹同机运输，合计重量低于该航线的最低计费重量，因此最低计费重量按全部包裹合并收取一次，而非每件各收一次。",
+  "These parcels travelled together and are billed on what they weigh together, on one of the bills.":
+    "这些包裹同机运输，按合计重量计费，费用记在其中一张账单上。",
+  "(this one)": "（本票）",
+  "Actual total": "实际合计",
+  "Billable weight": "计费重量",
+  "route minimum": "航线最低",
+  "Total due": "应付合计",
+  "Charged on this bill, covering all the cargo above.": "费用记在本账单，涵盖上述全部货物。",
+  "Charged on": "费用记在",
+  "so this bill asks for nothing.": "因此本账单无需付款。",
   "Changed": "共修改",
   "times. Putting it back goes to where the bill started.": "次。改回将恢复到账单最初的金额。",
   "Checked — this price is fine": "已核对 —— 该价格没有问题",

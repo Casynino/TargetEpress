@@ -7,6 +7,7 @@ import { CreditRequest } from "@/components/app/credit-request";
 import { InvoiceDocument } from "@/components/app/invoice-document";
 import { InvoiceEditor } from "@/components/app/invoice-editor";
 import { PriceChangeNotice } from "@/components/app/price-change-notice";
+import { MinimumPoolNote } from "@/components/app/minimum-pool-note";
 import { MessageComposer } from "@/components/app/message-composer";
 import { SmartBack } from "@/components/app/smart-back";
 import { InvoiceVoid } from "@/components/app/invoice-void";
@@ -19,6 +20,7 @@ import { accountsForInvoice } from "@/lib/company-settings";
 import { LOCAL_CURRENCY, formatLocal, toLocal } from "@/lib/fx";
 import { MESSAGE_KIND_LABELS, composeMessage, trackLink, whatsappLink } from "@/lib/messages";
 import { rateFactsOf } from "@/lib/agreed-rate";
+import { poolShareFor } from "@/lib/minimum-pool";
 import { freightBasisOf } from "@/lib/support";
 import { AIRPORT_LABELS, CATEGORY_LABELS, METHOD_LABELS } from "@/lib/cargo";
 import {
@@ -266,6 +268,17 @@ export default async function InvoicePage({
     to exactly the figure nobody wanted. Oldest gives where the bill started;
     newest gives where it is now.
   */
+  /*
+    THE WORKING BEHIND A BILL THAT SHARES A MINIMUM.
+
+    Read for every bill, because both sides of a pool need it: the one asking
+    for nothing has to say who is carrying the charge, and the one carrying it
+    has to say it covers the others or it reads as an overcharge on one small
+    parcel. Null for the cargo that is not in a pool at all, which is nearly
+    all of it.
+  */
+  const poolShare = await poolShareFor(invoice.shipmentId);
+
   const uncheckedRun = invoice.priceChanges
     .filter((c) => c.status === "UNSEEN")
     .sort((a, b) => a.changedAt.getTime() - b.changedAt.getTime());
@@ -490,6 +503,18 @@ export default async function InvoicePage({
           /* Her own, and only while nobody has looked. The action checks the
              same two things against the row. */
           canUndo={uncheckedRun.every((c) => c.changedById === user.id)}
+        />
+      ) : null}
+
+      {/* The arithmetic behind a bill that shares a minimum with the rest of
+          this customer's cargo on the flight — including, and especially, a
+          bill that asks for nothing. */}
+      {poolShare ? (
+        <MinimumPoolNote
+          share={poolShare}
+          thisTracking={shipment.trackingNumber}
+          locale={locale}
+          className="mb-6"
         />
       ) : null}
 

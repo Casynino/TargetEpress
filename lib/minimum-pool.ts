@@ -31,14 +31,42 @@ export function minimumBit(q: Quoted): boolean {
 export type PoolShare = {
   /** What this consignment's freight should be. Zero for every member but one. */
   freight: number;
-  /** What the carrier is priced on: the pool's combined weight, or the minimum. */
+  /**
+   * What THIS consignment is stamped with — the pool's weight on the carrier,
+   * its own weight on the rest. Written onto the shipment so its page and its
+   * PDF print a weight that matches the freight beside it.
+   *
+   * NOT the figure the working table shows. A parcel that carries nothing is
+   * stamped with its own 0.3 kg, and printing that as the billable weight told
+   * the reader the customer was billed for 0.3 kg at 13.50 — which is neither
+   * what happened nor what the total underneath says. See `billableKg`.
+   */
   chargeableKg: number;
+  /** What the POOL is billed on, the same on every member's page. */
+  billableKg: number;
   /** True for the one consignment carrying the whole charge. */
   carries: boolean;
   /** The consignment that carries it, for the line that explains a zero bill. */
   carrierTracking: string;
   /** Every consignment in the pool, this one included. */
   memberTrackings: string[];
+  /*
+    THE WORKING, SO A BILL OF NOTHING CAN EXPLAIN ITSELF.
+
+    A customer's second parcel shows USD 0.00 and no figure on the page says
+    why. The owner asked for the arithmetic on the screen: each parcel and its
+    weight, what they come to, what that is billed as, and the rate — so a
+    reader can check the total rather than take it on trust.
+  */
+  members: { trackingNumber: string; weightKg: number }[];
+  /** What the parcels actually weigh together. */
+  combinedKg: number;
+  /** The route's own minimum, for the line that says why 0.9 became 1. */
+  minimumKg: number;
+  rate: number;
+  currency: string;
+  /** What the pool comes to in total, on whichever bill carries it. */
+  pooledFreight: number;
 };
 
 /**
@@ -195,11 +223,24 @@ export async function poolShareFor(
     )[0];
 
   const carries = carrier.id === me.id;
+  const pooledFreight = Math.round(chargeableKg * rate * 100) / 100;
   return {
-    freight: carries ? Math.round(chargeableKg * rate * 100) / 100 : 0,
+    freight: carries ? pooledFreight : 0,
     chargeableKg: carries ? chargeableKg : mine.actualWeightKg,
+    billableKg: chargeableKg,
     carries,
     carrierTracking: carrier.trackingNumber,
     memberTrackings: members.map((m) => m.trackingNumber).sort(),
+    members: members
+      .map((m) => ({
+        trackingNumber: m.trackingNumber,
+        weightKg: m.q.actualWeightKg,
+      }))
+      .sort((a, b) => a.trackingNumber.localeCompare(b.trackingNumber)),
+    combinedKg: Math.round(combined * 1000) / 1000,
+    minimumKg: minKg,
+    rate,
+    currency: mine.currency,
+    pooledFreight,
   };
 }
