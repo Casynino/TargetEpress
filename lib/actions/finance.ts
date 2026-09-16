@@ -30,6 +30,7 @@ import {
 import { postLedgerEntry } from "@/lib/ledger";
 import { recordPriceChange } from "@/lib/price-changes";
 import { quote } from "@/lib/pricing";
+import { poolShareFor } from "@/lib/minimum-pool";
 import {
   nextInvoiceNumber,
   nextPickupNoteNumber,
@@ -422,6 +423,23 @@ export async function confirmInvoicePrice(
         );
       }
 
+      /*
+        THE MINIMUM THIS CUSTOMER IS ALREADY PAYING ON THIS FLIGHT.
+
+        Re-pricing here quotes the consignment ON ITS OWN, which is right for
+        the rate and the storage clock and wrong for the route's minimum
+        billable weight: that one belongs to the customer's whole flight, not
+        to one parcel. Without this, a bill that check-in had correctly zeroed
+        came back at the full minimum the moment Finance pressed Confirm, and a
+        customer with two light parcels paid it twice again — the desk doing
+        its job undoing the fix.
+
+        Null for everything not in a pool, which is nearly all cargo, and then
+        the rate book's own figure stands exactly as it did.
+      */
+      const share = await poolShareFor(shipment.id);
+      const freight = share ? share.freight : priced.total;
+
       // Recomputed here, not read off the draft — this is the leak the whole
       // action exists to close.
       const storageDays = storageDaysFor(shipment.arrivedAt, shipment.deliveredAt);
@@ -454,7 +472,7 @@ export async function confirmInvoicePrice(
         invoice.freightOverride === null
           ? null
           : toNumber(invoice.freightOverride);
-      const billedFreight = override ?? priced.total;
+      const billedFreight = override ?? freight;
       const total = billedFreight + storageCharge + otherCharges - discount;
       if (total < 0) {
         throw new Error(
@@ -477,7 +495,9 @@ export async function confirmInvoicePrice(
       await tx.invoice.update({
         where: { id: invoice.id },
         data: {
-          freightCost: new Prisma.Decimal(priced.total),
+          /* The pooled figure where this consignment shares a minimum, so the
+             stored freight and the total it is inside agree with each other. */
+          freightCost: new Prisma.Decimal(freight),
           storageDays,
           storageCharge: new Prisma.Decimal(storageCharge),
           total: new Prisma.Decimal(total),

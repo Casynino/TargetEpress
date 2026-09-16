@@ -58,12 +58,15 @@ async function totals(ids: string[]) {
 
 let fails = 0;
 
-/* Each case runs against an EMPTY board. Without this every case pooled with
+/* Each case runs against an EMPTY board — and "empty" means every ZZ- prefix,
+   not just this file's. A stray consignment left behind by another test sat on
+   the same customer and the same flight, joined every pool, and reported nine
+   failures that had nothing to do with the code. Without this every case pooled with
    the leftovers of the one before it — same customer, same flight — and six
    cases failed for a reason that had nothing to do with the code. */
 async function wipe() {
   const rows = await prisma.shipment.findMany({
-    where: { trackingNumber: { startsWith: "ZZT-" } },
+    where: { trackingNumber: { startsWith: "ZZ" } },
     select: { id: true },
   });
   const ids = rows.map((r) => r.id);
@@ -129,13 +132,52 @@ async function check(label: string, ids: string[], expectSum: number, detail?: s
   await wipe();
 }
 
-// 7. A sibling whose bill Finance has already confirmed is left alone.
+// 7. A sibling whose bill Finance has already confirmed keeps the charge.
 {
   const a = await ship(0.8), b = await ship(0.1);
   await autoPriceShipments([a.id], ACTOR);
   await prisma.invoice.updateMany({ where: { shipmentId: a.id }, data: { status: "UNPAID" } });
   await autoPriceShipments([b.id], ACTOR);
-  await check("sibling already confirmed — not re-priced", [a.id, b.id], 27, "confirmed bill untouched");
+  /* The confirmed bill keeps its figure — it is not ours to move — and the
+     late arrival goes to zero rather than paying the minimum a second time. */
+  await check("sibling already billed keeps the minimum", [a.id, b.id], 13.5, "confirmed bill untouched, new one zeroed");
+  await wipe();
+}
+
+
+// 8. THE ONE THAT WAS BROKEN: re-pricing must not re-charge the minimum.
+{
+  const a = await ship(0.8), b = await ship(0.1);
+  await autoPriceShipments([a.id, b.id], ACTOR);
+  /* Confirmation re-prices, and it used to quote each consignment ALONE — so
+     the desk doing its job put the second minimum straight back. The rule the
+     action now calls is poolShareFor; ask it for both, in both orders. */
+  const { poolShareFor } = await import("@/lib/minimum-pool");
+  const sa = await poolShareFor(a.id);
+  const sb = await poolShareFor(b.id);
+  const sum = (sa?.freight ?? 0) + (sb?.freight ?? 0);
+  const ok = Math.abs(sum - 13.5) < 0.005;
+  if (!ok) fails++;
+  console.log(`${ok ? "  ok  " : "  FAIL"}  ${"re-pricing both keeps one minimum".padEnd(46)} USD ${sum.toFixed(2)} (expected 13.50)`);
+  console.log(`        ${a.trackingNumber} 0.8kg→${(sa?.freight ?? 0).toFixed(2)}   ${b.trackingNumber} 0.1kg→${(sb?.freight ?? 0).toFixed(2)}   carrier ${sa?.carrierTracking}`);
+  await wipe();
+}
+
+// 9. A sibling already CONFIRMED and carrying the charge keeps it.
+{
+  const a = await ship(0.1);
+  await autoPriceShipments([a.id], ACTOR);
+  await prisma.invoice.updateMany({ where: { shipmentId: a.id }, data: { status: "UNPAID" } });
+  const b = await ship(0.8);
+  await autoPriceShipments([b.id], ACTOR);
+  const { poolShareFor } = await import("@/lib/minimum-pool");
+  const sb = await poolShareFor(b.id);
+  const rows = await totals([a.id, b.id]);
+  const sum = Math.round(rows.reduce((n2, r) => n2 + r.total, 0) * 100) / 100;
+  const ok = Math.abs(sum - 13.5) < 0.005;
+  if (!ok) fails++;
+  console.log(`${ok ? "  ok  " : "  FAIL"}  ${"light one billed first, heavy lands later".padEnd(46)} USD ${sum.toFixed(2)} (expected 13.50)`);
+  console.log(`        ${rows.map(r=>`${r.tn} ${r.kg}kg→${r.freight.toFixed(2)}`).join("   ")}   carrier ${sb?.carrierTracking}`);
   await wipe();
 }
 

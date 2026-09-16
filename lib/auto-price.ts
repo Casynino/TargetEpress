@@ -7,6 +7,7 @@ import { toNumber } from "@/lib/format";
 import { LOCAL_CURRENCY, currentRateValue, toLocal } from "@/lib/fx";
 import { reserveInvoiceNumbers } from "@/lib/ids";
 import { quote, quoteContext } from "@/lib/pricing";
+import { poolShareFor } from "@/lib/minimum-pool";
 import { prisma } from "@/lib/prisma";
 
 /** The invoice columns check-in writes, whether it creates or re-prices. */
@@ -262,7 +263,80 @@ export async function autoPriceShipments(
     where it is and its consignment drops out of the pool; re-pricing a
     confirmed bill is not this function's business.
   */
-  await poolTheMinimum({ creates, updates, cargo, rate, pricebook });
+  for (const row of [...creates, ...updates]) {
+    const share = await poolShareFor(row.shipmentId, pricebook);
+    if (!share) continue;
+    const storage = toNumber(row.figures.storageCharge);
+    const total = Math.round((share.freight + storage) * 100) / 100;
+    row.figures.freightCost = new Prisma.Decimal(share.freight);
+    row.figures.total = new Prisma.Decimal(total);
+    row.figures.totalLocal =
+      rate === null ? null : new Prisma.Decimal(toLocal(total, rate));
+    /* The consignment's own working follows the figure, so its page and its
+       PDF do not print a rate times a weight that misses the total. */
+    row.quoted = {
+      ...row.quoted,
+      total: share.freight,
+      chargeableWeightKg: share.chargeableKg,
+    };
+  }
+
+  /*
+    AND THE SIBLINGS THIS RUN DID NOT TOUCH.
+
+    A customer's parcels are checked in when they are checked in. The light one
+    priced on Monday carries the whole minimum until the heavy one lands on
+    Thursday, and on Thursday its draft has to move to zero — but it is not in
+    Thursday's run. Only drafts: a price somebody has signed off is not ours.
+  */
+  const touched = new Set([...creates, ...updates].map((r) => r.shipmentId));
+  const affected = cargo.filter((c) => touched.has(c.id) && c.batchId !== null);
+  if (affected.length > 0) {
+    const stale = await prisma.shipment.findMany({
+      where: {
+        deletedAt: null,
+        NOT: { id: { in: [...touched] } },
+        OR: affected.map((c) => ({
+          customerId: c.customerId,
+          batchId: c.batchId,
+        })),
+        invoice: { is: { status: "DRAFT" } },
+      },
+      select: {
+        id: true,
+        invoice: { select: { id: true, storageDays: true, storageCharge: true } },
+      },
+    });
+
+    for (const sib of stale) {
+      if (!sib.invoice) continue;
+      const share = await poolShareFor(sib.id, pricebook);
+      if (!share) continue;
+      const storage = toNumber(sib.invoice.storageCharge);
+      const total = Math.round((share.freight + storage) * 100) / 100;
+      const q = await quoteFor(sib.id, pricebook);
+      if (!q) continue;
+      updates.push({
+        invoiceId: sib.invoice.id,
+        shipmentId: sib.id,
+        figures: {
+          currency: q.currency,
+          freightCost: new Prisma.Decimal(share.freight),
+          storageDays: sib.invoice.storageDays,
+          storageCharge: new Prisma.Decimal(storage),
+          freightOverride: null,
+          freightRateOverride: null,
+          freightOverrideReason: null,
+          total: new Prisma.Decimal(total),
+          exchangeRate: rate === null ? null : new Prisma.Decimal(rate),
+          localCurrency: LOCAL_CURRENCY,
+          totalLocal: rate === null ? null : new Prisma.Decimal(toLocal(total, rate)),
+          status: "DRAFT",
+        },
+        quoted: { ...q, total: share.freight, chargeableWeightKg: share.chargeableKg },
+      });
+    }
+  }
 
   /** What check-in stamps back onto the consignment beside its draft. */
   const stamp = (quoted: Quoted) => ({
@@ -369,241 +443,22 @@ export async function autoPriceShipments(
   return { priced, skipped, blocked };
 }
 
-/** A cent. Money comparisons never test decimals for equality. */
-const CENT = 0.005;
-/** Weights are stored to three places; a gram is the smallest real difference. */
-const GRAM = 0.0005;
-
-type PoolRow = {
-  shipmentId: string;
-  trackingNumber: string;
-  customerId: string;
-  batchId: string | null;
-  figures: Figures;
-  quoted: Quoted;
-  /** Present for a consignment whose draft already exists. */
-  invoiceId?: string;
-  /**
-   * The pending write this row speaks for, when it is in this run.
-   *
-   * `quoted` is replaced rather than mutated — it is a frozen-shaped value
-   * built by quote() — so the new one has to be handed back to the row the
-   * writer will actually read. Without this the invoice carried the pooled
-   * freight while the consignment beside it was stamped with the rate book's
-   * own figure, and the bill's working printed a weight times a rate that did
-   * not sum to the total underneath it.
-   */
-  row?: { figures: Figures; quoted: Quoted };
-};
-
-/**
- * Did the route's minimum billable weight inflate this quote, and nothing else?
- *
- * Both halves matter. The first picks out the consignments the pool is for —
- * a box above the minimum is priced on its own weight and must not move. The
- * second is a refusal to touch a quote this function does not fully
- * understand: a rule may also carry a minimum CHARGE, which lifts the total
- * without touching the weight, and a pool built on `chargeable × rate` would
- * quietly drop that floor. Where the arithmetic does not reconcile, the
- * consignment keeps the price the rate book gave it.
- */
-function minimumBit(q: Quoted): boolean {
-  if (q.method !== "WEIGHT_BASED" || q.chargeableWeightKg === null) return false;
-  if (q.chargeableWeightKg <= q.actualWeightKg + GRAM) return false;
-  return Math.abs(q.total - q.chargeableWeightKg * q.rate) <= CENT;
-}
-
-/**
- * Rebuild each affected customer's pool and move the charge onto one bill.
- *
- * Mutates the `figures` this run is about to write, and appends updates for
- * sibling drafts that were priced on an earlier check-in. Called before any
- * write, so a pool that cannot be built leaves every quote exactly as the rate
- * book gave it.
- */
-async function poolTheMinimum(args: {
-  creates: { shipmentId: string; customerId: string; figures: Figures; quoted: Quoted }[];
-  updates: { invoiceId: string; shipmentId: string; figures: Figures; quoted: Quoted }[];
-  cargo: { id: string; trackingNumber: string; customerId: string; batchId: string | null }[];
-  rate: number | null;
-  pricebook: Awaited<ReturnType<typeof quoteContext>>;
-}) {
-  const { creates, updates, cargo, rate, pricebook } = args;
-  const byId = new Map(cargo.map((c) => [c.id, c]));
-
-  /* Only the consignments this run inflated, and only those on a flight — a
-     box with no batch has no flight to share a minimum with. */
-  const seeds: PoolRow[] = [];
-  for (const row of [...creates, ...updates]) {
-    const ship = byId.get(row.shipmentId);
-    if (!ship || ship.batchId === null) continue;
-    if (!minimumBit(row.quoted)) continue;
-    seeds.push({
-      shipmentId: row.shipmentId,
-      trackingNumber: ship.trackingNumber,
-      customerId: ship.customerId,
-      batchId: ship.batchId,
-      figures: row.figures,
-      quoted: row.quoted,
-      invoiceId: "invoiceId" in row ? row.invoiceId : undefined,
-      row,
-    });
-  }
-  if (seeds.length === 0) return;
-
-  /*
-    EVERY SIBLING ON THAT FLIGHT, NOT JUST THE ONES IN THIS RUN.
-
-    A confirmed, sent or paid bill is excluded by the same rule the rest of
-    this file follows: it is not a draft, so it is not ours to move. Its
-    consignment simply is not in the pool, and the ones that are still share
-    the minimum between them.
-  */
-  const pairs = Array.from(
-    new Set(seeds.map((s) => `${s.customerId}|${s.batchId}`))
-  ).map((key) => {
-    const [customerId, batchId] = key.split("|");
-    return { customerId, batchId };
+/** One consignment's quote, for the sibling drafts this run has to restate. */
+async function quoteFor(shipmentId: string, ctx: Awaited<ReturnType<typeof quoteContext>>) {
+  const s = await prisma.shipment.findUnique({
+    where: { id: shipmentId },
+    select: { cargoCategory: true, cargoTypeId: true, weightKg: true, packages: true },
   });
-
-  const siblings = await prisma.shipment.findMany({
-    where: {
-      deletedAt: null,
-      OR: pairs.map((p) => ({ customerId: p.customerId, batchId: p.batchId })),
-      NOT: { id: { in: seeds.map((s) => s.shipmentId) } },
-      invoice: { is: { status: "DRAFT" } },
+  if (!s) return null;
+  const q = await quote(
+    {
+      category: s.cargoCategory,
+      cargoTypeId: s.cargoTypeId,
+      weightKg: toNumber(s.weightKg),
+      quantity: s.packages,
     },
-    select: {
-      id: true,
-      trackingNumber: true,
-      customerId: true,
-      batchId: true,
-      cargoCategory: true,
-      cargoTypeId: true,
-      weightKg: true,
-      packages: true,
-      invoice: { select: { id: true, storageDays: true, storageCharge: true } },
-    },
-  });
-
-  const members: PoolRow[] = [...seeds];
-  for (const sib of siblings) {
-    const q = await quote(
-      {
-        category: sib.cargoCategory,
-        cargoTypeId: sib.cargoTypeId,
-        weightKg: toNumber(sib.weightKg),
-        quantity: sib.packages,
-      },
-      "en",
-      pricebook
-    );
-    if (!q.ok || !minimumBit(q) || !sib.invoice) continue;
-    /* The sibling's own storage stands — the pool moves freight and nothing
-       else. Its figures are rebuilt here only because this run is about to
-       write a new freight onto it. */
-    const storage = toNumber(sib.invoice.storageCharge);
-    members.push({
-      shipmentId: sib.id,
-      trackingNumber: sib.trackingNumber,
-      customerId: sib.customerId,
-      batchId: sib.batchId,
-      invoiceId: sib.invoice.id,
-      quoted: q,
-      figures: {
-        currency: q.currency,
-        freightCost: new Prisma.Decimal(q.total),
-        storageDays: sib.invoice.storageDays,
-        storageCharge: new Prisma.Decimal(storage),
-        freightOverride: null,
-        freightRateOverride: null,
-        freightOverrideReason: null,
-        total: new Prisma.Decimal(q.total + storage),
-        exchangeRate: rate === null ? null : new Prisma.Decimal(rate),
-        localCurrency: LOCAL_CURRENCY,
-        totalLocal: rate === null ? null : new Prisma.Decimal(toLocal(q.total + storage, rate)),
-        status: "DRAFT",
-      },
-      /* Marked so the writer below knows this one was not in the run. */
-    });
-  }
-
-  /* Per customer, per flight, per RULE — the minimum belongs to the rule. */
-  const groups = new Map<string, PoolRow[]>();
-  for (const m of members) {
-    const key = `${m.customerId}|${m.batchId}|${m.quoted.ruleId}`;
-    const list = groups.get(key);
-    if (list) list.push(m);
-    else groups.set(key, [m]);
-  }
-
-  for (const [, group] of groups) {
-    if (group.length < 2) continue;
-
-    const minKg = group[0].quoted.chargeableWeightKg!;
-    const rateKg = group[0].quoted.rate;
-    /* One rule, so one minimum and one rate. If the rate book has been edited
-       between two check-ins the members can disagree; leave them alone rather
-       than pick a winner. */
-    if (
-      group.some(
-        (m) =>
-          Math.abs(m.quoted.chargeableWeightKg! - minKg) > GRAM ||
-          Math.abs(m.quoted.rate - rateKg) > CENT
-      )
-    ) {
-      continue;
-    }
-
-    const combined = group.reduce((kg, m) => kg + m.quoted.actualWeightKg, 0);
-    const chargeable = Math.max(combined, minKg);
-    const pooledFreight = Math.round(chargeable * rateKg * 100) / 100;
-
-    /*
-      THE HEAVIEST CARRIES IT, AND THE TIE IS BROKEN ON THE TRACKING NUMBER.
-
-      Not on whichever the database happened to return first: check-in is
-      re-runnable by design, and a carrier that moved between two runs would
-      shuffle the charge from one of a customer's bills to another for no
-      reason anybody could see.
-    */
-    const carrier = [...group].sort(
-      (a, b) =>
-        b.quoted.actualWeightKg - a.quoted.actualWeightKg ||
-        a.trackingNumber.localeCompare(b.trackingNumber)
-    )[0];
-
-    for (const m of group) {
-      const freight = m === carrier ? pooledFreight : 0;
-      const storage = toNumber(m.figures.storageCharge);
-      const total = Math.round((freight + storage) * 100) / 100;
-      m.figures.freightCost = new Prisma.Decimal(freight);
-      m.figures.total = new Prisma.Decimal(total);
-      m.figures.totalLocal =
-        rate === null ? null : new Prisma.Decimal(toLocal(total, rate));
-      /* The consignment's own working follows the figure, so its page and its
-         PDF do not print a rate times a weight that misses the total. */
-      m.quoted = {
-        ...m.quoted,
-        total: freight,
-        chargeableWeightKg: m === carrier ? chargeable : m.quoted.actualWeightKg,
-      };
-      /* Handed back to the pending write, which reads its own copy. */
-      if (m.row) m.row.quoted = m.quoted;
-    }
-
-    /* Siblings that were not in this run still need writing. */
-    for (const m of group) {
-      const already =
-        creates.some((c) => c.shipmentId === m.shipmentId) ||
-        updates.some((u) => u.shipmentId === m.shipmentId);
-      if (already || !m.invoiceId) continue;
-      updates.push({
-        invoiceId: m.invoiceId,
-        shipmentId: m.shipmentId,
-        figures: m.figures,
-        quoted: m.quoted,
-      });
-    }
-  }
+    "en",
+    ctx
+  );
+  return q.ok ? q : null;
 }
