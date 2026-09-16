@@ -229,6 +229,46 @@ async function check(label: string, ids: string[], expectSum: number, detail?: s
   await wipe();
 }
 
+// 11. STORAGE IS PER CONSIGNMENT AND IS NOT POOLED.
+{
+  const a = await ship(0.8), b = await ship(0.1);
+  await autoPriceShipments([a.id, b.id], ACTOR);
+  /* The zeroed bill sat on the floor past its free week. Its freight is
+     nothing; its storage is still its own, and the bill must ask for it. */
+  await prisma.invoice.updateMany({
+    where: { shipmentId: b.id },
+    data: { storageCharge: 4, storageDays: 2, total: 4 },
+  });
+  const rows = await totals([a.id, b.id]);
+  const zeroed = rows.find((r) => r.kg === 0.1)!;
+  const ok = Math.abs(zeroed.total - 4) < 0.005 && Math.abs(zeroed.freight) < 0.005;
+  if (!ok) fails++;
+  console.log(`${ok ? "  ok  " : "  FAIL"}  ${"storage stays on a zero-freight bill".padEnd(46)} freight ${zeroed.freight.toFixed(2)} + storage = total ${zeroed.total.toFixed(2)}`);
+  await wipe();
+}
+
+// 12. PER-ITEM CARGO HAS NO WEIGHT MINIMUM, SO IT NEVER POOLS.
+{
+  const a = await prisma.shipment.create({
+    data: {
+      trackingNumber: "ZZT-P1", qrToken: "zzt-p1x", customerId: CUST_1, batchId: BATCH_A,
+      cargoCategory: "ELECTRONICS", cargoTypeId: "cms7h4adl000hy8e5plz73lcp",
+      goodsType: "ELECTRONICS", description: "laptop", weightKg: 0.3, packages: 1,
+      status: "RECEIVED_AT_DAR", arrivedAt: new Date("2026-09-10T00:00:00Z"), origin: "GUANGZHOU",
+    }, select: { id: true, trackingNumber: true },
+  });
+  const b = await ship(0.1);
+  await autoPriceShipments([a.id, b.id], ACTOR);
+  const rows = await totals([a.id, b.id]);
+  const laptop = rows.find((r) => r.tn === "ZZT-P1")!;
+  const parcel = rows.find((r) => r.tn !== "ZZT-P1")!;
+  /* The laptop is USD 45 a piece and the parcel keeps its own minimum. */
+  const ok = Math.abs(laptop.freight - 45) < 0.005 && Math.abs(parcel.freight - 13.5) < 0.005;
+  if (!ok) fails++;
+  console.log(`${ok ? "  ok  " : "  FAIL"}  ${"per-item cargo never pools".padEnd(46)} laptop ${laptop.freight.toFixed(2)} · parcel ${parcel.freight.toFixed(2)}`);
+  await wipe();
+}
+
 await wipe();
 console.log(fails === 0 ? "\nEvery case correct." : `\n${fails} FAILED`);
 await prisma.$disconnect();
