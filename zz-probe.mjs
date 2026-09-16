@@ -1,0 +1,14 @@
+import puppeteer from "puppeteer-core";
+import fs from "node:fs";
+const BASE = "http://localhost:3188";
+const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const cookies = fs.readFileSync(process.argv[2], "utf8").trim().split("; ").map((p) => { const i = p.indexOf("="); return { name: p.slice(0, i).trim(), value: p.slice(i + 1), url: BASE }; });
+const browser = await puppeteer.launch({ executablePath: CHROME, headless: "new", args: ["--no-sandbox"] });
+const page = await browser.newPage();
+await page.setViewport({ width: 1400, height: 1200 });
+await page.setCookie(...cookies);
+await page.goto(process.argv[3], { waitUntil: "networkidle2" });
+console.log(await page.evaluate(() => [...document.querySelectorAll("a,button")].map((e) => `${e.tagName} "${e.textContent.trim().slice(0,40)}" ${e.getAttribute("href") ?? ""} ${e.getAttribute("formaction") ?? ""}`).join("\n")));
+console.log("---- text ----");
+console.log((await page.evaluate(() => document.body.innerText)).slice(0, 1800));
+await browser.close();

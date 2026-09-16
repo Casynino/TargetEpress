@@ -181,6 +181,32 @@ async function check(label: string, ids: string[], expectSum: number, detail?: s
   await wipe();
 }
 
+// --- The owner's own worked examples, in his numbers. ---
+
+// 0.3 + 0.4 = 0.7 kg  →  bill 1 kg  →  13.50
+{
+  const a = await ship(0.3), b = await ship(0.4);
+  await autoPriceShipments([a.id, b.id], ACTOR);
+  await check("owner's example 1: 0.3 + 0.4 = 0.7 kg", [a.id, b.id], 13.5, "bill 1 kg, not 2");
+  await wipe();
+}
+
+// 0.2 + 0.3 + 0.4 = 0.9 kg  →  bill 1 kg  →  13.50
+{
+  const a = await ship(0.2), b = await ship(0.3), c = await ship(0.4);
+  await autoPriceShipments([a.id, b.id, c.id], ACTOR);
+  await check("owner's example 2: 0.2 + 0.3 + 0.4 = 0.9 kg", [a.id, b.id, c.id], 13.5, "bill 1 kg, not 3");
+  await wipe();
+}
+
+// 0.6 + 0.8 = 1.4 kg  →  bill 1.4 kg, NOT rounded up to 2
+{
+  const a = await ship(0.6), b = await ship(0.8);
+  await autoPriceShipments([a.id, b.id], ACTOR);
+  await check("owner's example 3: 0.6 + 0.8 = 1.4 kg", [a.id, b.id], 18.9, "1.4 × 13.50; NOT rounded to 2 kg");
+  await wipe();
+}
+
 await wipe();
 console.log(fails === 0 ? "\nEvery case correct." : `\n${fails} FAILED`);
 await prisma.$disconnect();
