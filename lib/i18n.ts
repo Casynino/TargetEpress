@@ -4361,6 +4361,11 @@ const ZH: Record<string, string> = {
   "These consignments travelled on one flight. The route's minimum is charged once across all of them, and these bills each carry their own.":
     "这些货物同机运输。该航线的最低计费应在全部货物上合并收取一次，而这些账单各自都收了一次。",
   "The bills ask for": "账单合计要求",
+  "Ask Finance to correct it before taking the money.": "收款前请让财务更正。",
+  "Corrected.": "已更正。",
+  "These bills now ask for": "这些账单现在应收",
+  "Correcting…": "正在更正…",
+  "Correct it": "更正",
   "they should ask for": "应为",
   "Open the bill that should carry nothing and set its Air freight to 0.00 before taking the money.":
     "收款前，请打开应为零的那张账单，将其空运费改为 0.00。",

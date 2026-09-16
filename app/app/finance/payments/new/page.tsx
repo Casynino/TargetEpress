@@ -5,6 +5,7 @@ import { Banknote, MessageCircle, ReceiptText, Search, Users, Wallet } from "luc
 import { rateFactsOf } from "@/lib/agreed-rate";
 import { poolShareFor } from "@/lib/minimum-pool";
 import { MinimumPoolNote } from "@/components/app/minimum-pool-note";
+import { ApplyPooledMinimum } from "@/components/app/apply-pooled-minimum";
 import { Button } from "@/components/ui/button";
 
 import { CustomerPaymentForm, type OpenBill } from "@/components/app/customer-payment-form";
@@ -805,12 +806,22 @@ export default async function RecordCustomerPaymentPage({
                 {group.share.currency} {group.share.pooledFreight.toFixed(2)}
               </span>
             </p>
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              {t(
-                locale,
-                "Open the bill that should carry nothing and set its Air freight to 0.00 before taking the money."
-              )}
-            </p>
+            {/* One press, and only for the desk that may move a price. Everyone
+                else is told what to do instead, because a button that refuses
+                is worse than no button. */}
+            {can(viewer.role, "invoice.discount") ? (
+              <ApplyPooledMinimum
+                invoiceId={group.invoiceIds[0]}
+                correctedLabel={`${group.share.currency} ${group.share.pooledFreight.toFixed(2)}`}
+              />
+            ) : (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {t(
+                  locale,
+                  "Ask Finance to correct it before taking the money."
+                )}
+              </p>
+            )}
           </div>
         )
       )}
