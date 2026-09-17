@@ -4359,6 +4359,12 @@ const ZH: Record<string, string> = {
   "Charged once for this flight": "该航班仅收取一次",
   "Charge this cargo": "本票计费方式",
   "Freight rate": "运费单价",
+  "This consignment has no confirmed piece count yet, so a rate cannot be turned into a freight figure. Check it in against the manifest first.":
+    "此票货物尚未确认件数，无法按单价计算运费。请先按舱单完成入库核对。",
+  "That quantity is not valid.":
+    "该数量无效。",
+  "Money has already been received against this bill, so taking the price back is a correction for Finance. Ask Finance to put it back.":
+    "此账单已收到款项，撤回价格属于财务更正。请让财务恢复原价。",
   "Type the rate agreed per kg. To price this cargo from the rate book again, choose per item.":
     "请输入约定的每公斤单价。如需恢复按价目表计价，请选择按件。",
   "Type the rate agreed per item. To price this cargo from the rate book again, choose per kg.":

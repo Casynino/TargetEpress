@@ -863,6 +863,8 @@ export default async function FollowUpPage({
                           pricedOn={row.ratePricedOn}
                           weightKg={row.rateWeightKg}
                           pieces={row.ratePieces}
+                          agreedQuantity={row.agreedQuantity}
+                          bookFreight={row.bookFreight}
                           reason={row.agreedRateReason}
                         />
                       </IconHint>

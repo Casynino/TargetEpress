@@ -38,6 +38,8 @@ export function EditFreightRate({
   pricedOn,
   weightKg,
   pieces,
+  agreedQuantity = null,
+  bookFreight: bookFreightOnBill = null,
   reason = null,
   asIcon = false,
   onSaved,
@@ -67,6 +69,12 @@ export function EditFreightRate({
    */
   weightKg?: number;
   pieces?: number;
+  /** What the agreed rate was multiplied by, as stored — kept while the rate
+      and unit are left alone, the way the server keeps it. */
+  agreedQuantity?: number | null;
+  /** The rate book's freight actually on this bill. Rebuilt as standard ×
+      quantity instead, a pooled parcel carrying nothing read as USD 4.05. */
+  bookFreight?: number | null;
   /** Why, when the desk gave a reason last time. */
   reason?: string | null;
   /**
@@ -96,6 +104,19 @@ export function EditFreightRate({
   /* The unit this rate is being quoted in. Opens on whatever the bill is
      charged in today, so doing nothing changes nothing. */
   const [byItem, setByItem] = useState(perItem);
+  /*
+    EVERY OPENING STARTS FROM THE BILL.
+
+    The unit and the rate were set once, when the page drew, and a desk that
+    clicked "Per kg" and cancelled reopened on per kg with the box empty — and
+    pressing Save there, believing nothing had changed, dropped the agreed
+    rate. Reset on the way in, so cancelling is cancelling.
+  */
+  const openDialog = () => {
+    setTyped(agreed === null ? "" : String(agreed));
+    setByItem(perItem);
+    setOpen(true);
+  };
   const bookByItem = bookPerItem ?? perItem;
   const bookUnit = bookByItem ? t("per item") : t("per kg");
   const [state, action] = useActionState<
@@ -111,12 +132,27 @@ export function EditFreightRate({
   }, [state]);
 
   const unit = byItem ? t("per item") : t("per kg");
+  /* The unit the bill is charged in, for the closed control — never the one
+     a cancelled dialog was left on. */
+  const billUnit = perItem ? t("per item") : t("per kg");
+  const rateNow = Number(typed);
+  const valid = typed.trim() !== "" && Number.isFinite(rateNow) && rateNow >= 0;
+  /* The agreement on the bill, untouched: same rate, same unit. Its stored
+     quantity stands, as it does on the server. */
+  const sameAgreement =
+    agreed !== null &&
+    agreedQuantity !== null &&
+    byItem === perItem &&
+    valid &&
+    Math.abs(rateNow - agreed) < 0.005;
   /* What the typed rate multiplies, in whichever unit is selected. Falls back
      to `pricedOn` where the caller has not passed both — every screen that has
      not been taught the switch keeps behaving exactly as it did. */
-  const multiplier = byItem
-    ? (pieces ?? (perItem ? pricedOn : 1))
-    : (weightKg ?? (perItem ? 0 : pricedOn));
+  const multiplier = sameAgreement
+    ? agreedQuantity
+    : byItem
+      ? (pieces ?? (perItem ? pricedOn : 1))
+      : (weightKg ?? (perItem ? 0 : pricedOn));
   /* Kilos print to the gram and no further, the way the scale reads. */
   const kgLabel = (kg: number) => `${Math.round(kg * 1000) / 1000} ${t("kg")}`;
   const quantity = byItem
@@ -128,8 +164,6 @@ export function EditFreightRate({
 
   /* What the bill's freight will come to, shown before it is agreed rather
      than discovered on the bill afterwards. */
-  const rateNow = Number(typed);
-  const valid = typed.trim() !== "" && Number.isFinite(rateNow) && rateNow >= 0;
   const freight = valid ? Math.round(rateNow * multiplier * 100) / 100 : null;
   /*
     AGAINST THE BOOK — IN THE SAME UNIT, OR NOT AT ALL.
@@ -146,21 +180,22 @@ export function EditFreightRate({
       ? Math.round((standard - rateNow) * 100) / 100
       : null;
   const bookFreight =
-    standard === null
+    bookFreightOnBill ??
+    (standard === null
       ? null
       : Math.round(
           standard *
             (bookByItem ? (pieces ?? pricedOn) : (weightKg ?? pricedOn)) *
             100
-        ) / 100;
+        ) / 100);
 
   if (!open) {
     if (asIcon) {
       return (
         <button
           type="button"
-          onClick={() => setOpen(true)}
-          aria-label={`${t("Edit the rate")} ${unit}`}
+          onClick={openDialog}
+          aria-label={`${t("Edit the rate")} ${billUnit}`}
           /* The same 7x7 bordered square its neighbours are, and brand-tinted
              when this cargo already carries an agreed rate, so a specially
              priced row can be picked out of the queue without opening it. */
@@ -178,7 +213,7 @@ export function EditFreightRate({
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={openDialog}
         className="focus-ring inline-flex items-center gap-1 rounded font-medium text-brand underline-offset-2 hover:underline"
       >
         <Scale className="h-3.5 w-3.5" />
@@ -191,7 +226,7 @@ export function EditFreightRate({
           open the box to find out what the figure would be multiplied by.
         */}
         {agreed === null
-          ? `${t("Edit the rate")} ${unit}`
+          ? `${t("Edit the rate")} ${billUnit}`
           : t("Change the agreed rate")}
       </button>
     );

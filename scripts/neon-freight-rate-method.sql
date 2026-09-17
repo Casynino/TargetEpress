@@ -17,3 +17,8 @@ ALTER TABLE "Invoice"
 -- unit.
 ALTER TABLE "InvoicePriceChange"
   ADD COLUMN IF NOT EXISTS "methodBefore" "PricingMethod";
+
+-- And what that rate was multiplied by, so putting a change back reproduces
+-- the freight exactly even after the cargo was re-weighed.
+ALTER TABLE "InvoicePriceChange"
+  ADD COLUMN IF NOT EXISTS "quantityBefore" DECIMAL(10,3);

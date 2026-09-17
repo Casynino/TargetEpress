@@ -72,6 +72,10 @@ export type OpenBill = {
   /** Both quantities, for the per-kg / per-piece switch. */
   rateWeightKg?: number;
   ratePieces?: number;
+  /** What the agreed rate was multiplied by, as stored. */
+  agreedQuantity: number | null;
+  /** The rate book's freight actually on the bill, where it was read. */
+  bookFreight: number | null;
   /** NONE, REQUESTED or APPROVED — whether credit can still be asked for. */
   creditStatus: string;
   /**
@@ -767,6 +771,8 @@ export function CustomerPaymentForm({
                           pricedOn={bill.ratePricedOn}
                           weightKg={bill.rateWeightKg}
                           pieces={bill.ratePieces}
+                          agreedQuantity={bill.agreedQuantity}
+                          bookFreight={bill.bookFreight}
                           reason={bill.agreedRateReason}
                         />
                       ) : null}

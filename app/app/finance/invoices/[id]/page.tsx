@@ -524,8 +524,13 @@ export default async function InvoicePage({
           changedAt={formatDateTime(uncheckedPrice.changedAt, locale)}
           canReview={can(user.role, "invoice.priceReview")}
           /* Her own, and only while nobody has looked. The action checks the
-             same two things against the row. */
-          canUndo={uncheckedRun.every((c) => c.changedById === user.id)}
+             same two things against the row — and, like it, withholds the
+             door on a bill with money on it from a desk that may not correct
+             one, where the button could only fail. */
+          canUndo={
+            uncheckedRun.every((c) => c.changedById === user.id) &&
+            (toNumber(invoice.amountPaid) <= 0.005 || can(user.role, "ledger.adjust"))
+          }
         />
       ) : null}
 

@@ -1194,6 +1194,10 @@ export default async function ShipmentDetailPage({
             ratePricedOn={rateFacts.ratePricedOn}
             rateWeightKg={rateWeightBasis ?? undefined}
             ratePieces={shipment.packages}
+            rateAgreedQuantity={rateFacts.agreedQuantity}
+            rateBookFreight={
+              shipment.invoice ? toNumber(shipment.invoice.freightCost) : null
+            }
             /* Credit granted means the cargo may go before the money does —
                without this the server can issue a credit note and no button in
                the interface can ask it to. */

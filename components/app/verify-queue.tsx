@@ -541,6 +541,8 @@ export async function VerifyQueue() {
                                 ratePerItem: false,
                                 bookPerItem: false,
                                 unitSwitched: false,
+                                agreedQuantity: null,
+                                bookFreight: null,
                                 ratePricedOn: 0,
                               }
                             : {

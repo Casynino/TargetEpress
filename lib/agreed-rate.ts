@@ -41,6 +41,15 @@ export type RateFacts = {
    */
   unitSwitched: boolean;
   /**
+   * What the agreed rate was multiplied by, as stored beside it — null on the
+   * ordinary case and on rates agreed before the quantity was kept. The
+   * dialogs keep it while the rate and unit are left alone, exactly as the
+   * server does.
+   */
+  agreedQuantity: number | null;
+  /** The rate book's own freight on this bill, where the caller read it. */
+  bookFreight: number | null;
+  /**
    * What the rate is multiplied by: the piece count for per-item cargo, and
    * otherwise the chargeable weight — what the freight was actually billed on,
    * with the 1 kg minimum already applied, so a 0.4 kg parcel agreed at 11.50
@@ -62,6 +71,8 @@ export function rateFactsOf(
     freightRateMethod?: string | null;
     /** What the agreed rate was multiplied by, as stored beside it. */
     freightRateQuantity?: Numeric;
+    /** The rate book's own freight figure for this bill. */
+    freightCost?: Numeric;
   } | null,
   shipment: {
     quotedRate: Numeric;
@@ -102,6 +113,12 @@ export function rateFactsOf(
     agreedRateReason: invoice?.freightOverrideReason ?? null,
     ratePerItem: perItem,
     bookPerItem: shipment?.quotedMethod === "FIXED_PER_ITEM",
+    agreedQuantity:
+      invoice?.freightRateOverride != null && invoice.freightRateQuantity != null
+        ? toNumber(invoice.freightRateQuantity)
+        : null,
+    bookFreight:
+      invoice?.freightCost == null ? null : toNumber(invoice.freightCost),
     unitSwitched:
       !!shipment &&
       invoice?.freightRateOverride != null &&

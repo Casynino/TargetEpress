@@ -269,6 +269,7 @@ export default async function ShipmentPage({
                        editor a 3.8 kg parcel was 3.8 pieces. */
                     pieces: item.packages,
                     weightBasis: weightBases.get(item.id) ?? null,
+                    agreedQuantity: rateFacts.agreedQuantity,
                     storage: toNumber(item.invoice.storageCharge),
                     otherCharges: toNumber(item.invoice.otherCharges),
                     discount: toNumber(item.invoice.discount),

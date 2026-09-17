@@ -142,6 +142,10 @@ export type PaymentPanelProps = {
   rateWeightKg?: number;
   /** Piece count — the other side of the unit switch. */
   ratePieces?: number;
+  /** What the agreed rate was multiplied by, as stored. */
+  rateAgreedQuantity?: number | null;
+  /** The rate book's freight actually on the bill. */
+  rateBookFreight?: number | null;
   /** DRAFT while the system's price is waiting on Finance to sign it off. */
   invoiceStatus: string | null;
   /**
@@ -597,6 +601,8 @@ export function PaymentPanel({
                 pricedOn={props.ratePricedOn ?? 0}
                 weightKg={props.rateWeightKg}
                 pieces={props.ratePieces}
+                agreedQuantity={props.rateAgreedQuantity ?? null}
+                bookFreight={props.rateBookFreight ?? null}
                 reason={props.agreedRateReason ?? null}
               />
             ) : null}
@@ -808,6 +814,8 @@ export function PaymentPanel({
                 pricedOn={props.ratePricedOn ?? 0}
                 weightKg={props.rateWeightKg}
                 pieces={props.ratePieces}
+                agreedQuantity={props.rateAgreedQuantity ?? null}
+                bookFreight={props.rateBookFreight ?? null}
                 reason={props.agreedRateReason ?? null}
               />
             </div>

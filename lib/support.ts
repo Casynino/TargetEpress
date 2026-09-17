@@ -377,6 +377,10 @@ export type FollowUpRow = {
   /** Both quantities, for the per-kg / per-piece switch. */
   rateWeightKg?: number;
   ratePieces?: number;
+  /** What the agreed rate was multiplied by, as stored. */
+  agreedQuantity: number | null;
+  /** The rate book's freight actually on the bill, where it was read. */
+  bookFreight: number | null;
   /** What is already off it, so a discount box opens on the truth. */
   invoiceDiscount: number;
   /** Storage on the bill, so the counter can forgive it without leaving. */
@@ -483,6 +487,9 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
              off the book's — see Invoice.freightRateQuantity. */
           freightRateMethod: true,
           freightRateQuantity: true,
+          /* The book's freight on the bill, which the rate dialog compares a
+             switched unit against. */
+          freightCost: true,
           storageCharge: true,
           localCurrency: true,
           sentAt: true,

@@ -283,6 +283,9 @@ export async function submissionQueue(
              off the book's — see Invoice.freightRateQuantity. */
           freightRateMethod: true,
           freightRateQuantity: true,
+          /* The book's freight on the bill, which the rate dialog compares a
+             switched unit against. */
+          freightCost: true,
           freightOverrideReason: true,
           customer: { select: { id: true, name: true, phone: true } },
           /* The flight, because one customer sends on several of them and the

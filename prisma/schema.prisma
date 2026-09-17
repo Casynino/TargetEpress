@@ -3455,10 +3455,15 @@ model InvoicePriceChange {
   /// and putting it back has to reproduce the state, not the number.
   freightBefore  Decimal? @db.Decimal(12, 2)
   rateBefore     Decimal? @db.Decimal(12, 2)
-  /// The unit that rate was in — per kg or per piece — where it was not the
-  /// book's. A rate restored in the wrong unit is a different price: 13.50 a
-  /// kilo on two documents put back as 13.50 a piece bills 27.00, not 13.50.
+  /// The unit that rate was in — per kg or per piece. A rate restored in the
+  /// wrong unit is a different price: 13.50 a kilo on two documents put back
+  /// as 13.50 a piece bills 27.00, not 13.50. Null beside a rate only on rows
+  /// written before units were recorded, and then it was the book's unit.
   methodBefore   PricingMethod?
+  /// And what that rate was multiplied by. Worked out again at restore time it
+  /// follows today's weight and today's rate book, so a consignment re-weighed
+  /// after the change came back at a price it never had.
+  quantityBefore Decimal? @db.Decimal(10, 3)
   storageBefore  Decimal  @db.Decimal(12, 2)
   otherBefore    Decimal  @db.Decimal(12, 2)
   discountBefore Decimal  @db.Decimal(12, 2)

@@ -113,6 +113,8 @@ export type CargoLine = {
       pieces: number;
       /** Billable per-kilo weight from the rate book, the route minimum applied. */
       weightBasis: number | null;
+      /** What the agreed rate was multiplied by, as stored. */
+      agreedQuantity: number | null;
       storage: number;
       otherCharges: number;
       discount: number;
@@ -482,6 +484,7 @@ export function ShipmentDetailTabs({
                       bookPerItem={line.price.edit.bookPerItem}
                       pieces={line.price.edit.pieces}
                       weightBasis={line.price.edit.weightBasis}
+                      agreedQuantity={line.price.edit.agreedQuantity}
                       storage={line.price.edit.storage}
                       otherCharges={line.price.edit.otherCharges}
                       discount={line.price.edit.discount}
@@ -631,6 +634,7 @@ export function ShipmentDetailTabs({
                                 bookPerItem={line.price.edit.bookPerItem}
                                 pieces={line.price.edit.pieces}
                                 weightBasis={line.price.edit.weightBasis}
+                                agreedQuantity={line.price.edit.agreedQuantity}
                                 storage={line.price.edit.storage}
                                 otherCharges={line.price.edit.otherCharges}
                                 discount={line.price.edit.discount}

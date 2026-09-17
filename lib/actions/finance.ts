@@ -31,7 +31,7 @@ import { postLedgerEntry } from "@/lib/ledger";
 import { recordPriceChange } from "@/lib/price-changes";
 import { quote } from "@/lib/pricing";
 import { poolShareFor } from "@/lib/minimum-pool";
-import { weightBasisOf } from "@/lib/rate-basis";
+import { agreedQuantityOf, agreementBefore } from "@/lib/rate-basis";
 import {
   nextInvoiceNumber,
   nextPickupNoteNumber,
@@ -879,6 +879,20 @@ export async function adjustInvoice(
       per kilo; absent everywhere else, which keeps the bill's own unit.
     */
     rateMethod: z.enum(["WEIGHT_BASED", "FIXED_PER_ITEM"]).optional(),
+    /*
+      What the restored rate was multiplied by. Sent only by putting a change
+      back, and honoured only where it reproduces the freight sent beside it —
+      see agreedQuantityOf.
+    */
+    rateQuantity: z
+      .string()
+      .trim()
+      .optional()
+      .transform((v) => (v && v.length > 0 ? Number(v) : null))
+      .refine(
+        (v) => v === null || (Number.isFinite(v) && v >= 0 && v <= 100_000),
+        "That quantity is not valid."
+      ),
     /**
      * The storage charge, as Finance decides it should stand.
      *
@@ -920,6 +934,7 @@ export async function adjustInvoice(
           freightOverride: true,
           freightRateOverride: true,
           freightRateMethod: true,
+          freightRateQuantity: true,
           storageCharge: true,
           storageWaivedUsd: true,
           storageWaiveReason: true,
@@ -1157,25 +1172,19 @@ export async function adjustInvoice(
         the per-kilo figure is asked of the rate book, and a bill being saved
         for its discount alone has no business failing on a rule it never uses.
       */
-      let pricedOn = 0;
-      if (agreedRate !== null) {
-        if (byItem) {
-          pricedOn = invoice.shipment.packages;
-        } else {
-          const basis = await weightBasisOf(invoice.shipment);
-          if (basis === null) {
-            throw new Error(
-              "There is no per-kilo rate for this kind of cargo in the rate book, so it cannot be priced by weight. Add one in Price configuration first."
-            );
-          }
-          pricedOn = basis;
-        }
-        if (pricedOn <= 0) {
-          throw new Error(
-            "This consignment has no confirmed weight yet, so a rate cannot be turned into a freight figure. Check it in against the manifest first."
-          );
-        }
-      }
+      const pricedOn =
+        agreedRate === null
+          ? 0
+          : await agreedQuantityOf({
+              shipment: invoice.shipment,
+              invoice,
+              rate: agreedRate,
+              byItem,
+              restored:
+                input.rateQuantity === null
+                  ? null
+                  : { quantity: input.rateQuantity, freight: input.freightOverride },
+            });
       const fromAgreedRate =
         agreedRate === null
           ? null
@@ -1514,7 +1523,7 @@ export async function adjustInvoice(
             invoice.freightRateOverride === null
               ? null
               : toNumber(invoice.freightRateOverride),
-          methodBefore: invoice.freightRateMethod,
+          ...agreementBefore(invoice, invoice.shipment),
           storageBefore: toNumber(invoice.storageCharge),
           otherBefore: toNumber(invoice.otherCharges),
           discountBefore: toNumber(invoice.discount),
@@ -1948,6 +1957,7 @@ export async function setFreightRate(
           freightOverride: true,
           freightRateOverride: true,
           freightRateMethod: true,
+          freightRateQuantity: true,
           freightOverrideReason: true,
           storageCharge: true,
           otherCharges: true,
@@ -2015,30 +2025,20 @@ export async function setFreightRate(
         );
       }
       /*
-        A CONSIGNMENT THE BOOK PRICED PER PIECE HAS NO PER-KILO WEIGHT.
-
-        `chargeableKg` is what the bill was raised on, and for per-piece cargo
-        nothing was raised on weight at all — so it is empty, and falling back
-        to the scale weight skipped the route's minimum: two documents weighing
-        0.4 kg switched to per kg billed 5.40 instead of the 1 kg minimum. The
-        minimum lives on the rule, so the rule is asked.
+        What the rate multiplies — the piece count, or the billable kilos with
+        the route's minimum shared across the customer's cargo on this flight.
+        See agreedQuantityOf. Nothing to multiply when the rate is being
+        dropped: the bill goes back to the book's own figure.
       */
-      /* Nothing to multiply when the rate is being dropped: the bill goes back
-         to the book's own figure, whatever this cargo weighs. */
-      const dropping = input.freightRate === null;
-      const weightBasis =
-        perItem || dropping ? null : await weightBasisOf(invoice.shipment);
-      if (!perItem && !dropping && weightBasis === null) {
-        throw new Error(
-          "There is no per-kilo rate for this kind of cargo in the rate book, so it cannot be priced by weight. Add one in Price configuration first."
-        );
-      }
-      const pricedOn = perItem ? invoice.shipment.packages : (weightBasis ?? 0);
-      if (!dropping && pricedOn <= 0) {
-        throw new Error(
-          "This consignment has no confirmed weight yet, so a rate cannot be turned into a freight figure. Check it in against the manifest first."
-        );
-      }
+      const pricedOn =
+        input.freightRate === null
+          ? 0
+          : await agreedQuantityOf({
+              shipment: invoice.shipment,
+              invoice,
+              rate: input.freightRate,
+              byItem: perItem,
+            });
 
       const wasRate =
         invoice.freightRateOverride === null
@@ -2143,7 +2143,7 @@ export async function setFreightRate(
             invoice.freightRateOverride === null
               ? null
               : toNumber(invoice.freightRateOverride),
-          methodBefore: invoice.freightRateMethod,
+          ...agreementBefore(invoice, invoice.shipment),
           storageBefore: toNumber(invoice.storageCharge),
           otherBefore: toNumber(invoice.otherCharges),
           discountBefore: toNumber(invoice.discount),
@@ -2168,6 +2168,18 @@ export async function setFreightRate(
           ? null
           : toNumber(invoice.shipment.quotedRate);
       const unit = perItem ? "item" : "kg";
+      /* The unit the rate stood in before: the agreed one's where there was
+         one, else the book's. Each side of the arrow carries its own, so a
+         switch reads as a switch — "40.00/item → 13.50/kg" — and not as a
+         per-kilo cut from 40 to 13.50. */
+      const unitBefore =
+        (wasRate === null
+          ? invoice.shipment.quotedMethod
+          : (invoice.freightRateMethod ?? invoice.shipment.quotedMethod)) ===
+        "FIXED_PER_ITEM"
+          ? "item"
+          : "kg";
+      const bookUnit = bookPerItem ? "item" : "kg";
 
       await recordAudit(
         {
@@ -2179,7 +2191,7 @@ export async function setFreightRate(
             `${invoice.invoiceNumber} (${invoice.shipment.trackingNumber}): ` +
               (input.freightRate === null
                 ? `agreed rate cleared, back to the rate book — freight ${freightBefore.toFixed(2)} → ${freightAfter.toFixed(2)} ${invoice.currency}`
-                : `rate ${wasRate === null ? `${standardRate === null ? "book" : standardRate.toFixed(2)}` : wasRate.toFixed(2)} → ` +
+                : `rate ${wasRate === null ? `${standardRate === null ? "book" : standardRate.toFixed(2)}` : wasRate.toFixed(2)}/${unitBefore} → ` +
                   `${input.freightRate.toFixed(2)} ${invoice.currency}/${unit} ` +
                   `× ${pricedOn} ${perItem ? "pcs" : "kg"}, freight ` +
                   `${freightBefore.toFixed(2)} → ${freightAfter.toFixed(2)}, bill now ${total.toFixed(2)}`),
@@ -2192,11 +2204,15 @@ export async function setFreightRate(
             standardRate,
             rateBefore: wasRate,
             rateAfter: input.freightRate,
+            /* No difference across units: a rate per kilo and a rate per piece
+               are not the same number less a discount. */
             rateDifference:
-              input.freightRate === null || standardRate === null
+              input.freightRate === null || standardRate === null || unit !== bookUnit
                 ? null
                 : Math.round((standardRate - input.freightRate) * 100) / 100,
             rateUnit: unit,
+            rateUnitBefore: unitBefore,
+            bookUnit,
             pricedOn,
             freightBefore,
             freightAfter,

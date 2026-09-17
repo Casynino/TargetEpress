@@ -7,6 +7,7 @@ import { toNumber } from "@/lib/format";
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import { adjustInvoice } from "@/lib/actions/finance";
@@ -195,12 +196,13 @@ async function uncheckedRun(invoiceId: string) {
       freightBefore: true,
       rateBefore: true,
       methodBefore: true,
+      quantityBefore: true,
       invoice: {
         select: {
           invoiceNumber: true,
           exchangeRate: true,
           notes: true,
-          shipment: { select: { trackingNumber: true } },
+          shipment: { select: { trackingNumber: true, quotedMethod: true } },
         },
       },
     },
@@ -230,7 +232,12 @@ async function restoreTo(
     freightBefore: Prisma.Decimal | null;
     rateBefore: Prisma.Decimal | null;
     methodBefore: "WEIGHT_BASED" | "FIXED_PER_ITEM" | null;
-    invoice: { exchangeRate: Prisma.Decimal | null; notes: string | null };
+    quantityBefore: Prisma.Decimal | null;
+    invoice: {
+      exchangeRate: Prisma.Decimal | null;
+      notes: string | null;
+      shipment: { quotedMethod: string | null } | null;
+    };
   },
   reason: string
 ) {
@@ -249,11 +256,42 @@ async function restoreTo(
     "freightRateOverride",
     change.rateBefore === null ? "" : String(toNumber(change.rateBefore))
   );
-  /* And in the unit it was agreed in. A rate put back in the book's unit is a
-     different price: 13.50 a kilo on two documents restored as 13.50 a piece
-     bills 27.00. Only sent where there was a rate to restore. */
-  if (change.rateBefore !== null && change.methodBefore !== null) {
-    form.set("rateMethod", change.methodBefore);
+  /*
+    AND IN THE UNIT IT WAS AGREED IN, ON THE QUANTITY IT WAS AGREED ON.
+
+    A rate put back in another unit is a different price: 13.50 a kilo on two
+    documents restored as 13.50 a piece bills 27.00. Always sent with a rate —
+    left out, the bill's CURRENT unit answered, which is the very unit the
+    change being undone switched it to. A row with no unit recorded is from
+    before units were, and then the rate was in the book's.
+
+    The quantity likewise: worked out again it follows today's weight, and a
+    consignment re-weighed after the change came back at a price it never had.
+    Rows without one recorded give it by the freight they did record.
+  */
+  if (change.rateBefore !== null) {
+    form.set(
+      "rateMethod",
+      change.methodBefore ??
+        (change.invoice.shipment?.quotedMethod === "FIXED_PER_ITEM"
+          ? "FIXED_PER_ITEM"
+          : "WEIGHT_BASED")
+    );
+    const rate = toNumber(change.rateBefore);
+    const freight =
+      change.freightBefore === null ? null : toNumber(change.freightBefore);
+    const reproduces = (q: number) =>
+      freight !== null && Math.abs(Math.round(rate * q * 100) / 100 - freight) <= 0.005;
+    const candidates = [
+      change.quantityBefore === null ? null : toNumber(change.quantityBefore),
+      freight !== null && rate > 0
+        ? Math.round((freight / rate) * 1000) / 1000
+        : null,
+    ];
+    const quantity = candidates.find((q) => q !== null && reproduces(q));
+    if (quantity !== undefined && quantity !== null) {
+      form.set("rateQuantity", String(quantity));
+    }
   }
   form.set("freightOverrideReason", reason);
   if (change.invoice.exchangeRate !== null) {
@@ -318,6 +356,27 @@ export async function undoPriceChange(
     return fail(
       "Somebody else has also changed this price. Ask Finance to put it back."
     );
+  }
+
+  /*
+    MONEY ON THE BILL MAKES PUTTING IT BACK A LEDGER CORRECTION.
+
+    The rate dialog may move a price on a part-paid bill so long as it stays
+    above what was paid, but the restore goes through the bill editor, which
+    treats any move on a paid bill as a correction for somebody who may adjust
+    the ledger. Said here, before the run is claimed, rather than failing
+    half-way with a message about the ledger.
+  */
+  if (!can(user.role, "ledger.adjust")) {
+    const bill = await prisma.invoice.findUnique({
+      where: { id: named.invoiceId },
+      select: { amountPaid: true },
+    });
+    if (bill && toNumber(bill.amountPaid) > 0.005) {
+      return fail(
+        "Money has already been received against this bill, so taking the price back is a correction for Finance. Ask Finance to put it back."
+      );
+    }
   }
 
   const claimedAt = new Date();

@@ -82,6 +82,10 @@ export type SubmissionSubject = {
   /** Both quantities, for the per-kg / per-piece switch. */
   rateWeightKg?: number;
   ratePieces?: number;
+  /** What the agreed rate was multiplied by, as stored. */
+  agreedQuantity: number | null;
+  /** The rate book's freight actually on the bill, where it was read. */
+  bookFreight: number | null;
   customerName: string;
   customerPhone: string | null;
   amount: number;
@@ -646,6 +650,8 @@ export function SubmissionCorrection({
                           pricedOn={subject.ratePricedOn}
                           weightKg={subject.rateWeightKg}
                           pieces={subject.ratePieces}
+                          agreedQuantity={subject.agreedQuantity}
+                          bookFreight={subject.bookFreight}
                           reason={subject.agreedRateReason}
                         />
                       </div>

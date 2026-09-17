@@ -39,6 +39,7 @@ export function RowPriceEditor({
   bookPerItem,
   pieces = 1,
   weightBasis = null,
+  agreedQuantity = null,
   storage,
   otherCharges,
   discount,
@@ -79,6 +80,9 @@ export function RowPriceEditor({
    * scale weight and promised 5.40 on a bill the server charged 13.50.
    */
   weightBasis?: number | null;
+  /** What the agreed rate was multiplied by, as stored — kept while the rate
+      and unit are left alone, the way the server keeps it. */
+  agreedQuantity?: number | null;
   storage: number;
   otherCharges: number;
   discount: number;
@@ -118,9 +122,6 @@ export function RowPriceEditor({
   const bookByItem = bookPerItem ?? perItem;
   const [byItem, setByItem] = useState(perItem);
   const kgBasis = weightBasis ?? chargeableKg ?? weightKg;
-  /* What the rate multiplies, in the unit selected: pieces, or the billable
-     weight with the route's minimum applied. */
-  const pricedOn = byItem ? pieces : kgBasis;
   /* The book's own figure where the page passed one; the division only as a
      fallback for callers that have not been given it yet — see the prop. The
      fallback divides by the BOOK's quantity, never the selected one. */
@@ -138,6 +139,35 @@ export function RowPriceEditor({
   const [off, setOff] = useState(discount ? String(discount) : "");
 
   const n = (v: string) => (v.trim() === "" ? 0 : Number(v));
+  /* The agreement on the bill, untouched: same rate, same unit. Its stored
+     quantity stands, as it does on the server — worked out again it follows
+     today's weight, and a discount typed on a re-weighed consignment moved
+     its freight. */
+  const sameAgreement =
+    agreedRate !== null &&
+    agreedRate !== undefined &&
+    agreedQuantity !== null &&
+    byItem === perItem &&
+    rate.trim() !== "" &&
+    Math.abs(n(rate) - agreedRate) < 0.005;
+  /* What the rate multiplies, in the unit selected: pieces, or the billable
+     weight with the route's minimum applied. */
+  const pricedOn = sameAgreement ? agreedQuantity : byItem ? pieces : kgBasis;
+  /*
+    EVERY OPENING STARTS FROM THE BILL.
+
+    A desk that picked another unit and closed the panel reopened on that unit
+    with the boxes emptied, and saving there — believing nothing had changed —
+    dropped the agreed price. Reset on the way in, so leaving it is leaving it.
+  */
+  const openEditor = () => {
+    setByItem(perItem);
+    setRate(agreedRate === null || agreedRate === undefined ? "" : String(agreedRate));
+    setFreight(freightOverride === null ? "" : String(freightOverride));
+    setExtra(otherCharges ? String(otherCharges) : "");
+    setOff(discount ? String(discount) : "");
+    setOpen(true);
+  };
   /* A typed rate wins, exactly as it does on the server. */
   const fromRate =
     rate.trim() === "" ? null : Math.round(n(rate) * pricedOn * 100) / 100;
@@ -149,7 +179,7 @@ export function RowPriceEditor({
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={openEditor}
         /* A bordered control, not muted text with an icon in front of it.
            Plain text beside a price column reads as a caption — the same thing
            that hid the register's own fix-it door until it was given edges. */
@@ -357,7 +387,10 @@ export function RowPriceEditor({
           </div>
         ) : null}
 
-        {canOverride && pricedOn > 0 ? (
+        {/* Offered wherever there is something to multiply — and on a bill
+            whose agreed quantity is nothing (its kilos charged on another
+            parcel of the flight), so its rate can still be changed. */}
+        {canOverride && (pricedOn > 0 || sameAgreement) ? (
           <label className="block space-y-0.5">
             <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">
               {t("Freight rate")} {unit}
@@ -398,8 +431,11 @@ export function RowPriceEditor({
                   {n(rate).toFixed(2)} ×{" "}
                   {/* formatWeight carries its own unit — saying "kg" after it
                       printed "4 kg kg". */}
+                  {/* The quantity actually multiplied — the stored one where
+                      the agreement stands, which a re-count may have left
+                      different from the pieces on the cargo today. */}
                   {byItem
-                    ? `${pieces} ${t(pieces === 1 ? "piece" : "pieces")}`
+                    ? `${pricedOn} ${t(pricedOn === 1 ? "piece" : "pieces")}`
                     : formatWeight(pricedOn)}{" "}
                   ={" "}
                   <span className="font-semibold text-foreground">
