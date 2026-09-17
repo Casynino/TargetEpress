@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import { FileText, Plane, Users, PackagePlus } from "lucide-react";
 
 import { rateFactsOf } from "@/lib/agreed-rate";
+import { weightBasisOf } from "@/lib/rate-basis";
+import { quoteContext } from "@/lib/pricing";
 import { PageHeader } from "@/components/app/page-header";
 import {
   ShipmentDetailTabs,
@@ -103,6 +105,10 @@ export default async function ShipmentPage({
               /* The rate behind the override, so the inline editor opens on
                  what was agreed instead of an empty box that clears it. */
               freightRateOverride: true,
+              /* The unit it is in and what it multiplied, where the desk moved it
+                 off the book's — see Invoice.freightRateQuantity. */
+              freightRateMethod: true,
+              freightRateQuantity: true,
               freightOverrideReason: true,
               storageCharge: true,
               otherCharges: true,
@@ -150,6 +156,24 @@ export default async function ShipmentPage({
           .filter((v): v is string => Boolean(v))
       )
     : new Map<string, never>();
+
+  /*
+    WHAT EACH CONSIGNMENT WOULD BE BILLED ON BY THE KILO.
+
+    Asked of the rate book, once per consignment, before the lines are built:
+    a consignment the book priced per piece carries no weight it was ever
+    billed on, and the route's minimum lives on the rule — so the editor's
+    preview and the figure the server stores come from the same answer. The
+    pricebook is read once for the whole flight.
+  */
+  const pricebook = await quoteContext();
+  const weightBases = new Map(
+    await Promise.all(
+      dispatch.shipments.map(
+        async (item) => [item.id, await weightBasisOf(item, pricebook)] as const
+      )
+    )
+  );
 
   const cargo: CargoLine[] = dispatch.shipments.map((item) => {
     /* What this consignment was priced at, worked out once per row. */
@@ -235,8 +259,16 @@ export default async function ShipmentPage({
                        stored rate the next time it was opened. */
                     agreedRate: rateFacts.agreedRate,
                     standardRate: rateFacts.standardRate,
+                    /* The unit the bill is charged in NOW — an agreed switch
+                       wins — and separately the book's own unit, which is
+                       what the standard rate is quoted in. */
                     perItem: rateFacts.ratePerItem,
-                    pieces: rateFacts.ratePricedOn,
+                    bookPerItem: item.quotedMethod === "FIXED_PER_ITEM",
+                    /* The piece count, not ratePricedOn: that is kilos for
+                       weight-priced cargo, and passing it as pieces told the
+                       editor a 3.8 kg parcel was 3.8 pieces. */
+                    pieces: item.packages,
+                    weightBasis: weightBases.get(item.id) ?? null,
                     storage: toNumber(item.invoice.storageCharge),
                     otherCharges: toNumber(item.invoice.otherCharges),
                     discount: toNumber(item.invoice.discount),

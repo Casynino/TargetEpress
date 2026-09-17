@@ -106,8 +106,13 @@ export type CargoLine = {
       */
       agreedRate: number | null;
       standardRate: number | null;
+      /** The unit the bill is charged in now — an agreed switch wins. */
       perItem: boolean;
+      /** The rate book's own unit, which the standard rate is quoted in. */
+      bookPerItem: boolean;
       pieces: number;
+      /** Billable per-kilo weight from the rate book, the route minimum applied. */
+      weightBasis: number | null;
       storage: number;
       otherCharges: number;
       discount: number;
@@ -474,7 +479,9 @@ export function ShipmentDetailTabs({
                       agreedRate={line.price.edit.agreedRate}
                       standardRate={line.price.edit.standardRate}
                       perItem={line.price.edit.perItem}
+                      bookPerItem={line.price.edit.bookPerItem}
                       pieces={line.price.edit.pieces}
+                      weightBasis={line.price.edit.weightBasis}
                       storage={line.price.edit.storage}
                       otherCharges={line.price.edit.otherCharges}
                       discount={line.price.edit.discount}
@@ -618,6 +625,12 @@ export function ShipmentDetailTabs({
                                 currency={line.price.currency}
                                 rateBookFreight={line.price.edit.rateBookFreight}
                                 freightOverride={line.price.edit.freightOverride}
+                                agreedRate={line.price.edit.agreedRate}
+                                standardRate={line.price.edit.standardRate}
+                                perItem={line.price.edit.perItem}
+                                bookPerItem={line.price.edit.bookPerItem}
+                                pieces={line.price.edit.pieces}
+                                weightBasis={line.price.edit.weightBasis}
                                 storage={line.price.edit.storage}
                                 otherCharges={line.price.edit.otherCharges}
                                 discount={line.price.edit.discount}

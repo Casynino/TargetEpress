@@ -12,6 +12,7 @@ import {
 } from "@/components/app/bulk-select";
 import { verifySubmissions } from "@/lib/actions/submission-bulk";
 import { rateFactsOf } from "@/lib/agreed-rate";
+import { rateSwitchesFor } from "@/lib/rate-basis";
 import { activeAccounts } from "@/lib/accounts";
 import { claimBatches, shortfallBill, submissionQueue } from "@/lib/collections";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
@@ -79,6 +80,11 @@ export async function VerifyQueue() {
     not money that has moved yet — so the dollar side is worked out at today's
     rate, which is what "how much is waiting on me right now" means.
   */
+  /* Both quantities for each claim's per-kg / per-piece switch. */
+  const switches = await rateSwitchesFor(
+    rows.map((row) => ({ key: row.id, shipment: row.invoice.shipment }))
+  );
+
   const moneyRows: MoneyRow[] = rows.map((row) => ({
     currency: row.currency,
     amount: row.amount,
@@ -460,6 +466,7 @@ export async function VerifyQueue() {
                           /* One derivation, shared with every other screen
                              that states this — see lib/agreed-rate.ts. */
                           ...rateFactsOf(row.invoice, row.invoice.shipment),
+                          ...switches.get(row.id),
                           coversManyBills: row.allocations.length > 1,
                           customerName: row.invoice.customer.name,
                           customerPhone: row.invoice.customer.phone,
@@ -532,9 +539,14 @@ export async function VerifyQueue() {
                                 agreedRate: null,
                                 agreedRateReason: null,
                                 ratePerItem: false,
+                                bookPerItem: false,
+                                unitSwitched: false,
                                 ratePricedOn: 0,
                               }
-                            : rateFactsOf(row.invoice, row.invoice.shipment)),
+                            : {
+                                ...rateFactsOf(row.invoice, row.invoice.shipment),
+                                ...switches.get(row.id),
+                              }),
                         }}
                         accounts={accounts.map((a) => ({
                           id: a.id,

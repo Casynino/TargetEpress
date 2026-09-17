@@ -635,6 +635,7 @@ export default async function FollowUpPage({
                       agreed={row.agreedRate}
                       currency={row.currency}
                       perItem={row.ratePerItem}
+                      bookPerItem={row.bookPerItem}
                       reason={row.agreedRateReason}
                       className="mt-1 max-w-[18rem]"
                     />
@@ -858,7 +859,10 @@ export default async function FollowUpPage({
                           standard={row.standardRate}
                           agreed={row.agreedRate}
                           perItem={row.ratePerItem}
+                          bookPerItem={row.bookPerItem}
                           pricedOn={row.ratePricedOn}
+                          weightKg={row.rateWeightKg}
+                          pieces={row.ratePieces}
                           reason={row.agreedRateReason}
                         />
                       </IconHint>

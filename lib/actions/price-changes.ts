@@ -194,6 +194,7 @@ async function uncheckedRun(invoiceId: string) {
       storageBefore: true,
       freightBefore: true,
       rateBefore: true,
+      methodBefore: true,
       invoice: {
         select: {
           invoiceNumber: true,
@@ -228,6 +229,7 @@ async function restoreTo(
     storageBefore: Prisma.Decimal;
     freightBefore: Prisma.Decimal | null;
     rateBefore: Prisma.Decimal | null;
+    methodBefore: "WEIGHT_BASED" | "FIXED_PER_ITEM" | null;
     invoice: { exchangeRate: Prisma.Decimal | null; notes: string | null };
   },
   reason: string
@@ -247,6 +249,12 @@ async function restoreTo(
     "freightRateOverride",
     change.rateBefore === null ? "" : String(toNumber(change.rateBefore))
   );
+  /* And in the unit it was agreed in. A rate put back in the book's unit is a
+     different price: 13.50 a kilo on two documents restored as 13.50 a piece
+     bills 27.00. Only sent where there was a rate to restore. */
+  if (change.rateBefore !== null && change.methodBefore !== null) {
+    form.set("rateMethod", change.methodBefore);
+  }
   form.set("freightOverrideReason", reason);
   if (change.invoice.exchangeRate !== null) {
     form.set("exchangeRate", String(toNumber(change.invoice.exchangeRate)));

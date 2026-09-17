@@ -102,7 +102,12 @@ export function VerifySubmission({
     agreedRate: number | null;
     agreedRateReason: string | null;
     ratePerItem: boolean;
+    /** The rate book's own unit, which the standard rate is quoted in. */
+    bookPerItem: boolean;
     ratePricedOn: number;
+    /** Both quantities, for the per-kg / per-piece switch. */
+    rateWeightKg?: number;
+    ratePieces?: number;
   } | null;
   accounts: { id: string; name: string; currency: string }[];
   /**
@@ -471,7 +476,10 @@ export function VerifySubmission({
               standard={bill.standardRate}
               agreed={bill.agreedRate}
               perItem={bill.ratePerItem}
+              bookPerItem={bill.bookPerItem}
               pricedOn={bill.ratePricedOn}
+              weightKg={bill.rateWeightKg}
+              pieces={bill.ratePieces}
               reason={bill.agreedRateReason}
             />
           </div>
@@ -496,6 +504,7 @@ export function VerifySubmission({
             agreed={bill.agreedRate}
             currency={billCurrency}
             perItem={bill.ratePerItem}
+            bookPerItem={bill.bookPerItem}
             reason={bill.agreedRateReason}
           />
         ) : null}

@@ -66,7 +66,12 @@ export type OpenBill = {
   agreedRate: number | null;
   agreedRateReason: string | null;
   ratePerItem: boolean;
+  /** The rate book's own unit, which the standard rate is quoted in. */
+  bookPerItem: boolean;
   ratePricedOn: number;
+  /** Both quantities, for the per-kg / per-piece switch. */
+  rateWeightKg?: number;
+  ratePieces?: number;
   /** NONE, REQUESTED or APPROVED — whether credit can still be asked for. */
   creditStatus: string;
   /**
@@ -747,6 +752,7 @@ export function CustomerPaymentForm({
                         agreed={bill.agreedRate}
                         currency={bill.currency}
                         perItem={bill.ratePerItem}
+                        bookPerItem={bill.bookPerItem}
                         reason={bill.agreedRateReason}
                         className="w-full"
                       />
@@ -757,7 +763,10 @@ export function CustomerPaymentForm({
                           standard={bill.standardRate}
                           agreed={bill.agreedRate}
                           perItem={bill.ratePerItem}
+                          bookPerItem={bill.bookPerItem}
                           pricedOn={bill.ratePricedOn}
+                          weightKg={bill.rateWeightKg}
+                          pieces={bill.ratePieces}
                           reason={bill.agreedRateReason}
                         />
                       ) : null}

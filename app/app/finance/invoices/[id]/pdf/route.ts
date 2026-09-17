@@ -82,6 +82,10 @@ export async function GET(
       /* The rate agreed for this consignment, so the customer's own copy of
          the bill can show the working — see freightNote below. */
       freightRateOverride: true,
+      /* The unit it is in and what it multiplied, where the desk moved it
+         off the book's — see Invoice.freightRateQuantity. */
+      freightRateMethod: true,
+      freightRateQuantity: true,
       storageCharge: true,
       storageDays: true,
       storageWaivedUsd: true,
@@ -196,15 +200,26 @@ export async function GET(
       const route = `${AIRPORT_LABELS[invoice.shipment.origin]} \u2192 Dar es Salaam`;
       if (facts.agreedRate === null) return route;
       const unit = facts.ratePerItem ? " each" : "/kg";
+      /* The standard is quoted in the book's unit, which the desk may have
+         switched away from — 40.00 each, not 40.00/kg. */
+      const bookUnit = facts.bookPerItem ? " each" : "/kg";
       const applied = facts.ratePerItem
         ? `${facts.ratePricedOn} pcs`
         : `${facts.ratePricedOn} kg`;
       const standard =
         facts.standardRate === null ||
-        Math.abs(facts.standardRate - facts.agreedRate) < 0.005
+        (!facts.unitSwitched &&
+          Math.abs(facts.standardRate - facts.agreedRate) < 0.005)
           ? ""
-          : ` — special rate, standard ${invoice.currency} ${facts.standardRate.toFixed(2)}${unit}`;
-      return `${route} · ${invoice.currency} ${facts.agreedRate.toFixed(2)}${unit} × ${applied}${standard}`;
+          : ` — special rate, standard ${invoice.currency} ${facts.standardRate.toFixed(2)}${bookUnit}`;
+      /* Said on the customer's copy too: charged by the kilo on goods the
+         price list sells by the piece is a departure they are entitled to see. */
+      const switched = facts.unitSwitched
+        ? facts.ratePerItem
+          ? " (charged per item instead of per kg)"
+          : " (charged per kg instead of per item)"
+        : "";
+      return `${route} · ${invoice.currency} ${facts.agreedRate.toFixed(2)}${unit} × ${applied}${switched}${standard}`;
     })(),
     // The figure that was actually billed, which is the override when Finance
     // set one — the same coalesce the total was computed from.

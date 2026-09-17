@@ -21,6 +21,7 @@ import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
 import { formatShillings, formatUsd } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
+import { rateSwitchesFor } from "@/lib/rate-basis";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
 /**
@@ -216,7 +217,13 @@ export function freightBasisOf(
     named beside it so the concession is visible rather than passed off as the
     standard price.
   */
-  invoice?: { freightRateOverride: Prisma.Decimal | null } | null
+  invoice?: {
+    freightRateOverride: Prisma.Decimal | null;
+    /** The unit the agreed rate is in, where the desk moved it off the book's. */
+    freightRateMethod?: string | null;
+    /** What that rate was multiplied by. */
+    freightRateQuantity?: Prisma.Decimal | null;
+  } | null
 ): string | null {
   const agreedRate =
     invoice?.freightRateOverride == null
@@ -237,14 +244,43 @@ export function freightBasisOf(
   const chargedRate = agreedRate ?? book!;
   const rate = `${currency} ${cents(chargedRate)}`;
   /* Said in the message itself, never left for the customer to work out. */
+  /*
+    THE UNIT THE CUSTOMER IS CHARGED IN, WHICH THE DESK MAY HAVE SWITCHED.
+
+    Two documents the book sells at USD 40.00 each, agreed at 13.50 a kilo,
+    would otherwise go out as "USD 13.50/pcs (special rate — standard USD
+    40.00)": the wrong unit on the rate and a standard that reads as the same
+    thing 26.50 dearer. Where the unit moved, both figures carry their own.
+  */
+  const bookPerItem = shipment.quotedMethod === "FIXED_PER_ITEM";
+  const perItem =
+    agreedRate !== null && invoice?.freightRateMethod
+      ? invoice.freightRateMethod === "FIXED_PER_ITEM"
+      : bookPerItem;
+  const switched = perItem !== bookPerItem;
   const special =
-    agreedRate !== null && book !== null && Math.abs(book - agreedRate) >= 0.005
-      ? ` (special rate — standard ${currency} ${cents(book)})`
+    agreedRate !== null &&
+    book !== null &&
+    (switched || Math.abs(book - agreedRate) >= 0.005)
+      ? switched
+        ? ` (special rate — standard ${currency} ${cents(book)}${bookPerItem ? "/pcs" : "/KG"})`
+        : ` (special rate — standard ${currency} ${cents(book)})`
       : "";
 
-  if (shipment.quotedMethod === "FIXED_PER_ITEM") return `${rate}/pcs${special}`;
+  if (perItem) return `${rate}/pcs${special}`;
 
-  const charged = shipment.chargeableKg === null ? null : toNumber(shipment.chargeableKg);
+  /* An agreed rate's own quantity where one was stored — the minimum a
+     switched consignment was charged on — else what the book charged on. */
+  const stored =
+    agreedRate !== null && invoice?.freightRateQuantity != null
+      ? toNumber(invoice.freightRateQuantity)
+      : 0;
+  const charged =
+    stored > 0
+      ? stored
+      : shipment.chargeableKg === null
+        ? null
+        : toNumber(shipment.chargeableKg);
   const actual = shipment.weightKg === null ? null : toNumber(shipment.weightKg);
   const minimumApplied =
     charged !== null && actual !== null && charged > actual + 0.0005;
@@ -335,7 +371,12 @@ export type FollowUpRow = {
   agreedRate: number | null;
   agreedRateReason: string | null;
   ratePerItem: boolean;
+  bookPerItem: boolean;
+  unitSwitched: boolean;
   ratePricedOn: number;
+  /** Both quantities, for the per-kg / per-piece switch. */
+  rateWeightKg?: number;
+  ratePieces?: number;
   /** What is already off it, so a discount box opens on the truth. */
   invoiceDiscount: number;
   /** Storage on the bill, so the counter can forgive it without leaving. */
@@ -421,6 +462,8 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       quotedMethod: true,
       chargeableKg: true,
       quoteCurrency: true,
+      /* Which per-kilo rule the rate switch would price on. */
+      cargoCategory: true,
       customer: { select: { id: true, name: true, phone: true } },
       invoice: {
         select: {
@@ -436,6 +479,10 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
           /* The rate agreed for this consignment — the chasing message must
              quote what the customer is billed at, not the book. */
           freightRateOverride: true,
+          /* The unit it is in and what it multiplied, where the desk moved it
+             off the book's — see Invoice.freightRateQuantity. */
+          freightRateMethod: true,
+          freightRateQuantity: true,
           storageCharge: true,
           localCurrency: true,
           sentAt: true,
@@ -461,6 +508,11 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       },
     },
   });
+
+  /* Both quantities for the rate dialog's per-kg / per-piece switch. */
+  const switches = await rateSwitchesFor(
+    shipments.map((shipment) => ({ key: shipment.id, shipment }))
+  );
 
   const cashRows: FollowUpRow[] = shipments.map((shipment) => {
     const storageDays = storageDaysFor(shipment.arrivedAt, shipment.deliveredAt);
@@ -551,6 +603,7 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       trackingNumber: shipment.trackingNumber,
       batchNumber: shipment.batch?.batchNumber ?? null,
       ...rateFactsOf(invoice, shipment),
+      ...switches.get(shipment.id),
       description: cargoText(locale, shipment, "description"),
       /*
         THE CUSTOMER'S COPY, NEVER THE CLERK'S LANGUAGE.

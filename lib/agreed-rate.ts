@@ -28,8 +28,18 @@ export type RateFacts = {
   agreedRate: number | null;
   /** Why they agreed it, when the desk said. */
   agreedRateReason: string | null;
-  /** Per-piece cargo is priced per item, not per kilo. */
+  /** Per-piece cargo is priced per item, not per kilo — in the unit the bill
+      is charged in now, which the desk may have moved off the book's. */
   ratePerItem: boolean;
+  /** The rate book's own unit, which `standardRate` is quoted in. */
+  bookPerItem: boolean;
+  /**
+   * The desk charged this cargo in the other unit — per kilo where the book
+   * says per piece, or the reverse. Every screen that prints the rate says so,
+   * because 13.50 a kilo beside a book rate of 40.00 a piece otherwise reads as
+   * a USD 26.50 discount on the same thing.
+   */
+  unitSwitched: boolean;
   /**
    * What the rate is multiplied by: the piece count for per-item cargo, and
    * otherwise the chargeable weight — what the freight was actually billed on,
@@ -48,6 +58,10 @@ export function rateFactsOf(
   invoice: {
     freightRateOverride: Numeric;
     freightOverrideReason?: string | null;
+    /** The unit the agreed rate is in, when the desk changed it. */
+    freightRateMethod?: string | null;
+    /** What the agreed rate was multiplied by, as stored beside it. */
+    freightRateQuantity?: Numeric;
   } | null,
   shipment: {
     quotedRate: Numeric;
@@ -57,7 +71,27 @@ export function rateFactsOf(
     packages: number;
   } | null
 ): RateFacts {
-  const perItem = shipment?.quotedMethod === "FIXED_PER_ITEM";
+  /*
+    THE UNIT THE BILL IS ACTUALLY CHARGED IN.
+
+    The rate book decides it by goods type — Documents are USD 40 a piece
+    whatever they weigh — and the corridor sells both. Where a desk has agreed
+    a different unit for ONE consignment, that is the unit every screen has to
+    read, or the bill prints a rate per kilo beside a figure worked out per
+    piece.
+
+    Derived HERE and nowhere else, which is the whole point of this file: some
+    twenty screens ask what this cargo is priced at, and two of them working it
+    out separately is how they come to disagree.
+  */
+  /* Only with a rate beside it. Every door clears the two together, but a
+     unit with no agreed rate is a claim about nothing, and reading it would
+     print a book-priced bill in a unit it was never charged in. */
+  const method =
+    (invoice?.freightRateOverride != null ? invoice.freightRateMethod : null) ??
+    shipment?.quotedMethod ??
+    null;
+  const perItem = method === "FIXED_PER_ITEM";
   return {
     standardRate:
       shipment?.quotedRate == null ? null : toNumber(shipment.quotedRate),
@@ -67,9 +101,24 @@ export function rateFactsOf(
         : toNumber(invoice.freightRateOverride),
     agreedRateReason: invoice?.freightOverrideReason ?? null,
     ratePerItem: perItem,
+    bookPerItem: shipment?.quotedMethod === "FIXED_PER_ITEM",
+    unitSwitched:
+      !!shipment &&
+      invoice?.freightRateOverride != null &&
+      invoice.freightRateMethod != null &&
+      perItem !== (shipment.quotedMethod === "FIXED_PER_ITEM"),
+    /*
+      The stored quantity first, where the rate was agreed with one: it is the
+      figure the freight was actually multiplied by. Worked out again here, two
+      documents switched to a per-kilo rate printed their 0.4 kg scale weight
+      beside a freight charged on the 1 kg minimum.
+    */
     ratePricedOn: !shipment
       ? 0
-      : perItem
+      : invoice?.freightRateOverride != null &&
+          toNumber(invoice.freightRateQuantity ?? 0) > 0
+        ? toNumber(invoice.freightRateQuantity)
+        : perItem
         ? shipment.packages
         : /* `||` rather than `??`: a chargeable weight of zero is no more usable
              than a missing one, and the server's own arithmetic falls back the

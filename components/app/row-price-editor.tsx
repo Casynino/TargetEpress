@@ -36,7 +36,9 @@ export function RowPriceEditor({
   agreedRate,
   standardRate: bookRate = null,
   perItem = false,
+  bookPerItem,
   pieces = 1,
+  weightBasis = null,
   storage,
   otherCharges,
   discount,
@@ -67,6 +69,16 @@ export function RowPriceEditor({
   perItem?: boolean;
   /** How many pieces, for the per-item rates. */
   pieces?: number;
+  /** The rate book's own unit, which the standard rate is quoted in. Defaults
+      to `perItem` for callers that have not been given the distinction. */
+  bookPerItem?: boolean;
+  /**
+   * What this cargo would be billed on by the kilo, from the rate book, the
+   * route minimum applied. A consignment the book prices per piece carries no
+   * billed weight of its own, so without this the preview multiplied by the
+   * scale weight and promised 5.40 on a bill the server charged 13.50.
+   */
+  weightBasis?: number | null;
   storage: number;
   otherCharges: number;
   discount: number;
@@ -95,14 +107,33 @@ export function RowPriceEditor({
     derived from a rate should not claim to have been.
   */
   const [rate, setRate] = useState(agreedRate === null || agreedRate === undefined ? "" : String(agreedRate));
-  /* What the rate book prices this cargo on: pieces, or the chargeable weight
-     with the 1 kg minimum already applied. */
-  const pricedOn = perItem ? pieces : (chargeableKg ?? weightKg);
+  /*
+    PER KILO OR PER PIECE — THE DESK'S CHOICE FOR THIS CONSIGNMENT.
+
+    The rate book sets the unit by goods type, and the corridor sells both: a
+    customer out of Hong Kong is quoted per kilo or per document depending on
+    what was agreed. Opens on the unit the bill is charged in now, so opening
+    the panel and saving changes nothing.
+  */
+  const bookByItem = bookPerItem ?? perItem;
+  const [byItem, setByItem] = useState(perItem);
+  const kgBasis = weightBasis ?? chargeableKg ?? weightKg;
+  /* What the rate multiplies, in the unit selected: pieces, or the billable
+     weight with the route's minimum applied. */
+  const pricedOn = byItem ? pieces : kgBasis;
   /* The book's own figure where the page passed one; the division only as a
-     fallback for callers that have not been given it yet — see the prop. */
+     fallback for callers that have not been given it yet — see the prop. The
+     fallback divides by the BOOK's quantity, never the selected one. */
+  const bookQuantity = bookByItem ? pieces : kgBasis;
   const standardRate =
-    bookRate ?? (pricedOn > 0 ? rateBookFreight / pricedOn : null);
-  const unit = perItem ? t("per item") : t("per kg");
+    bookRate ?? (bookQuantity > 0 ? rateBookFreight / bookQuantity : null);
+  const unit = byItem ? t("per item") : t("per kg");
+  const bookUnit = bookByItem ? t("per item") : t("per kg");
+  /* Switched: a per-kilo rate and a per-piece one are not the same number and
+     must not be compared as if they were. */
+  const switched = byItem !== bookByItem;
+  /* Both quantities are real, so the choice is honest to offer. */
+  const canSwitch = pieces > 0 && kgBasis > 0;
   const [extra, setExtra] = useState(otherCharges ? String(otherCharges) : "");
   const [off, setOff] = useState(discount ? String(discount) : "");
 
@@ -132,6 +163,13 @@ export function RowPriceEditor({
         {agreedRate !== null && agreedRate !== undefined ? (
           <span className="rounded bg-brand/15 px-1 py-px text-[10px] font-semibold text-brand">
             {t("Special rate")}
+          </span>
+        ) : null}
+        {/* And the unit, where it is not the book's — the one fact about this
+            price a reader of the list would otherwise have to open it to find. */}
+        {agreedRate !== null && agreedRate !== undefined && perItem !== bookByItem ? (
+          <span className="rounded bg-warning/15 px-1 py-px text-[10px] font-semibold text-warning">
+            {perItem ? t("per item") : t("per kg")}
           </span>
         ) : null}
       </button>
@@ -209,7 +247,7 @@ export function RowPriceEditor({
             <dd className="tabular-nums font-medium">
               {standardRate === null
                 ? t("not recorded")
-                : `${currency} ${standardRate.toFixed(2)} ${unit}`}
+                : `${currency} ${standardRate.toFixed(2)} ${bookUnit}`}
             </dd>
           </div>
           <div className="flex items-baseline justify-between gap-3">
@@ -218,8 +256,8 @@ export function RowPriceEditor({
               {agreedRate === null || agreedRate === undefined
                 ? standardRate === null
                   ? t("not recorded")
-                  : `${currency} ${standardRate.toFixed(2)} ${unit}`
-                : `${currency} ${agreedRate.toFixed(2)} ${unit}`}
+                  : `${currency} ${standardRate.toFixed(2)} ${bookUnit}`
+                : `${currency} ${agreedRate.toFixed(2)} ${perItem ? t("per item") : t("per kg")}`}
             </dd>
           </div>
           <div className="flex items-baseline justify-between gap-3">
@@ -256,10 +294,73 @@ export function RowPriceEditor({
           freight below follows it — rather than making the desk multiply
           11.50 by 3.4 kg in their head and type the answer.
         */}
+        {/* Sent with every save, so the server multiplies in the unit the
+            desk was looking at rather than re-deriving one from the book. */}
+        <input
+          type="hidden"
+          name="rateMethod"
+          value={byItem ? "FIXED_PER_ITEM" : "WEIGHT_BASED"}
+        />
+
+        {/*
+          PER KILO OR PER PIECE, FOR THIS CONSIGNMENT ONLY.
+
+          Every other consignment of the same goods keeps the book's unit. The
+          quantities are printed on the buttons so the desk sees what the rate
+          will be multiplied by before typing it — 1 kg, not 0.4, where the
+          route's minimum applies.
+        */}
+        {canOverride && canSwitch ? (
+          <div className="space-y-1">
+            <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">
+              {t("Charge this cargo")}
+            </span>
+            <div className="flex rounded-lg border p-0.5">
+              {[
+                { key: false, label: `${t("Per kg")} · ${formatWeight(kgBasis)}` },
+                {
+                  key: true,
+                  label: `${t("Per piece")} · ${pieces} ${t(pieces === 1 ? "piece" : "pieces")}`,
+                },
+              ].map((option) => (
+                <button
+                  key={String(option.key)}
+                  type="button"
+                  onClick={() => {
+                    setByItem(option.key);
+                    /* A rate agreed in one unit is not a rate in the other.
+                       Clearing it makes the desk type the figure that was
+                       actually agreed, instead of carrying 40 a document
+                       across as 40 a kilo. */
+                    if (option.key !== byItem) {
+                      setRate("");
+                      setFreight("");
+                    }
+                  }}
+                  className={
+                    "focus-ring flex-1 rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors " +
+                    (byItem === option.key
+                      ? "bg-brand text-brand-foreground"
+                      : "text-muted-foreground hover:bg-accent")
+                  }
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            {switched ? (
+              <p className="text-[11px] text-warning">
+                {t("The rate book prices this")} {bookUnit}.{" "}
+                {t("This changes it for this consignment only.")}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         {canOverride && pricedOn > 0 ? (
           <label className="block space-y-0.5">
             <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">
-              {t("Rate")} {unit}
+              {t("Freight rate")} {unit}
             </span>
             <MoneyInput
               id={`rate-${invoiceId}`}
@@ -272,28 +373,53 @@ export function RowPriceEditor({
                    typed; clearing the rate hands it back. */
                 setFreight("");
               }}
-              placeholder={standardRate === null ? "" : standardRate.toFixed(2)}
+              /* The book's figure only where it is in the same unit. */
+              placeholder={
+                standardRate === null || switched ? "" : standardRate.toFixed(2)
+              }
             />
             {/* The arithmetic and what it gives away, worded exactly as the
                 cargo page's dialog words it — two screens describing the same
                 concession two ways is how a desk starts checking one against
                 the other. */}
             <span className="block text-[11px] text-muted-foreground">
-              {rate.trim() === "" ? (
+              {rate.trim() === "" && switched ? (
+                /* A unit moves with a rate, or not at all — the server refuses
+                   the empty box too, and this says why before the press. */
+                <span className="text-warning">
+                  {t("Type the rate agreed")} {unit}.{" "}
+                  {t("To price this cargo from the rate book again, choose")}{" "}
+                  {bookUnit}.
+                </span>
+              ) : rate.trim() === "" ? (
                 t("Leave it empty to price this cargo from the rate book.")
               ) : (
                 <span className="tabular-nums">
                   {n(rate).toFixed(2)} ×{" "}
                   {/* formatWeight carries its own unit — saying "kg" after it
                       printed "4 kg kg". */}
-                  {perItem
+                  {byItem
                     ? `${pieces} ${t(pieces === 1 ? "piece" : "pieces")}`
                     : formatWeight(pricedOn)}{" "}
                   ={" "}
                   <span className="font-semibold text-foreground">
                     {currency} {(fromRate ?? 0).toFixed(2)}
                   </span>
-                  {standardRate !== null &&
+                  {switched && fromRate !== null ? (
+                    <>
+                      {" · "}
+                      <span
+                        className={
+                          fromRate < rateBookFreight ? "text-success" : "text-warning"
+                        }
+                      >
+                        {t("the book's")} {currency} {rateBookFreight.toFixed(2)} →{" "}
+                        {currency} {fromRate.toFixed(2)} {t("on the bill")}
+                      </span>
+                    </>
+                  ) : null}
+                  {!switched &&
+                  standardRate !== null &&
                   Math.abs(standardRate - n(rate)) > 0.005 ? (
                     <>
                       {" · "}
@@ -389,7 +515,11 @@ export function RowPriceEditor({
             press that commits it. */}
         <p className="rounded-lg border bg-muted/40 px-2.5 py-2 text-xs tabular-nums">
           <span className="text-muted-foreground">
-            {(n(freight) || rateBookFreight).toFixed(2)}
+            {/* The freight the total below is built from — a typed rate's
+                figure included. This printed the book's freight beside a
+                total worked out from the agreed rate, so the sum on the
+                screen did not add up. */}
+            {effectiveFreight.toFixed(2)}
             {storage > 0 ? ` + ${storage.toFixed(2)} ${t("storage")}` : ""}
             {n(extra) > 0 ? ` + ${n(extra).toFixed(2)}` : ""}
             {n(off) > 0 ? ` − ${n(off).toFixed(2)}` : ""} ={" "}
@@ -400,7 +530,12 @@ export function RowPriceEditor({
         </p>
 
         <div className="flex items-center gap-2">
-          <SubmitButton size="sm" variant="brand" pendingLabel={t("Saving…")}>
+          <SubmitButton
+            size="sm"
+            variant="brand"
+            pendingLabel={t("Saving…")}
+            disabled={switched && rate.trim() === "" && freight.trim() === ""}
+          >
             {t("Save the price")}
           </SubmitButton>
           <button

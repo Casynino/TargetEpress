@@ -31,6 +31,7 @@ import { postLedgerEntry } from "@/lib/ledger";
 import { recordPriceChange } from "@/lib/price-changes";
 import { quote } from "@/lib/pricing";
 import { poolShareFor } from "@/lib/minimum-pool";
+import { weightBasisOf } from "@/lib/rate-basis";
 import {
   nextInvoiceNumber,
   nextPickupNoteNumber,
@@ -241,6 +242,8 @@ export async function generateInvoice(
            standing, a re-priced bill would still claim a special rate on every
            screen that reads the column, against a total built from the book. */
         freightRateOverride: null,
+        freightRateMethod: null,
+        freightRateQuantity: null,
         freightOverrideReason: null,
         total: new Prisma.Decimal(total),
         exchangeRate: rate === null ? null : new Prisma.Decimal(rate),
@@ -870,6 +873,12 @@ export async function adjustInvoice(
         "That rate is not valid."
       ),
     freightOverrideReason: z.string().trim().optional(),
+    /*
+      The unit a typed rate is in, where it is not the rate book's. Sent by the
+      door that puts a price change back, so a per-kilo agreement is restored
+      per kilo; absent everywhere else, which keeps the bill's own unit.
+    */
+    rateMethod: z.enum(["WEIGHT_BASED", "FIXED_PER_ITEM"]).optional(),
     /**
      * The storage charge, as Finance decides it should stand.
      *
@@ -910,6 +919,7 @@ export async function adjustInvoice(
           freightCost: true,
           freightOverride: true,
           freightRateOverride: true,
+          freightRateMethod: true,
           storageCharge: true,
           storageWaivedUsd: true,
           storageWaiveReason: true,
@@ -1007,7 +1017,13 @@ export async function adjustInvoice(
          a typed total does. */
       const overrideChanged =
         input.freightOverride !== previousOverride ||
-        input.freightRateOverride !== previousAgreedRate;
+        input.freightRateOverride !== previousAgreedRate ||
+        (input.rateMethod !== undefined &&
+          input.freightRateOverride !== null &&
+          input.rateMethod !==
+            (invoice.freightRateMethod ??
+              invoice.shipment.quotedMethod ??
+              "WEIGHT_BASED"));
 
       /*
         ANY MOVE OF THE FREIGHT FIGURE, NOT ONLY SETTING ONE.
@@ -1097,12 +1113,69 @@ export async function adjustInvoice(
         11.50, not 4.60. Falling back to the scale weight only for a bill
         raised before that column existed.
       */
-      const pricedOn =
-        invoice.shipment.quotedMethod === "FIXED_PER_ITEM"
-          ? invoice.shipment.packages
-          : toNumber(invoice.shipment.chargeableKg) ||
-            toNumber(invoice.shipment.weightKg);
+      /*
+        THE UNIT AN AGREED RATE IS MULTIPLIED IN.
+
+        This read the rate book's unit alone, so a rate the desk had agreed per
+        kilo on a consignment the book prices per piece was multiplied by the
+        piece count whenever this door restated it — and "put it back" goes
+        through this door. 13.50 a kilo on two documents came back as 27.00.
+      */
+      const rateMethod =
+        input.rateMethod ??
+        invoice.freightRateMethod ??
+        invoice.shipment.quotedMethod ??
+        null;
+      const byItem = rateMethod === "FIXED_PER_ITEM";
       const agreedRate = repricing ? null : input.freightRateOverride;
+      /* The book's unit, with the same default every screen reads: a bill with
+         no recorded method is priced by the kilo. */
+      const bookByItem = invoice.shipment.quotedMethod === "FIXED_PER_ITEM";
+      /*
+        A UNIT MOVES WITH A RATE, OR NOT AT ALL.
+
+        Choosing "per kg" and saving with the rate box empty would quietly price
+        the bill from the book in the book's own unit — the desk sees their
+        choice accepted and the customer is billed per piece anyway. Said
+        instead, with the way back named.
+      */
+      if (
+        !repricing &&
+        input.rateMethod !== undefined &&
+        (input.rateMethod === "FIXED_PER_ITEM") !== bookByItem &&
+        agreedRate === null &&
+        input.freightOverride === null
+      ) {
+        throw new Error(
+          bookByItem
+            ? "Type the rate agreed per kg. To price this cargo from the rate book again, choose per item."
+            : "Type the rate agreed per item. To price this cargo from the rate book again, choose per kg."
+        );
+      }
+      /*
+        What the agreed rate multiplies. Only worked out where there is a rate:
+        the per-kilo figure is asked of the rate book, and a bill being saved
+        for its discount alone has no business failing on a rule it never uses.
+      */
+      let pricedOn = 0;
+      if (agreedRate !== null) {
+        if (byItem) {
+          pricedOn = invoice.shipment.packages;
+        } else {
+          const basis = await weightBasisOf(invoice.shipment);
+          if (basis === null) {
+            throw new Error(
+              "There is no per-kilo rate for this kind of cargo in the rate book, so it cannot be priced by weight. Add one in Price configuration first."
+            );
+          }
+          pricedOn = basis;
+        }
+        if (pricedOn <= 0) {
+          throw new Error(
+            "This consignment has no confirmed weight yet, so a rate cannot be turned into a freight figure. Check it in against the manifest first."
+          );
+        }
+      }
       const fromAgreedRate =
         agreedRate === null
           ? null
@@ -1236,6 +1309,17 @@ export async function adjustInvoice(
              desk typed a total instead of a rate. */
           freightRateOverride:
             agreedRate === null ? null : new Prisma.Decimal(agreedRate),
+          /* The unit follows the rate, always. A bill whose agreed rate has
+             just been cleared must not keep claiming the unit that rate was
+             quoted in — every screen reads the two together. */
+          freightRateMethod:
+            agreedRate === null
+              ? null
+              : (rateMethod as "WEIGHT_BASED" | "FIXED_PER_ITEM" | null),
+          /* And what it was multiplied by, so the working printed on the bill
+             is the arithmetic that produced the freight. */
+          freightRateQuantity:
+            agreedRate === null ? null : new Prisma.Decimal(pricedOn),
           freightOverrideReason:
             overrideNow === null ? null : input.freightOverrideReason || null,
           /*
@@ -1430,6 +1514,7 @@ export async function adjustInvoice(
             invoice.freightRateOverride === null
               ? null
               : toNumber(invoice.freightRateOverride),
+          methodBefore: invoice.freightRateMethod,
           storageBefore: toNumber(invoice.storageCharge),
           otherBefore: toNumber(invoice.otherCharges),
           discountBefore: toNumber(invoice.discount),
@@ -1516,10 +1601,9 @@ export async function adjustInvoice(
                   ? null
                   : toNumber(invoice.shipment.quotedRate),
               ratePricedOn: pricedOn,
-              rateUnit:
-                invoice.shipment.quotedMethod === "FIXED_PER_ITEM"
-                  ? "item"
-                  : "kg",
+              /* The unit the agreed rate is in, which the desk may have moved
+                 off the book's. */
+              rateUnit: byItem ? "item" : "kg",
             },
           },
         },
@@ -1837,9 +1921,10 @@ export async function setFreightRate(
   const locale = await viewerLocale();
   try {
     /* The same permission a discount takes, and for the same reason: this is a
-       figure off a bill. ADMIN, MANAGER and FINANCE hold it; Customer Care
-       deliberately does not, and no warehouse role comes near it. Enforced
-       here because the action is reachable without the control. */
+       figure off a bill. ADMIN, MANAGER, FINANCE and Customer Care hold it —
+       the counter sets prices on the owner's instruction, and every move it
+       makes is written up for Finance to check. No warehouse role comes near
+       it. Enforced here because the action is reachable without the control. */
     const user = await authorize("invoice.discount");
     const parsed = freightRateSchema.safeParse(
       Object.fromEntries(formData) as Record<string, string>
@@ -1862,9 +1947,14 @@ export async function setFreightRate(
           freightCost: true,
           freightOverride: true,
           freightRateOverride: true,
+          freightRateMethod: true,
           freightOverrideReason: true,
+          storageCharge: true,
+          otherCharges: true,
+          discount: true,
           shipment: {
             select: {
+              cargoCategory: true,
               id: true,
               trackingNumber: true,
               status: true,
@@ -1892,12 +1982,59 @@ export async function setFreightRate(
         1 kg minimum already applied, so a 0.4 kg parcel agreed at 11.50 bills
         11.50 rather than 4.60.
       */
-      const perItem = invoice.shipment.quotedMethod === "FIXED_PER_ITEM";
-      const pricedOn = perItem
-        ? invoice.shipment.packages
-        : toNumber(invoice.shipment.chargeableKg) ||
-          toNumber(invoice.shipment.weightKg);
-      if (!perItem && pricedOn <= 0) {
+      /*
+        AND THE DESK MAY CHANGE THE UNIT, NOT ONLY THE FIGURE.
+
+        The rate book decides per-kg or per-piece by goods type — Documents are
+        USD 40 a piece whatever they weigh — and the corridor sells both. Out of
+        Hong Kong a customer is quoted per kilo or per document depending on
+        what was agreed with them, and that is a decision about ONE consignment
+        rather than a change to the price list.
+
+        Before this the unit could not be moved. A desk agreeing 13.50 a kilo on
+        a consignment the book prices per piece had it multiplied by the piece
+        count, so two documents weighing 0.4 kg billed 27.00. The only way out
+        was to work the figure out by hand and type it as a lump, which is
+        exactly how a price stops being checkable.
+
+        Absent means the book's own unit, which is nearly every consignment.
+      */
+      const perItem =
+        (input.rateMethod ??
+          invoice.freightRateMethod ??
+          invoice.shipment.quotedMethod) === "FIXED_PER_ITEM";
+      const bookPerItem = invoice.shipment.quotedMethod === "FIXED_PER_ITEM";
+      /* A unit moves with a rate, or not at all — an empty box on a switched
+         unit would hand the bill back to the book in the book's unit while the
+         desk believed they had switched it. */
+      if (input.freightRate === null && perItem !== bookPerItem) {
+        throw new Error(
+          bookPerItem
+            ? "Type the rate agreed per kg. To price this cargo from the rate book again, choose per item."
+            : "Type the rate agreed per item. To price this cargo from the rate book again, choose per kg."
+        );
+      }
+      /*
+        A CONSIGNMENT THE BOOK PRICED PER PIECE HAS NO PER-KILO WEIGHT.
+
+        `chargeableKg` is what the bill was raised on, and for per-piece cargo
+        nothing was raised on weight at all — so it is empty, and falling back
+        to the scale weight skipped the route's minimum: two documents weighing
+        0.4 kg switched to per kg billed 5.40 instead of the 1 kg minimum. The
+        minimum lives on the rule, so the rule is asked.
+      */
+      /* Nothing to multiply when the rate is being dropped: the bill goes back
+         to the book's own figure, whatever this cargo weighs. */
+      const dropping = input.freightRate === null;
+      const weightBasis =
+        perItem || dropping ? null : await weightBasisOf(invoice.shipment);
+      if (!perItem && !dropping && weightBasis === null) {
+        throw new Error(
+          "There is no per-kilo rate for this kind of cargo in the rate book, so it cannot be priced by weight. Add one in Price configuration first."
+        );
+      }
+      const pricedOn = perItem ? invoice.shipment.packages : (weightBasis ?? 0);
+      if (!dropping && pricedOn <= 0) {
         throw new Error(
           "This consignment has no confirmed weight yet, so a rate cannot be turned into a freight figure. Check it in against the manifest first."
         );
@@ -1944,6 +2081,7 @@ export async function setFreightRate(
           amountPaid: invoice.amountPaid,
           freightOverride: invoice.freightOverride,
           freightRateOverride: invoice.freightRateOverride,
+          freightRateMethod: invoice.freightRateMethod,
         },
         data: {
           freightRateOverride:
@@ -1951,7 +2089,18 @@ export async function setFreightRate(
               ? null
               : new Prisma.Decimal(input.freightRate),
           /* Cleared together with the rate: a bill handed back to the book has
-             no agreed figure of any kind on it. */
+             no agreed figure of any kind on it — including the unit, or the
+             bill would claim a unit for a rate it no longer has. */
+          freightRateMethod:
+            input.freightRate === null
+              ? null
+              : perItem
+                ? "FIXED_PER_ITEM"
+                : "WEIGHT_BASED",
+          /* What the rate was multiplied by — read by every screen that prints
+             the working, so none of them has to work the minimum out again. */
+          freightRateQuantity:
+            input.freightRate === null ? null : new Prisma.Decimal(pricedOn),
           freightOverride:
             input.freightRate === null ? null : new Prisma.Decimal(freightAfter),
           freightOverrideReason:
@@ -1966,6 +2115,41 @@ export async function setFreightRate(
         throw new Error(
           "This bill changed a moment ago. Reload the page and look again."
         );
+      }
+
+      /*
+        A RATE MOVED HERE IS A PRICE MOVED, AND FINANCE IS TOLD.
+
+        This door never wrote a price change up. The bill editor did, so the
+        owner's rule — a price cannot move without Finance knowing it moved —
+        held for one way of moving a price and not the other: the counter could
+        switch two documents from USD 80.00 to 13.50 a kilo here and no flag
+        appeared anywhere. Same test as the editor, same row, same queue.
+      */
+      if (
+        !can(user.role, "invoice.priceReview") &&
+        Math.abs(total - toNumber(invoice.total)) > 0.005
+      ) {
+        await recordPriceChange(tx, {
+          invoiceId: invoice.id,
+          actorId: user.id,
+          currency: invoice.currency,
+          totalBefore: toNumber(invoice.total),
+          freightBefore:
+            invoice.freightOverride === null
+              ? null
+              : toNumber(invoice.freightOverride),
+          rateBefore:
+            invoice.freightRateOverride === null
+              ? null
+              : toNumber(invoice.freightRateOverride),
+          methodBefore: invoice.freightRateMethod,
+          storageBefore: toNumber(invoice.storageCharge),
+          otherBefore: toNumber(invoice.otherCharges),
+          discountBefore: toNumber(invoice.discount),
+          totalAfter: total,
+          reason: input.reason || null,
+        });
       }
 
       /* A rate that puts the bill back up reopens a settled balance, and the

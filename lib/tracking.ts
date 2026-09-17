@@ -474,6 +474,10 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
           /* The rate agreed for this consignment, so the customer's own copy can
              say what it was rather than going silent — see the note below. */
           freightRateOverride: true,
+          /* The unit it is in and what it multiplied, where the desk moved it
+             off the book's — see Invoice.freightRateQuantity. */
+          freightRateMethod: true,
+          freightRateQuantity: true,
           storageDays: true,
           storageCharge: true,
           otherCharges: true,
@@ -621,21 +625,46 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
             */
             note: (() => {
               const money = shipment.quoteCurrency ?? "USD";
-              const perItem = shipment.quotedMethod === "FIXED_PER_ITEM";
-              const applied = perItem
-                ? `${shipment.packages} ${shipment.packages === 1 ? "kipande" : "vipande"}`
-                : `${toNumber(shipment.chargeableKg ?? shipment.weightKg)} kg`;
-              const unit = perItem ? "" : "/kg";
               const agreed =
                 invoice.freightRateOverride === null
                   ? null
                   : toNumber(invoice.freightRateOverride);
+              /* The unit the bill is charged in — an agreed switch wins — and
+                 the book's own, which its standard rate is quoted in. */
+              const bookPerItem = shipment.quotedMethod === "FIXED_PER_ITEM";
+              const perItem =
+                agreed !== null && invoice.freightRateMethod
+                  ? invoice.freightRateMethod === "FIXED_PER_ITEM"
+                  : bookPerItem;
+              const switched = perItem !== bookPerItem;
+              /* The quantity stored beside an agreed rate, where there is one:
+                 the 1 kg a switched consignment was charged on. */
+              const storedQty =
+                agreed !== null && invoice.freightRateQuantity !== null
+                  ? toNumber(invoice.freightRateQuantity)
+                  : 0;
+              const applied = perItem
+                ? `${shipment.packages} ${shipment.packages === 1 ? "kipande" : "vipande"}`
+                : `${storedQty > 0 ? storedQty : toNumber(shipment.chargeableKg ?? shipment.weightKg)} kg`;
+              const unit = perItem ? "" : "/kg";
+              const bookUnit = bookPerItem ? " kwa kipande" : "/kg";
               const book =
                 shipment.quotedRate === null ? null : toNumber(shipment.quotedRate);
 
               if (agreed !== null) {
                 /* Both figures, in that order, so nobody reads the agreed one
                    as what the cargo has always cost. */
+                if (switched) {
+                  /* Charged in the other unit: said, with each rate in its own
+                     unit, so neither reads as a discount on the other. */
+                  return (
+                    `${money} ${agreed.toFixed(2)}${unit} × ${applied}` +
+                    ` — bei maalum (${perItem ? "kwa kipande badala ya kwa kilo" : "kwa kilo badala ya kwa kipande"})` +
+                    (book === null
+                      ? ""
+                      : `, kawaida ni ${money} ${book.toFixed(2)}${bookUnit}`)
+                  );
+                }
                 return (
                   `${money} ${agreed.toFixed(2)}${unit} × ${applied}` +
                   (book === null || Math.abs(book - agreed) < 0.005

@@ -34,6 +34,7 @@ export function PriceChangeNotice({
   rateBefore = null,
   rateAfter = null,
   perItem = false,
+  perItemBefore,
   steps = 1,
   reason,
   changedBy,
@@ -57,6 +58,9 @@ export function PriceChangeNotice({
   rateBefore?: number | null;
   rateAfter?: number | null;
   perItem?: boolean;
+  /** The unit the starting rate was in, where the change moved the unit too.
+      Defaults to `perItem`. */
+  perItemBefore?: boolean;
   /** How many edits this run is. More than one means a desk corrected itself. */
   steps?: number;
   reason: string | null;
@@ -148,11 +152,19 @@ export function PriceChangeNotice({
           {/* The rate is what makes a wrong figure obvious. 12.50 → 23.00 on a
               corridor billed at 12.50 reads as a mistake; the totals it
               produces do not. */}
-          {rateBefore !== null && rateAfter !== null &&
-          Math.abs(rateAfter - rateBefore) > 0.0005 ? (
+          {/* A unit switched is a change even where the figure is the same
+              number: 40.00 a piece and 40.00 a kilo are different prices. Each
+              side carries its own unit when they differ. */}
+          {rateBefore !== null &&
+          rateAfter !== null &&
+          (Math.abs(rateAfter - rateBefore) > 0.0005 ||
+            (perItemBefore ?? perItem) !== perItem) ? (
             <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
               <span className="line-through">
                 {currency} {rateBefore.toFixed(2)}
+                {(perItemBefore ?? perItem) !== perItem
+                  ? ` ${(perItemBefore ?? perItem) ? t("per item") : t("per kg")}`
+                  : ""}
               </span>
               {" → "}
               <span className="font-semibold text-foreground">

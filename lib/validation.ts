@@ -252,6 +252,19 @@ export const freightRateSchema = z.object({
       (v) => v === null || (Number.isFinite(v) && v >= 0 && v <= 100_000),
       "That rate is not a figure this rate book could hold."
     ),
+  /*
+    THE UNIT THE RATE IS IN, WHERE THE DESK MOVED IT.
+
+    The corridor sells both — per kilo and per document out of Hong Kong — and
+    which one a customer is quoted is a commercial decision about one
+    consignment. Absent means the rate book's own unit, which is nearly every
+    consignment, so an old form that never sends this keeps working unchanged.
+  */
+  rateMethod: z
+    .enum(["WEIGHT_BASED", "FIXED_PER_ITEM"], {
+      message: "That is not a way this rate book prices cargo.",
+    })
+    .optional(),
   /* Optional — see discountSchema above. The rate before, the rate after and
      the book's own rate are all on the audit line either way. */
   reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),

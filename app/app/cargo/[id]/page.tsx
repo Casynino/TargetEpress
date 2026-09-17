@@ -1,3 +1,5 @@
+import { rateFactsOf } from "@/lib/agreed-rate";
+import { weightBasisOf } from "@/lib/rate-basis";
 import { outstandingOf } from "@/lib/invoice-balance";
 import Image from "next/image";
 import Link from "next/link";
@@ -172,6 +174,23 @@ export default async function ShipmentDetailPage({
   });
 
   if (!shipment) notFound();
+
+  /*
+    WHAT THIS CARGO IS CHARGED IN, AND BOTH QUANTITIES FOR THE SWITCH.
+
+    Worked out through rateFactsOf rather than read off `quotedMethod` here.
+    This page used to derive the unit itself, from the rate book's method —
+    a second copy of the rule — so a consignment the desk had switched to
+    per-kilo would still have printed "per item" on the one screen the
+    customer is standing in front of.
+
+    The per-kilo quantity is asked of the rate book, because a consignment it
+    priced per piece carries no weight it was ever billed on, and the route's
+    minimum lives on the rule. Null only where the category has no per-kilo
+    rule, and then the switch is not offered at all.
+  */
+  const rateFacts = rateFactsOf(shipment.invoice, shipment);
+  const rateWeightBasis = await weightBasisOf(shipment);
 
   /*
     The storage clock, derived — never stored, never typed.
@@ -1170,12 +1189,11 @@ export default async function ShipmentDetailPage({
                 : toNumber(shipment.invoice.freightRateOverride)
             }
             agreedRateReason={shipment.invoice?.freightOverrideReason ?? null}
-            ratePerItem={shipment.quotedMethod === "FIXED_PER_ITEM"}
-            ratePricedOn={
-              shipment.quotedMethod === "FIXED_PER_ITEM"
-                ? shipment.packages
-                : toNumber(shipment.chargeableKg) || toNumber(shipment.weightKg)
-            }
+            ratePerItem={rateFacts.ratePerItem}
+            rateBookPerItem={rateFacts.bookPerItem}
+            ratePricedOn={rateFacts.ratePricedOn}
+            rateWeightKg={rateWeightBasis ?? undefined}
+            ratePieces={shipment.packages}
             /* Credit granted means the cargo may go before the money does —
                without this the server can issue a credit note and no button in
                the interface can ask it to. */

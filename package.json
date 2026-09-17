@@ -27,7 +27,8 @@
     "verify:investigations": "tsx --conditions=react-server prisma/verify-investigations.ts",
     "finance:check": "tsx --conditions=react-server scripts/finance-check.mts",
     "check:pooling": "tsx --conditions=react-server scripts/check-minimum-pooling.mts",
-    "check:invoice-status": "tsx scripts/check-invoice-status.mts"
+    "check:invoice-status": "tsx scripts/check-invoice-status.mts",
+    "check:rate-switch": "tsx --conditions=react-server scripts/check-rate-switch.mts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

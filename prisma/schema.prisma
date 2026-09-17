@@ -1461,9 +1461,43 @@ model Invoice {
   /// every screen can say standard 12.50, agreed 11.50, one dollar off — and
   /// so nobody has to divide a total by a weight to find out what was agreed.
   ///
-  /// In the rate book's own unit: per kg for weight-priced cargo, per item for
-  /// the per-piece rates. `Shipment.quotedMethod` says which.
+  /// In the rate book's own unit unless `freightRateMethod` says otherwise:
+  /// per kg for weight-priced cargo, per item for the per-piece rates.
   freightRateOverride   Decimal?  @db.Decimal(12, 2)
+
+  /// THE UNIT THE AGREED RATE IS IN, WHEN IT IS NOT THE BOOK'S.
+  ///
+  /// The rate book decides per-kg or per-piece by goods type — Documents are
+  /// USD 40 a piece whatever they weigh — and the corridor sells both. Out of
+  /// Hong Kong a customer is quoted per kilo or per document depending on what
+  /// was agreed with them, and that is a commercial decision about ONE
+  /// consignment, not a change to the price list.
+  ///
+  /// Without this there was nowhere to record it: a desk agreeing USD 13.50 a
+  /// kilo on a consignment the book prices per piece had the figure multiplied
+  /// by the piece count, so a two-document consignment billed 27.00 for 0.4 kg.
+  /// The only way out was to work the total out by hand and type it as a lump,
+  /// which is exactly how a figure stops being checkable.
+  ///
+  /// Null means the book's own unit, which is nearly every consignment. Cleared
+  /// with the agreed rate whenever a draft is re-priced from the book, for the
+  /// same reason the rate is: a bill re-priced from the book carries no agreed
+  /// figure, and a unit left behind would claim one.
+  freightRateMethod     PricingMethod?
+  /// WHAT THE AGREED RATE WAS MULTIPLIED BY — kilos or pieces, in the unit
+  /// above — kept beside it the way `chargeableKg` is kept on the shipment.
+  ///
+  /// A consignment the book prices per piece carries no billed weight, so a
+  /// desk switching two documents weighing 0.4 kg to 13.50 a kilo is charged on
+  /// the route's 1 kg minimum. Nothing else on the bill says 1 kg: the page and
+  /// the PDF worked the quantity out again from the scale weight and printed
+  /// "13.50 × 0.4 kg" beside a freight of 13.50. Read, never re-derived, so the
+  /// working on every screen is the arithmetic that produced the figure — even
+  /// after the rate book's minimum has moved.
+  ///
+  /// Null with the rate, and on every bill agreed before it existed, where the
+  /// shipment's own figures answer as they always have.
+  freightRateQuantity   Decimal?  @db.Decimal(10, 3)
   freightOverrideReason String?
   /// Free storage runs out after a grace period; after that each day is
   /// chargeable. Both the count and the money are stored so an invoice can be
@@ -3421,6 +3455,10 @@ model InvoicePriceChange {
   /// and putting it back has to reproduce the state, not the number.
   freightBefore  Decimal? @db.Decimal(12, 2)
   rateBefore     Decimal? @db.Decimal(12, 2)
+  /// The unit that rate was in — per kg or per piece — where it was not the
+  /// book's. A rate restored in the wrong unit is a different price: 13.50 a
+  /// kilo on two documents put back as 13.50 a piece bills 27.00, not 13.50.
+  methodBefore   PricingMethod?
   storageBefore  Decimal  @db.Decimal(12, 2)
   otherBefore    Decimal  @db.Decimal(12, 2)
   discountBefore Decimal  @db.Decimal(12, 2)

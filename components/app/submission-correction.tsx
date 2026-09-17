@@ -76,7 +76,12 @@ export type SubmissionSubject = {
   agreedRate: number | null;
   agreedRateReason: string | null;
   ratePerItem: boolean;
+  /** The rate book's own unit, which the standard rate is quoted in. */
+  bookPerItem: boolean;
   ratePricedOn: number;
+  /** Both quantities, for the per-kg / per-piece switch. */
+  rateWeightKg?: number;
+  ratePieces?: number;
   customerName: string;
   customerPhone: string | null;
   amount: number;
@@ -637,7 +642,10 @@ export function SubmissionCorrection({
                           standard={subject.standardRate}
                           agreed={subject.agreedRate}
                           perItem={subject.ratePerItem}
+                          bookPerItem={subject.bookPerItem}
                           pricedOn={subject.ratePricedOn}
+                          weightKg={subject.rateWeightKg}
+                          pieces={subject.ratePieces}
                           reason={subject.agreedRateReason}
                         />
                       </div>

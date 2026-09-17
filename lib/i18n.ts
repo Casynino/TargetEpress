@@ -4357,6 +4357,26 @@ const ZH: Record<string, string> = {
     "新金额已生效并可发送给客户。财务尚未核对。",
   "Changed by": "修改人",
   "Charged once for this flight": "该航班仅收取一次",
+  "Charge this cargo": "本票计费方式",
+  "Freight rate": "运费单价",
+  "Type the rate agreed per kg. To price this cargo from the rate book again, choose per item.":
+    "请输入约定的每公斤单价。如需恢复按价目表计价，请选择按件。",
+  "Type the rate agreed per item. To price this cargo from the rate book again, choose per kg.":
+    "请输入约定的每件单价。如需恢复按价目表计价，请选择按公斤。",
+  "There is no per-kilo rate for this kind of cargo in the rate book, so it cannot be priced by weight. Add one in Price configuration first.":
+    "价目表中没有此类货物的按公斤单价，无法按重量计价。请先在价格配置中添加。",
+  "This consignment has no confirmed weight yet, so a rate cannot be turned into a freight figure. Check it in against the manifest first.":
+    "此票货物尚未确认重量，无法按单价计算运费。请先按舱单完成入库核对。",
+  "Per kg": "按公斤",
+  "Per piece": "按件",
+  "the book's": "价目表",
+  "on the bill": "账单金额",
+  "The rate book prices this": "价目表对此货物的计价方式为",
+  "This changes it for this consignment only.": "此更改仅适用于本票货物。",
+  "Charged per kg — the rate book prices it per item": "按公斤计费——价目表按件计价",
+  "Charged per item — the rate book prices it per kg": "按件计费——价目表按公斤计价",
+  "Type the rate agreed": "请输入约定的费率",
+  "To price this cargo from the rate book again, choose": "如需恢复按价目表计价，请选择",
   "This customer is being charged the minimum more than once": "该客户被重复收取了最低计费",
   "These consignments travelled on one flight. The route's minimum is charged once across all of them, and these bills each carry their own.":
     "这些货物同机运输。该航线的最低计费应在全部货物上合并收取一次，而这些账单各自都收了一次。",

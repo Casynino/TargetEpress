@@ -32,6 +32,8 @@ export async function recordPriceChange(
     totalBefore: number;
     freightBefore: number | null;
     rateBefore: number | null;
+    /** The unit that rate was in, where it was not the book's. */
+    methodBefore?: "WEIGHT_BASED" | "FIXED_PER_ITEM" | null;
     storageBefore: number;
     otherBefore: number;
     discountBefore: number;
@@ -50,6 +52,7 @@ export async function recordPriceChange(
           : new Prisma.Decimal(input.freightBefore),
       rateBefore:
         input.rateBefore === null ? null : new Prisma.Decimal(input.rateBefore),
+      methodBefore: input.methodBefore ?? null,
       storageBefore: new Prisma.Decimal(input.storageBefore),
       otherBefore: new Prisma.Decimal(input.otherBefore),
       discountBefore: new Prisma.Decimal(input.discountBefore),

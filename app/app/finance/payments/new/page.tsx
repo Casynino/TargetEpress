@@ -40,6 +40,7 @@ import {
 } from "@/lib/payable";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { rateSwitchesFor } from "@/lib/rate-basis";
 import { cargoText, viewerLocale } from "@/lib/viewer";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -514,6 +515,10 @@ export default async function RecordCustomerPaymentPage({
           /* The rate agreed for this one consignment, so a merged payment can
              show and change each cargo's own price — see OpenBill. */
           freightRateOverride: true,
+          /* The unit it is in and what it multiplied, where the desk moved it
+             off the book's — see Invoice.freightRateQuantity. */
+          freightRateMethod: true,
+          freightRateQuantity: true,
           freightOverrideReason: true,
           /* The freight actually on the bill, so the screen can compare what
              this customer is being charged against what one minimum comes to. */
@@ -546,6 +551,8 @@ export default async function RecordCustomerPaymentPage({
               chargeableKg: true,
               weightKg: true,
               packages: true,
+              /* Which per-kilo rule the rate switch would price on. */
+              cargoCategory: true,
             },
           },
         },
@@ -637,6 +644,14 @@ export default async function RecordCustomerPaymentPage({
     return groups;
   })();
 
+  /* Both quantities for each bill's per-kg / per-piece switch. */
+  const switches = await rateSwitchesFor(
+    customer.invoices.map((invoice) => ({
+      key: invoice.id,
+      shipment: invoice.shipment,
+    }))
+  );
+
   const bills: OpenBill[] = customer.invoices
     .map((invoice) => ({
       invoiceId: invoice.id,
@@ -654,6 +669,7 @@ export default async function RecordCustomerPaymentPage({
       storageFreeDaysLeft: storageFreeDaysLeft(invoice.shipment),
       /* Each consignment keeps its own price across a merge — see OpenBill. */
       ...rateFactsOf(invoice, invoice.shipment),
+      ...switches.get(invoice.id),
       trackingNumber: invoice.shipment.trackingNumber,
       description: cargoText(locale, invoice.shipment, "description"),
       batchNumber: invoice.shipment.batch?.batchNumber ?? null,

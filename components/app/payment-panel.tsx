@@ -136,6 +136,12 @@ export type PaymentPanelProps = {
   ratePerItem?: boolean;
   /** The chargeable weight, or the piece count — what the rate multiplies. */
   ratePricedOn?: number;
+  /** The rate book's own unit, which the standard rate is quoted in. */
+  rateBookPerItem?: boolean;
+  /** Billable per-kilo weight, the route minimum applied — for the unit switch. */
+  rateWeightKg?: number;
+  /** Piece count — the other side of the unit switch. */
+  ratePieces?: number;
   /** DRAFT while the system's price is waiting on Finance to sign it off. */
   invoiceStatus: string | null;
   /**
@@ -587,7 +593,10 @@ export function PaymentPanel({
                 standard={props.standardRate ?? null}
                 agreed={props.agreedRate ?? null}
                 perItem={props.ratePerItem}
+                bookPerItem={props.rateBookPerItem}
                 pricedOn={props.ratePricedOn ?? 0}
+                weightKg={props.rateWeightKg}
+                pieces={props.ratePieces}
                 reason={props.agreedRateReason ?? null}
               />
             ) : null}
@@ -795,7 +804,10 @@ export function PaymentPanel({
                 standard={props.standardRate ?? null}
                 agreed={props.agreedRate ?? null}
                 perItem={props.ratePerItem}
+                bookPerItem={props.rateBookPerItem}
                 pricedOn={props.ratePricedOn ?? 0}
+                weightKg={props.rateWeightKg}
+                pieces={props.ratePieces}
                 reason={props.agreedRateReason ?? null}
               />
             </div>
@@ -807,6 +819,7 @@ export function PaymentPanel({
             agreed={props.agreedRate ?? null}
             currency={props.currency}
             perItem={props.ratePerItem}
+            bookPerItem={props.rateBookPerItem}
             reason={props.agreedRateReason ?? null}
           />
           {/*

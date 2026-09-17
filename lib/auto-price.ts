@@ -19,6 +19,10 @@ type Figures = {
   /* Cleared, never carried — see the note where these are built. */
   freightOverride: null;
   freightRateOverride: null;
+  /** Cleared with the rate — a unit without a rate claims an agreement that
+      is no longer on the bill. */
+  freightRateMethod: null;
+  freightRateQuantity: null;
   freightOverrideReason: null;
   total: Prisma.Decimal;
   exchangeRate: Prisma.Decimal | null;
@@ -208,6 +212,8 @@ export async function autoPriceShipments(
       */
       freightOverride: null,
       freightRateOverride: null,
+      freightRateMethod: null,
+      freightRateQuantity: null,
       freightOverrideReason: null,
       total: new Prisma.Decimal(total),
       exchangeRate: rate === null ? null : new Prisma.Decimal(rate),
@@ -326,6 +332,8 @@ export async function autoPriceShipments(
           storageCharge: new Prisma.Decimal(storage),
           freightOverride: null,
           freightRateOverride: null,
+          freightRateMethod: null,
+          freightRateQuantity: null,
           freightOverrideReason: null,
           total: new Prisma.Decimal(total),
           exchangeRate: rate === null ? null : new Prisma.Decimal(rate),

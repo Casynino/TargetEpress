@@ -25,6 +25,7 @@ import { rateFactsOf } from "@/lib/agreed-rate";
 import { activeAccounts } from "@/lib/accounts";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { rateSwitchesFor } from "@/lib/rate-basis";
 import { viewerLocale } from "@/lib/viewer";
 
 /*
@@ -127,6 +128,11 @@ export default async function SubmissionsPage({
     a frozen column. Good enough for "how much is sitting with Finance right
     now"; the invoice itself is the source of truth once a claim is verified.
   */
+  /* Both quantities for each claim's per-kg / per-piece switch. */
+  const switches = await rateSwitchesFor(
+    rows.map((row) => ({ key: row.id, shipment: row.invoice.shipment }))
+  );
+
   const moneyRows: MoneyRow[] = rows.map((row) => ({
     currency: row.currency,
     amount: row.amount,
@@ -601,6 +607,7 @@ export default async function SubmissionsPage({
                         /* One derivation, shared with every other screen that
                            states this — see lib/agreed-rate.ts. */
                         ...rateFactsOf(row.invoice, row.invoice.shipment),
+                        ...switches.get(row.id),
                         coversManyBills: row.allocations.length > 1,
                         customerName: row.invoice.customer.name,
                         customerPhone: row.invoice.customer.phone,

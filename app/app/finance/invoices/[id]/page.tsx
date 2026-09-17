@@ -305,11 +305,25 @@ export default async function InvoicePage({
   // How the freight figure was reached, in one line. Assembled here because it
   // is the only part of the document that has to reach into the rate book.
   const rateFacts = rateFactsOf(invoice, shipment);
+  /* The unit on each half of the working: what the bill is charged in, and
+     what the book's own rate is quoted in. The same unless the desk switched. */
+  const chargedUnit = rateFacts.ratePerItem ? ` ${t(locale, "each")}` : "/kg";
+  const bookUnit = rateFacts.bookPerItem ? ` ${t(locale, "each")}` : "/kg";
   const freightNote = [
     `${t(locale, AIRPORT_LABELS[shipment.origin])} — ${t(locale, "Dar es Salaam")}`,
-    shipment.quotedMethod
-      ? t(locale, METHOD_LABELS[shipment.quotedMethod])
-      : t(locale, "Weight-based"),
+    /* The method the bill is charged by. Where it was switched this names the
+       charged one and says the book's, rather than labelling a per-kilo
+       freight "Per item". */
+    rateFacts.unitSwitched
+      ? t(
+          locale,
+          rateFacts.ratePerItem
+            ? "Charged per item — the rate book prices it per kg"
+            : "Charged per kg — the rate book prices it per item"
+        )
+      : shipment.quotedMethod
+        ? t(locale, METHOD_LABELS[shipment.quotedMethod])
+        : t(locale, "Weight-based"),
     /*
       THE RATE THIS BILL WAS ACTUALLY WORKED OUT AT.
 
@@ -320,9 +334,7 @@ export default async function InvoicePage({
       named after it, because a special price printed alone reads as the price.
     */
     rateFacts.agreedRate !== null
-      ? `${money(rateFacts.agreedRate, currency)}${
-          rateFacts.ratePerItem ? ` ${t(locale, "each")}` : "/kg"
-        }`
+      ? `${money(rateFacts.agreedRate, currency)}${chargedUnit}`
       : shipment.quotedRate
         ? `${money(toNumber(shipment.quotedRate), currency)}${
             shipment.quotedMethod === "FIXED_PER_ITEM"
@@ -330,7 +342,11 @@ export default async function InvoicePage({
               : "/kg"
           }`
         : null,
-    shipment.quotedMethod === "FIXED_PER_ITEM"
+    /* An agreed rate's quantity is the one stored beside it — the 1 kg a
+       switched consignment was charged on, not a scale weight it never was. */
+    rateFacts.agreedRate !== null && !rateFacts.ratePerItem
+      ? `× ${rateFacts.ratePricedOn.toFixed(2)} ${t(locale, "kg chargeable")}`
+      : rateFacts.ratePerItem
       ? `× ${formatPackages(shipment.packages, shipment.packageType, locale)}`
       : shipment.chargeableKg
         ? `× ${toNumber(shipment.chargeableKg).toFixed(2)} ${t(locale, "kg chargeable")}`
@@ -340,7 +356,7 @@ export default async function InvoicePage({
       ? `(${t(locale, "special rate — standard")} ${money(
           rateFacts.standardRate,
           currency
-        )}${rateFacts.ratePerItem ? ` ${t(locale, "each")}` : "/kg"})`
+        )}${bookUnit})`
       : null,
   ]
     .filter(Boolean)
@@ -495,6 +511,13 @@ export default async function InvoicePage({
           }
           rateAfter={rateFacts.agreedRate ?? rateFacts.standardRate}
           perItem={rateFacts.ratePerItem}
+          /* The unit the run started in: the one recorded with its rate, or
+             the book's where it started on the book. */
+          perItemBefore={
+            runStart.rateBefore !== null && runStart.methodBefore !== null
+              ? runStart.methodBefore === "FIXED_PER_ITEM"
+              : rateFacts.bookPerItem
+          }
           steps={uncheckedRun.length}
           reason={uncheckedPrice.reason}
           changedBy={uncheckedPrice.changedBy?.name ?? t(locale, "a colleague")}

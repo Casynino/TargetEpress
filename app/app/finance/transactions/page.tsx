@@ -365,6 +365,10 @@ export default async function LedgerPage({
                      auditor reads the money back, so a figure built on a
                      concession has to say so here too. */
                   freightRateOverride: true,
+                  /* The unit it is in and what it multiplied, where the desk moved it
+                     off the book's — see Invoice.freightRateQuantity. */
+                  freightRateMethod: true,
+                  freightRateQuantity: true,
                 },
               },
               /*
@@ -686,6 +690,8 @@ export default async function LedgerPage({
     invoice:
       | {
           freightRateOverride: Prisma.Decimal | null;
+          freightRateMethod?: string | null;
+          freightRateQuantity?: Prisma.Decimal | null;
           shipment: { quotedRate: Prisma.Decimal | null; quotedMethod: string | null } | null;
         }
       | null
@@ -695,9 +701,14 @@ export default async function LedgerPage({
     const facts = rateFactsOf(invoice, invoice.shipment ? { ...invoice.shipment, chargeableKg: null, weightKg: null, packages: 0 } : null);
     if (facts.agreedRate === null) return null;
     const unit = facts.ratePerItem ? t(locale, "per item") : t(locale, "per kg");
+    const bookUnit = facts.bookPerItem ? t(locale, "per item") : t(locale, "per kg");
     return facts.standardRate === null
       ? `${t(locale, "Special rate")} ${facts.agreedRate.toFixed(2)} ${unit}`
-      : `${facts.agreedRate.toFixed(2)} ${unit} · ${t(locale, "standard")} ${facts.standardRate.toFixed(2)}`;
+      : facts.unitSwitched
+        ? /* Each figure with its own unit — a per-kilo rate beside a per-piece
+             standard, with no unit on the second, reads as a discount. */
+          `${facts.agreedRate.toFixed(2)} ${unit} · ${t(locale, "standard")} ${facts.standardRate.toFixed(2)} ${bookUnit}`
+        : `${facts.agreedRate.toFixed(2)} ${unit} · ${t(locale, "standard")} ${facts.standardRate.toFixed(2)}`;
   };
 
   const typeOf = (entry: (typeof entries)[number]) => {

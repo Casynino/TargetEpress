@@ -279,6 +279,10 @@ export async function submissionQueue(
              claim can both SAY a special rate was used and offer to change it
              without sending the desk to the bill's own page. */
           freightRateOverride: true,
+          /* The unit it is in and what it multiplied, where the desk moved it
+             off the book's — see Invoice.freightRateQuantity. */
+          freightRateMethod: true,
+          freightRateQuantity: true,
           freightOverrideReason: true,
           customer: { select: { id: true, name: true, phone: true } },
           /* The flight, because one customer sends on several of them and the
@@ -298,6 +302,8 @@ export async function submissionQueue(
               chargeableKg: true,
               weightKg: true,
               packages: true,
+              /* Which per-kilo rule the rate switch would price on. */
+              cargoCategory: true,
             },
           },
         },

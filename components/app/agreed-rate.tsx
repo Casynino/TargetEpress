@@ -27,6 +27,7 @@ export function AgreedRate({
   agreed,
   currency,
   perItem = false,
+  bookPerItem,
   reason = null,
   className = "",
 }: {
@@ -35,8 +36,11 @@ export function AgreedRate({
   /** What Finance agreed for this one consignment. */
   agreed: number | null;
   currency: string;
-  /** Per-piece cargo is priced per item, not per kilo. */
+  /** The unit the agreed rate is in — what the bill is charged in now. */
   perItem?: boolean;
+  /** The rate book's own unit, which `standard` is quoted in. Defaults to
+      `perItem` for a caller that has not been told the two can differ. */
+  bookPerItem?: boolean;
   /** Why, when the desk gave a reason. */
   reason?: string | null;
   className?: string;
@@ -45,8 +49,22 @@ export function AgreedRate({
   if (agreed === null) return null;
 
   const unit = perItem ? t("per item") : t("per kg");
+  const bookByItem = bookPerItem ?? perItem;
+  const bookUnit = bookByItem ? t("per item") : t("per kg");
+  /*
+    CHARGED IN THE OTHER UNIT, SAID IN SO MANY WORDS.
+
+    Two documents the book prices at 40.00 a piece, agreed at 13.50 a kilo. Set
+    side by side with one difference after them, that read as "−26.50" — a
+    discount on a figure it is not a discount on. A rate in one unit and a rate
+    in the other have no difference to print, so the line names the switch
+    instead, and the bill's own total says what it came to.
+  */
+  const switched = perItem !== bookByItem;
   const off =
-    standard === null ? null : Math.round((standard - agreed) * 100) / 100;
+    standard === null || switched
+      ? null
+      : Math.round((standard - agreed) * 100) / 100;
 
   return (
     <div
@@ -61,7 +79,7 @@ export function AgreedRate({
           <>
             {t("Standard")}{" "}
             <span className="text-foreground">
-              {currency} {standard.toFixed(2)} {unit}
+              {currency} {standard.toFixed(2)} {bookUnit}
             </span>{" "}
             ·{" "}
           </>
@@ -97,6 +115,13 @@ export function AgreedRate({
           </>
         ) : null}
       </p>
+      {switched ? (
+        <p className="mt-1 inline-flex rounded bg-warning/15 px-1.5 py-px font-semibold text-warning">
+          {perItem
+            ? t("Charged per item — the rate book prices it per kg")
+            : t("Charged per kg — the rate book prices it per item")}
+        </p>
+      ) : null}
       {reason ? (
         <p className="mt-0.5 italic text-muted-foreground">“{reason}”</p>
       ) : null}

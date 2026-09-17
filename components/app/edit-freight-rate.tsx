@@ -34,7 +34,10 @@ export function EditFreightRate({
   standard,
   agreed,
   perItem = false,
+  bookPerItem,
   pricedOn,
+  weightKg,
+  pieces,
   reason = null,
   asIcon = false,
   onSaved,
@@ -46,10 +49,24 @@ export function EditFreightRate({
   standard: number | null;
   /** What Finance has already agreed, if they have. */
   agreed: number | null;
-  /** Per-piece cargo is priced per item, not per kilo. */
+  /** The unit the bill is charged in now — a switched unit wins. */
   perItem?: boolean;
+  /** The rate book's own unit, which `standard` is quoted in. Defaults to
+      `perItem` for a caller that has not been told the two can differ. */
+  bookPerItem?: boolean;
   /** The chargeable weight, or the piece count — what the rate multiplies. */
   pricedOn: number;
+  /**
+   * BOTH UNITS, SO THE DESK CAN MOVE BETWEEN THEM.
+   *
+   * The rate book decides per-kg or per-piece by goods type, and the corridor
+   * sells both: out of Hong Kong a customer is quoted per kilo or per document
+   * depending on what was agreed with them. Passing the other quantity lets the
+   * dialog switch without a round trip, and lets it say what the bill would
+   * come to before anybody agrees to it.
+   */
+  weightKg?: number;
+  pieces?: number;
   /** Why, when the desk gave a reason last time. */
   reason?: string | null;
   /**
@@ -76,6 +93,11 @@ export function EditFreightRate({
   const t = useT();
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState(agreed === null ? "" : String(agreed));
+  /* The unit this rate is being quoted in. Opens on whatever the bill is
+     charged in today, so doing nothing changes nothing. */
+  const [byItem, setByItem] = useState(perItem);
+  const bookByItem = bookPerItem ?? perItem;
+  const bookUnit = bookByItem ? t("per item") : t("per kg");
   const [state, action] = useActionState<
     ActionResult<{ total: number; freight: number }>,
     FormData
@@ -88,20 +110,49 @@ export function EditFreightRate({
     }
   }, [state]);
 
-  const unit = perItem ? t("per item") : t("per kg");
-  const quantity = perItem
-    ? `${pricedOn} ${t(pricedOn === 1 ? "piece" : "pieces")}`
-    : `${pricedOn} ${t("kg")}`;
+  const unit = byItem ? t("per item") : t("per kg");
+  /* What the typed rate multiplies, in whichever unit is selected. Falls back
+     to `pricedOn` where the caller has not passed both — every screen that has
+     not been taught the switch keeps behaving exactly as it did. */
+  const multiplier = byItem
+    ? (pieces ?? (perItem ? pricedOn : 1))
+    : (weightKg ?? (perItem ? 0 : pricedOn));
+  /* Kilos print to the gram and no further, the way the scale reads. */
+  const kgLabel = (kg: number) => `${Math.round(kg * 1000) / 1000} ${t("kg")}`;
+  const quantity = byItem
+    ? `${multiplier} ${t(multiplier === 1 ? "piece" : "pieces")}`
+    : kgLabel(multiplier);
+  /* Offered only where the dialog knows both quantities and the cargo could
+     honestly be sold either way. */
+  const canSwitch = weightKg !== undefined && pieces !== undefined;
 
   /* What the bill's freight will come to, shown before it is agreed rather
      than discovered on the bill afterwards. */
   const rateNow = Number(typed);
   const valid = typed.trim() !== "" && Number.isFinite(rateNow) && rateNow >= 0;
-  const freight = valid ? Math.round(rateNow * pricedOn * 100) / 100 : null;
+  const freight = valid ? Math.round(rateNow * multiplier * 100) / 100 : null;
+  /*
+    AGAINST THE BOOK — IN THE SAME UNIT, OR NOT AT ALL.
+
+    A rate per kilo cannot be compared with a rate per document: it printed
+    "−USD 26.50 per kg against the book" by subtracting 13.50 a kilo from 40 a
+    piece, which is a number with no meaning. Where the unit has been switched,
+    what the desk can honestly compare is what the BILL comes to — the book's
+    unit on the book's quantity against the new one.
+  */
+  const switched = byItem !== bookByItem;
   const off =
-    valid && standard !== null
+    valid && standard !== null && !switched
       ? Math.round((standard - rateNow) * 100) / 100
       : null;
+  const bookFreight =
+    standard === null
+      ? null
+      : Math.round(
+          standard *
+            (bookByItem ? (pieces ?? pricedOn) : (weightKg ?? pricedOn)) *
+            100
+        ) / 100;
 
   if (!open) {
     if (asIcon) {
@@ -176,7 +227,7 @@ export function EditFreightRate({
             <dd className="tabular-nums font-medium">
               {standard === null
                 ? t("not recorded")
-                : `${currency} ${standard.toFixed(2)} ${unit}`}
+                : `${currency} ${standard.toFixed(2)} ${bookUnit}`}
             </dd>
           </div>
           <div className="flex items-baseline justify-between gap-3">
@@ -185,8 +236,8 @@ export function EditFreightRate({
               {agreed === null
                 ? standard === null
                   ? t("not recorded")
-                  : `${currency} ${standard.toFixed(2)} ${unit}`
-                : `${currency} ${agreed.toFixed(2)} ${unit}`}
+                  : `${currency} ${standard.toFixed(2)} ${bookUnit}`
+                : `${currency} ${agreed.toFixed(2)} ${perItem ? t("per item") : t("per kg")}`}
             </dd>
           </div>
           <div className="flex items-baseline justify-between gap-3">
@@ -202,9 +253,73 @@ export function EditFreightRate({
         </dl>
 
         <input type="hidden" name="invoiceId" value={invoiceId} />
+        {/* Sent always, so the server prices on the unit the desk was looking
+            at rather than re-deriving one from the rate book. */}
+        <input
+          type="hidden"
+          name="rateMethod"
+          value={byItem ? "FIXED_PER_ITEM" : "WEIGHT_BASED"}
+        />
+
+        {/*
+          PER KILO OR PER PIECE, FOR THIS CONSIGNMENT.
+
+          The rate book sets the unit from the goods type — Documents are USD 40
+          a piece whatever they weigh — and the corridor sells both. This is the
+          commercial answer for one customer's cargo, not a change to the price
+          list: every other consignment of the same goods keeps the book's unit.
+
+          Switching re-reads the figure underneath rather than converting it. A
+          rate agreed per document is not the same number as a rate per kilo,
+          and quietly carrying one across would bill somebody at a price nobody
+          said.
+        */}
+        {canSwitch ? (
+          <div className="space-y-1">
+            <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">
+              {t("Charge this cargo")}
+            </span>
+            <div className="flex rounded-lg border p-0.5">
+              {[
+                { key: false, label: `${t("Per kg")} · ${kgLabel(weightKg ?? 0)}` },
+                {
+                  key: true,
+                  label: `${t("Per piece")} · ${pieces} ${t(pieces === 1 ? "piece" : "pieces")}`,
+                },
+              ].map((option) => (
+                <button
+                  key={String(option.key)}
+                  type="button"
+                  onClick={() => {
+                    /* A rate agreed in one unit is not a rate in the other.
+                       Emptied, so the desk types the figure actually agreed
+                       instead of carrying 40 a document across as 40 a kilo. */
+                    if (option.key !== byItem) setTyped("");
+                    setByItem(option.key);
+                  }}
+                  className={
+                    "focus-ring flex-1 rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors " +
+                    (byItem === option.key
+                      ? "bg-brand text-brand-foreground"
+                      : "text-muted-foreground hover:bg-accent")
+                  }
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            {switched ? (
+              <p className="text-[11px] text-warning">
+                {t("The rate book prices this")} {bookUnit}.{" "}
+                {t("This changes it for this consignment only.")}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <label className="block space-y-1">
           <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">
-            {t("Rate")} {unit}
+            {t("Freight rate")} {unit}
           </span>
           <div className="flex items-center gap-2">
             <span className="shrink-0 text-[11px] text-muted-foreground">
@@ -215,7 +330,11 @@ export function EditFreightRate({
               value={typed}
               onValueChange={setTyped}
               decimals={2}
-              placeholder={standard === null ? "0.00" : standard.toFixed(2)}
+              /* The book's figure only where it is in the same unit — offered
+                 as 40.00 in a per-kilo box it reads as the rate to type. */
+              placeholder={
+                standard === null || switched ? "0.00" : standard.toFixed(2)
+              }
               className="h-8 text-xs"
               autoFocus
             />
@@ -229,6 +348,15 @@ export function EditFreightRate({
             <span className="font-semibold tabular-nums text-foreground">
               {currency} {freight.toFixed(2)}
             </span>
+            {switched && bookFreight !== null && freight !== null ? (
+              <>
+                {" · "}
+                <span className={freight < bookFreight ? "text-success" : "text-warning"}>
+                  {t("the book's")} {currency} {bookFreight.toFixed(2)} → {currency}{" "}
+                  {freight.toFixed(2)} {t("on the bill")}
+                </span>
+              </>
+            ) : null}
             {off !== null && Math.abs(off) > 0.005 ? (
               <>
                 {" · "}
@@ -239,6 +367,13 @@ export function EditFreightRate({
                 </span>
               </>
             ) : null}
+          </p>
+        ) : switched ? (
+          /* A unit moves with a rate, or not at all — the server refuses the
+             empty box too, and this says why before anybody presses. */
+          <p className="text-[11px] text-warning">
+            {t("Type the rate agreed")} {unit}.{" "}
+            {t("To price this cargo from the rate book again, choose")} {bookUnit}.
           </p>
         ) : (
           <p className="text-[11px] text-muted-foreground">
@@ -256,7 +391,12 @@ export function EditFreightRate({
         />
         <FormError state={state} />
         <div className="flex items-center gap-2">
-          <SubmitButton variant="brand" size="sm" pendingLabel="Saving…">
+          <SubmitButton
+            variant="brand"
+            size="sm"
+            pendingLabel="Saving…"
+            disabled={switched && !valid}
+          >
             {t("Save the rate")}
           </SubmitButton>
           <button
