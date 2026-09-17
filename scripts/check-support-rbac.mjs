@@ -48,12 +48,12 @@ const MUST_NOT = {
     manager's, and Support asks rather than decides. lib/rbac.ts says so in
     full; this list is the gate that keeps it said.
   */
-  /* Signing a price off is what makes a bill real and lets cargo go, and it is
-     what marks another desk's price change as checked. This desk CHANGES
-     prices (invoice.discount, below) and never signs one off — including its
-     own. The two used to be one permission, so Support could set a figure and
-     sign it off in the same breath. */
-  "Sign off a price": "invoice.priceConfirm",
+  /* Checking that a price somebody MOVED was fine. This desk moves prices
+     (invoice.discount, below) and signs new ones off (invoice.priceConfirm),
+     and it is not the desk that says its own move was fine. It is also what
+     decides whether a move is written up at all — hold both and a desk stops
+     flagging its own changes, which is the whole control. */
+  "Check another desk's price change": "invoice.priceReview",
 };
 
 /** Straight from the spec's "Customer Support CAN" list. */
@@ -73,6 +73,10 @@ const MUST_HAVE = {
      agrees a price with a customer is whoever types it, with no limit. Every
      change this desk makes is written up for Finance to see and put back. */
   "Change the price on a bill": "invoice.discount",
+  /* Turn a draft price into a bill. The owner: "Hawa or support should be able
+     to confirm prices as well, just like finance" — a counter that can price
+     cargo and cannot bill it sends the customer away to wait. */
+  "Sign a new price off": "invoice.priceConfirm",
   "Manage support tickets": "ticket.manage",
   "Manage sourcing requests": "sourcing.manage",
   "Contact customers": "message.send",

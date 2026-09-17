@@ -64,6 +64,7 @@ export type QueueDef = {
     | "credit.approve"
     | "payment.verify"
     | "invoice.priceConfirm"
+    | "invoice.priceReview"
     | "invoice.discount"
     | "exception.approve"
     | "payroll.approve"
@@ -106,7 +107,7 @@ const QUEUES: Record<QueueKey, QueueDef> = {
     detail:
       "Bills Customer Care re-priced at the counter. Already in force — check them and put any back that should not stand.",
     href: "/app/collections/follow-up",
-    permission: "invoice.priceConfirm",
+    permission: "invoice.priceReview",
   },
   statements: {
     key: "statements",

@@ -145,10 +145,14 @@ export type Permission =
   | "invoice.edit" // change a bill before the customer has paid anything
   /* SIGNING OFF A PRICE, WHICH IS WHAT MAKES A BILL REAL.
      Split out of invoice.manage because that one also opens the PDF and raises
-     the bill, and Customer Care needs both at the counter. This is the narrow
-     thing the owner wanted kept back: until it is given, nothing is owed and
-     no cargo may go. */
+     the bill, and Customer Care needs both at the counter. Until it is given,
+     nothing is owed and no cargo may go. */
   | "invoice.priceConfirm"
+  /* CHECKING A PRICE SOMEBODY ELSE MOVED, which is a different job from
+     signing off a new one and is deliberately NOT held by the desk that moves
+     prices. It also decides whether a change is written up at all: a desk that
+     may check its own work is a desk whose work nobody checks. */
+  | "invoice.priceReview"
   | "invoice.discount"
   | "invoice.rate"
   | "invoice.storage.waive"
@@ -508,14 +512,22 @@ const CUSTOMER_CARE: Permission[] = [
   "shipment.attach",
   "batch.view",
   "finance.view",
-  /*
-    KEPT: raising a bill, opening its PDF and sending it. Deliberately WITHOUT
-    invoice.priceConfirm, which used to ride along inside this one — signing a
-    price off is what makes a bill real and lets cargo go, and the owner asked
-    for that to be Finance's alone. Changing a price is invoice.discount below,
-    which this desk does hold — what it cannot do is mark the change checked.
-  */
   "invoice.manage",
+  /*
+    SIGNING A PRICE OFF, WHICH THIS DESK NOW DOES.
+
+    It was Finance's alone for a while, on the owner's instruction. He has
+    changed it: "Hawa or support should be able to confirm prices as well, just
+    like finance" — a counter that can price cargo and cannot turn that price
+    into a bill sends the customer away to wait for somebody else.
+
+    invoice.priceReview is deliberately NOT here, and the difference is the
+    whole control. Confirming turns a draft into a bill. Reviewing is saying
+    that a price somebody MOVED was fine — and it is also what decides whether
+    a move is written up at all, so a desk holding both would silently stop
+    flagging its own changes. This desk moves prices; another desk checks them.
+  */
+  "invoice.priceConfirm",
   "invoice.edit",
   /*
     THE PRICE, WITHOUT A LIMIT — AND NEVER SILENTLY.
@@ -641,9 +653,11 @@ const FINANCE: Permission[] = [
   "finance.view",
   "invoice.manage",
   "invoice.edit",
-  /* Signing a price off is this desk's, and the owner asked for it to stop
-     being Support's: until it is given nothing is owed and no cargo goes. */
   "invoice.priceConfirm",
+  /* Checking what another desk re-priced. This desk's alone — Customer Care
+     may sign a price off and may move one, and may not be the one who says
+     its own move was fine. */
+  "invoice.priceReview",
   "invoice.discount",
   "invoice.rate",
   "invoice.storage.waive",

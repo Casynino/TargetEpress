@@ -1403,16 +1403,18 @@ export async function adjustInvoice(
         this: a row Finance is shown, saying what the bill was, what it is, and
         who moved it, with one press to put it back.
 
-        Only for desks that cannot sign a price off themselves. Finance moving
-        a price is not news to Finance, and a queue listing its own work is a
-        queue nobody reads.
+        Only for desks that do not check these themselves. Finance moving a
+        price is not news to Finance, and a queue listing its own work is a
+        queue nobody reads. Customer Care may now sign a price off, which is
+        why this asks about REVIEWING rather than confirming — otherwise
+        granting that signature would have quietly switched this off.
 
         Written inside this transaction, so the record and the change land
         together or neither does — a price that moved without its row would be
         exactly the silent change this exists to prevent.
       */
       if (
-        !can(user.role, "invoice.priceConfirm") &&
+        !can(user.role, "invoice.priceReview") &&
         Math.abs(total - toNumber(invoice.total)) > 0.005
       ) {
         await recordPriceChange(tx, {

@@ -36,7 +36,7 @@ async function ship(kg: number, opts: { cust?: string; batch?: string; type?: st
       cargoCategory: "NORMAL_GOODS", cargoTypeId: opts.type ?? GENERAL,
       goodsType: "GENERAL_MERCHANDISE", description: "test",
       weightKg: kg, packages: 1, status: "RECEIVED_AT_DAR",
-      arrivedAt: new Date("2026-09-10T00:00:00Z"), origin: "GUANGZHOU",
+      arrivedAt: new Date(), origin: "GUANGZHOU",
     },
     select: { id: true, trackingNumber: true },
   });
@@ -75,9 +75,20 @@ async function wipe() {
   await prisma.shipment.deleteMany({ where: { id: { in: ids } } });
 }
 await wipe();
+/*
+  SUMMED ON FREIGHT, NOT ON THE BILL TOTAL.
+
+  These cases are about one rule: the route's minimum, charged once. Totalling
+  the bills folded STORAGE in with it, and storage runs on a clock — so every
+  expectation here silently went four dollars wrong the day the calendar passed
+  the free week on fixtures pinned to a fixed arrival date. The figures had been
+  right all along; the guard was measuring something it was not testing.
+
+  Storage has its own case further down, which reads the total on purpose.
+*/
 async function check(label: string, ids: string[], expectSum: number, detail?: string) {
   const rows = await totals(ids);
-  const sum = Math.round(rows.reduce((n2, r) => n2 + r.total, 0) * 100) / 100;
+  const sum = Math.round(rows.reduce((n2, r) => n2 + r.freight, 0) * 100) / 100;
   const ok = Math.abs(sum - expectSum) < 0.005;
   if (!ok) fails++;
   console.log(`${ok ? "  ok  " : "  FAIL"}  ${label.padEnd(46)} USD ${sum.toFixed(2)} (expected ${expectSum.toFixed(2)})`);
@@ -254,7 +265,7 @@ async function check(label: string, ids: string[], expectSum: number, detail?: s
       trackingNumber: "ZZT-P1", qrToken: "zzt-p1x", customerId: CUST_1, batchId: BATCH_A,
       cargoCategory: "ELECTRONICS", cargoTypeId: "cms7h4adl000hy8e5plz73lcp",
       goodsType: "ELECTRONICS", description: "laptop", weightKg: 0.3, packages: 1,
-      status: "RECEIVED_AT_DAR", arrivedAt: new Date("2026-09-10T00:00:00Z"), origin: "GUANGZHOU",
+      status: "RECEIVED_AT_DAR", arrivedAt: new Date(), origin: "GUANGZHOU",
     }, select: { id: true, trackingNumber: true },
   });
   const b = await ship(0.1);

@@ -33,10 +33,10 @@ export async function reviewPriceChange(
 ): Promise<ActionResult<{ reverted: boolean }>> {
   let user: SessionUser;
   try {
-    /* Reviewing what another desk priced is the signing-off authority, not the
-       pricing one — Customer Care now holds the second and not the first, so
-       they cannot mark their own change as seen. */
-    user = await authorize("invoice.priceConfirm");
+    /* Checking what another desk re-priced, which is its own authority.
+       Customer Care may sign a price off and may move one; it may not be the
+       desk that says its own move was fine. */
+    user = await authorize("invoice.priceReview");
   } catch (error) {
     return fail(toActionError(error));
   }
