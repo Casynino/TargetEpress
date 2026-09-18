@@ -1209,8 +1209,7 @@ export async function changePaymentAmount(
 
       The re-record below refuses a closed account, and by then the payment is
       already cancelled — so correcting only the figure on an old payment that
-      landed in a till since closed (M-Pesa, once it became Lipa) would lose
-      it. Said now, while nothing has moved: name the account it is in today
+      landed in a till since closed would lose it. Said now, while nothing has moved: name the account it is in today
       in the same correction. A fare paid from a closed till cannot be
       re-recorded as it was, so that one is sent back to the bill.
     */

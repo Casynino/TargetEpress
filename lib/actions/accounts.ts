@@ -31,11 +31,10 @@ export type CloseAccountResult = {
 /**
  * CLOSE AN ACCOUNT, AND SEND WHAT IS ON IT SOMEWHERE THAT IS STILL OPEN.
  *
- * Two tills becoming one — M-Pesa and Mixx by Yas kept as a single "Lipa"
- * account at the office — was only ever possible with hand-written SQL, and
- * the obvious SQL (switching the old rows off) hid their money: the owner's
- * dashboard reads open accounts only while the Accounts page reads all of
- * them, so the two screens stopped agreeing by exactly what was left behind.
+ * Retiring an account was only ever possible with hand-written SQL, and the
+ * obvious SQL (switching the row off) hid its money: the owner's dashboard
+ * reads open accounts only while the Accounts page reads all of them, so the
+ * two screens stopped agreeing by exactly what was left behind.
  *
  * So closing is one act, done here, in one transaction:
  *   - whatever is on the account moves to the chosen one as an ordinary

@@ -6041,8 +6041,7 @@ const ZH: Record<string, string> = {
   "Say which account is being closed.": "请说明要关闭哪个账户。",
   "Choose the account its money moves to.": "请选择余额转入的账户。",
   "Money moved off a closed account": "已从关闭的账户转出余额",
-  "Every movement through the Lipa account — M-Pesa and Mixx by Yas together — including the old separate M-Pesa and Mixx accounts.":
-    "Lipa 账户（M-Pesa 和 Mixx by Yas 合并）的全部流水，包括原来分开的 M-Pesa 和 Mixx 账户。",
+  "Every movement through the Lipa account — M-Pesa and Mixx by Yas together.": "Lipa 账户（M-Pesa 和 Mixx by Yas 合并）的全部流水。",
   "Every movement through Lipa (M-Pesa and Mixx by Yas).": "Lipa（M-Pesa 和 Mixx by Yas）的全部流水。",
   "Not in these figures:": "未计入以上数字：",
   "borrowed": "借入",

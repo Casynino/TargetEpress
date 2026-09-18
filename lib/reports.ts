@@ -1974,7 +1974,7 @@ export async function runReport(
       return ledgerReport(
         "mobile-money",
         "Mobile money",
-        "Every movement through the Lipa account — M-Pesa and Mixx by Yas together — including the old separate M-Pesa and Mixx accounts.",
+        "Every movement through the Lipa account — M-Pesa and Mixx by Yas together.",
         await ledgerRows(filters, ["MOBILE_MONEY"])
       );
     case "petty-cash":

@@ -62,9 +62,9 @@ export const ACCOUNT_SEED: {
   /*
     M-Pesa and Mixx by Yas are one account at the office: "Lipa". Customers
     are still told both numbers separately — that list is PAYMENT_METHODS in
-    lib/constants.ts, not this one. The old MIXX and MPESA rows stay on
-    production as closed accounts carrying their history; the codes are not
-    reused.
+    lib/constants.ts, not this one. On production the old MIXX and MPESA
+    rows were merged into LIPA record by record and deleted
+    (scripts/neon-merge-into-lipa.sql); the codes are not reused.
   */
   {
     code: "LIPA",

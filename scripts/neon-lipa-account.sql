@@ -1,18 +1,14 @@
 -- Lipa: M-Pesa and Mixx by Yas as one account at the office.
 --
--- Safe to run before or after the deploy that brings the Close account
--- button, and safe to run twice. It only adds the new account; it does not
--- touch Vodacom M-Pesa or Mixx by Yas. Those are closed from the app — open
--- each one on Finance → Accounts and use "Close this account", choosing Lipa —
--- which moves their money into Lipa as a transfer on the register, points any
--- waiting claims, unpaid costs and payroll at Lipa, and takes them off every
--- staff screen while keeping their history.
+-- Safe to run twice. It only adds the new account. Vodacom M-Pesa and Mixx
+-- by Yas are then merged into it, every record as it was, and deleted, by
+-- scripts/neon-merge-into-lipa.sql.
 --
 -- Customers are not affected: the public site, invoices and messages keep
 -- listing the M-Pesa and Mixx Lipa numbers separately.
 --
 -- Stamped as opened, so the Accounts page does not ask for an opening balance:
--- Lipa starts at nothing and is filled by the two closing transfers.
+-- Lipa's history, opening balances included, is what M-Pesa and Mixx bring.
 
 INSERT INTO "CompanyAccount"
   ("id", "code", "name", "kind", "currency", "institution", "accountNumber", "accountName", "sortOrder", "active", "openingSetAt", "createdAt", "updatedAt")
