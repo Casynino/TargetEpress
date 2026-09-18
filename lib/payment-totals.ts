@@ -67,16 +67,17 @@ export async function unattributedTotal(): Promise<CollectedTotal> {
 /** Where the money went, by the account that received it. */
 export async function collectedByAccount() {
   return prisma.$queryRaw<
-    { accountId: string | null; name: string | null; total: number; count: number }[]
+    { accountId: string | null; name: string | null; active: boolean | null; total: number; count: number }[]
   >(Prisma.sql`
     SELECT p."accountId",
            a."name",
+           a."active",
            SUM(COALESCE(p."creditedAmount", p."amount"))::float8 AS total,
            COUNT(*)::int                                         AS count
       FROM "Payment" p
       LEFT JOIN "CompanyAccount" a ON a."id" = p."accountId"
      WHERE p."voidedAt" IS NULL
-     GROUP BY p."accountId", a."name"
+     GROUP BY p."accountId", a."name", a."active"
      ORDER BY total DESC
   `);
 }

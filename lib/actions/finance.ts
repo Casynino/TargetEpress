@@ -2728,6 +2728,7 @@ export async function recordPayment(
         name: string;
         currency: string;
         kind: string;
+        active: boolean;
       } | null = null;
       if (transport > 0) {
         if (!input.transportSourceId) {
@@ -2737,10 +2738,19 @@ export async function recordPayment(
         }
         transportAccount = await tx.companyAccount.findUnique({
           where: { id: input.transportSourceId },
-          select: { id: true, name: true, currency: true, kind: true },
+          select: { id: true, name: true, currency: true, kind: true, active: true },
         });
         if (!transportAccount) {
           throw new Error("That transport account no longer exists.");
+        }
+        /* A closed account pays no driver. The receiving account has always
+           been refused when closed; the fare's account was not, so a claim
+           raised before a till was closed could still post a fare against
+           it and leave a closed account below zero. */
+        if (!transportAccount.active) {
+          throw new Error(
+            `${transportAccount.name} has been closed. Choose the cash box or the Lipa number the fare was paid from.`
+          );
         }
         /*
           THE TILL OR THE LIPA NUMBER, AND NOTHING ELSE.
@@ -4817,6 +4827,7 @@ export async function recordCustomerPayment(
         name: string;
         currency: string;
         kind: string;
+        active: boolean;
       } | null = null;
       if (transport > 0) {
         if (!input.transportSourceId) {
@@ -4826,10 +4837,19 @@ export async function recordCustomerPayment(
         }
         transportAccount = await tx.companyAccount.findUnique({
           where: { id: input.transportSourceId },
-          select: { id: true, name: true, currency: true, kind: true },
+          select: { id: true, name: true, currency: true, kind: true, active: true },
         });
         if (!transportAccount) {
           throw new Error("That transport account no longer exists.");
+        }
+        /* A closed account pays no driver. The receiving account has always
+           been refused when closed; the fare's account was not, so a claim
+           raised before a till was closed could still post a fare against
+           it and leave a closed account below zero. */
+        if (!transportAccount.active) {
+          throw new Error(
+            `${transportAccount.name} has been closed. Choose the cash box or the Lipa number the fare was paid from.`
+          );
         }
         if (
           transportAccount.kind !== "CASH" &&

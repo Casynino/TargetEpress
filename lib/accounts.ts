@@ -6,13 +6,14 @@ import type { PaymentMethod } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 /**
- * The company's six real accounts.
+ * The company's real accounts.
  *
- * These are the same six that PAYMENT_ACCOUNTS prints on an invoice, and the
- * duplication is deliberate. That constant is what a customer was TOLD to pay
- * into and has to stay reproducible from the code that generated their copy of
- * a legal document. This list is what the business RECONCILES against — it has
- * to be a table, because a balance is a running total over rows.
+ * Not the list printed on an invoice, and the difference is deliberate. That
+ * list (PAYMENT_METHODS) is what a customer was TOLD to pay into and has to stay
+ * reproducible from the code that generated their copy of a legal document —
+ * it still names M-Pesa and Mixx by Yas separately. This list is what the
+ * business RECONCILES against, where the two tills are one account, Lipa — it
+ * has to be a table, because a balance is a running total over rows.
  *
  * `code` is the stable identity. Display names, sort order and even account
  * numbers may be corrected; the code is what seeds, backfills and any future
@@ -58,25 +59,22 @@ export const ACCOUNT_SEED: {
     accountName: "TARGET EXPRESS AIR CARGO",
     sortOrder: 30,
   },
+  /*
+    M-Pesa and Mixx by Yas are one account at the office: "Lipa". Customers
+    are still told both numbers separately — that list is PAYMENT_METHODS in
+    lib/constants.ts, not this one. The old MIXX and MPESA rows stay on
+    production as closed accounts carrying their history; the codes are not
+    reused.
+  */
   {
-    code: "MIXX",
-    name: "Mixx by Yas",
+    code: "LIPA",
+    name: "Lipa",
     kind: "MOBILE_MONEY",
     currency: "TZS",
-    institution: "Mixx by Yas",
-    accountNumber: "7122055",
-    accountName: "SCOHU TARGET EXPRESS AIR CARGO",
-    sortOrder: 40,
-  },
-  {
-    code: "MPESA",
-    name: "Vodacom M-Pesa",
-    kind: "MOBILE_MONEY",
-    currency: "TZS",
-    institution: "Vodacom",
-    accountNumber: "5581590",
+    institution: "M-Pesa & Mixx by Yas",
+    accountNumber: "5581590 / 7122055",
     accountName: "TARGET EXPRESS AIR CARGO",
-    sortOrder: 50,
+    sortOrder: 40,
   },
   {
     code: "CASH_OFFICE",

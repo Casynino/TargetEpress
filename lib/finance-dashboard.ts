@@ -536,6 +536,13 @@ export async function financeDashboard(
     );
   const accounts = balances
     .filter((row) => row.kind !== "LOAN")
+    /* A closed account with nothing left on it has no place in a list of
+       where the money is. One still holding money stays, so none goes missing. */
+    .filter(
+      (row) =>
+        accountById.get(row.accountId)?.active !== false ||
+        Math.abs(toNumber(row.inflow) - toNumber(row.outflow)) >= 0.005
+    )
     .map((row) => {
       const meta = accountById.get(row.accountId);
       return {

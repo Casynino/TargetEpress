@@ -133,10 +133,17 @@ export default async function AccountsPage() {
   // money leads the eye; nothing is dropped to achieve that.
   // Ranked on the figure printed on the card rather than on the ledger's dollar
   // column, so the order is the one the reader can see.
-  const ordered = [...rows].sort((a, c) => {
-    const fundedFirst = (c.entries > 0 ? 1 : 0) - (a.entries > 0 ? 1 : 0);
-    return fundedFirst !== 0 ? fundedFirst : held(c) - held(a);
-  });
+  /* A closed account with nothing on it is history, not a place money is:
+     no card, only a line at the foot that leads to its record. One that
+     still holds money — something posted to it after it closed — keeps its
+     card until that is moved, so no shilling is ever off this page. */
+  const closedEmpty = rows.filter((row) => !row.account.active && Math.abs(row.net) < 0.005);
+  const ordered = rows
+    .filter((row) => !closedEmpty.includes(row))
+    .sort((a, c) => {
+      const fundedFirst = (c.entries > 0 ? 1 : 0) - (a.entries > 0 ? 1 : 0);
+      return fundedFirst !== 0 ? fundedFirst : held(c) - held(a);
+    });
   // The arithmetic sum of the cards further down the page.
   const total = rows.reduce((sum, row) => sum + held(row), 0);
   // The ledger's own dollar column — what this money was worth at the rate on
@@ -253,7 +260,7 @@ export default async function AccountsPage() {
               {t(locale, "With movement")}
             </dt>
             <dd className="mt-0.5 font-display text-lg font-bold tabular-nums">
-              {rows.filter((r) => r.entries > 0).length}
+              {ordered.filter((r) => r.entries > 0).length}
             </dd>
           </div>
           <div>
@@ -340,6 +347,23 @@ export default async function AccountsPage() {
           />
         ))}
       </div>
+
+      {closedEmpty.length > 0 ? (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {t(locale, "Closed accounts")}:{" "}
+          {closedEmpty.map((row, i) => (
+            <span key={row.account.id}>
+              {i > 0 ? " · " : ""}
+              <Link
+                href={`/app/finance/accounts/${row.account.id}`}
+                className="underline-offset-2 hover:text-foreground hover:underline"
+              >
+                {row.account.name}
+              </Link>
+            </span>
+          ))}
+        </p>
+      ) : null}
 
       {/* Borrowed money, below the company's own and never added into it. */}
       {loans.length > 0 ? (

@@ -1204,6 +1204,39 @@ export async function changePaymentAmount(
       }
     }
 
+    /*
+      CLOSED ACCOUNTS ARE CHECKED BEFORE THE CANCEL, NOT AFTER.
+
+      The re-record below refuses a closed account, and by then the payment is
+      already cancelled — so correcting only the figure on an old payment that
+      landed in a till since closed (M-Pesa, once it became Lipa) would lose
+      it. Said now, while nothing has moved: name the account it is in today
+      in the same correction. A fare paid from a closed till cannot be
+      re-recorded as it was, so that one is sent back to the bill.
+    */
+    if (newAccountId) {
+      const landing = await prisma.companyAccount.findUnique({
+        where: { id: newAccountId },
+        select: { name: true, active: true },
+      });
+      if (landing && !landing.active) {
+        return fail(
+          `${landing.name} ${t(locale, "has been closed, so the corrected payment cannot be recorded into it. Choose the account the money is in now, in this same correction.")}`
+        );
+      }
+    }
+    if (toNumber(payment.transportAmount) > 0 && payment.transportSourceId) {
+      const fareFrom = await prisma.companyAccount.findUnique({
+        where: { id: payment.transportSourceId },
+        select: { name: true, active: true },
+      });
+      if (fareFrom && !fareFrom.active) {
+        return fail(
+          `${t(locale, "The delivery fare on this payment was paid from")} ${fareFrom.name}${t(locale, ", which has been closed, so the payment cannot be recorded again as it was. Cancel it and record it again from the bill.")}`
+        );
+      }
+    }
+
     /* Cancel first. Everything it did is undone — the money comes off the bill,
        the cargo goes back to unpaid, the pickup note is withdrawn — so the
        re-record below starts from the state the counter would have been in. */

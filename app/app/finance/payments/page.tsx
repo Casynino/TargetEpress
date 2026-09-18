@@ -192,6 +192,12 @@ export default async function PaymentsPage() {
                   {t(locale, "no account named")}
                 </span>
               )}
+              {/* Money that came in before the account was closed — M-Pesa
+                  and Mixx before they became Lipa — is still where it was
+                  recorded, and says the account is no longer in use. */}
+              {row.name && row.active === false ? (
+                <span className="ml-1 text-muted-foreground">({t(locale, "closed")})</span>
+              ) : null}
               <span className="ml-1.5 font-mono text-muted-foreground">
                 {formatMoney(
                   rate ? row.total * rate : row.total,

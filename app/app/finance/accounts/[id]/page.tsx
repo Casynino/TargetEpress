@@ -20,6 +20,7 @@ import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { ReconcileForm } from "@/components/app/reconcile-form";
+import { CloseAccountForm } from "@/components/app/close-account-form";
 import { activeAccounts } from "@/lib/accounts";
 import { LedgerRowFix } from "@/components/app/ledger-row-fix";
 import { requirePermission } from "@/lib/session";
@@ -251,6 +252,11 @@ export default async function AccountDetailPage({
               <Icon className="h-3.5 w-3.5" />
               {t(locale, KIND_LABEL[account.kind])}
             </span>
+            {account.active ? null : (
+              <span className="ml-2 inline-flex items-center rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium backdrop-blur">
+                {t(locale, "Account closed")}
+              </span>
+            )}
             <h1 className="mt-3 font-display text-3xl font-bold tracking-tight">
               {account.name}
             </h1>
@@ -302,6 +308,30 @@ export default async function AccountDetailPage({
             kind={account.kind}
             systemBalance={balance}
             currency={account.currency}
+          />
+        </div>
+      ) : null}
+
+      {/* Closing sits with the other things done TO the account, folded away:
+          rare, and final for every picker in the app. A closed account that
+          something later posted to — an old payment cancelled — is offered the
+          same door to send what is left on. */}
+      {account.active ? null : (
+        <p className="mb-4 rounded-xl border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          {t(locale, "This account is closed. Nothing new can be recorded into it; everything that moved through it stays below.")}
+        </p>
+      )}
+      {can(user.role, "account.manage") && (account.active || Math.abs(balance) >= 0.005) ? (
+        <div className="mb-6">
+          <CloseAccountForm
+            accountId={account.id}
+            name={account.name}
+            currency={account.currency}
+            balance={balance}
+            active={account.active}
+            targets={(await activeAccounts())
+              .filter((a) => a.id !== account.id && a.currency === account.currency)
+              .map((a) => ({ id: a.id, name: a.name }))}
           />
         </div>
       ) : null}

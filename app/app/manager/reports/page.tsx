@@ -69,7 +69,7 @@ const ASKS: Partial<Record<ReportKey, string>> = {
   staff: "Everybody with a live account, what they do and what they are paid.",
   ledger: "Every movement of money in the order it happened.",
   bank: "Every movement through a bank account.",
-  "mobile-money": "Every movement through M-Pesa, Mixx and the rest.",
+  "mobile-money": "Every movement through Lipa (M-Pesa and Mixx by Yas).",
   /* Named for what it reads, not for a model: there is no petty-cash entity in
      this system — this is every CASH-kind account. */
   "petty-cash": "Every movement of physical cash, and what the tin should hold.",
