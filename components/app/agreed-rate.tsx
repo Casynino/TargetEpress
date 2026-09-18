@@ -72,20 +72,16 @@ export function AgreedRate({
 
   if (compact) {
     /*
-      TWO SHORT LINES, IN THE WORDS THE DESK SAYS ON THE PHONE.
+      ONE LINE: WHAT THE PRICE WAS, AND WHAT IT IS NOW.
 
-      This used to be one pill — "USD 13.50/kg · book 40.00/item · unit
-      changed" — and the owner could not read it at a glance: "book" is our
-      word for the rate book, not his, and "unit changed" did not say changed
-      from what to what. So each figure gets a plain label, the units are
-      written out, and the normal price sits directly under the special one.
-      When the two are in different units, "per kg" over "per item" is the
-      change itself, so the units are what gets coloured — a separate note
-      saying so wrapped onto a third line in a list column.
-
-      Still only as tall as it must be on a hundred-row queue, and no box: a
-      thin bar marks it as a note about the cargo, not a button.
+      The owner's own words for it — "price changed from 40 per pc to 13.5
+      per kg". Two labelled lines, and a box before them, each still took
+      more of a list row than the fact is worth. The old price comes first
+      and quiet, the new one after the arrow and bold; a unit that changed
+      needs no note, because "per pc → per kg" is the change. The explanation
+      and the reason are on hover.
     */
+    const short = (byItem: boolean) => (byItem ? t("per pc") : t("per kg"));
     const detail = [
       t("Special rate for this cargo"),
       switched
@@ -97,37 +93,30 @@ export function AgreedRate({
     ]
       .filter(Boolean)
       .join(" · ");
-    const unitTone = switched ? "font-medium text-warning" : "";
     return (
-      <div
+      <span
         title={detail}
-        className={`grid w-fit grid-cols-[auto_auto] items-baseline gap-x-2 whitespace-nowrap border-l-2 border-brand/60 pl-2 text-[11px] leading-4 tabular-nums ${className}`}
+        className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] leading-4 tabular-nums ${className}`}
       >
-        <span className="font-medium text-brand">{t("Special price")}</span>
-        <span className="flex items-baseline gap-x-1.5">
-          <span className="font-semibold text-foreground">
-            {currency} {agreed.toFixed(2)} <span className={unitTone}>{unit}</span>
-          </span>
-          {/* A signed figure, not "1.00 less": the words pushed the difference
-              onto a line of its own in a list column. */}
-          {off !== null && Math.abs(off) > 0.005 ? (
-            <span className={off > 0 ? "text-success" : "text-warning"}>
-              {off > 0 ? "−" : "+"}
-              {Math.abs(off).toFixed(2)}
+        <Tag className="h-3 w-3 shrink-0 text-brand" aria-hidden />
+        <span className="font-medium text-brand">{t("Price changed")}:</span>
+        {standard !== null ? (
+          <>
+            <span className="text-muted-foreground">
+              {currency} {standard.toFixed(2)} {short(bookByItem)}
             </span>
-          ) : null}
+            <span className="text-muted-foreground" aria-hidden>
+              →
+            </span>
+          </>
+        ) : null}
+        <span className="font-semibold text-foreground">
+          {currency} {agreed.toFixed(2)} {short(perItem)}
         </span>
-        <span className="text-muted-foreground">{t("Normal price")}</span>
-        <span className="text-muted-foreground">
-          {standard !== null ? (
-            <>
-              {currency} {standard.toFixed(2)} <span className={unitTone}>{bookUnit}</span>
-            </>
-          ) : (
-            t("not recorded")
-          )}
-        </span>
-      </div>
+        {standard === null ? (
+          <span className="text-muted-foreground">({t("normal price not recorded")})</span>
+        ) : null}
+      </span>
     );
   }
 
