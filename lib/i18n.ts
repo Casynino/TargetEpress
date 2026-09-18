@@ -6003,6 +6003,11 @@ const ZH: Record<string, string> = {
     "的费用由借款支付——在还款给出借人之前，公司账户还没有为它付钱。",
   "LoanMovement": "借款收付",
   "Account closed": "账户已关闭",
+  "/kg": "/公斤",
+  "/item": "/件",
+  "book": "价目表",
+  "book rate not recorded": "价目表价格未记录",
+  "unit changed": "计价单位已改",
   "To close this account, first set its opening balance — even if it was zero — so money that was in it before the system started is not lost.":
     "要关闭此账户，请先设置它的期初余额（即使为零），这样系统启用前账户里的钱就不会丢失。",
   "Set it on the Accounts page": "在账户页面设置",

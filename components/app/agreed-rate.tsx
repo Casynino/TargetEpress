@@ -29,6 +29,7 @@ export function AgreedRate({
   perItem = false,
   bookPerItem,
   reason = null,
+  compact = false,
   className = "",
 }: {
   /** The rate book's own rate for this cargo. */
@@ -43,6 +44,9 @@ export function AgreedRate({
   bookPerItem?: boolean;
   /** Why, when the desk gave a reason. */
   reason?: string | null;
+  /** One small line for a list row: the same three facts, the explanation
+      and the reason on hover. The full box is for a panel with room. */
+  compact?: boolean;
   className?: string;
 }) {
   const t = useT();
@@ -65,6 +69,59 @@ export function AgreedRate({
     standard === null || switched
       ? null
       : Math.round((standard - agreed) * 100) / 100;
+
+  if (compact) {
+    /*
+      THE SAME FACTS, ONE LINE TALL.
+
+      On a queue of a hundred bills the full box made every row with a
+      special rate three times the height of its neighbours. The rule does not
+      bend for the space: the agreed rate never appears without the book's,
+      and a changed unit is still said — as a small tag, with the sentence
+      behind it on hover.
+    */
+    const per = (byItem: boolean) => (byItem ? t("/item") : t("/kg"));
+    const detail = [
+      t("Special rate for this cargo"),
+      switched
+        ? perItem
+          ? t("Charged per item — the rate book prices it per kg")
+          : t("Charged per kg — the rate book prices it per item")
+        : null,
+      reason ? `“${reason}”` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    return (
+      <span
+        title={detail}
+        className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-brand/30 bg-brand/[0.06] px-2 py-0.5 text-[11px] leading-tight tabular-nums ${className}`}
+      >
+        <Tag className="h-3 w-3 shrink-0 text-brand" aria-hidden />
+        <span className="sr-only">{t("Special rate for this cargo")}:</span>
+        <span className="font-semibold text-foreground">
+          {currency} {agreed.toFixed(2)}
+          {per(perItem)}
+        </span>
+        <span className="text-muted-foreground">
+          {standard !== null
+            ? `· ${t("book")} ${standard.toFixed(2)}${per(bookByItem)}`
+            : `· ${t("book rate not recorded")}`}
+        </span>
+        {off !== null && Math.abs(off) > 0.005 ? (
+          <span className={off > 0 ? "text-success" : "text-warning"}>
+            {off > 0 ? "−" : "+"}
+            {Math.abs(off).toFixed(2)}
+          </span>
+        ) : null}
+        {switched ? (
+          <span className="rounded-full bg-warning/15 px-1.5 font-medium text-warning">
+            {t("unit changed")}
+          </span>
+        ) : null}
+      </span>
+    );
+  }
 
   return (
     <div

@@ -637,7 +637,8 @@ export default async function FollowUpPage({
                       perItem={row.ratePerItem}
                       bookPerItem={row.bookPerItem}
                       reason={row.agreedRateReason}
-                      className="mt-1 max-w-[18rem]"
+                      compact
+                      className="mt-1"
                     />
                   ) : null}
                 </td>

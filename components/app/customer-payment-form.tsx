@@ -758,7 +758,7 @@ export function CustomerPaymentForm({
                         perItem={bill.ratePerItem}
                         bookPerItem={bill.bookPerItem}
                         reason={bill.agreedRateReason}
-                        className="w-full"
+                        compact
                       />
                       {canDiscount && bill.ratePricedOn > 0 ? (
                         <EditFreightRate
