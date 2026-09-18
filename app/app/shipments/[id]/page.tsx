@@ -760,6 +760,7 @@ export default async function ShipmentPage({
           accounts={costAccounts}
           rate={costRate}
           canRecord={canRecordCost}
+          canRecordLoan={can(user.role, "loan.record")}
           closed={dispatch.closedAt !== null}
         />
       ) : null}

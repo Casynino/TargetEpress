@@ -84,6 +84,7 @@ export function BatchExpenses({
   accounts,
   rate,
   canRecord,
+  canRecordLoan = false,
   closed = false,
 }: {
   batchId: string;
@@ -93,6 +94,10 @@ export function BatchExpenses({
   /** USD → TZS, for showing a dollar cost in shillings. Null if unpublished. */
   rate: number | null;
   canRecord: boolean;
+  /** May correct a cost paid with a lender's loan. Correcting one moves his
+      debt, so a desk without it is shown no controls on those rows — the
+      server would refuse every press. */
+  canRecordLoan?: boolean;
   /** A closed batch takes no more costs, so it is not offered a form. */
   closed?: boolean;
 }) {
@@ -366,7 +371,7 @@ export function BatchExpenses({
                 separate flow, so it stays as small as it can and still be
                 seen.
               */}
-              {canRecord && !closed ? (
+              {canRecord && !closed && (canRecordLoan || !e.borrowedFrom) ? (
                 <span className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"

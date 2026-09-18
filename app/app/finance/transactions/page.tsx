@@ -507,18 +507,31 @@ export default async function LedgerPage({
         ? creditNotInTheLedger()
         : Promise.resolve(null),
       /* Cash a lender handed over or was paid back, through the company's own
-         accounts, in the same view. Only asked for when the tiles leave loans
-         out — so the Net card can name what it does not count. */
+         accounts, and costs a lender paid from his own pocket, in the same
+         view. Only asked for when the tiles leave loans out — so the Net card
+         can name what it does not count. */
       params.account || where.kind || params.category
         ? Promise.resolve([])
         : prisma.ledgerEntry.groupBy({
             by: ["kind", "currency"],
             where: {
-              ...where,
-              reversesId: null,
-              reversedBy: { is: null },
-              kind: { in: [...LOAN_LEDGER_KINDS] },
-              account: { kind: { not: "LOAN" as const } },
+              AND: [
+                where,
+                { reversesId: null, reversedBy: { is: null } },
+                {
+                  OR: [
+                    {
+                      kind: { in: [...LOAN_LEDGER_KINDS] },
+                      account: { kind: { not: "LOAN" as const } },
+                    },
+                    {
+                      kind: "EXPENSE" as const,
+                      direction: "OUT" as const,
+                      account: { kind: "LOAN" as const },
+                    },
+                  ],
+                },
+              ],
             },
             _sum: { amount: true, amountUsd: true },
           }),
@@ -634,6 +647,9 @@ export default async function LedgerPage({
         0
       );
   const loanNote = [
+    loanTsh("EXPENSE") > 0
+      ? `${formatMoney(Math.round(loanTsh("EXPENSE")))} ${t(locale, "of costs paid with borrowed money")}`
+      : null,
     loanTsh("LOAN_RECEIVED") > 0
       ? `${formatMoney(Math.round(loanTsh("LOAN_RECEIVED")))} ${t(locale, "borrowed")}`
       : null,

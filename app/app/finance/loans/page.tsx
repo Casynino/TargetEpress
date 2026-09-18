@@ -153,10 +153,13 @@ export default async function FinanceLoansPage() {
                         what = (
                           <>
                             <span className="font-medium">
+                              {/* Named by what wrote the line, not by the
+                                  cost's status today: a correction stays a
+                                  correction after the cost is later reversed. */}
                               {cancels
-                                ? e.status === "VOID"
-                                  ? t(locale, "Cost cancelled")
-                                  : t(locale, "Cost corrected")
+                                ? line.description.startsWith("Correction of")
+                                  ? t(locale, "Cost corrected")
+                                  : t(locale, "Cost cancelled")
                                 : `${t(locale, "Cost paid by")} ${lender}`}
                             </span>
                             <span className="text-muted-foreground">

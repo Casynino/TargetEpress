@@ -337,6 +337,7 @@ export default async function ExpensesPage({
     kindTotals,
     rateRow,
     usedMost,
+    borrowedCosts,
   ] = await Promise.all([
     /*
       THE WHOLE WINDOW, NOT ONE PAGE OF IT.
@@ -582,6 +583,16 @@ export default async function ExpensesPage({
       orderBy: { _count: { description: "desc" } },
       take: 8,
     }),
+    /* Costs in this view a lender paid from his own pocket. Real costs, so
+       they are in every card above — but no company account paid them, so the
+       register's Money out does not have them until he is repaid. Named below
+       the cards so the two screens can be put side by side. */
+    prisma.expense.groupBy({
+      by: ["currency"],
+      where: { ...moneyWhere, account: { kind: "LOAN" } },
+      _sum: { amount: true, amountUsd: true },
+      _count: true,
+    }),
   ]);
 
   const rate = rateRow ? toNumber(rateRow.rate) : null;
@@ -615,6 +626,9 @@ export default async function ExpensesPage({
   const recordedTsh = sumShillings(recordedRows, rate);
   const paidTsh = sumShillings(paidRows, rate);
   const unpaidTsh = sumShillings(unpaidRows, rate);
+  const borrowedRows = asMoney(borrowedCosts);
+  const borrowedUsd = sumUsd(borrowedRows, rate);
+  const borrowedTsh = sumShillings(borrowedRows, rate);
   /* Figures already in shillings — never multiplied a second time. */
   /*
     THE CHIPS THE EXPENSE TABLE CANNOT ANSWER.
@@ -887,6 +901,17 @@ export default async function ExpensesPage({
           {t(locale, "Everything recorded has been paid.")}
         </p>
       )}
+      {borrowedUsd > 0 ? (
+        <p className="-mt-1 mb-3">
+          <Link
+            href="/app/finance/loans"
+            className="text-sm font-medium text-warning hover:underline"
+          >
+            {shillings(borrowedTsh, borrowedUsd)}{" "}
+            {t(locale, "of these costs was paid with borrowed money — no company account has paid it until the lender is repaid.")}
+          </Link>
+        </p>
+      ) : null}
 
       {/*
         Find one, or narrow to a kind.

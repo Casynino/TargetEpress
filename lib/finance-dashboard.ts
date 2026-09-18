@@ -543,7 +543,22 @@ export async function financeDashboard(
         kind: meta?.kind ?? "—",
         currency: meta?.currency ?? "USD",
         balance: toNumber(row.inflow) - toNumber(row.outflow),
-        balanceUsd: toNumber(row.inflowUsd) - toNumber(row.outflowUsd),
+        /* On the same footing as the loan above: a shilling account's own
+           balance at today's rate, not the sum of each line's snapshot. Cash
+           on snapshots against a debt at today's rate moved Net position every
+           time the rate was republished, though nothing held or owed had
+           changed — and printed a Cash figure a few shillings off the Accounts
+           page's. */
+        balanceUsd: sumUsd(
+          [
+            {
+              currency: row.currency,
+              amount: toNumber(row.inflow) - toNumber(row.outflow),
+              amountUsd: toNumber(row.inflowUsd) - toNumber(row.outflowUsd),
+            },
+          ],
+          rate
+        ),
       };
     })
     .sort((a, b) => b.balanceUsd - a.balanceUsd);

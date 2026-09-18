@@ -5998,6 +5998,9 @@ const ZH: Record<string, string> = {
   "This moves what the company owes a lender, and only Finance or the owner may change a loan.":
     "这会改变公司欠出借人的金额，只有财务或老板可以修改借款。",
   "Cost corrected": "费用已更正",
+  "of costs paid with borrowed money": "的费用由借款支付",
+  "of these costs was paid with borrowed money — no company account has paid it until the lender is repaid.":
+    "的费用由借款支付——在还款给出借人之前，公司账户还没有为它付钱。",
   "LoanMovement": "借款收付",
   "Not in these figures:": "未计入以上数字：",
   "borrowed": "借入",
