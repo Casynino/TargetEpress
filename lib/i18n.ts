@@ -6003,6 +6003,11 @@ const ZH: Record<string, string> = {
     "的费用由借款支付——在还款给出借人之前，公司账户还没有为它付钱。",
   "LoanMovement": "借款收付",
   "Account closed": "账户已关闭",
+  "To close this account, first set its opening balance — even if it was zero — so money that was in it before the system started is not lost.":
+    "要关闭此账户，请先设置它的期初余额（即使为零），这样系统启用前账户里的钱就不会丢失。",
+  "Set it on the Accounts page": "在账户页面设置",
+  "has no opening balance yet. Set it on the Accounts page first — even if it was zero — so money that was in it before the system started is not lost when it closes.":
+    "还没有期初余额。请先在账户页面设置（即使为零），这样关闭时系统启用前账户里的钱就不会丢失。",
   "This account is closed. Nothing new can be recorded into it; everything that moved through it stays below.":
     "此账户已关闭。不能再记入新的款项；经过它的所有流水都保留在下方。",
   "Closed accounts": "已关闭的账户",

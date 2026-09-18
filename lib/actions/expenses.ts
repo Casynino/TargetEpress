@@ -769,7 +769,11 @@ export async function editExpense(
       if (nextAccountId && !nextAccount) {
         throw new Error(t(locale, "That account no longer exists."));
       }
-      if (nextAccount && !nextAccount.active) {
+      /* Only when money would be posted to it. Correcting the wording, the
+         category or the flight of a cost paid from a till since closed moves
+         nothing — refusing it left the only way through as moving the cost to
+         the new account, which re-dates it to today. */
+      if (nextAccount && !nextAccount.active && (accountChanged || amountChanged)) {
         throw new Error(
           `${nextAccount.name} ${t(locale, "has been archived.")}`
         );

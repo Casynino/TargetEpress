@@ -968,7 +968,11 @@ export async function recordCompensation(
           },
         });
         if (!found) throw new Error(t(locale, "That account no longer exists."));
-        if (!found.active) {
+        /* The payout's own account may since have been closed; a note or a
+           wording fix on it moves no money and is let through. If the figure,
+           the day or the account did change, the new line is refused where
+           every line is posted — nothing new lands on a closed account. */
+        if (!found.active && existing?.accountId !== found.id) {
           throw new Error(`${found.name} ${t(locale, "has been archived.")}`);
         }
         if (found.kind === "LOAN") {

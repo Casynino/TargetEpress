@@ -76,9 +76,11 @@ export async function closeAccount(
     const result = await prisma.$transaction(async (tx) => {
       /*
         Both rows, in a fixed order, so two desks closing accounts into each
-        other cannot each wait on the other. NO KEY UPDATE: two closes queue,
-        but a payment posting a line against either account — whose foreign
-        key takes only a key-share lock — is not held up behind this.
+        other cannot each wait on the other. Every new ledger line takes a
+        share lock on its account first (postLedgerEntry), which this blocks:
+        a payment or cost already posting to the account finishes before the
+        balance below is read, and one that starts now waits, finds the
+        account closed and is refused — so nothing lands on it unseen.
       */
       const ids = [input.accountId, input.intoAccountId].sort();
       await tx.$queryRaw`SELECT "id" FROM "CompanyAccount" WHERE "id" IN (${Prisma.join(ids)}) ORDER BY "id" FOR NO KEY UPDATE`;
@@ -87,7 +89,14 @@ export async function closeAccount(
         [input.accountId, input.intoAccountId].map((id) =>
           tx.companyAccount.findUnique({
             where: { id },
-            select: { id: true, name: true, kind: true, currency: true, active: true },
+            select: {
+              id: true,
+              name: true,
+              kind: true,
+              currency: true,
+              active: true,
+              openingSetAt: true,
+            },
           })
         )
       );
@@ -100,6 +109,18 @@ export async function closeAccount(
       }
       if (!into.active) {
         throw new Error(`${into.name} ${t(locale, "is closed itself. Choose an account that is still open.")}`);
+      }
+      /*
+        An account nobody gave an opening balance holds only what moved
+        through it here — not what was already in it. Closed like that, the
+        money that was on the phone before the system started could never be
+        entered: a closed account takes no opening balance, and Lipa was born
+        with one. So the opening figure comes first, even if it was nothing.
+      */
+      if (account.active && account.openingSetAt === null) {
+        throw new Error(
+          `${account.name} ${t(locale, "has no opening balance yet. Set it on the Accounts page first — even if it was zero — so money that was in it before the system started is not lost when it closes.")}`
+        );
       }
       if (into.currency !== account.currency) {
         throw new Error(
@@ -172,6 +193,11 @@ export async function closeAccount(
           zero, or the other way round — is the published rate used instead.
         */
         let amountUsd = Math.abs(balanceUsd);
+        /* The rate each leg states: the published one when the dollar figure
+           had to come from it, otherwise the one the two figures imply. A few
+           shillings round to USD 0.00, and dividing by that was an infinite
+           rate the database refused. */
+        let legRate: number | null = null;
         if (account.currency === "USD") {
           amountUsd = amount;
         } else if (amountUsd < 0.005 || Math.sign(balanceUsd) !== Math.sign(balance)) {
@@ -182,9 +208,10 @@ export async function closeAccount(
             );
           }
           amountUsd = Math.round((amount / rate) * 100) / 100;
+          legRate = rate;
+        } else {
+          legRate = Math.round((amount / amountUsd) * 10_000) / 10_000;
         }
-        const legRate =
-          account.currency === "USD" ? null : Math.round((amount / amountUsd) * 10_000) / 10_000;
 
         /* Money leaves whichever side holds it: an overdrawn account is made
            whole from the new one. */
@@ -223,6 +250,7 @@ export async function closeAccount(
             sourceId: transfer.id,
             transferId: transfer.id,
             recordedById: user.id,
+            onClosedAccount: true,
           });
         }
         transferNumber = number;
@@ -241,9 +269,11 @@ export async function closeAccount(
           entityId: account.id,
           summary: withNote(
             `${account.active ? "Closed" : "Emptied closed account"} ${account.name}` +
-              (hasMoney
-                ? `; ${formatMoney(balance, account.currency)} moved to ${into.name} on ${transferNumber}`
-                : "; nothing was on it") +
+              (!hasMoney
+                ? "; nothing was on it"
+                : balance > 0
+                  ? `; ${formatMoney(balance, account.currency)} moved to ${into.name} on ${transferNumber}`
+                  : `; overdrawn by ${formatMoney(-balance, account.currency)}, made good from ${into.name} on ${transferNumber}`) +
               (followed.length ? `; ${followed.join(", ")} now name ${into.name}` : ""),
             input.reason
           ),

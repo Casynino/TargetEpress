@@ -329,6 +329,7 @@ export default async function AccountDetailPage({
             currency={account.currency}
             balance={balance}
             active={account.active}
+            needsOpening={account.openingSetAt === null}
             targets={(await activeAccounts())
               .filter((a) => a.id !== account.id && a.currency === account.currency)
               .map((a) => ({ id: a.id, name: a.name }))}

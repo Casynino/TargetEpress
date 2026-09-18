@@ -201,6 +201,29 @@ export async function spendingAccounts(): Promise<AccountOption[]> {
 }
 
 /** Every loan account, open or closed, with the lender's name. */
+/**
+ * Every company account a statement of the money has to show: the open ones,
+ * and a closed one only while it still holds something.
+ *
+ * Closing an account empties it, but a cancelled old payment reverses on the
+ * account it came in on — so a closed M-Pesa can hold money again until
+ * somebody moves it. Leaving it out of one screen and not another is how the
+ * owner's dashboard and the Accounts page came to disagree; every list of
+ * where the money is asks this.
+ */
+export async function moneyAccounts() {
+  return prisma.companyAccount.findMany({
+    where: { kind: { in: [...COMPANY_MONEY_KINDS] } },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { ...OPTION_SELECT, active: true },
+  });
+}
+
+/** Whether an account belongs in a statement of where the money is. */
+export function isHeld(account: { active: boolean }, native: number) {
+  return account.active || Math.abs(native) >= 0.005;
+}
+
 export async function loanAccounts() {
   return prisma.companyAccount.findMany({
     where: { kind: "LOAN" },

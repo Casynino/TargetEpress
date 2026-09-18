@@ -5,6 +5,7 @@ import { cache } from "react";
 import type { Prisma, ReviewState } from "@prisma/client";
 
 import { reviewsFor, type Standing } from "@/lib/control";
+import { isHeld } from "@/lib/accounts";
 import { toNumber } from "@/lib/format";
 import { accountBalances, LOAN_LEDGER_KINDS } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
@@ -401,9 +402,9 @@ export async function accountPositions(): Promise<AccountPosition[]> {
   const [accounts, balances, checks] = await Promise.all([
     prisma.companyAccount.findMany({
       /* Company money only — see accountStandings in lib/control.ts. */
-      where: { active: true, kind: { not: "LOAN" } },
+      where: { kind: { not: "LOAN" } },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, kind: true, currency: true },
+      select: { id: true, name: true, kind: true, currency: true, active: true },
     }),
     accountBalances(prisma),
     prisma.accountReconciliation.findMany({
@@ -424,7 +425,14 @@ export async function accountPositions(): Promise<AccountPosition[]> {
   const byAccount = new Map(balances.map((b) => [b.accountId, b]));
   const checkFor = new Map(checks.map((c) => [c.accountId, c]));
 
-  return accounts.map((account) => {
+  /* Open accounts, and a closed one only while it still holds money — see
+     moneyAccounts in lib/accounts.ts. */
+  const held = accounts.filter((account) => {
+    const b = byAccount.get(account.id);
+    return isHeld(account, b ? toNumber(b.inflow) - toNumber(b.outflow) : 0);
+  });
+
+  return held.map((account) => {
     const b = byAccount.get(account.id);
     const c = checkFor.get(account.id);
     const lastMovedAt = b?.lastMovedAt ?? null;

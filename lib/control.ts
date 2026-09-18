@@ -3,6 +3,7 @@ import "server-only";
 import type { ReviewTarget } from "@prisma/client";
 
 import { approvalQueues } from "@/lib/approvals";
+import { isHeld } from "@/lib/accounts";
 import { toNumber } from "@/lib/format";
 import { accountBalances } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
@@ -72,9 +73,9 @@ export async function accountStandings(now = new Date()): Promise<AccountStandin
       /* Company money only: a loan is not held, not checked against a
          statement, and below zero by design — it would read as overdrawn and
          never checked, forever. */
-      where: { active: true, kind: { not: "LOAN" } },
+      where: { kind: { not: "LOAN" } },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, kind: true, currency: true },
+      select: { id: true, name: true, kind: true, currency: true, active: true },
     }),
     accountBalances(prisma),
     /* Every account's newest check in ONE query rather than one per account:
@@ -98,7 +99,14 @@ export async function accountStandings(now = new Date()): Promise<AccountStandin
   const byAccount = new Map(balances.map((b) => [b.accountId, b]));
   const checkByAccount = new Map(checks.map((c) => [c.accountId, c]));
 
-  return accounts.map((a) => {
+  /* Open accounts, and a closed one only while it still holds money — see
+     moneyAccounts. */
+  const held = accounts.filter((a) => {
+    const b = byAccount.get(a.id);
+    return isHeld(a, b ? toNumber(b.inflow) - toNumber(b.outflow) : 0);
+  });
+
+  return held.map((a) => {
     const b = byAccount.get(a.id);
     const c = checkByAccount.get(a.id);
     const lastMovedAt = b?.lastMovedAt ?? null;

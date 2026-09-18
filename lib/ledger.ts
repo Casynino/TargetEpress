@@ -55,6 +55,11 @@ export type PostEntry = {
    * cannot be reversed twice.
    */
   reversesId?: string | null;
+  /**
+   * Post to an account that has been closed. Only closing it may: the
+   * transfer that empties it is the one new movement a closed account takes.
+   */
+  onClosedAccount?: boolean;
 };
 
 /*
@@ -83,6 +88,30 @@ export async function postLedgerEntry(tx: TxClient, entry: PostEntry) {
     where: { id: entry.accountId },
     select: { kind: true, name: true },
   });
+  /*
+    NOTHING NEW LANDS ON A CLOSED ACCOUNT.
+
+    Each form refuses a closed account when it reads it, but it reads it
+    before it writes — so a payment or a cost begun while M-Pesa was being
+    closed into Lipa could still post to M-Pesa after the close had taken its
+    balance, leaving it closed and holding money nobody moved. Re-read here,
+    under a share lock: a close already under way (it holds the row) makes
+    this wait and then refuse; a post already under way makes the close wait
+    and then count it.
+
+    A reversal is let through — cancelling an old M-Pesa payment has to undo
+    it on M-Pesa, where it was recorded — and so is a loan, which is never
+    closed this way and whose row a repayment already holds.
+  */
+  if (account && account.kind !== "LOAN" && !entry.reversesId && !entry.onClosedAccount) {
+    const [row] = await tx.$queryRaw<{ active: boolean }[]>`
+      SELECT "active" FROM "CompanyAccount" WHERE "id" = ${entry.accountId} FOR SHARE`;
+    if (row && !row.active) {
+      throw new Error(
+        `${account.name} has been closed, so nothing new can be recorded into it. Use the account that replaced it.`
+      );
+    }
+  }
   if (account?.kind === "LOAN" && !LOAN_ACCOUNT_KINDS.includes(entry.kind)) {
     throw new Error(
       `${account.name} is money the company owes, not a company account, so nothing but a cost it paid or a repayment can be put against it.`

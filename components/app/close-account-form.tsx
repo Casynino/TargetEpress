@@ -26,6 +26,7 @@ export function CloseAccountForm({
   currency,
   balance,
   active,
+  needsOpening,
   targets,
 }: {
   accountId: string;
@@ -34,6 +35,8 @@ export function CloseAccountForm({
   /** What is on it now, in its own currency. */
   balance: number;
   active: boolean;
+  /** No opening balance was ever set — it has to be, before closing. */
+  needsOpening: boolean;
   /** Open company accounts in the same currency, this one excluded. */
   targets: { id: string; name: string }[];
 }) {
@@ -65,6 +68,17 @@ export function CloseAccountForm({
 
   const hasMoney = Math.abs(balance) >= 0.005;
   const chosen = targets.find((a) => a.id === into)?.name;
+
+  if (active && needsOpening) {
+    return (
+      <p className="rounded-xl border border-warning/40 bg-warning/5 px-4 py-3 text-sm text-muted-foreground">
+        {t("To close this account, first set its opening balance — even if it was zero — so money that was in it before the system started is not lost.")}{" "}
+        <Link href="/app/finance/accounts" className="font-medium text-brand hover:underline">
+          {t("Set it on the Accounts page")}
+        </Link>
+      </p>
+    );
+  }
 
   if (!open) {
     return (

@@ -87,7 +87,7 @@ import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/forma
 import { outstandingOf } from "@/lib/invoice-balance";
 import { t } from "@/lib/i18n";
 import { currentRate, formatUsd } from "@/lib/fx";
-import { activeAccounts } from "@/lib/accounts";
+import { isHeld, moneyAccounts } from "@/lib/accounts";
 import { accountBalances, moneyOutRows } from "@/lib/ledger";
 import {
   agingInWarehouse,
@@ -1572,7 +1572,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     attentionItems(role, locale),
     monthlyRevenue(new Date(), locale),
     currentRate(),
-    activeAccounts(),
+    moneyAccounts(),
     accountBalances(prisma),
     // The queue the old dashboard had no tile for.
     prisma.invoice.aggregate({
@@ -1689,6 +1689,9 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
         usd: row ? toNumber(row.inflowUsd) - toNumber(row.outflowUsd) : 0,
       };
     })
+    /* A closed account still holding money is counted until it is moved —
+       the Accounts page counts it, and this tile says it is that figure. */
+    .filter((a) => isHeld(a, a.native))
     .sort((a, b) => b.usd - a.usd);
   const cashUsd = accountRows.reduce((sum, a) => sum + a.usd, 0);
   /*
