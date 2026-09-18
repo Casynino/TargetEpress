@@ -193,7 +193,7 @@ const COUNTERPART: Record<AccountKind, { text: string; checkable: boolean }> = {
     checkable: true,
   },
   LOAN: {
-    text: "Money the company owes a lender. It is agreed with him, not counted or read off a statement.",
+    text: "Money the company owes a lender. It is agreed with the lender, not counted or read off a statement.",
     checkable: false,
   },
 };

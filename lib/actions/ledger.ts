@@ -114,8 +114,8 @@ export async function cancelLedgerEntry(
         A LOAN IS WRITTEN BY FINANCE, NOT BY THE PERSON OWED.
 
         The lender is the manager, and the manager may cancel register lines.
-        Cancelling a repayment would put his debt back up and give the bank
-        money it no longer holds; cancelling a cost on his loan would take it
+        Cancelling a repayment would put her debt back up and give the bank
+        money it no longer holds; cancelling a cost on her loan would take it
         down. Every other door to a loan asks for loan.record, so this one
         does too — for either leg of a movement, and for any line on the loan.
       */

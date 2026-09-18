@@ -94,7 +94,7 @@ export function BatchExpenses({
   /** USD → TZS, for showing a dollar cost in shillings. Null if unpublished. */
   rate: number | null;
   canRecord: boolean;
-  /** May correct a cost paid with a lender's loan. Correcting one moves his
+  /** May correct a cost paid with a lender's loan. Correcting one moves her
       debt, so a desk without it is shown no controls on those rows — the
       server would refuse every press. */
   canRecordLoan?: boolean;

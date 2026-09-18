@@ -2757,7 +2757,7 @@ const ZH: Record<string, string> = {
     "客服从客户处收集的付款申报。在你确认之前，不会结清任何账单，也不会放行任何货物。",
   "What each closed batch made. The figures are worked out when Finance shuts the books and frozen there — then the boss reviews them.":
     "每个已关闭航班的收益。数字在财务结账时算出并就此固定——之后由老板审阅。",
-  "Build the month from the staff register, correct the exceptions, and send it to the manager. Nothing leaves the account until he has agreed it.":
+  "Build the month from the staff register, correct the exceptions, and send it to the manager. Nothing leaves the account until the manager has agreed it.":
     "依据员工名册生成本月工资，更正例外情况，然后提交给经理。在经理批准之前，账户不会支出任何款项。",
   "What Finance has prepared, name by name. Agree it, send it back with a reason, or pay what you have already agreed.":
     "财务已准备好的名单，逐人列出。你可以批准、附理由退回，或支付已批准的部分。",
@@ -3160,7 +3160,7 @@ const ZH: Record<string, string> = {
   "Nothing is waiting on you. Every queue is clear, every account has been checked, and nothing is in dispute.": "没有等你处理的事项。所有队列已清空，所有账户已核对完毕，也没有任何争议。",
   "Nothing matches those filters": "没有符合筛选条件的结果",
   "Nothing matches.": "没有匹配结果。",
-  "Nothing on it can change while it waits. It comes back only if he sends it back.": "等待期间内容不能改动，只有他退回才会回到这里。",
+  "Nothing on it can change while it waits. It comes back only if the manager sends it back.": "等待期间内容不能改动，只有经理退回才会回到这里。",
   "Nothing on the run can be changed once it has gone up. It comes back only if the manager sends it back.": "工资单一经上报便不能改动，只有经理退回才会回到这里。",
   "Nothing recorded against": "没有记录在",
   "Nothing selected": "未选择任何项",
@@ -5932,7 +5932,7 @@ const ZH: Record<string, string> = {
   "Paid with": "支付来源",
   "Borrowed money (loan)": "借入的钱（借款）",
   "borrowed money": "借入的钱",
-  "paid this from his own money. It is recorded as a normal cost, and the company now owes it back to him.": "用自己的钱支付了这笔费用。它按正常费用记录，公司现在欠他这笔钱。",
+  "paid this personally. It is recorded as a normal cost, and the company now owes the money back.": "个人支付了这笔费用。它按正常费用记录，公司现在须归还这笔钱。",
   "Borrowed from a lender": "向出借人借款",
   "Loan repaid": "已还借款",
   "Money borrowed from a lender": "向出借人借款",
@@ -5952,8 +5952,8 @@ const ZH: Record<string, string> = {
   "No company account is in": "没有公司账户使用",
   ", so nothing can be repaid or received on this loan yet.": "，因此暂时无法对这笔借款还款或收款。",
   "Every movement on this loan": "这笔借款的全部记录",
-  "Nothing yet. When the lender pays a company cost with his own money, record the cost as usual and choose this loan under “Paid from”.":
-    "暂无记录。出借人用自己的钱支付公司费用时，照常登记该费用，并在“付款账户”中选择这笔借款。",
+  "Nothing yet. When the lender pays a company cost personally, record the cost as usual and choose this loan under “Paid from”.":
+    "暂无记录。出借人个人支付公司费用时，照常登记该费用，并在“付款账户”中选择这笔借款。",
   "Cost cancelled": "费用已撤销",
   "Cost paid by": "费用支付人：",
   "Repayment cancelled": "还款已撤销",
@@ -5966,8 +5966,8 @@ const ZH: Record<string, string> = {
   "Record a repayment": "登记还款",
   "Record money received": "登记收到的借款",
   "The company pays": "公司向",
-  "back. This is not a cost — it reduces what is owed to him.": "还款。这不是费用——它减少公司欠他的金额。",
-  "hands money to the company. This is not income — it is borrowed, and adds to what is owed to him.": "把钱交给公司。这不是收入——这是借款，会增加公司欠他的金额。",
+  "back. This is not a cost — it reduces what the company owes.": "还款。这不是费用——它减少公司所欠的金额。",
+  "hands money to the company. This is not income — it is borrowed, and adds to what the company owes.": "把钱交给公司。这不是收入——这是借款，会增加公司所欠的金额。",
   "Received into": "收款账户",
   "Bank slip, M-Pesa code…": "银行回单、M-Pesa 交易码…",
   "Currently owed to": "目前欠",
@@ -5981,7 +5981,7 @@ const ZH: Record<string, string> = {
   "Use an account in the loan's currency.": "请使用与借款币种相同的账户。",
   "A repayment cannot be more than what is owed.": "还款不能超过欠款。",
   "This was already recorded. Reload the page — recording it again would move the same money twice.": "这笔已经登记过了。请刷新页面——再次登记会让同一笔钱被记两次。",
-  "Say whether money came in from the lender or went back to him.": "请说明是从出借人收到钱，还是还钱给他。",
+  "Say whether money came in from the lender or went back to the lender.": "请说明是从出借人收到钱，还是还钱给出借人。",
   "Say whose loan this is.": "请说明这是谁的借款。",
   "Say which company account the money moved through.": "请说明这笔钱经过哪个公司账户。",
   "Enter an amount.": "请输入金额。",

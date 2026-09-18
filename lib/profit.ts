@@ -368,7 +368,7 @@ export async function profitAndLoss(window: ProfitWindow) {
     // the revenue line's own treatment of a write-off. Asked of the credit
     // engine, never worked out here.
     creditForPeriod(window),
-    /* Cash a lender handed over, and repayments to him, through company
+    /* Cash a lender handed over, and repayments to her, through company
        accounts. Neither is revenue or a cost; both moved the company's cash. */
     loanCashRows({ from: window.from, to: window.to }),
   ]);
@@ -468,7 +468,7 @@ export async function profitAndLoss(window: ProfitWindow) {
   /*
     BORROWED AND REPAID, BESIDE THE CASH — NOT INSIDE IT.
 
-    A cost the lender paid himself is in `costs` and not in `cashOut`: no
+    A cost the lender paid herself is in `costs` and not in `cashOut`: no
     company account paid it. The company's cash moves when he hands money over
     or is paid back, and net cash has to see that or it stops being what the
     accounts actually gained. Kept as lines of their own so neither is ever

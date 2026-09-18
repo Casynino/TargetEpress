@@ -3,9 +3,9 @@
 -- Run on Neon AFTER the code that knows about loans is deployed (see
 -- neon-loans.sql for why the order matters). Safe to run twice.
 --
--- In shillings, because that is the money he lends. Stamped as opened so the
+-- In shillings, because that is the money she lends. Stamped as opened so the
 -- accounts page never asks for an opening balance: a loan starts at nothing
--- owed, and debt from before today is recorded as the costs he actually paid,
+-- owed, and debt from before today is recorded as the costs she actually paid,
 -- on the days he paid them. Sorted last, so no form that picks the first
 -- account in a list can ever pick this one.
 

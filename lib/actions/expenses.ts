@@ -33,7 +33,7 @@ import { firstError } from "@/lib/validation";
   Every cost put on a loan account — or moved on or off one, or changed in
   amount while it is there — moves what the company owes the lender. The
   lender is the manager, who holds expense.record like Finance does; letting
-  the person owed write his own debt is what credit and payroll already refuse.
+  the person owed write her own debt is what credit and payroll already refuse.
   So on a loan account the cost also needs loan.record: Finance and the owner.
 */
 function assertMayTouchLoan(

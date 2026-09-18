@@ -315,7 +315,7 @@ export function ExpenseForm({
                  recording it creates a debt the company has to pay back. */
               <p className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-xs text-warning">
                 {loanChosen.accountName || loanChosen.name}{" "}
-                {t("paid this from his own money. It is recorded as a normal cost, and the company now owes it back to him.")}
+                {t("paid this personally. It is recorded as a normal cost, and the company now owes the money back.")}
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">

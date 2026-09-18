@@ -25,8 +25,8 @@ export const metadata: Metadata = { title: "Loans" };
  * and profit total leave loan accounts out. What is owed is summed from the
  * ledger lines on the loan account each time the page is read.
  *
- * The manager reads this page (he is the lender, and should see what the
- * company says it owes him) but does not record on it.
+ * The manager reads this page (she is the lender, and should see what the
+ * company says it owes her) but does not record on it.
  */
 export default async function FinanceLoansPage() {
   const user = await requirePermission("loan.view");
@@ -135,7 +135,7 @@ export default async function FinanceLoansPage() {
                 <h3 className="mb-3 text-sm font-semibold">{t(locale, "Every movement on this loan")}</h3>
                 {register.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    {t(locale, "Nothing yet. When the lender pays a company cost with his own money, record the cost as usual and choose this loan under “Paid from”.")}
+                    {t(locale, "Nothing yet. When the lender pays a company cost personally, record the cost as usual and choose this loan under “Paid from”.")}
                   </p>
                 ) : (
                   <ol className="divide-y">

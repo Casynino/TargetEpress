@@ -21,7 +21,7 @@ import { viewerLocale } from "@/lib/viewer";
 
 const movementSchema = z.object({
   kind: z.enum(["RECEIVED", "REPAID"], {
-    message: "Say whether money came in from the lender or went back to him.",
+    message: "Say whether money came in from the lender or went back to the lender.",
   }),
   loanAccountId: z.string().min(1, "Say whose loan this is."),
   accountId: z.string().min(1, "Say which company account the money moved through."),
@@ -52,19 +52,19 @@ const movementSchema = z.object({
 });
 
 /**
- * MONEY BORROWED FROM A LENDER, OR PAID BACK TO HIM.
+ * MONEY BORROWED FROM A LENDER, OR PAID BACK TO HER.
  *
  * Neither income nor a cost. RECEIVED: the lender handed cash to the company —
  * a company account holds more and the company owes more. REPAID: the company
- * paid him back — it holds less and owes less. Costs the lender paid directly
- * are ordinary expenses "paid from" his loan and never come through here.
+ * paid her back — it holds less and owes less. Costs the lender paid directly
+ * are ordinary expenses "paid from" her loan and never come through here.
  *
  * Two ledger lines in one transaction, one on the loan and one on the company
  * account, like a transfer — so the debt and the cash can never disagree, and
  * cancelling one line brings both back.
  *
  * Finance and the owner only (loan.record). The lender is the manager, and the
- * person owed does not write his own debt.
+ * person owed does not write her own debt.
  */
 export async function recordLoanMovement(
   _prev: ActionResult<{ movementNumber: string }> | undefined,

@@ -436,7 +436,7 @@ export default async function ExpensesPage({
         })
       : Promise.resolve([]),
     /* Loans included: the filter can narrow to costs a lender paid, and a
-       cost can be paid from — or corrected onto — his loan. */
+       cost can be paid from — or corrected onto — the loan. */
     spendingAccounts(),
     // Only dispatches still worth attaching a cost to. A batch that closed last
     // year is not what somebody is filing today's customs bill against.
@@ -583,9 +583,9 @@ export default async function ExpensesPage({
       orderBy: { _count: { description: "desc" } },
       take: 8,
     }),
-    /* Costs in this view a lender paid from his own pocket. Real costs, so
+    /* Costs in this view a lender paid from her own pocket. Real costs, so
        they are in every card above — but no company account paid them, so the
-       register's Money out does not have them until he is repaid. Named below
+       register's Money out does not have them until she is repaid. Named below
        the cards so the two screens can be put side by side. */
     prisma.expense.groupBy({
       by: ["currency"],

@@ -411,9 +411,9 @@ export async function submitPayrollRun(
         throw new Error(`${account.name} ${t(locale, "has been archived.")}`);
       }
       /* Salaries are paid from company money. If the lender funds a payroll,
-         his money comes in first as cash received on the loan, and the run is
+         her money comes in first as cash received on the loan, and the run is
          paid from the account it landed in — the manager approves payroll, and
-         would otherwise approve a debt owed to himself. */
+         would otherwise approve a debt owed to herself. */
       if (account.kind === "LOAN") {
         throw new Error(`${account.name} ${t(locale, "is a loan — money the company owes, not a company account — so it cannot be used here.")}`);
       }
@@ -911,7 +911,7 @@ const runNowSchema = periodSchema.extend({
 });
 
 /**
- * THE MANAGER RUNS THE MONTH HIMSELF, in one action.
+ * THE MANAGER RUNS THE MONTH HERSELF, in one action.
  *
  * The owner: "manager can just run a payroll and the money will be deducted".
  * The two-step month — Finance builds and sends up, the manager accepts — keeps

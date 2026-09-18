@@ -98,7 +98,7 @@ const KIND_LABEL: Record<string, string> = {
      raw enum, because it appears on the register beside real income and must
      not read as either an expense or a payment. */
   TRANSPORT_OUT: "Transport paid out",
-  /* Money a lender handed over, and money paid back to him. Neither is income
+  /* Money a lender handed over, and money paid back to her. Neither is income
      nor a cost — named so it cannot be read as either. */
   LOAN_RECEIVED: "Borrowed from a lender",
   LOAN_REPAYMENT: "Loan repaid",
@@ -507,7 +507,7 @@ export default async function LedgerPage({
         ? creditNotInTheLedger()
         : Promise.resolve(null),
       /* Cash a lender handed over or was paid back, through the company's own
-         accounts, and costs a lender paid from his own pocket, in the same
+         accounts, and costs a lender paid from her own pocket, in the same
          view. Only asked for when the tiles leave loans out — so the Net card
          can name what it does not count. */
       params.account || where.kind || params.category
@@ -719,7 +719,7 @@ export default async function LedgerPage({
       continue;
     }
     /* Across every account the balance is the company's cash. A line on a
-       lender's loan moved his money, not the company's: it carries the balance
+       lender's loan moved her money, not the company's: it carries the balance
        of the row beneath it, as a cancelled line does. */
     if (!single && entry.account.kind === "LOAN") {
       runningById.set(entry.id, running);

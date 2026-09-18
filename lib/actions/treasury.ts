@@ -518,7 +518,7 @@ export async function setOpeningBalance(
       if (!account.active) throw new Error(`${account.name} has been archived.`);
       /* An opening balance is money the account HOLDS. A loan holds a debt:
          what was owed before it was on the system is recorded as the costs the
-         lender actually paid, on the days he paid them. */
+         lender actually paid, on the days she paid them. */
       if (account.kind === "LOAN") {
         throw new Error(`${account.name} is a loan — money the company owes, not a company account — so it cannot be used here.`);
       }

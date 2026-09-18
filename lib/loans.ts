@@ -10,7 +10,7 @@ import type { TxClient } from "@/lib/prisma";
  *
  * Derived from the ledger lines on the loan account every time, like every
  * other figure here — nothing stores a balance. A cost the lender paid is an
- * EXPENSE line OUT of the loan (the company spent his money); cash he handed
+ * EXPENSE line OUT of the loan (the company spent her money); cash she handed
  * over is LOAN_RECEIVED OUT of the loan; a repayment is LOAN_REPAYMENT IN. What
  * is owed is everything out less everything in.
  *

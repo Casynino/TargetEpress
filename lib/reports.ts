@@ -1342,7 +1342,7 @@ function ledgerReport(
   entries: Awaited<ReturnType<typeof ledgerRows>>,
   /*
     Across every account, the balance is the company's money, and a lender's
-    loan is not money it holds. His lines stay listed — a cost he paid is part
+    loan is not money it holds. Her lines stay listed — a cost she paid is part
     of the record — but carry the balance past them and stay out of the foot,
     the way the on-screen register treats them. Narrowed to the loan itself,
     they count like any account's.
@@ -1605,8 +1605,8 @@ async function cashFlow(f: ReportFilters): Promise<ReportResult> {
        twice, once on each side. Neither is cash that flowed. */
     if (e.reversesId || e.reversedBy) continue;
     /* A loan account is what the company owes, not money it holds. A cost the
-       lender paid from his own pocket left no company account; the company's
-       cash moves when he is repaid, on the company account's leg below. */
+       lender paid from her own pocket left no company account; the company's
+       cash moves when she is repaid, on the company account's leg below. */
     if (e.account.kind === "LOAN") continue;
     const key = e.occurredAt.toISOString().slice(0, 7);
     const row = months.get(key) ?? { in: 0, out: 0, borrowed: 0, repaid: 0 };

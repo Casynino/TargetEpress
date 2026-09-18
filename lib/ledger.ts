@@ -61,7 +61,7 @@ export type PostEntry = {
   WHAT MAY TOUCH A LOAN ACCOUNT.
 
   A cost the lender paid (EXPENSE, and its correction going the other way),
-  money he handed over or was paid back (LOAN_*), and the adjustments that
+  money she handed over or was paid back (LOAN_*), and the adjustments that
   correct a line. Nothing else: a customer's payment, a transfer, a delivery
   fare or an opening balance on a loan account would be company money filed
   as a debt, or a debt filed as company money.
@@ -215,7 +215,7 @@ export async function accountBalances(
  * the bank spends nothing — and neither half of a cancelled pair is, since a
  * reversal answers a line that was already counted.
  *
- * Out of a COMPANY account. A cost a lender paid from his own pocket is a real
+ * Out of a COMPANY account. A cost a lender paid from her own pocket is a real
  * cost, and Profit & loss carries it from the day it was paid — but no company
  * money left for it, so it is not money out until the company pays him back,
  * and that repayment is counted beside money out (see loanCashRows), never as
@@ -306,7 +306,7 @@ export async function moneyOutRows(
 }
 
 /**
- * Money a lender handed the company, and money the company paid him back, as
+ * Money a lender handed the company, and money the company paid her back, as
  * it moved through the company's own accounts in a window — the company-side
  * leg of each loan movement, live ones only. For a statement of cash to add
  * beside money in and money out; never to be added into either.

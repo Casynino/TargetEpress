@@ -127,7 +127,7 @@ export default async function FinancePayrollPage({
           actions are in the shared header above; this is the one
           sentence that belongs to the list below. */}
       <p className="mb-4 -mt-2 max-w-3xl text-sm text-muted-foreground">
-        {t(locale, "Build the month from the staff register, correct the exceptions, and send it to the manager. Nothing leaves the account until he has agreed it.")}
+        {t(locale, "Build the month from the staff register, correct the exceptions, and send it to the manager. Nothing leaves the account until the manager has agreed it.")}
       </p>
 
       {/* Building leads when this month has no run: it is then the one thing to
@@ -203,7 +203,7 @@ export default async function FinancePayrollPage({
               <span className="text-muted-foreground">
                 {t(
                   locale,
-                  "Nothing on it can change while it waits. It comes back only if he sends it back."
+                  "Nothing on it can change while it waits. It comes back only if the manager sends it back."
                 )}
               </span>
             </p>

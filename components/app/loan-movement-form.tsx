@@ -118,12 +118,12 @@ export function LoanMovementForm({
             {mode === "REPAID" ? (
               <>
                 {t("The company pays")} <span className="font-semibold">{lender}</span>{" "}
-                {t("back. This is not a cost — it reduces what is owed to him.")}
+                {t("back. This is not a cost — it reduces what the company owes.")}
               </>
             ) : (
               <>
                 <span className="font-semibold">{lender}</span>{" "}
-                {t("hands money to the company. This is not income — it is borrowed, and adds to what is owed to him.")}
+                {t("hands money to the company. This is not income — it is borrowed, and adds to what the company owes.")}
               </>
             )}
           </p>
