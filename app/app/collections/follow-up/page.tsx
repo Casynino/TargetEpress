@@ -621,24 +621,11 @@ export default async function FollowUpPage({
                       </span>
                     ) : null}
                   </div>
-                  {/* Only when there is something to say. A credit row knows the
-                      money and the dates, not what is in the boxes, and a line
-                      per row reporting that absence is a line the reader learns
-                      to skip. The goods open the cargo, as the number does. */}
-                  {row.description ? (
-                    row.trackingNumber ? (
-                      <Link
-                        href={`/app/cargo/${row.trackingNumber}`}
-                        className="block max-w-[16rem] truncate text-xs text-muted-foreground hover:text-brand hover:underline"
-                      >
-                        {row.description}
-                      </Link>
-                    ) : (
-                      <div className="max-w-[16rem] truncate text-xs text-muted-foreground">
-                        {row.description}
-                      </div>
-                    )
-                  ) : null}
+                  {/* No goods line. What is in the boxes is on the cargo, one
+                      press away; on a queue read for who owes what, it was a
+                      line on every row — often in the warehouse's Chinese — that
+                      the owner had to read past. The search box still finds a
+                      consignment by its goods. */}
                   {/*
                     A SPECIAL PRICE IS STATED HERE; CHANGING IT IS AN ICON.
 
