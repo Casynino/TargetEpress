@@ -6003,6 +6003,7 @@ const ZH: Record<string, string> = {
     "的费用由借款支付——在还款给出借人之前，公司账户还没有为它付钱。",
   "LoanMovement": "借款收付",
   "Account closed": "账户已关闭",
+  "Show only": "只看",
   "Price changed": "价格已改",
   "per pc": "每件",
   "normal price not recorded": "标准价未记录",

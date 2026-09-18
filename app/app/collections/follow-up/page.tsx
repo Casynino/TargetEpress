@@ -584,41 +584,60 @@ export default async function FollowUpPage({
                   </div>
                 </td>
                 <td className="p-3">
-                  {row.trackingNumber ? (
-                    <Link
-                      href={`/app/cargo/${row.trackingNumber}`}
-                      className="font-mono text-xs hover:text-brand hover:underline"
-                    >
-                      {row.trackingNumber}
-                    </Link>
-                  ) : (
-                    <span className="font-mono text-xs text-muted-foreground">—</span>
-                  )}
-                  {/* Only when there is something to say. A credit row knows the
-                      money and the dates, not what is in the boxes, and a line
-                      per row reporting that absence is a line the reader learns
-                      to skip. */}
-                  {row.description ? (
-                    <div className="max-w-[16rem] truncate text-xs text-muted-foreground">
-                      {row.description}
-                    </div>
-                  ) : null}
                   {/*
-                    WHICH FLIGHT, ON THE ROW.
+                    WHICH FLIGHT, ON THE ROW — beside the tracking number.
 
                     One customer has three consignments on this list and the
                     rows read identically — same name, same next action, three
                     boxes on three different aircraft. The clerk with the phone
                     to their ear has to be able to say which one, and was
-                    opening each bill to find out.
+                    opening each bill to find out. In brackets after the
+                    tracking number, "TX-000136 (HK-16)", as the owner reads it,
+                    rather than a chip on a line of its own; pressing it narrows
+                    the list to that flight.
                   */}
-                  {row.batchNumber ? (
-                    <Link
-                      href={link({ batch: row.batchNumber, page: undefined })}
-                      className="mt-0.5 inline-block rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground hover:text-brand"
-                    >
-                      {row.batchNumber}
-                    </Link>
+                  <div className="whitespace-nowrap font-mono text-xs">
+                    {row.trackingNumber ? (
+                      <Link
+                        href={`/app/cargo/${row.trackingNumber}`}
+                        className="hover:text-brand hover:underline"
+                      >
+                        {row.trackingNumber}
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                    {row.batchNumber ? (
+                      <span className="text-muted-foreground">
+                        {" ("}
+                        <Link
+                          href={link({ batch: row.batchNumber, page: undefined })}
+                          title={`${t(locale, "Show only")} ${row.batchNumber}`}
+                          className="hover:text-brand hover:underline"
+                        >
+                          {row.batchNumber}
+                        </Link>
+                        {")"}
+                      </span>
+                    ) : null}
+                  </div>
+                  {/* Only when there is something to say. A credit row knows the
+                      money and the dates, not what is in the boxes, and a line
+                      per row reporting that absence is a line the reader learns
+                      to skip. The goods open the cargo, as the number does. */}
+                  {row.description ? (
+                    row.trackingNumber ? (
+                      <Link
+                        href={`/app/cargo/${row.trackingNumber}`}
+                        className="block max-w-[16rem] truncate text-xs text-muted-foreground hover:text-brand hover:underline"
+                      >
+                        {row.description}
+                      </Link>
+                    ) : (
+                      <div className="max-w-[16rem] truncate text-xs text-muted-foreground">
+                        {row.description}
+                      </div>
+                    )
                   ) : null}
                   {/*
                     A SPECIAL PRICE IS STATED HERE; CHANGING IT IS AN ICON.
