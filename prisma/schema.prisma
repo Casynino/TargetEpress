@@ -488,6 +488,7 @@ model User {
   fieldChanges          FieldChange[]
   ledgerEntries         LedgerEntry[]
   recordedTransfers     AccountTransfer[]
+  recordedLoanMovements LoanMovement[]    @relation("LoanMovementRecordedBy")
   cashCounts            CashCount[]
   recordedExpenses      Expense[]               @relation("ExpenseRecordedBy")
   approvedExpenses      Expense[]               @relation("ExpenseApprovedBy")
@@ -2695,6 +2696,12 @@ enum AccountKind {
   BANK
   MOBILE_MONEY
   CASH
+  /// Money somebody lent the company from their own pocket — the manager
+  /// paying a customs bill with his own shillings. NOT company money: it never
+  /// counts in cash held, never receives a customer's payment, and its balance
+  /// runs below zero by exactly what the company owes the lender. Last in the
+  /// enum on purpose, so every list ordered by kind puts it at the bottom.
+  LOAN
 }
 
 /// One of the company's real accounts: a bank account, a mobile-money till, or
@@ -2756,6 +2763,11 @@ model CompanyAccount {
   /// until Finance verifies it — see PaymentSubmission.transportAmount.
   submissionTransportSettlements PaymentSubmission[] @relation("SubmissionTransportFrom")
 
+  /// On a LOAN account: the money the lender handed over and the repayments,
+  /// each its own record. On a company account: the ones it paid or received.
+  loanMovements      LoanMovement[] @relation("LoanMovementLoan")
+  loanMovementsCash  LoanMovement[] @relation("LoanMovementAccount")
+
   @@index([active, sortOrder])
 }
 
@@ -2789,6 +2801,19 @@ enum LedgerKind {
    */
   EXECUTIVE_DRAW
   EXECUTIVE_RETURN
+  /**
+   * Borrowed money: the lender handing cash to the company (OUT of the LOAN
+   * account, IN to a real one), and the company paying the lender back (OUT of
+   * a real account, IN to the LOAN account).
+   *
+   * Neither is income and neither is a cost. The money a loan paid for is
+   * already an EXPENSE line on the loan account, counted like every other cost;
+   * the repayment is settling a debt, and counted as spending it would charge
+   * the same customs bill twice. So both stay off every income, revenue,
+   * collection, profit and "money out" figure, exactly as a transfer does.
+   */
+  LOAN_RECEIVED
+  LOAN_REPAYMENT
 }
 
 /// Every movement of money, one row each, append-only.
@@ -2850,6 +2875,9 @@ model LedgerEntry {
   /// A transfer writes two legs, so this is not unique — the pair below is.
   transferId String?
   transfer   AccountTransfer? @relation(fields: [transferId], references: [id], onDelete: Restrict)
+  /// Two legs as well: the loan account and the company account.
+  loanMovementId String?
+  loanMovement   LoanMovement? @relation(fields: [loanMovementId], references: [id], onDelete: Restrict)
 
   /// Append-only correction chain.
   reversesId String?      @unique
@@ -2865,6 +2893,8 @@ model LedgerEntry {
   @@unique([transferId, direction])
   /// And the same for a payment: the money in, and the transport settled out.
   @@unique([paymentId, direction])
+  /// And for money borrowed or repaid: one leg on the loan, one on the account.
+  @@unique([loanMovementId, direction])
   @@index([accountId, occurredAt])
   @@index([occurredAt])
   @@index([kind])
@@ -3098,6 +3128,57 @@ model AccountTransfer {
   @@index([occurredAt])
   @@index([fromAccountId])
   @@index([toAccountId])
+}
+
+enum LoanMovementKind {
+  /// The lender handed money to the company.
+  RECEIVED
+  /// The company paid the lender back.
+  REPAID
+}
+
+/// Money moving between a lender and the company — never a cost, never income.
+///
+/// A cost the lender paid directly is an ordinary Expense "paid from" the loan
+/// account; this is the rest of the story. RECEIVED: the lender handed cash
+/// over, so a company account holds more and the company owes more. REPAID: the
+/// company paid the lender back from one of its accounts, so it holds less and
+/// owes less. Each writes two ledger lines in one transaction, like a transfer,
+/// so the lender's balance and the company's cash can never disagree.
+///
+/// Amounts are in the loan's currency; the company account must share it. A
+/// repayment in another currency is a conversion somebody should see done, not
+/// one this record hides.
+model LoanMovement {
+  id             String           @id @default(cuid())
+  movementNumber String           @unique // LN-2026-000123
+  kind           LoanMovementKind
+
+  loanAccountId String
+  loanAccount   CompanyAccount @relation("LoanMovementLoan", fields: [loanAccountId], references: [id], onDelete: Restrict)
+  /// The company account the money went into, or came out of.
+  accountId     String
+  account       CompanyAccount @relation("LoanMovementAccount", fields: [accountId], references: [id], onDelete: Restrict)
+
+  amount     Decimal  @db.Decimal(14, 2)
+  currency   String
+  /// A bank slip, an M-Pesa code — what proves the money moved.
+  reference  String?
+  note       String?
+  /// When the money moved, not when the row was typed.
+  occurredAt DateTime
+
+  recordedById String?
+  recordedBy   User?    @relation("LoanMovementRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  /// One submission, one record — see Payment.idempotencyKey.
+  idempotencyKey String? @unique
+
+  ledgerEntries LedgerEntry[]
+
+  @@index([loanAccountId, occurredAt])
+  @@index([accountId])
 }
 
 /// Somebody opened the tin and counted what was in it.

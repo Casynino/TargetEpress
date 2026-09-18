@@ -399,7 +399,7 @@ async function expenses(f: ReportFilters): Promise<ReportResult> {
       currency: true,
       amountUsd: true,
       status: true,
-      account: { select: { name: true } },
+      account: { select: { name: true, kind: true, accountName: true } },
       batch: { select: { batchNumber: true } },
       recordedBy: { select: { name: true } },
       _count: { select: { receipts: true } },
@@ -437,7 +437,12 @@ async function expenses(f: ReportFilters): Promise<ReportResult> {
             ? "Batch"
             : "Office",
       flight: r.batch?.batchNumber ?? "—",
-      account: r.account?.name ?? "not paid yet",
+      /* A cost paid with a lender's money says so in the export too. */
+      account: !r.account
+        ? "not paid yet"
+        : r.account.kind === "LOAN"
+          ? `${r.account.name} (borrowed from ${r.account.accountName || r.account.name})`
+          : r.account.name,
       status: r.status,
       // Named rather than counted: "missing" is the thing worth spotting.
       proof: r._count.receipts > 0 ? String(r._count.receipts) : "missing",
@@ -1334,7 +1339,15 @@ function ledgerReport(
   key: string,
   title: string,
   caption: string,
-  entries: Awaited<ReturnType<typeof ledgerRows>>
+  entries: Awaited<ReturnType<typeof ledgerRows>>,
+  /*
+    Across every account, the balance is the company's money, and a lender's
+    loan is not money it holds. His lines stay listed — a cost he paid is part
+    of the record — but carry the balance past them and stay out of the foot,
+    the way the on-screen register treats them. Narrowed to the loan itself,
+    they count like any account's.
+  */
+  loansAside = false
 ): ReportResult {
   /*
     A running balance, in the order the money actually moved.
@@ -1354,12 +1367,14 @@ function ledgerReport(
   const currencies = new Set(entries.map((e) => e.currency));
   const mixed = currencies.size > 1;
 
+  const aside = (e: (typeof entries)[number]) => loansAside && e.account.kind === "LOAN";
+
   let balance = 0;
   const rows = entries.map((e) => {
     const amount = toNumber(e.amount);
     const debit = e.direction === "OUT" ? amount : 0;
     const credit = e.direction === "IN" ? amount : 0;
-    balance += credit - debit;
+    if (!aside(e)) balance += credit - debit;
     return {
       date: e.occurredAt.toISOString().slice(0, 10),
       entry: e.entryNumber,
@@ -1409,12 +1424,12 @@ function ledgerReport(
       : {
           debit: money(
             entries
-              .filter((e) => !e.reversesId && !e.reversedBy)
+              .filter((e) => !e.reversesId && !e.reversedBy && !aside(e))
               .reduce((n, e) => n + (e.direction === "OUT" ? toNumber(e.amount) : 0), 0)
           ),
           credit: money(
             entries
-              .filter((e) => !e.reversesId && !e.reversedBy)
+              .filter((e) => !e.reversesId && !e.reversedBy && !aside(e))
               .reduce((n, e) => n + (e.direction === "IN" ? toNumber(e.amount) : 0), 0)
           ),
         },
@@ -1584,15 +1599,24 @@ async function staffReport(): Promise<ReportResult> {
 
 async function cashFlow(f: ReportFilters): Promise<ReportResult> {
   const entries = await ledgerRows(f);
-  const months = new Map<string, { in: number; out: number }>();
+  const months = new Map<string, { in: number; out: number; borrowed: number; repaid: number }>();
   for (const e of entries) {
     /* A cancelled movement and the line that answers it are the same money
        twice, once on each side. Neither is cash that flowed. */
     if (e.reversesId || e.reversedBy) continue;
+    /* A loan account is what the company owes, not money it holds. A cost the
+       lender paid from his own pocket left no company account; the company's
+       cash moves when he is repaid, on the company account's leg below. */
+    if (e.account.kind === "LOAN") continue;
     const key = e.occurredAt.toISOString().slice(0, 7);
-    const row = months.get(key) ?? { in: 0, out: 0 };
+    const row = months.get(key) ?? { in: 0, out: 0, borrowed: 0, repaid: 0 };
     const usd = toNumber(e.amountUsd);
-    if (e.direction === "IN") row.in += usd;
+    /* Borrowing and repaying are neither money in nor money out of the
+       business, but they moved the cash — so they are columns of their own,
+       and the net counts them. */
+    if (e.kind === "LOAN_RECEIVED") row.borrowed += e.direction === "IN" ? usd : -usd;
+    else if (e.kind === "LOAN_REPAYMENT") row.repaid += e.direction === "OUT" ? usd : -usd;
+    else if (e.direction === "IN") row.in += usd;
     else row.out += usd;
     months.set(key, row);
   }
@@ -1602,7 +1626,9 @@ async function cashFlow(f: ReportFilters): Promise<ReportResult> {
       month,
       in: money(v.in),
       out: money(v.out),
-      net: money(v.in - v.out),
+      borrowed: money(v.borrowed),
+      repaid: money(v.repaid),
+      net: money(v.in - v.out + v.borrowed - v.repaid),
     }));
 
   return {
@@ -1613,17 +1639,21 @@ async function cashFlow(f: ReportFilters): Promise<ReportResult> {
          note underneath states the rate. This caption used to say "in USD"
          and was printed unchanged above columns already restated in
          shillings. */
-      "Money in and money out of every company account, by month. This includes special costs — they really did leave the bank.",
+      "Money in and money out of every company account, by month. This includes special costs — they really did leave the bank. Money borrowed and repaid has its own columns: it is not income or a cost, but it moved the cash.",
     columns: [
       { key: "month", label: "Month" },
       { key: "in", label: "In", numeric: true, money: true },
       { key: "out", label: "Out", numeric: true, money: true },
+      { key: "borrowed", label: "Borrowed", numeric: true, money: true },
+      { key: "repaid", label: "Repaid", numeric: true, money: true },
       { key: "net", label: "Net", numeric: true, money: true },
     ],
     rows,
     totals: {
       in: money(rows.reduce((n, r) => n + Number(r.in), 0)),
       out: money(rows.reduce((n, r) => n + Number(r.out), 0)),
+      borrowed: money(rows.reduce((n, r) => n + Number(r.borrowed), 0)),
+      repaid: money(rows.reduce((n, r) => n + Number(r.repaid), 0)),
       net: money(rows.reduce((n, r) => n + Number(r.net), 0)),
     },
   };
@@ -1930,7 +1960,8 @@ export async function runReport(
         "ledger",
         "General ledger",
         "Every movement of money, in the order it happened, with a running balance.",
-        await ledgerRows(filters)
+        await ledgerRows(filters),
+        !filters.accountId
       );
     case "bank":
       return ledgerReport(

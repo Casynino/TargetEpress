@@ -203,11 +203,14 @@ export async function editSubmission(
     ) {
       const account = await prisma.companyAccount.findUnique({
         where: { id: after.accountId },
-        select: { name: true, currency: true, active: true },
+        select: { name: true, currency: true, active: true, kind: true },
       });
       if (!account) return fail(t(locale, "That account no longer exists."));
       if (!account.active) {
         return fail(`${account.name} has been archived.`);
+      }
+      if (account.kind === "LOAN") {
+        return fail(`${account.name} ${t(locale, "is a loan — money the company owes, not a company account — so it cannot be used here.")}`);
       }
       if (account.currency !== after.currency) {
         return fail(
@@ -850,6 +853,9 @@ export async function resubmitSubmission(
       });
       if (!account) throw new Error("That account no longer exists.");
       if (!account.active) throw new Error(`${account.name} has been archived.`);
+      /* A loan is money the company owes; no customer money lands in it, and
+         nothing but a cost it paid or a repayment may move it. */
+      if (account.kind === "LOAN") throw new Error(`${account.name} is a loan — money the company owes, not a company account — so it cannot be used here.`);
       if (account.currency !== parsed.data.currency) {
         throw new Error(
           `${account.name} is a ${account.currency} account, so ${parsed.data.currency} could not have landed in it.`

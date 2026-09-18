@@ -160,6 +160,12 @@ export async function nextExpenseNumber(
   return `EXP-${year}-${pad(n)}`;
 }
 
+/** Money borrowed from or repaid to a lender: LN-2026-000123. */
+export async function nextLoanNumber(tx: TxClient, year = new Date().getFullYear()) {
+  const n = await nextSequence(tx, `loan:${year}`);
+  return `LN-${year}-${pad(n)}`;
+}
+
 /**
  * The number on a line in the general ledger: GL-2026-000123.
  *

@@ -9,7 +9,7 @@ import { ExpenseRowActions } from "@/components/app/expense-row-actions";
 import { LedgerRowFix } from "@/components/app/ledger-row-fix";
 import { SearchBox } from "@/components/app/search-box";
 import { Badge } from "@/components/ui/badge";
-import { activeAccounts } from "@/lib/accounts";
+import { spendingAccounts } from "@/lib/accounts";
 import {
   COMMON_EXPENSES,
   EXPENSE_CATEGORY_LABELS as CATEGORY_LABELS,
@@ -355,7 +355,7 @@ export default async function ExpensesPage({
           orderBy: [{ incurredAt: "desc" }, { createdAt: "desc" }],
           take: LIST_CAP + 1,
           include: {
-        account: { select: { name: true } },
+        account: { select: { name: true, kind: true, accountName: true } },
         recordedBy: { select: { name: true } },
         approvedBy: { select: { name: true } },
         batch: { select: { batchNumber: true, id: true } },
@@ -434,7 +434,9 @@ export default async function ExpensesPage({
           },
         })
       : Promise.resolve([]),
-    activeAccounts(),
+    /* Loans included: the filter can narrow to costs a lender paid, and a
+       cost can be paid from — or corrected onto — his loan. */
+    spendingAccounts(),
     // Only dispatches still worth attaching a cost to. A batch that closed last
     // year is not what somebody is filing today's customs bill against.
     prisma.batch.findMany({
@@ -661,12 +663,18 @@ export default async function ExpensesPage({
     })
     .slice(0, 12);
 
-  const accountOptions = accounts.map((a) => ({
-    id: a.id,
-    name: a.name,
-    currency: a.currency,
-    accountNumber: a.accountNumber,
-  }));
+  /* What a cost may be paid from on this page's forms. A desk that may not
+     record against a loan is not offered one — the action would refuse it. */
+  const accountOptions = accounts
+    .filter((a) => a.kind !== "LOAN" || can(user.role, "loan.record"))
+    .map((a) => ({
+      id: a.id,
+      name: a.name,
+      currency: a.currency,
+      accountNumber: a.accountNumber,
+      kind: a.kind,
+      accountName: a.accountName,
+    }));
 
   /** Every control keeps the others, so narrowing never silently resets. */
   const link = (next: Record<string, string | undefined>) => {
@@ -1192,6 +1200,14 @@ export default async function ExpensesPage({
                             {t(locale, "Executive")}
                           </span>
                         ) : null}
+                        {/* Paid with a lender's money: an ordinary cost in
+                            every total, and a debt the company owes. Marked on
+                            the row so nobody reads it as company cash spent. */}
+                        {expense.account?.kind === "LOAN" ? (
+                          <span className="ml-2 rounded bg-signal/15 px-1.5 py-0.5 text-[11px] font-semibold text-signal">
+                            {t(locale, "Borrowed")} · {expense.account.accountName || expense.account.name}
+                          </span>
+                        ) : null}
                       </p>
                       <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                         <span className="font-mono">{expense.expenseNumber}</span>
@@ -1220,7 +1236,9 @@ export default async function ExpensesPage({
                           <>
                             <span>·</span>
                             <span>
-                              {t(locale, "paid from")} {expense.account.name}
+                              {expense.account.kind === "LOAN"
+                                ? `${t(locale, "paid with money borrowed from")} ${expense.account.accountName || expense.account.name}`
+                                : `${t(locale, "paid from")} ${expense.account.name}`}
                               {expense.paidAt
                                 ? ` ${formatDate(expense.paidAt, locale)}`
                                 : ""}
@@ -1286,6 +1304,9 @@ export default async function ExpensesPage({
                       {canAdjustLedger && expense.status !== "VOID" ? (
                         <LedgerRowFix
                           accounts={accountOptions}
+                          locked={
+                            expense.account?.kind === "LOAN" && !can(user.role, "loan.record")
+                          }
                           subject={{
                             /* Never read for an expense subject — see the
                                type's own note — so the expense's own id

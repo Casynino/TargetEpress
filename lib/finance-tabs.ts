@@ -97,6 +97,13 @@ export function financeTabs(role: Role): FinanceTab[] {
       label: "Payroll",
       visible: can(role, "payroll.prepare"),
     },
+    {
+      /* Money borrowed from a lender and paid back — beside the costs it
+         paid for, and apart from the company's own accounts. */
+      href: "/app/finance/loans",
+      label: "Loans",
+      visible: can(role, "loan.view"),
+    },
     /* No Credit tab. The credit book is a standalone page with its own sidebar
        row — the same reasoning as Price Configuration above it. */
     // NOTE: no Pickup notes tab. It sits in the sidebar beside Search,

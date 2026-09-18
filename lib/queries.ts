@@ -498,6 +498,7 @@ export async function cashFlowByMonth(now = new Date(), locale: Locale = "en") {
         WHERE e."occurredAt" >= ${from}
           AND e."direction" = 'OUT'
           AND e."kind"::text = ANY(${MONEY_OUT_KINDS})
+          AND e."accountId" NOT IN (SELECT "id" FROM "CompanyAccount" WHERE "kind" = 'LOAN')
           AND e."reversesId" IS NULL
           AND NOT EXISTS (
             SELECT 1 FROM "LedgerEntry" r WHERE r."reversesId" = e."id"

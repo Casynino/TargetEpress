@@ -6,7 +6,7 @@ import { BILLED_INVOICE_STATUSES } from "@/lib/constants";
 import { creditForPeriod } from "@/lib/credit-queries";
 import { formatMonthYear, toNumber } from "@/lib/format";
 import { BASE_CURRENCY, currentRateValue } from "@/lib/fx";
-import { moneyOutRows } from "@/lib/ledger";
+import { loanCashRows, moneyOutRows } from "@/lib/ledger";
 import type { Locale } from "@/lib/locale";
 import {
   LOCAL_CURRENCY,
@@ -194,6 +194,7 @@ export async function profitAndLoss(window: ProfitWindow) {
     transferFees,
     compensations,
     credit,
+    loanCash,
   ] = await Promise.all([
     // Accrual revenue: bills raised in the window that Finance has confirmed.
     // BILLED_INVOICE_STATUSES rather than a local notIn list, so this asks the
@@ -367,6 +368,9 @@ export async function profitAndLoss(window: ProfitWindow) {
     // the revenue line's own treatment of a write-off. Asked of the credit
     // engine, never worked out here.
     creditForPeriod(window),
+    /* Cash a lender handed over, and repayments to him, through company
+       accounts. Neither is revenue or a cost; both moved the company's cash. */
+    loanCashRows({ from: window.from, to: window.to }),
   ]);
 
   const writtenOffPaid = toNumber(writtenOff._sum.amountPaid);
@@ -461,6 +465,21 @@ export async function profitAndLoss(window: ProfitWindow) {
     sumShillings(asRows(byCategory), rate) + feeLocal + compensationLocal;
   const cashOut = sumUsd(asRows(paidOut), rate) + feeUsd;
   const cashOutLocal = sumShillings(asRows(paidOut), rate) + feeLocal;
+  /*
+    BORROWED AND REPAID, BESIDE THE CASH — NOT INSIDE IT.
+
+    A cost the lender paid himself is in `costs` and not in `cashOut`: no
+    company account paid it. The company's cash moves when he hands money over
+    or is paid back, and net cash has to see that or it stops being what the
+    accounts actually gained. Kept as lines of their own so neither is ever
+    read as income or as spending.
+  */
+  const borrowedRows = loanCash.filter((row) => row.kind === "LOAN_RECEIVED" && row.direction === "IN");
+  const repaidRows = loanCash.filter((row) => row.kind === "LOAN_REPAYMENT" && row.direction === "OUT");
+  const borrowedCash = sumUsd(asRows(borrowedRows), rate);
+  const borrowedCashLocal = sumShillings(asRows(borrowedRows), rate);
+  const repaidCash = sumUsd(asRows(repaidRows), rate);
+  const repaidCashLocal = sumShillings(asRows(repaidRows), rate);
 
   const specialUsd = sumUsd(asRows(special), rate);
   const specialLocal = sumShillings(asRows(special), rate);
@@ -550,7 +569,9 @@ export async function profitAndLoss(window: ProfitWindow) {
     margin: revenue > 0 ? ((revenue - costs) / revenue) * 100 : null,
     cashIn,
     cashOut,
-    netCash: cashIn - cashOut,
+    borrowedCash,
+    repaidCash,
+    netCash: cashIn - cashOut + borrowedCash - repaidCash,
     bankCharges: feeUsd,
     /* Reported on its own line for the same reason bank charges are: it is
        inside `costs` and inside nothing on the Expenses page, so a reader
@@ -569,6 +590,8 @@ export async function profitAndLoss(window: ProfitWindow) {
     profitLocal: (rate ? revenue * rate : 0) - costsLocal,
     cashOutLocal,
     cashInLocal: rate ? cashIn * rate : 0,
+    borrowedCashLocal,
+    repaidCashLocal,
     specialCostsLocal: specialLocal,
     categories: [
       ...[...categoryTotals.entries()]

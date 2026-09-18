@@ -1184,13 +1184,19 @@ export async function changePaymentAmount(
       return fail(t(locale, "Nothing was changed."));
     }
 
-    let newAccount: { id: string; name: string; currency: string } | null = null;
+    let newAccount: { id: string; name: string; currency: string; kind: string } | null = null;
     if (accountChanged && newAccountId) {
       newAccount = await prisma.companyAccount.findUnique({
         where: { id: newAccountId },
-        select: { id: true, name: true, currency: true },
+        select: { id: true, name: true, currency: true, kind: true },
       });
       if (!newAccount) return fail(t(locale, "That account no longer exists."));
+      /* Refused here, before anything is cancelled: this correction cancels the
+         payment first and records it again, and a refusal after the cancel
+         would leave the customer's money cancelled and nowhere. */
+      if (newAccount.kind === "LOAN") {
+        return fail(`${newAccount.name} ${t(locale, "is a loan — money the company owes, not a company account — so it cannot be used here.")}`);
+      }
       if (newAccount.currency !== payment.currency) {
         return fail(
           `${newAccount.name} ${t(locale, "is a")} ${newAccount.currency} ${t(locale, "account, so a")} ${payment.currency} ${t(locale, "payment cannot have landed in it.")}`

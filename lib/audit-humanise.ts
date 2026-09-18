@@ -145,6 +145,8 @@ const ACTION_LABELS: Record<string, string> = {
   "expense.pay": "Expense paid",
   "expense.void": "Expense cancelled",
   "transfer.record": "Money moved between accounts",
+  "loan.receive": "Money borrowed from a lender",
+  "loan.repay": "Loan repaid",
   "cash.count": "Cash counted",
   "account.setOpeningBalance": "Opening balance set",
   "fx.setRate": "Exchange rate set",

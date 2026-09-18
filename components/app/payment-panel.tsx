@@ -47,7 +47,9 @@ import type { ActionResult } from "@/lib/actions/types";
 export type AccountChoice = {
   id: string;
   name: string;
-  kind: "BANK" | "MOBILE_MONEY" | "CASH";
+  /* LOAN only so the type matches what the server lists; activeAccounts()
+     never hands this panel a loan, and the server refuses one. */
+  kind: "BANK" | "MOBILE_MONEY" | "CASH" | "LOAN";
   currency: string;
   accountNumber: string | null;
 };

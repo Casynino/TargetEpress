@@ -407,6 +407,10 @@ export function statementToPdf(input: {
   );
   line("Collected from customers", pl.cashIn, { colour: GREEN });
   line("Paid out", pl.cashOut, { colour: RED });
+  /* Neither is income or a cost, and both moved the company's cash — so net
+     cash counts them, on lines that say what they were. */
+  if (pl.borrowedCash > 0) line("Borrowed from a lender", pl.borrowedCash, { colour: GREEN });
+  if (pl.repaidCash > 0) line("Repaid to a lender", pl.repaidCash, { colour: RED });
   total("Net cash movement", pl.netCash, pl.netCash >= 0 ? GREEN : RED);
 
   // ─────────────────────────────────────────────── 3. where revenue came ──

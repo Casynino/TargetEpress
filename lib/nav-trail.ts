@@ -176,6 +176,7 @@ const NAMES: { prefix: string; label: string }[] = [
   { prefix: "/app/finance/pricing", label: "Price Configuration" },
   { prefix: "/app/finance/income", label: "Closed batches" },
   { prefix: "/app/finance/audit", label: "Money audit" },
+  { prefix: "/app/finance/loans", label: "Loans" },
   { prefix: "/app/finance", label: "Finance" },
   { prefix: "/app/manager/reconciliation", label: "Reconciliation" },
   { prefix: "/app/manager/finance", label: "Money" },

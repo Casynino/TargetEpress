@@ -69,7 +69,10 @@ export type AccountStanding = {
 export async function accountStandings(now = new Date()): Promise<AccountStanding[]> {
   const [accounts, balances, checks] = await Promise.all([
     prisma.companyAccount.findMany({
-      where: { active: true },
+      /* Company money only: a loan is not held, not checked against a
+         statement, and below zero by design — it would read as overdrawn and
+         never checked, forever. */
+      where: { active: true, kind: { not: "LOAN" } },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: { id: true, name: true, kind: true, currency: true },
     }),

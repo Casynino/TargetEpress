@@ -39,7 +39,7 @@ export default async function AccountsPage() {
   const locale = await viewerLocale();
   const canManageAccounts = can(user.role, "account.manage");
 
-  const [accounts, balances, unattributed, rateRow, counts] = await Promise.all([
+  const [allAccounts, balances, unattributed, rateRow, counts] = await Promise.all([
     prisma.companyAccount.findMany({
       orderBy: [{ active: "desc" }, { sortOrder: "asc" }],
     }),
@@ -60,6 +60,25 @@ export default async function AccountsPage() {
   ]);
 
   const byAccount = new Map(balances.map((row) => [row.accountId, row]));
+
+  /*
+    THE COMPANY'S MONEY, AND SEPARATELY WHAT IT OWES A LENDER.
+
+    A loan account's balance runs below zero by exactly the debt. Added into
+    "Across every account" it would quietly shrink the company's cash by what
+    Husnater lent, and among the cards it would read as an overdrawn till. So
+    everything on this page counts the company's own accounts only, and each
+    loan is stated once, below, as what is owed.
+  */
+  const accounts = allAccounts.filter((a) => a.kind !== "LOAN");
+  const loans = allAccounts
+    .filter((a) => a.kind === "LOAN")
+    .map((loan) => {
+      const movement = byAccount.get(loan.id);
+      const owed = toNumber(movement?.outflow ?? 0) - toNumber(movement?.inflow ?? 0);
+      return { loan, owed };
+    })
+    .filter(({ loan, owed }) => loan.active || Math.abs(owed) > 0.005);
 
   const rows = accounts.map((account) => {
     const movement = byAccount.get(account.id);
@@ -216,7 +235,7 @@ export default async function AccountsPage() {
           </p>
           <p className="mt-1.5 text-xs text-muted-foreground">
             {formatUsd(totalUsd)}{" "}
-            {t(locale, "on the invoice rate · six accounts, one currency each")}
+            {t(locale, "on the invoice rate · one currency each")}
           </p>
         </div>
 
@@ -308,7 +327,8 @@ export default async function AccountsPage() {
             name={row.account.name}
             institution={row.account.institution}
             accountNumber={row.account.accountNumber}
-            kind={row.account.kind}
+            /* Company accounts only reach here — loans are filtered above. */
+            kind={row.account.kind as "BANK" | "MOBILE_MONEY" | "CASH"}
             currency={row.account.currency}
             active={row.account.active}
             net={row.net}
@@ -320,6 +340,37 @@ export default async function AccountsPage() {
           />
         ))}
       </div>
+
+      {/* Borrowed money, below the company's own and never added into it. */}
+      {loans.length > 0 ? (
+        <section className="mt-6 rounded-xl border border-dashed bg-card px-5 py-4">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {t(locale, "Borrowed money — not company cash")}
+          </h2>
+          <ul className="mt-2 divide-y">
+            {loans.map(({ loan, owed }) => (
+              <li key={loan.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2.5">
+                <span className="min-w-0">
+                  <span className="block font-medium">{loan.name}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {owed >= -0.005
+                      ? `${t(locale, "The company owes")} ${loan.accountName || loan.name}`
+                      : `${loan.accountName || loan.name} ${t(locale, "was repaid more than was borrowed")}`}
+                  </span>
+                </span>
+                <span className="flex items-baseline gap-3">
+                  <span className="font-display text-lg font-bold tabular-nums">
+                    {formatMoney(Math.abs(owed), loan.currency)}
+                  </span>
+                  <Link href="/app/finance/loans" className="text-xs font-medium text-brand hover:underline">
+                    {t(locale, "Open the loan →")}
+                  </Link>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {counts.length > 0 ? (
         <section className="mt-6 overflow-hidden rounded-xl border bg-card">

@@ -146,6 +146,9 @@ async function claimedAccount(
   });
   if (!account) throw new Error("That account no longer exists.");
   if (!account.active) throw new Error(`${account.name} has been archived.`);
+  /* A loan is money the company owes; no customer money lands in it, and
+     nothing but a cost it paid or a repayment may move it. */
+  if (account.kind === "LOAN") throw new Error(`${account.name} is a loan — money the company owes, not a company account — so it cannot be used here.`);
   if (account.currency !== currency) {
     throw new Error(
       `${account.name} is a ${account.currency} account, so ${currency} could not have landed in it.`

@@ -39,6 +39,7 @@ const MONEY_ENTITIES = [
   "CargoType",
   "Expense",
   "AccountTransfer",
+  "LoanMovement",
   "CompanyAccount",
   "Compensation",
   /*

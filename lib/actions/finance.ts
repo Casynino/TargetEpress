@@ -2802,6 +2802,9 @@ export async function recordPayment(
             `${account.name} has been archived, so no new money can be recorded against it.`
           );
         }
+        /* A loan is money the company owes; no customer money lands in it, and
+           nothing but a cost it paid or a repayment may move it. */
+        if (account.kind === "LOAN") throw new Error(`${account.name} is a loan — money the company owes, not a company account — so it cannot be used here.`);
         if (account.currency !== tenderedCurrency) {
           throw new Error(
             `${account.name} is a ${account.currency} account, so a payment of ${tenderedCurrency} ${input.amount.toLocaleString()} cannot have landed in it. Pick the account the money actually went to.`
@@ -3739,6 +3742,9 @@ export async function attributePayment(
       });
       if (!account) throw new Error("That account no longer exists.");
       if (!account.active) throw new Error(`${account.name} has been archived.`);
+      /* A loan is money the company owes; no customer money lands in it, and
+         nothing but a cost it paid or a repayment may move it. */
+      if (account.kind === "LOAN") throw new Error(`${account.name} is a loan — money the company owes, not a company account — so it cannot be used here.`);
       if (account.currency !== payment.currency) {
         throw new Error(
           `${account.name} is a ${account.currency} account, so a payment of ${payment.currency} ${toNumber(payment.amount).toLocaleString()} cannot have landed in it.`
@@ -4885,6 +4891,9 @@ export async function recordCustomerPayment(
         }).then((a) => {
           if (!a) throw new Error("That account no longer exists.");
           if (!a.active) throw new Error(`${a.name} has been archived.`);
+          /* A loan is money the company owes; no customer money lands in it, and
+             nothing but a cost it paid or a repayment may move it. */
+          if (a.kind === "LOAN") throw new Error(`${a.name} is a loan — money the company owes, not a company account — so it cannot be used here.`);
           if (a.currency !== input.currency) {
             throw new Error(
               `${a.name} is a ${a.currency} account, so a payment of ${input.currency} ` +

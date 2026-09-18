@@ -404,11 +404,18 @@ export async function submitPayrollRun(
 
       const account = await tx.companyAccount.findUnique({
         where: { id: input.accountId },
-        select: { id: true, name: true, active: true },
+        select: { id: true, name: true, active: true, kind: true },
       });
       if (!account) throw new Error(t(locale, "That account no longer exists."));
       if (!account.active) {
         throw new Error(`${account.name} ${t(locale, "has been archived.")}`);
+      }
+      /* Salaries are paid from company money. If the lender funds a payroll,
+         his money comes in first as cash received on the loan, and the run is
+         paid from the account it landed in — the manager approves payroll, and
+         would otherwise approve a debt owed to himself. */
+      if (account.kind === "LOAN") {
+        throw new Error(`${account.name} ${t(locale, "is a loan — money the company owes, not a company account — so it cannot be used here.")}`);
       }
 
       /* The claim, and what it stops is two clicks on one button: the second
@@ -665,7 +672,7 @@ async function settleApprovedRun(
           status: true,
           expenseId: true,
           account: {
-            select: { id: true, name: true, currency: true, active: true },
+            select: { id: true, name: true, currency: true, active: true, kind: true },
           },
           items: {
             select: { gross: true, allowance: true, deduction: true, net: true },
@@ -699,6 +706,9 @@ async function settleApprovedRun(
             "names no account, so there is nothing to pay it from. Send it back to Finance."
           )}`
         );
+      }
+      if (account.kind === "LOAN") {
+        throw new Error(`${account.name} ${t(locale, "is a loan — money the company owes, not a company account — so it cannot be used here.")}`);
       }
       if (!account.active) {
         throw new Error(
@@ -967,8 +977,11 @@ export async function runPayrollNow(
 
       const account = await tx.companyAccount.findUnique({
         where: { id: accountId },
-        select: { id: true, name: true, active: true },
+        select: { id: true, name: true, active: true, kind: true },
       });
+      if (account?.kind === "LOAN") {
+        throw new Error(`${account.name} ${t(locale, "is a loan — money the company owes, not a company account — so it cannot be used here.")}`);
+      }
       if (!account || !account.active) {
         throw new Error(
           t(locale, "That account is not live, so nothing can leave it. Choose another.")

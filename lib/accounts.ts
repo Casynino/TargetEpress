@@ -119,7 +119,33 @@ export function methodForKind(kind: AccountKind): PaymentMethod {
       return "MOBILE_MONEY";
     case "BANK":
       return "BANK_TRANSFER";
+    /* Borrowed money is not somewhere a customer pays, and no receipt may
+       name it. Every door that takes a customer's money refuses a loan account
+       before it gets here; this is the backstop. */
+    case "LOAN":
+      throw new Error(
+        "A loan account never receives a customer's money. Choose the company account it landed in."
+      );
   }
+}
+
+/**
+ * THE KINDS THAT ARE THE COMPANY'S OWN MONEY.
+ *
+ * A list of what counts rather than of what does not, so any kind added later
+ * stays out of every "cash held" figure until somebody decides otherwise. A
+ * loan account is money the company OWES — its balance runs below zero by
+ * exactly the debt — and adding it into cash would quietly shrink the cash
+ * position by what Husnater lent.
+ */
+export const COMPANY_MONEY_KINDS = ["BANK", "MOBILE_MONEY", "CASH"] as const satisfies readonly AccountKind[];
+
+export function isCompanyMoney(kind: AccountKind | string): boolean {
+  return (COMPANY_MONEY_KINDS as readonly string[]).includes(kind);
+}
+
+export function isLoan(kind: AccountKind | string | null | undefined): boolean {
+  return kind === "LOAN";
 }
 
 export type AccountOption = {
@@ -129,20 +155,58 @@ export type AccountOption = {
   kind: AccountKind;
   currency: string;
   accountNumber: string | null;
+  accountName: string | null;
 };
 
-/** The accounts a desk may attribute money to, in display order. */
+const OPTION_SELECT = {
+  id: true,
+  code: true,
+  name: true,
+  kind: true,
+  currency: true,
+  accountNumber: true,
+  /* On a loan account, the lender's name — "Husnater" beside "Loan — Husnater"
+     — so a form can say whose money it is without a second lookup. */
+  accountName: true,
+} as const;
+
+/**
+ * The accounts a desk may attribute money to, in display order.
+ *
+ * The company's own accounts only. A loan account is left out here, where
+ * about twenty screens ask — customer payments, "landed in", transfers, cash
+ * totals — because a customer's money landing in "Loan — Husnater" would be
+ * money nobody can find, and a loan's balance added into cash would hide a
+ * debt inside the bank position. The one place borrowed money may be named is
+ * "paid from" on a cost, which asks spendingAccounts() instead.
+ */
 export async function activeAccounts(): Promise<AccountOption[]> {
   return prisma.companyAccount.findMany({
+    where: { active: true, kind: { in: [...COMPANY_MONEY_KINDS] } },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: OPTION_SELECT,
+  });
+}
+
+/**
+ * What a cost may be PAID FROM: the company's accounts, and any loan a lender
+ * paid it with. Loans last, so a form that opens on the first account opens
+ * on company money.
+ */
+export async function spendingAccounts(): Promise<AccountOption[]> {
+  const rows = await prisma.companyAccount.findMany({
     where: { active: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    select: {
-      id: true,
-      code: true,
-      name: true,
-      kind: true,
-      currency: true,
-      accountNumber: true,
-    },
+    select: OPTION_SELECT,
+  });
+  return [...rows.filter((a) => !isLoan(a.kind)), ...rows.filter((a) => isLoan(a.kind))];
+}
+
+/** Every loan account, open or closed, with the lender's name. */
+export async function loanAccounts() {
+  return prisma.companyAccount.findMany({
+    where: { kind: "LOAN" },
+    orderBy: [{ active: "desc" }, { sortOrder: "asc" }, { name: "asc" }],
+    select: { ...OPTION_SELECT, accountName: true, active: true },
   });
 }

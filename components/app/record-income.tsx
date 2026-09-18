@@ -76,7 +76,7 @@ function inShillings(usd: number, rate: number | null) {
  * are written once and are already right.
  */
 export function RecordIncome({
-  accounts,
+  accounts: allAccounts,
   rate,
   autoOpen = false,
   canRecord = true,
@@ -129,6 +129,9 @@ export function RecordIncome({
    */
   compact?: boolean;
 }) {
+  /* A customer's money never lands in a lender's loan — whatever list this
+     form is handed, the loan is not offered. */
+  const accounts = allAccounts.filter((a) => a.kind !== "LOAN");
   const t = useT();
   const [open, setOpen] = useState(autoOpen);
   /* Where it landed. The method the ledger stores is read off this account by

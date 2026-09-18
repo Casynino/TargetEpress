@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { Building2, Paperclip, Smartphone, Wallet } from "lucide-react";
+import { Building2, Landmark, Paperclip, Smartphone, Wallet } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { SmartBack } from "@/components/app/smart-back";
@@ -31,12 +31,14 @@ const KIND_ICON = {
   BANK: Building2,
   MOBILE_MONEY: Smartphone,
   CASH: Wallet,
+  LOAN: Landmark,
 } as const;
 
 const KIND_LABEL = {
   BANK: "Bank",
   MOBILE_MONEY: "Mobile money",
   CASH: "Cash",
+  LOAN: "Loan",
 } as const;
 
 const ENTRY_LABEL: Record<string, string> = {
@@ -47,6 +49,9 @@ const ENTRY_LABEL: Record<string, string> = {
   TRANSFER_IN: "Transfer in",
   TRANSFER_OUT: "Transfer out",
   ADJUSTMENT: "Adjustment",
+  TRANSPORT_OUT: "Transport paid out",
+  LOAN_RECEIVED: "Borrowed from a lender",
+  LOAN_REPAYMENT: "Loan repaid",
 };
 
 /**
@@ -75,6 +80,10 @@ export default async function AccountDetailPage({
 
   const account = await prisma.companyAccount.findUnique({ where: { id } });
   if (!account) notFound();
+  /* A loan is read on the Loans page, where its balance is stated as what is
+     owed — this page's "Balance", "Received" and "Paid out" read backwards for
+     a debt, and its reconcile and opening-balance doors do not apply. */
+  if (account.kind === "LOAN") redirect("/app/finance/loans");
 
   const monthStart = new Date();
   monthStart.setDate(1);
@@ -574,6 +583,11 @@ export default async function AccountDetailPage({
                       <TableCell className="w-36 py-2.5 pr-1 text-right">
                         <LedgerRowFix
                           accounts={fixAccounts}
+                          /* This account's half of money borrowed or repaid:
+                             cancelling it moves the lender's debt. */
+                          locked={
+                            entry.loanMovementId !== null && !can(user.role, "loan.record")
+                          }
                           subject={{
                             entryId: entry.id,
                             paymentId: entry.payment?.id ?? null,

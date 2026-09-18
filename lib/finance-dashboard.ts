@@ -116,7 +116,10 @@ export type FinanceDashboard = {
     }[];
     cashUsd: number;
     receivableUsd: number;
+    /** Costs not yet paid, and what is owed to lenders. */
     payableUsd: number;
+    /** Of that, what is owed to lenders — money borrowed, not company cash. */
+    loanOwedUsd: number;
     netUsd: number;
   };
 
@@ -505,7 +508,34 @@ export async function financeDashboard(
 
   // ---------------------------------------------------------------- position
   const accountById = new Map(accountList.map((a) => [a.id, a]));
+  /*
+    Cash is the company's own accounts. What a lender's loan stands at is a
+    debt, not money held — it is carried as owed, below, so the net position
+    is right and the cash figure is not quietly smaller by what he lent.
+  */
+  /* In the loan's own currency first, then converted once at today's rate.
+     Each line's dollar snapshot was taken on its own day, so a shilling loan
+     borrowed at one rate and repaid at another left a dollar residue: nothing
+     owed on the Loans page, and a debt — or a credit — still standing here. */
+  const loanOwedUsd = balances
+    .filter((row) => row.kind === "LOAN")
+    .reduce(
+      (n, row) =>
+        n +
+        sumUsd(
+          [
+            {
+              currency: row.currency,
+              amount: toNumber(row.outflow) - toNumber(row.inflow),
+              amountUsd: toNumber(row.outflowUsd) - toNumber(row.inflowUsd),
+            },
+          ],
+          rate
+        ),
+      0
+    );
   const accounts = balances
+    .filter((row) => row.kind !== "LOAN")
     .map((row) => {
       const meta = accountById.get(row.accountId);
       return {
@@ -521,7 +551,8 @@ export async function financeDashboard(
      can be added at all. Nothing stores it. */
   const cashUsd = accounts.reduce((n, a) => n + a.balanceUsd, 0);
   const receivableUsd = Number(receivable[0]?.owed ?? 0);
-  const payableUsd = toNumber(payable._sum.amountUsd);
+  /* Owed by us: costs not yet paid, and what the company owes its lenders. */
+  const payableUsd = toNumber(payable._sum.amountUsd) + loanOwedUsd;
 
   // ------------------------------------------------------------- collections
   const counts = Object.fromEntries(
@@ -794,6 +825,7 @@ export async function financeDashboard(
       cashUsd,
       receivableUsd,
       payableUsd,
+      loanOwedUsd,
       netUsd: cashUsd + receivableUsd - payableUsd,
     },
     collections: {

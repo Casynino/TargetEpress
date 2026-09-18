@@ -971,6 +971,9 @@ export async function recordCompensation(
         if (!found.active) {
           throw new Error(`${found.name} ${t(locale, "has been archived.")}`);
         }
+        if (found.kind === "LOAN") {
+          throw new Error(`${found.name} ${t(locale, "is a loan — money the company owes, not a company account — so it cannot be used here.")}`);
+        }
         if (found.currency !== input.currency) {
           throw new Error(
             `${found.name} ${t(locale, "is a")} ${found.currency} ${t(locale, "account, so")} ${input.currency} ${Number(input.amount).toLocaleString()} ${t(locale, "cannot have left it.")}`

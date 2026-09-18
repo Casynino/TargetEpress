@@ -116,14 +116,21 @@ export async function recordTransfer(
       const [from, to] = await Promise.all([
         tx.companyAccount.findUnique({
           where: { id: input.fromAccountId },
-          select: { id: true, name: true, currency: true, active: true },
+          select: { id: true, name: true, currency: true, active: true, kind: true },
         }),
         tx.companyAccount.findUnique({
           where: { id: input.toAccountId },
-          select: { id: true, name: true, currency: true, active: true },
+          select: { id: true, name: true, currency: true, active: true, kind: true },
         }),
       ]);
       if (!from || !to) throw new Error("One of those accounts no longer exists.");
+      /* Money to or from a lender is borrowing or repaying — the loans page
+         records it, so it stays off every figure a transfer would reach. */
+      if (from.kind === "LOAN" || to.kind === "LOAN") {
+        throw new Error(
+          t(locale, "Money to or from a loan is recorded on the Loans page, as money borrowed or repaid — not as a transfer.")
+        );
+      }
       if (!from.active || !to.active) {
         throw new Error("An archived account cannot send or receive money.");
       }
@@ -504,10 +511,17 @@ export async function setOpeningBalance(
           currency: true,
           active: true,
           openingSetAt: true,
+          kind: true,
         },
       });
       if (!account) throw new Error("That account no longer exists.");
       if (!account.active) throw new Error(`${account.name} has been archived.`);
+      /* An opening balance is money the account HOLDS. A loan holds a debt:
+         what was owed before it was on the system is recorded as the costs the
+         lender actually paid, on the days he paid them. */
+      if (account.kind === "LOAN") {
+        throw new Error(`${account.name} is a loan — money the company owes, not a company account — so it cannot be used here.`);
+      }
       if (account.openingSetAt) {
         throw new Error(
           `${account.name} already has an opening balance. Correct it with an adjustment so the change is visible, rather than by overwriting it.`

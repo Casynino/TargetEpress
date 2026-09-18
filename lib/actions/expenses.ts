@@ -27,6 +27,34 @@ import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import { firstError } from "@/lib/validation";
 
+/*
+  A COST PAID WITH BORROWED MONEY IS A DEBT, AND A DEBT IS FINANCE'S TO WRITE.
+
+  Every cost put on a loan account — or moved on or off one, or changed in
+  amount while it is there — moves what the company owes the lender. The
+  lender is the manager, who holds expense.record like Finance does; letting
+  the person owed write his own debt is what credit and payroll already refuse.
+  So on a loan account the cost also needs loan.record: Finance and the owner.
+*/
+function assertMayTouchLoan(
+  user: SessionUser,
+  account: { kind: string; name: string } | null | undefined,
+  locale: Locale
+) {
+  if (account?.kind === "LOAN" && !can(user.role, "loan.record")) {
+    throw new Error(
+      `${account.name} ${t(locale, "is a loan, and only Finance or the owner may record costs against it.")}`
+    );
+  }
+}
+
+/* How a cost's source reads in the audit line: an account, or a lender. */
+function paidWith(account: { name: string; kind: string; accountName?: string | null }) {
+  return account.kind === "LOAN"
+    ? `with money borrowed from ${account.accountName || account.name} (${account.name})`
+    : `from ${account.name}`;
+}
+
 const expenseSchema = z.object({
   category: z.enum(CATEGORIES),
   description: z.string().trim().min(3, "Say what this was for."),
@@ -187,7 +215,7 @@ export async function recordExpense(
 
       const account = await tx.companyAccount.findUnique({
         where: { id: input.accountId },
-        select: { id: true, name: true, currency: true, active: true },
+        select: { id: true, name: true, currency: true, active: true, kind: true, accountName: true },
       });
       if (!account) {
         throw new Error(t(locale, "That account no longer exists."));
@@ -195,6 +223,7 @@ export async function recordExpense(
       if (!account.active) {
         throw new Error(`${account.name} ${t(locale, "has been archived.")}`);
       }
+      assertMayTouchLoan(user, account, locale);
       if (account.currency !== input.currency) {
         // The account name, both currency codes and the figure are data; the
         // words between them are the only part that changes language.
@@ -260,7 +289,7 @@ export async function recordExpense(
           action: "expense.recordAndPay",
           entity: "Expense",
           entityId: expense.id,
-          summary: `Paid ${input.currency} ${input.amount.toLocaleString()} from ${account.name} — ${input.description}`,
+          summary: `Paid ${input.currency} ${input.amount.toLocaleString()} ${paidWith(account)} — ${input.description}`,
         },
         tx
       );
@@ -271,6 +300,7 @@ export async function recordExpense(
     revalidatePath("/app/finance/expenses");
     revalidatePath("/app/finance/accounts");
     revalidatePath("/app/finance/transactions");
+    revalidatePath("/app/finance/loans");
     return ok({ expenseNumber });
   } catch (error) {
     /* The unique index refusing a repeat, not a fault. See lib/idempotency.ts. */
@@ -384,10 +414,11 @@ export async function payExpense(
 
       const account = await tx.companyAccount.findUnique({
         where: { id: accountId },
-        select: { id: true, name: true, currency: true, active: true },
+        select: { id: true, name: true, currency: true, active: true, kind: true, accountName: true },
       });
       if (!account) throw new Error("That account no longer exists.");
       if (!account.active) throw new Error(`${account.name} has been archived.`);
+      assertMayTouchLoan(user, account, await viewerLocale());
       if (account.currency !== expense.currency) {
         throw new Error(
           `${account.name} is a ${account.currency} account, so ${expense.currency} ${toNumber(expense.amount).toLocaleString()} cannot have left it.`
@@ -440,7 +471,7 @@ export async function payExpense(
           action: "expense.pay",
           entity: "Expense",
           entityId: id,
-          summary: `Paid ${expense.expenseNumber} — ${expense.currency} ${toNumber(expense.amount).toLocaleString()} from ${account.name}`,
+          summary: `Paid ${expense.expenseNumber} — ${expense.currency} ${toNumber(expense.amount).toLocaleString()} ${paidWith(account)}`,
         },
         tx
       );
@@ -449,6 +480,7 @@ export async function payExpense(
     revalidatePath("/app/finance/expenses");
     revalidatePath("/app/finance/accounts");
     revalidatePath("/app/finance/transactions");
+    revalidatePath("/app/finance/loans");
     return ok();
   } catch (error) {
     return fail(toActionError(error));
@@ -719,9 +751,21 @@ export async function editExpense(
       const nextAccount = nextAccountId
         ? await tx.companyAccount.findUnique({
             where: { id: nextAccountId },
-            select: { id: true, name: true, currency: true, active: true },
+            select: { id: true, name: true, currency: true, active: true, kind: true },
           })
         : null;
+      /* Onto a loan, or off one, or a different figure while on one: each
+         moves what the company owes the lender. */
+      if (accountChanged || amountChanged) {
+        assertMayTouchLoan(user, nextAccount, locale);
+        if (live) {
+          const was = await tx.companyAccount.findUnique({
+            where: { id: live.accountId },
+            select: { kind: true, name: true },
+          });
+          assertMayTouchLoan(user, was, locale);
+        }
+      }
       if (nextAccountId && !nextAccount) {
         throw new Error(t(locale, "That account no longer exists."));
       }
@@ -887,6 +931,8 @@ export async function editExpense(
     });
 
     revalidatePath("/app/finance/expenses");
+    revalidatePath("/app/finance/accounts");
+    revalidatePath("/app/finance/loans");
     revalidatePath("/app/shipments");
     return ok({ expenseNumber });
   } catch (error) {
@@ -1001,6 +1047,14 @@ export async function reverseExpense(
           `${expense.expenseNumber} ${t(locale, "has already been reversed.")}`
         );
       }
+      assertMayTouchLoan(
+        user,
+        await tx.companyAccount.findUnique({
+          where: { id: live.accountId },
+          select: { kind: true, name: true },
+        }),
+        locale
+      );
 
       const occurredAt = new Date();
 
@@ -1062,6 +1116,8 @@ export async function reverseExpense(
 
     revalidatePath("/app/finance/expenses");
     revalidatePath("/app/finance/transactions");
+    revalidatePath("/app/finance/accounts");
+    revalidatePath("/app/finance/loans");
     revalidatePath("/app/shipments");
     return ok({ expenseNumber });
   } catch (error) {

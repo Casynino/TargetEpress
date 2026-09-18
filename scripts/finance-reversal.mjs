@@ -86,7 +86,9 @@ if (!target) {
 if (!target) throw new Error("No shilling cost left to pay or reverse.");
 
 const account = await prisma.companyAccount.findFirst({
-  where: { active: true, currency: "TZS" },
+  /* Company money only — a lender's loan is not somewhere a test cost goes. */
+  where: { active: true, currency: "TZS", kind: { not: "LOAN" } },
+  orderBy: { sortOrder: "asc" },
   select: { id: true, name: true },
 });
 if (!account) throw new Error("No active shilling account.");

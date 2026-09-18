@@ -601,6 +601,12 @@ const FINANCE_SECTIONS: NavSection[] = [
         permission: "expense.view",
       },
       {
+        href: "/app/finance/loans",
+        label: "Loans",
+        icon: "Banknote",
+        permission: "loan.view",
+      },
+      {
         href: "/app/collections/follow-up",
         label: "Collections",
         icon: "Banknote",
@@ -958,6 +964,7 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/app/finance/transactions", label: "General ledger", icon: "ArrowLeftRight", permission: "ledger.view" },
       { href: "/app/finance/expenses", label: "Expenses", icon: "Receipt", permission: "expense.view" },
       { href: "/app/finance/payroll", label: "Payroll", icon: "Wallet", permission: "payroll.prepare" },
+      { href: "/app/finance/loans", label: "Loans", icon: "Banknote", permission: "loan.view" },
       { href: "/app/finance/income", label: "Closed batches", icon: "ClipboardCheck", permission: "accounting.view" },
       { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp", permission: "profit.view" },
       // collections.view, matching the route's own guard. The shared menu had
@@ -1104,6 +1111,7 @@ const MANAGER_SECTIONS: NavSection[] = [
       { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock" },
       { href: "/app/finance/expenses", label: "Expenses", icon: "Receipt" },
       { href: "/app/finance/accounts", label: "Accounts", icon: "Landmark" },
+      { href: "/app/finance/loans", label: "Loans", icon: "Banknote", permission: "loan.view" },
     ],
   },
   {

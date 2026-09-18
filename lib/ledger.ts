@@ -1,7 +1,7 @@
 import "server-only";
 
 import { Prisma } from "@prisma/client";
-import type { LedgerDirection, LedgerKind } from "@prisma/client";
+import type { AccountKind, LedgerDirection, LedgerKind } from "@prisma/client";
 
 import { nextLedgerNumber } from "@/lib/ids";
 import { prisma } from "@/lib/prisma";
@@ -43,6 +43,8 @@ export type PostEntry = {
   expenseId?: string | null;
   /** Set on both legs of a transfer; the pair (transferId, direction) is unique. */
   transferId?: string | null;
+  /** Set on both legs of money borrowed or repaid; unique with direction. */
+  loanMovementId?: string | null;
   recordedById?: string | null;
   /**
    * The entry this one cancels.
@@ -55,7 +57,46 @@ export type PostEntry = {
   reversesId?: string | null;
 };
 
+/*
+  WHAT MAY TOUCH A LOAN ACCOUNT.
+
+  A cost the lender paid (EXPENSE, and its correction going the other way),
+  money he handed over or was paid back (LOAN_*), and the adjustments that
+  correct a line. Nothing else: a customer's payment, a transfer, a delivery
+  fare or an opening balance on a loan account would be company money filed
+  as a debt, or a debt filed as company money.
+
+  Checked HERE because this is the one door every movement of money passes
+  through. Each screen that takes a customer's money already leaves loans out
+  of its list and each action refuses them — this is what holds if one of
+  those is ever forgotten.
+*/
+const LOAN_ACCOUNT_KINDS: LedgerKind[] = [
+  "EXPENSE",
+  "ADJUSTMENT",
+  "LOAN_RECEIVED",
+  "LOAN_REPAYMENT",
+];
+
 export async function postLedgerEntry(tx: TxClient, entry: PostEntry) {
+  const account = await tx.companyAccount.findUnique({
+    where: { id: entry.accountId },
+    select: { kind: true, name: true },
+  });
+  if (account?.kind === "LOAN" && !LOAN_ACCOUNT_KINDS.includes(entry.kind)) {
+    throw new Error(
+      `${account.name} is money the company owes, not a company account, so nothing but a cost it paid or a repayment can be put against it.`
+    );
+  }
+  if (
+    account &&
+    account.kind !== "LOAN" &&
+    (entry.kind === "LOAN_RECEIVED" || entry.kind === "LOAN_REPAYMENT") &&
+    !entry.loanMovementId &&
+    !entry.reversesId
+  ) {
+    throw new Error("Money borrowed or repaid must be recorded on the loan.");
+  }
   return tx.ledgerEntry.create({
     data: {
       entryNumber: await nextLedgerNumber(tx, entry.occurredAt.getFullYear()),
@@ -76,6 +117,7 @@ export async function postLedgerEntry(tx: TxClient, entry: PostEntry) {
       paymentId: entry.paymentId ?? null,
       expenseId: entry.expenseId ?? null,
       transferId: entry.transferId ?? null,
+      loanMovementId: entry.loanMovementId ?? null,
       recordedById: entry.recordedById ?? null,
       reversesId: entry.reversesId ?? null,
     },
@@ -127,6 +169,10 @@ export async function accountBalances(
          totalling several accounts has to convert the frozen dollar column at
          today's rate, which is not what the account holds. */
       currency: string;
+      /* What kind of account: every total of company money leaves out LOAN,
+         whose balance is a debt, and needs this to do it without a second
+         lookup. */
+      kind: AccountKind;
       inflow: Prisma.Decimal;
       outflow: Prisma.Decimal;
       inflowUsd: Prisma.Decimal;
@@ -138,6 +184,7 @@ export async function accountBalances(
     SELECT
       e."accountId",
       a."currency",
+      a."kind",
       COALESCE(SUM(e."amount")    FILTER (WHERE e."direction" = 'IN'  AND ${LIVE}), 0) AS "inflow",
       COALESCE(SUM(e."amount")    FILTER (WHERE e."direction" = 'OUT' AND ${LIVE}), 0) AS "outflow",
       COALESCE(SUM(e."amountUsd") FILTER (WHERE e."direction" = 'IN'  AND ${LIVE}), 0) AS "inflowUsd",
@@ -146,7 +193,7 @@ export async function accountBalances(
       MAX(e."occurredAt")                                                              AS "lastMovedAt"
     FROM "LedgerEntry" e
     JOIN "CompanyAccount" a ON a."id" = e."accountId"
-    GROUP BY e."accountId", a."currency"
+    GROUP BY e."accountId", a."currency", a."kind"
   `);
 }
 
@@ -167,6 +214,12 @@ export async function accountBalances(
  * A transfer between our own accounts is not — carrying cash from the tin to
  * the bank spends nothing — and neither half of a cancelled pair is, since a
  * reversal answers a line that was already counted.
+ *
+ * Out of a COMPANY account. A cost a lender paid from his own pocket is a real
+ * cost, and Profit & loss carries it from the day it was paid — but no company
+ * money left for it, so it is not money out until the company pays him back,
+ * and that repayment is counted beside money out (see loanCashRows), never as
+ * a cost inside it.
  */
 export const MONEY_OUT_KINDS = [
   "EXPENSE",
@@ -184,6 +237,20 @@ export const MONEY_OUT_KINDS = [
      really did leave CRDB. Nothing writes it any more, and leaving it out
      would hide money that is gone. */
   "EXECUTIVE_DRAW",
+] satisfies LedgerKind[];
+
+/**
+ * BORROWING AND REPAYING — NEITHER MONEY EARNED NOR MONEY SPENT.
+ *
+ * Both legs of a loan movement sit in the register like a transfer's do, and
+ * are left out of every figure of money in or money out: the lender's cash
+ * arriving is not income, and paying him back is not a cost. A statement of
+ * cash — what the company's own accounts gained and lost — still has to show
+ * them, on lines of their own; loanCashRows is where it reads them.
+ */
+export const LOAN_LEDGER_KINDS = [
+  "LOAN_RECEIVED",
+  "LOAN_REPAYMENT",
 ] satisfies LedgerKind[];
 
 /**
@@ -230,9 +297,35 @@ export async function moneyOutRows(
     where: {
       direction: "OUT",
       kind: { in: window.kinds ?? MONEY_OUT_KINDS },
+      account: { kind: { not: "LOAN" } },
       ...(occurredAt ? { occurredAt } : {}),
       ...LIVE_LEG,
     },
     select: { kind: true, amount: true, currency: true, amountUsd: true },
+  });
+}
+
+/**
+ * Money a lender handed the company, and money the company paid him back, as
+ * it moved through the company's own accounts in a window — the company-side
+ * leg of each loan movement, live ones only. For a statement of cash to add
+ * beside money in and money out; never to be added into either.
+ */
+export async function loanCashRows(window: { from?: Date; to?: Date } = {}) {
+  const occurredAt =
+    window.from || window.to
+      ? {
+          ...(window.from ? { gte: window.from } : {}),
+          ...(window.to ? { lt: window.to } : {}),
+        }
+      : undefined;
+  return prisma.ledgerEntry.findMany({
+    where: {
+      kind: { in: [...LOAN_LEDGER_KINDS] },
+      account: { kind: { not: "LOAN" } },
+      ...(occurredAt ? { occurredAt } : {}),
+      ...LIVE_LEG,
+    },
+    select: { kind: true, direction: true, amount: true, currency: true, amountUsd: true },
   });
 }

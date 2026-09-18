@@ -49,6 +49,8 @@ export type BatchExpenseRow = {
   /** Which account it left, so the editor can open on the right one. */
   accountId: string | null;
   accountName: string | null;
+  /** The lender, when the cost was paid with a loan — borrowed money. */
+  borrowedFrom?: string | null;
   recordedBy: string | null;
   receipts: number;
 };
@@ -179,6 +181,10 @@ export function BatchExpenses({
   const totalUsd = operating.reduce((sum, e) => sum + e.amountUsd, 0);
   const specialTsh = special.reduce((sum, e) => sum + (tsh(e) ?? 0), 0);
   const payFrom = accounts.filter((a) => a.currency === "TZS");
+  /* Company money first; a lender's loan under its own heading, so it is never
+     read as another till. */
+  const ownMoney = payFrom.filter((a) => a.kind !== "LOAN");
+  const borrowed = payFrom.filter((a) => a.kind === "LOAN");
 
   /** How much of the clearing bill this one cost is. */
   const share = (row: BatchExpenseRow) =>
@@ -304,8 +310,13 @@ export function BatchExpenses({
               />
               <span className="flex min-w-0 flex-1 items-baseline gap-2">
                 <span className="truncate font-medium">{e.description}</span>
-                {/* Where the money left from, or that it has not yet. */}
-                {e.accountName ? (
+                {/* Where the money left from, or that it has not yet. A loan
+                    is said on every screen size: it is a debt, not cash. */}
+                {e.borrowedFrom ? (
+                  <span className="shrink-0 rounded bg-signal/15 px-1.5 py-0.5 text-[11px] font-semibold text-signal">
+                    {t("Borrowed")} · {e.borrowedFrom}
+                  </span>
+                ) : e.accountName ? (
                   <span className="hidden shrink-0 truncate text-xs text-muted-foreground sm:inline">
                     {e.accountName}
                   </span>
@@ -509,17 +520,32 @@ export function BatchExpenses({
 
           <label className="flex flex-col gap-1">
             <span className="text-[11px] text-muted-foreground">{t("Paid from")}</span>
+            {/* No "Not paid yet": a cost is recorded as paid, from a named
+                account, and the server refuses a blank one — offering it only
+                led to an error after the press. */}
             <NativeSelect
               name="accountId"
+              required
               defaultValue=""
               className="h-9 bg-card text-sm"
             >
-              <option value="">{t("Not paid yet")}</option>
-              {payFrom.map((a) => (
+              <option value="" disabled>
+                {t("Choose the account")}
+              </option>
+              {ownMoney.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
                 </option>
               ))}
+              {borrowed.length > 0 ? (
+                <optgroup label={t("Borrowed money (loan)")}>
+                  {borrowed.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
             </NativeSelect>
           </label>
 
@@ -653,6 +679,24 @@ function ExpenseEditor({
 }) {
   const t = useT();
   const paid = row.status === "PAID";
+  /*
+    The cost's own account is always one of the choices.
+
+    A desk that may not write loans is not sent the lender's loan, so a cost
+    he paid opened on the first bank in the list instead — the editor said the
+    wrong account, and saving a corrected description posted that bank and was
+    refused as a move off the loan. Kept, it saves as it stands.
+  */
+  const options: ExpenseAccount[] = accounts.filter((a) => a.currency === row.currency);
+  if (row.accountId && !options.some((a) => a.id === row.accountId)) {
+    options.push({
+      id: row.accountId,
+      name: row.accountName ?? "—",
+      currency: row.currency,
+      accountNumber: null,
+      kind: row.borrowedFrom ? "LOAN" : undefined,
+    });
+  }
 
   /*
     Which of the batch's costs this row is, resolved from what it was called.
@@ -803,17 +847,18 @@ function ExpenseEditor({
           <span className="text-[11px] text-muted-foreground">{t("Paid from")}</span>
           <NativeSelect
             name="accountId"
+            required
             defaultValue={row.accountId ?? ""}
             className="h-9 w-44 bg-card text-sm"
           >
-            <option value="">{t("Not paid yet")}</option>
-            {accounts
-              .filter((a) => a.currency === row.currency)
-              .map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
+            <option value="" disabled>
+              {t("Choose the account")}
+            </option>
+            {options.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.kind === "LOAN" ? `${a.name} — ${t("borrowed money")}` : a.name}
+              </option>
+            ))}
           </NativeSelect>
         </label>
 

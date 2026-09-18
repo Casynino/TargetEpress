@@ -107,9 +107,14 @@ export async function reconcileAccount(
     const result = await prisma.$transaction(async (tx) => {
       const account = await tx.companyAccount.findUnique({
         where: { id: input.accountId },
-        select: { id: true, name: true, currency: true, active: true },
+        select: { id: true, name: true, currency: true, active: true, kind: true },
       });
       if (!account) throw new Error(t(locale, "That account no longer exists."));
+      /* There is no statement to hold a loan against, and the manager who
+         reconciles is the lender — see the loans page instead. */
+      if (account.kind === "LOAN") {
+        throw new Error(`${account.name} ${t(locale, "is a loan — money the company owes, not a company account — so it cannot be used here.")}`);
+      }
       if (!account.active) {
         throw new Error(
           `${account.name} ${t(

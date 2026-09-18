@@ -41,7 +41,7 @@ import { currentRate, formatUsd } from "@/lib/fx";
 import { formatShillingTotal, LOCAL_CURRENCY } from "@/lib/money";
 import { figureSize } from "@/lib/figure-size";
 import { t } from "@/lib/i18n";
-import { accountBalances, moneyOutRows } from "@/lib/ledger";
+import { accountBalances, loanCashRows, moneyOutRows } from "@/lib/ledger";
 import {
   agingInWarehouse,
   cashFlowByMonth,
@@ -99,6 +99,7 @@ export default async function FinanceOverviewPage() {
     unattributed,
     spendThisMonth,
     unpaidCosts,
+    loanCashThisMonth,
   ] = await Promise.all([
     financeStats(),
     agingInWarehouse(6),
@@ -192,6 +193,10 @@ export default async function FinanceOverviewPage() {
           _count: true,
         })
       : Promise.resolve(null),
+    /* Cash a lender handed over or was paid back this month. Not in In, Out
+       or Net — it is neither earned nor spent — but it moved the accounts, so
+       the Net card names it rather than leaving the reader to find it. */
+    seesCompanyMoney ? loanCashRows({ from: monthStart }) : Promise.resolve(null),
   ]);
 
   const rate = rateRow ? toNumber(rateRow.rate) : null;
@@ -241,7 +246,10 @@ export default async function FinanceOverviewPage() {
     (sum, note) => sum + toNumber(note.shipment.invoice?.total ?? 0),
     0
   );
-  const cashOnHand = balances.reduce(
+  /* The company's own accounts. A lender's loan runs below zero by the debt,
+     and in here it would shrink cash by what he lent. */
+  const companyBalances = balances.filter((row) => row.kind !== "LOAN");
+  const cashOnHand = companyBalances.reduce(
     (sum, row) => sum + toNumber(row.inflowUsd) - toNumber(row.outflowUsd),
     0
   );
@@ -253,7 +261,7 @@ export default async function FinanceOverviewPage() {
     whenever the rate was republished — and disagreed with the Accounts page,
     which adds each account up in its own currency.
   */
-  const cashLocal = balances.reduce(
+  const cashLocal = companyBalances.reduce(
     (sum, row) =>
       sum +
       (row.currency === LOCAL_CURRENCY
@@ -285,6 +293,19 @@ export default async function FinanceOverviewPage() {
   const owedOutUsd = sumUsd(owedRows, rate);
   const netMonth = collectedMonth - spentUsd;
   const netMonthTsh = collectedMonthTsh - spentTsh;
+  const loanCash = loanCashThisMonth ?? [];
+  const borrowedTsh = sumShillings(
+    loanCash.filter((row) => row.kind === "LOAN_RECEIVED"),
+    rate
+  );
+  const repaidTsh = sumShillings(
+    loanCash.filter((row) => row.kind === "LOAN_REPAYMENT"),
+    rate
+  );
+  const loanNote = [
+    borrowedTsh > 0 ? `${formatMoney(Math.round(borrowedTsh))} ${t(locale, "borrowed")}` : null,
+    repaidTsh > 0 ? `${formatMoney(Math.round(repaidTsh))} ${t(locale, "repaid to a lender")}` : null,
+  ].filter(Boolean);
 
   const countFor = (...statuses: string[]) =>
     position
@@ -511,7 +532,11 @@ export default async function FinanceOverviewPage() {
                     v: shillings(netMonthTsh, netMonth),
                     tone: netMonth >= 0 ? "text-foreground" : "text-destructive",
                     wash: netMonth >= 0 ? "from-success/10" : "from-destructive/10",
-                    hint: netMonth >= 0 ? t(locale, "Ahead") : t(locale, "Behind"),
+                    hint: `${netMonth >= 0 ? t(locale, "Ahead") : t(locale, "Behind")}${
+                      loanNote.length === 0
+                        ? ""
+                        : ` · ${t(locale, "Not in these figures:")} ${loanNote.join(", ")}`
+                    }`,
                   },
                 ]
               : []),

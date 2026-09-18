@@ -422,14 +422,18 @@ export default async function ShipmentPage({
             status: true,
             incurredAt: true,
             accountId: true,
-            account: { select: { name: true } },
+            account: { select: { name: true, kind: true, accountName: true } },
             recordedBy: { select: { name: true } },
             _count: { select: { receipts: true } },
           },
         }),
         canRecordCost
           ? prisma.companyAccount.findMany({
-              where: { active: true },
+              /* A lender's loan only for a desk that may record against one
+                 (loan.record); ordered by kind, which puts loans last. */
+              where: can(user.role, "loan.record")
+                ? { active: true }
+                : { active: true, kind: { not: "LOAN" } },
               orderBy: [{ kind: "asc" }, { name: "asc" }],
               select: {
                 id: true,
@@ -437,6 +441,7 @@ export default async function ShipmentPage({
                 currency: true,
                 kind: true,
                 accountNumber: true,
+                accountName: true,
               },
             })
           : Promise.resolve([]),
@@ -745,6 +750,10 @@ export default async function ShipmentPage({
             incurredAt: e.incurredAt.toISOString().slice(0, 10),
             accountId: e.accountId ?? null,
             accountName: e.account?.name ?? null,
+            borrowedFrom:
+              e.account?.kind === "LOAN"
+                ? e.account.accountName || e.account.name
+                : null,
             recordedBy: e.recordedBy?.name ?? null,
             receipts: e._count.receipts,
           }))}

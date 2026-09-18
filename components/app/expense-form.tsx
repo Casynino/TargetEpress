@@ -29,8 +29,11 @@ export type ExpenseAccount = {
   name: string;
   currency: string;
   accountNumber: string | null;
-  /** Bank, till or tin. What an account IS decides how money reached it. */
-  kind?: "BANK" | "MOBILE_MONEY" | "CASH";
+  /** Bank, till or tin — or a lender's loan, which is borrowed money. What an
+      account IS decides how money reached it. */
+  kind?: "BANK" | "MOBILE_MONEY" | "CASH" | "LOAN";
+  /** On a loan: the lender's name. */
+  accountName?: string | null;
 };
 
 export type ExpenseDispatch = { id: string; label: string };
@@ -102,6 +105,12 @@ export function ExpenseForm({
   const amountRef = useRef<HTMLInputElement>(null);
 
   const eligible = accounts.filter((a) => a.currency === currency);
+  /* Borrowed money listed apart from the company's own, under its own heading,
+     so nobody reads a lender's loan as another till. */
+  const ownMoney = eligible.filter((a) => a.kind !== "LOAN");
+  const borrowed = eligible.filter((a) => a.kind === "LOAN");
+  const [paidFrom, setPaidFrom] = useState("");
+  const loanChosen = borrowed.find((a) => a.id === paidFrom) ?? null;
 
   /** One tap fills what it is and what kind it is, then asks for the amount. */
   const pick = (item: QuickExpense) => {
@@ -280,20 +289,39 @@ export function ExpenseForm({
               id="expenseAccount"
               name="accountId"
               required
-              defaultValue=""
+              value={paidFrom}
+              onChange={(event) => setPaidFrom(event.target.value)}
             >
               <option value="" disabled>
                 {t("Choose the account")}
               </option>
-              {eligible.map((account) => (
+              {ownMoney.map((account) => (
                 <option key={account.id} value={account.id}>
                   {account.name}
                 </option>
               ))}
+              {borrowed.length > 0 ? (
+                <optgroup label={t("Borrowed money (loan)")}>
+                  {borrowed.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
             </NativeSelect>
-            <p className="text-xs text-muted-foreground">
-              {t("Where the money actually left. The cost is paid in one step.")}
-            </p>
+            {loanChosen ? (
+              /* Said the moment it is chosen: this is not company money, and
+                 recording it creates a debt the company has to pay back. */
+              <p className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-xs text-warning">
+                {loanChosen.accountName || loanChosen.name}{" "}
+                {t("paid this from his own money. It is recorded as a normal cost, and the company now owes it back to him.")}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {t("Where the money actually left. The cost is paid in one step.")}
+              </p>
+            )}
           </div>
 
           {/*

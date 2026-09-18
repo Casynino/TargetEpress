@@ -110,11 +110,16 @@ const iconButton =
 export function LedgerRowFix({
   subject,
   accounts = [],
+  locked = false,
 }: {
   subject: LedgerRowSubject;
   /** Same-currency accounts a corrected cost may be paid from. Only needed
       wherever an expense subject is rendered. */
-  accounts?: { id: string; name: string; currency: string }[];
+  accounts?: { id: string; name: string; currency: string; kind?: string }[];
+  /** A line on a lender's loan, or either leg of money borrowed or repaid,
+      for a reader who may not write loans. Correcting it would move the debt,
+      so there is nothing here for them — the server refuses it as well. */
+  locked?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -259,6 +264,11 @@ export function LedgerRowFix({
   /* Same-currency accounts only — a shilling cost cannot leave a dollar
      account, and editExpense refuses it anyway. */
   const eligibleAccounts = accounts.filter((a) => a.currency === subject.currency);
+  /* A customer's money never lands in a lender's loan; a cost may be paid
+     from one. The same list serves both pickers, so each takes its own half. */
+  const landingAccounts = eligibleAccounts.filter((a) => a.kind !== "LOAN");
+
+  if (locked) return null;
 
   if (subject.reversed) {
     /* A cost that has already been reversed has nothing left to offer: the
@@ -457,7 +467,7 @@ export function LedgerRowFix({
                           onChange={(event) => setPaymentAccountId(event.target.value)}
                         >
                           <option value="">{t("Not recorded")}</option>
-                          {eligibleAccounts.map((a) => (
+                          {landingAccounts.map((a) => (
                             <option key={a.id} value={a.id}>
                               {a.name}
                             </option>
@@ -594,7 +604,7 @@ export function LedgerRowFix({
                     </option>
                     {eligibleAccounts.map((a) => (
                       <option key={a.id} value={a.id}>
-                        {a.name}
+                        {a.kind === "LOAN" ? `${a.name} — ${t("borrowed money")}` : a.name}
                       </option>
                     ))}
                   </NativeSelect>

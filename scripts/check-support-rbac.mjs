@@ -24,6 +24,8 @@ const CARE = grab("CUSTOMER_CARE");
 
 /** Straight from the spec's "Customer Support CANNOT" list. */
 const MUST_NOT = {
+  "See what the company owes a lender": "loan.view",
+  "Record borrowed money or a repayment": "loan.record",
   "Register shipments": "shipment.create",
   "Edit shipment weight": "shipment.edit",
   "Change shipment status": "shipment.depart",

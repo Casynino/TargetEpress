@@ -61,7 +61,8 @@ export function FinanceActions({
       {canTakeMoney ? (
         <RecordIncome
           compact
-          accounts={accounts}
+          /* Customer money never lands in a loan. */
+          accounts={accounts.filter((a) => a.kind !== "LOAN")}
           rate={rate}
           canAdjust={canAdjust}
           canDiscount={canDiscount}

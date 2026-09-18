@@ -8,6 +8,7 @@ import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { postLedgerEntry } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { authorize } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -88,6 +89,9 @@ export async function cancelLedgerEntry(
         twice, so an account that was left half-undone by the old behaviour is
         finished off correctly by this one.
       */
+      /* Money borrowed or repaid is one movement in two legs as well — the
+         loan and the company account — and comes back the same way: half of
+         it undone would leave the debt and the cash disagreeing. */
       const legs = entry.transferId
         ? await tx.ledgerEntry.findMany({
             where: {
@@ -96,7 +100,35 @@ export async function cancelLedgerEntry(
               reversedBy: { is: null },
             },
           })
-        : [entry];
+        : entry.loanMovementId
+          ? await tx.ledgerEntry.findMany({
+              where: {
+                loanMovementId: entry.loanMovementId,
+                reversesId: null,
+                reversedBy: { is: null },
+              },
+            })
+          : [entry];
+
+      /*
+        A LOAN IS WRITTEN BY FINANCE, NOT BY THE PERSON OWED.
+
+        The lender is the manager, and the manager may cancel register lines.
+        Cancelling a repayment would put his debt back up and give the bank
+        money it no longer holds; cancelling a cost on his loan would take it
+        down. Every other door to a loan asks for loan.record, so this one
+        does too — for either leg of a movement, and for any line on the loan.
+      */
+      if (!can(user.role, "loan.record")) {
+        const onLoan = await tx.companyAccount.count({
+          where: { id: { in: legs.map((leg) => leg.accountId) }, kind: "LOAN" },
+        });
+        if (entry.loanMovementId || onLoan > 0) {
+          throw new Error(
+            t(locale, "This moves what the company owes a lender, and only Finance or the owner may change a loan.")
+          );
+        }
+      }
 
       for (const leg of legs) {
         await postLedgerEntry(tx, {
@@ -153,7 +185,7 @@ export async function cancelLedgerEntry(
           entityId: entry.id,
           summary: withNote(
             legs.length > 1
-              ? `${legs.map((l) => l.entryNumber).join(" and ")} cancelled — both legs of one transfer`
+              ? `${legs.map((l) => l.entryNumber).join(" and ")} cancelled — both legs of one ${entry.loanMovementId ? "loan movement" : "transfer"}`
               : `${entry.entryNumber} cancelled`,
             parsed.data.reason
           ),
@@ -163,6 +195,7 @@ export async function cancelLedgerEntry(
                say that cancelling one line moved two. */
             cancelled: legs.map((l) => l.entryNumber),
             transferId: entry.transferId,
+            loanMovementId: entry.loanMovementId,
             account: entry.account.name,
             amount: toNumber(entry.amount),
             currency: entry.currency,
@@ -176,6 +209,7 @@ export async function cancelLedgerEntry(
 
     revalidatePath("/app/finance/transactions");
     revalidatePath("/app/finance/accounts");
+    revalidatePath("/app/finance/loans");
     revalidatePath("/app/finance");
     return ok();
   } catch (error) {

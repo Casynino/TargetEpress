@@ -6,7 +6,7 @@ import { FileText, Paperclip } from "lucide-react";
 import { LedgerRowFix } from "@/components/app/ledger-row-fix";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
-import { activeAccounts } from "@/lib/accounts";
+import { activeAccounts, spendingAccounts } from "@/lib/accounts";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
@@ -31,6 +31,8 @@ const KIND_LABEL: Record<string, string> = {
      raw enum, because it appears on the register beside real income and must
      not read as either an expense or a payment. */
   TRANSPORT_OUT: "Transport paid out",
+  LOAN_RECEIVED: "Borrowed from a lender",
+  LOAN_REPAYMENT: "Loan repaid",
 };
 
 function fileSize(bytes: number) {
@@ -59,12 +61,15 @@ export default async function LedgerEntryPage({
   const user = await requirePermission("ledger.view");
   const locale = await viewerLocale();
   const { id } = await params;
-  const accounts = await activeAccounts();
+  /* Loans only for a desk that may move a cost onto one (loan.record). */
+  const accounts = can(user.role, "loan.record")
+    ? await spendingAccounts()
+    : await activeAccounts();
 
   const entry = await prisma.ledgerEntry.findUnique({
     where: { id },
     include: {
-      account: { select: { id: true, name: true, currency: true } },
+      account: { select: { id: true, name: true, currency: true, kind: true, accountName: true } },
       recordedBy: { select: { name: true } },
       payment: { select: { id: true } },
       expense: {
@@ -178,6 +183,21 @@ export default async function LedgerEntryPage({
     if (expense.approvedBy) {
       facts.push({ label: "Approved by", value: expense.approvedBy.name });
     }
+    /* Said in words on the line itself: a normal cost, paid with somebody
+       else's money, which the company now owes back. */
+    if (entry.account.kind === "LOAN") {
+      facts.push({
+        label: "Paid with",
+        value: (
+          <span className="font-medium text-signal">
+            {t(locale, "Money borrowed from")} {entry.account.accountName || entry.account.name}{" "}
+            <span className="font-normal text-muted-foreground">
+              {t(locale, "— the company owes it back")}
+            </span>
+          </span>
+        ),
+      });
+    }
   }
 
   if (entry.transfer) {
@@ -234,6 +254,10 @@ export default async function LedgerEntryPage({
           <div className="pt-1">
             <LedgerRowFix
               accounts={accounts}
+              locked={
+                !can(user.role, "loan.record") &&
+                (entry.account.kind === "LOAN" || entry.loanMovementId !== null)
+              }
               subject={{
                 entryId: entry.id,
                 /* A payment movement is redirected to the payment's own page

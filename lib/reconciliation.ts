@@ -174,6 +174,9 @@ const KIND_LABEL: Record<AccountKind, string> = {
      answer on the page for money the CASH accounts already hold. So the tins are
      grouped as cash and labelled cash. */
   CASH: "Cash in hand",
+  /* Never shown: loans are left out of this page's accounts altogether (see
+     the query below). Named only because every kind must be. */
+  LOAN: "Loans",
 };
 
 const COUNTERPART: Record<AccountKind, { text: string; checkable: boolean }> = {
@@ -188,6 +191,10 @@ const COUNTERPART: Record<AccountKind, { text: string; checkable: boolean }> = {
   CASH: {
     text: "The tin is the one account with a real second side: somebody counts it, and the count is stored with what the ledger believed at that moment. That difference is below, and it is never auto-corrected — a shortfall that balances itself is a shortfall nobody notices.",
     checkable: true,
+  },
+  LOAN: {
+    text: "Money the company owes a lender. It is agreed with him, not counted or read off a statement.",
+    checkable: false,
   },
 };
 
@@ -325,6 +332,10 @@ export async function reconciliation(locale: Locale = "en") {
       `,
       accountBalances(prisma),
       prisma.companyAccount.findMany({
+        /* The company's own money only. A loan runs below zero by exactly the
+           debt, so it would sit on "accounts below zero" forever, and it is
+           not money the company holds — the Loans page answers for it. */
+        where: { kind: { not: "LOAN" } },
         orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
         select: {
           id: true,

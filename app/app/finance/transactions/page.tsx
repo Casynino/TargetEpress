@@ -17,7 +17,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { activeAccounts } from "@/lib/accounts";
+import { spendingAccounts } from "@/lib/accounts";
+import { LOAN_LEDGER_KINDS } from "@/lib/ledger";
 import { rateFactsOf } from "@/lib/agreed-rate";
 import { LedgerRowFix } from "@/components/app/ledger-row-fix";
 import { RecordIncome } from "@/components/app/record-income";
@@ -97,6 +98,10 @@ const KIND_LABEL: Record<string, string> = {
      raw enum, because it appears on the register beside real income and must
      not read as either an expense or a payment. */
   TRANSPORT_OUT: "Transport paid out",
+  /* Money a lender handed over, and money paid back to him. Neither is income
+     nor a cost — named so it cannot be read as either. */
+  LOAN_RECEIVED: "Borrowed from a lender",
+  LOAN_REPAYMENT: "Loan repaid",
 };
 
 const PAGE_SIZE = 60;
@@ -268,8 +273,11 @@ export default async function LedgerPage({
     unpaid,
     unpaidByKind,
     credit,
+    loanCash,
   ] = await Promise.all([
-      activeAccounts(),
+      /* Loans included, so the register can be narrowed to one — a lender's
+         loan has a register like any account. */
+      spendingAccounts(),
       prisma.user.findMany({
         where: { ledgerEntries: { some: {} } },
         select: { id: true, name: true },
@@ -281,7 +289,7 @@ export default async function LedgerPage({
         skip: (page - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
         include: {
-          account: { select: { id: true, name: true, currency: true } },
+          account: { select: { id: true, name: true, currency: true, kind: true, accountName: true } },
           recordedBy: { select: { name: true } },
           payment: {
             select: {
@@ -444,7 +452,24 @@ export default async function LedgerPage({
       */
       prisma.ledgerEntry.groupBy({
         by: ["direction", "currency"],
-        where: { ...where, reversesId: null, reversedBy: { is: null } },
+        where: {
+          ...where,
+          reversesId: null,
+          reversedBy: { is: null },
+          /* Borrowing and repaying move money between a lender and the company,
+             not in or out of the business — both legs would inflate both
+             tiles. And a loan account is not company money: a cost the lender
+             paid himself left no company account, so it is not in Money out —
+             the same answer the dashboard's Spent this month gives. Kept when
+             the register is narrowed to one account, kind or category, so
+             those figures still add up to what they list. */
+          ...(params.account || where.kind || params.category
+            ? {}
+            : {
+                kind: { notIn: [...LOAN_LEDGER_KINDS] },
+                account: { kind: { not: "LOAN" as const } },
+              }),
+        },
         _sum: { amount: true, amountUsd: true },
       }),
       /* How many of the rows below are cancelled, so the card can say why its
@@ -481,6 +506,22 @@ export default async function LedgerPage({
       can(user.role, "credit.view")
         ? creditNotInTheLedger()
         : Promise.resolve(null),
+      /* Cash a lender handed over or was paid back, through the company's own
+         accounts, in the same view. Only asked for when the tiles leave loans
+         out — so the Net card can name what it does not count. */
+      params.account || where.kind || params.category
+        ? Promise.resolve([])
+        : prisma.ledgerEntry.groupBy({
+            by: ["kind", "currency"],
+            where: {
+              ...where,
+              reversesId: null,
+              reversedBy: { is: null },
+              kind: { in: [...LOAN_LEDGER_KINDS] },
+              account: { kind: { not: "LOAN" as const } },
+            },
+            _sum: { amount: true, amountUsd: true },
+          }),
     ]);
 
   /*
@@ -581,6 +622,25 @@ export default async function LedgerPage({
   const outUsd = usdTotal("OUT");
   const inTsh = tshTotal("IN");
   const outTsh = tshTotal("OUT");
+  const loanTsh = (kind: string) =>
+    loanCash
+      .filter((row) => row.kind === kind)
+      .reduce(
+        (sum, row) =>
+          sum +
+          (row.currency === "TZS"
+            ? toNumber(row._sum.amount ?? 0)
+            : toNumber(row._sum.amountUsd ?? 0) * (rate ?? 0)),
+        0
+      );
+  const loanNote = [
+    loanTsh("LOAN_RECEIVED") > 0
+      ? `${formatMoney(Math.round(loanTsh("LOAN_RECEIVED")))} ${t(locale, "borrowed")}`
+      : null,
+    loanTsh("LOAN_REPAYMENT") > 0
+      ? `${formatMoney(Math.round(loanTsh("LOAN_REPAYMENT")))} ${t(locale, "repaid to a lender")}`
+      : null,
+  ].filter(Boolean);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const single = accounts.find((a) => a.id === params.account) ?? null;
 
@@ -618,6 +678,9 @@ export default async function LedgerPage({
            SELECT 1 FROM "LedgerEntry" r WHERE r."reversesId" = e."id"
          )
          ${account ? Prisma.sql`AND e."accountId" = ${account}` : Prisma.empty}
+         /* Across every account this is the company's cash, and a lender's
+            loan is not cash — see the loop below. */
+         ${account ? Prisma.empty : Prisma.sql`AND e."accountId" NOT IN (SELECT "id" FROM "CompanyAccount" WHERE "kind" = 'LOAN')`}
        GROUP BY e."direction"
     `);
     const pick = (dir: "IN" | "OUT") => {
@@ -636,6 +699,13 @@ export default async function LedgerPage({
        Its answering line is not in this list to bring the figure back down —
        skipping the pair is what keeps the running total honest without it. */
     if (entry.reversedBy) {
+      runningById.set(entry.id, running);
+      continue;
+    }
+    /* Across every account the balance is the company's cash. A line on a
+       lender's loan moved his money, not the company's: it carries the balance
+       of the row beneath it, as a cancelled line does. */
+    if (!single && entry.account.kind === "LOAN") {
       runningById.set(entry.id, running);
       continue;
     }
@@ -738,6 +808,9 @@ export default async function LedgerPage({
         ? t(locale, "Credit payment")
         : t(locale, "Cash sale");
     }
+    if (entry.kind === "LOAN_RECEIVED" || entry.kind === "LOAN_REPAYMENT") {
+      return t(locale, KIND_LABEL[entry.kind]);
+    }
     if (entry.transfer) return t(locale, "Between accounts");
     return t(locale, KIND_LABEL[entry.kind] ?? entry.kind);
   };
@@ -808,12 +881,14 @@ export default async function LedgerPage({
             /* Says what these figures actually cover. The list below shows
                every row including the cancelled ones; the money does not. */
             hint:
-              cancelledRows > 0
-                ? `${total - cancelledRows} ${t(
-                    locale,
-                    total - cancelledRows === 1 ? "movement" : "movements"
-                  )} · ${cancelledRows} ${t(locale, "cancelled, not counted")}`
-                : `${total} ${t(locale, total === 1 ? "movement" : "movements")}`,
+              `${
+                cancelledRows > 0
+                  ? `${total - cancelledRows} ${t(
+                      locale,
+                      total - cancelledRows === 1 ? "movement" : "movements"
+                    )} · ${cancelledRows} ${t(locale, "cancelled, not counted")}`
+                  : `${total} ${t(locale, total === 1 ? "movement" : "movements")}`
+              }${loanNote.length ? ` · ${t(locale, "Not in these figures:")} ${loanNote.join(", ")}` : ""}`,
           },
         ].map((cell) => (
           <div
@@ -1067,6 +1142,11 @@ export default async function LedgerPage({
                         {entry.kind === "TRANSPORT_OUT" ? (
                           <span className="ml-1.5 whitespace-nowrap rounded bg-brand/15 px-1.5 py-0.5 text-[11px] font-semibold text-brand">
                             {t(locale, "Transport")}
+                          </span>
+                        ) : null}
+                        {entry.account.kind === "LOAN" && entry.kind === "EXPENSE" ? (
+                          <span className="ml-1.5 whitespace-nowrap rounded bg-signal/15 px-1.5 py-0.5 text-[11px] font-semibold text-signal">
+                            {t(locale, "Borrowed")} · {entry.account.accountName || entry.account.name}
                           </span>
                         ) : null}
                       </p>
@@ -1384,6 +1464,14 @@ export default async function LedgerPage({
                             {t(locale, "Transport")}
                           </span>
                         ) : null}
+                        {/* A cost paid with a lender's money: a normal cost,
+                            and a debt — said on the row, not left to the
+                            account column. */}
+                        {entry.account.kind === "LOAN" && entry.kind === "EXPENSE" ? (
+                          <span className="ml-1.5 whitespace-nowrap rounded bg-signal/15 px-1.5 py-0.5 text-[11px] font-semibold text-signal no-underline">
+                            {t(locale, "Borrowed")} · {entry.account.accountName || entry.account.name}
+                          </span>
+                        ) : null}
                       </Link>
                       {/* Wraps rather than truncates. Squeezed onto one line a
                           long cargo description and a run of codes compete for
@@ -1536,7 +1624,15 @@ export default async function LedgerPage({
                           full; it is recorded rather than hidden.
                         */}
                         <LedgerRowFix
-                          accounts={accounts}
+                          /* A desk that may not record against a loan is not
+                             offered one as somewhere to move a cost. */
+                          accounts={accounts.filter(
+                            (a) => a.kind !== "LOAN" || can(user.role, "loan.record")
+                          )}
+                          locked={
+                            !can(user.role, "loan.record") &&
+                            (entry.account.kind === "LOAN" || entry.loanMovementId !== null)
+                          }
                           subject={{
                             entryId: entry.id,
                             paymentId: entry.payment?.id ?? null,

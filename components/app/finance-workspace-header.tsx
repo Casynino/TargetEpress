@@ -4,7 +4,7 @@ import type { Role } from "@prisma/client";
 import { FinanceActions } from "@/components/app/finance-actions";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { PageHeader } from "@/components/app/page-header";
-import { activeAccounts } from "@/lib/accounts";
+import { activeAccounts, spendingAccounts } from "@/lib/accounts";
 import { COMMON_EXPENSES } from "@/lib/expenses";
 import { financeTabs } from "@/lib/finance-tabs";
 import { toNumber } from "@/lib/format";
@@ -53,8 +53,11 @@ export async function FinanceWorkspaceHeader({
   description?: string;
 }) {
   const locale = await viewerLocale();
+  /* A cost may be paid from a lender's loan, but only by a desk that may
+     record against one — see loan.record. Everybody else is offered company
+     money only. The income form below never sees a loan either way. */
   const [accounts, rateRow] = await Promise.all([
-    activeAccounts(),
+    can(role, "loan.record") ? spendingAccounts() : activeAccounts(),
     currentRate(),
   ]);
   const rate = rateRow ? toNumber(rateRow.rate) : null;
@@ -87,6 +90,7 @@ export async function FinanceWorkspaceHeader({
                   /* Needed to tell a till from a bank: transport is settled
                      out of cash or the Lipa number, never a bank. */
                   kind: a.kind,
+                  accountName: a.accountName,
                 }))}
                 quickExpenses={COMMON_EXPENSES}
                 rate={rate}

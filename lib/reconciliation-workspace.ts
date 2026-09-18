@@ -6,7 +6,7 @@ import type { Prisma, ReviewState } from "@prisma/client";
 
 import { reviewsFor, type Standing } from "@/lib/control";
 import { toNumber } from "@/lib/format";
-import { accountBalances } from "@/lib/ledger";
+import { accountBalances, LOAN_LEDGER_KINDS } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -40,6 +40,8 @@ export const KIND_LABEL: Record<string, string> = {
      raw enum, because it appears on the register beside real income and must
      not read as either an expense or a payment. */
   TRANSPORT_OUT: "Transport paid out",
+  LOAN_RECEIVED: "Borrowed from a lender",
+  LOAN_REPAYMENT: "Loan repaid",
 };
 
 /** PENDING is the absence of a verdict, so it is never a stored row. */
@@ -343,7 +345,15 @@ export async function queueTotals(filters: QueueFilters) {
        money twice, once on each side. See lib/ledger.ts for the same rule. */
     prisma.ledgerEntry.groupBy({
       by: ["direction"],
-      where: { ...where, reversesId: null, reversedBy: { is: null } },
+      where: {
+        ...where,
+        reversesId: null,
+        reversedBy: { is: null },
+        /* Borrowing and repaying are neither in nor out across the business —
+           both legs would inflate both sides. Kept when the list is narrowed
+           to one account, so that account's figures still add up. */
+        ...(filters.account || where.kind ? {} : { kind: { notIn: [...LOAN_LEDGER_KINDS] } }),
+      },
       _sum: { amountUsd: true },
       _count: { _all: true },
     }),
@@ -390,7 +400,8 @@ export type AccountPosition = {
 export async function accountPositions(): Promise<AccountPosition[]> {
   const [accounts, balances, checks] = await Promise.all([
     prisma.companyAccount.findMany({
-      where: { active: true },
+      /* Company money only — see accountStandings in lib/control.ts. */
+      where: { active: true, kind: { not: "LOAN" } },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: { id: true, name: true, kind: true, currency: true },
     }),

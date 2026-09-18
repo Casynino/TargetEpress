@@ -627,6 +627,22 @@ export default async function FinanceReportsPage({
               value={`− ${exact(pl.cashOutLocal, pl.cashOut)}`}
               alt={alt(pl.cashOut)}
             />
+            {/* Borrowed money is neither collected nor paid out, but it moved
+                the accounts — so net cash counts it, on a line of its own. */}
+            {pl.borrowedCash > 0 ? (
+              <Row
+                label={t(locale, "Borrowed from a lender")}
+                value={`+ ${exact(pl.borrowedCashLocal, pl.borrowedCash)}`}
+                alt={alt(pl.borrowedCash)}
+              />
+            ) : null}
+            {pl.repaidCash > 0 ? (
+              <Row
+                label={t(locale, "Repaid to a lender")}
+                value={`− ${exact(pl.repaidCashLocal, pl.repaidCash)}`}
+                alt={alt(pl.repaidCash)}
+              />
+            ) : null}
             <Row
               label={t(locale, "Net cash")}
               value={money(pl.netCash)}

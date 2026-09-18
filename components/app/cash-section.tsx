@@ -37,7 +37,9 @@ export async function CashSection() {
 
   const [accounts, entries, counts, rate, usedMost] = await Promise.all([
     prisma.companyAccount.findMany({
-      where: { active: true },
+      /* Company money only: money to or from a lender is recorded on the
+         Loans page, never as a transfer. */
+      where: { active: true, kind: { not: "LOAN" } },
       orderBy: [{ kind: "asc" }, { name: "asc" }],
       select: {
         id: true,

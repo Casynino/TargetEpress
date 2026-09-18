@@ -197,6 +197,16 @@ export type Permission =
   /// write, kept apart from account.view so that granting somebody a look at
   /// the balances never quietly grants them the power to move them.
   | "treasury.move"
+  /// See what the company owes a lender — the manager's own money he paid
+  /// company costs with — and every cost, cash hand-over and repayment behind
+  /// it. Finance, the owner and the manager: the manager is the lender, and a
+  /// debt owed to somebody is theirs to read.
+  | "loan.view"
+  /// Record money a lender handed over, a repayment to him, or a cost paid
+  /// from his loan. Finance and the owner, NOT the manager: every one of these
+  /// moves what the company owes him, and the person owed does not write his
+  /// own debt — the rule credit and payroll already keep.
+  | "loan.record"
   /// Read the register: every movement in and out, and what it left behind.
   | "ledger.view"
   /// See what the business spends and what it has spent.
@@ -679,6 +689,8 @@ const FINANCE: Permission[] = [
   // type it is ceremony, not control.
   "account.manage",
   "treasury.move",
+  "loan.view",
+  "loan.record",
   "ledger.view",
   "expense.view",
   "expense.record",
@@ -885,6 +897,9 @@ const MANAGER: Permission[] = ALL.filter(
       "pricing.manage",
       "account.manage",
       "shipment.purge",
+      /* The manager is the lender. He may see what he is owed; recording it
+         is Finance's and the owner's. */
+      "loan.record",
     ].includes(permission)
 );
 
@@ -1053,6 +1068,7 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // a customer's bill; these two are about what the business is worth, and
   // Support has no business in either.
   { prefix: "/app/finance/accounts", permission: "account.view" },
+  { prefix: "/app/finance/loans", permission: "loan.view" },
   { prefix: "/app/finance/cash", permission: "account.view" },
   { prefix: "/app/finance/transactions", permission: "ledger.view" },
   // The payments register. It has always been guarded on the page itself, but
