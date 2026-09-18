@@ -72,15 +72,20 @@ export function AgreedRate({
 
   if (compact) {
     /*
-      THE SAME FACTS, ONE LINE TALL.
+      TWO SHORT LINES, IN THE WORDS THE DESK SAYS ON THE PHONE.
 
-      On a queue of a hundred bills the full box made every row with a
-      special rate three times the height of its neighbours. The rule does not
-      bend for the space: the agreed rate never appears without the book's,
-      and a changed unit is still said — as a small tag, with the sentence
-      behind it on hover.
+      This used to be one pill — "USD 13.50/kg · book 40.00/item · unit
+      changed" — and the owner could not read it at a glance: "book" is our
+      word for the rate book, not his, and "unit changed" did not say changed
+      from what to what. So each figure gets a plain label, the units are
+      written out, and the normal price sits directly under the special one.
+      When the two are in different units, "per kg" over "per item" is the
+      change itself, so the units are what gets coloured — a separate note
+      saying so wrapped onto a third line in a list column.
+
+      Still only as tall as it must be on a hundred-row queue, and no box: a
+      thin bar marks it as a note about the cargo, not a button.
     */
-    const per = (byItem: boolean) => (byItem ? t("/item") : t("/kg"));
     const detail = [
       t("Special rate for this cargo"),
       switched
@@ -92,34 +97,37 @@ export function AgreedRate({
     ]
       .filter(Boolean)
       .join(" · ");
+    const unitTone = switched ? "font-medium text-warning" : "";
     return (
-      <span
+      <div
         title={detail}
-        className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-brand/30 bg-brand/[0.06] px-2 py-0.5 text-[11px] leading-tight tabular-nums ${className}`}
+        className={`grid w-fit grid-cols-[auto_auto] items-baseline gap-x-2 whitespace-nowrap border-l-2 border-brand/60 pl-2 text-[11px] leading-4 tabular-nums ${className}`}
       >
-        <Tag className="h-3 w-3 shrink-0 text-brand" aria-hidden />
-        <span className="sr-only">{t("Special rate for this cargo")}:</span>
-        <span className="font-semibold text-foreground">
-          {currency} {agreed.toFixed(2)}
-          {per(perItem)}
+        <span className="font-medium text-brand">{t("Special price")}</span>
+        <span className="flex items-baseline gap-x-1.5">
+          <span className="font-semibold text-foreground">
+            {currency} {agreed.toFixed(2)} <span className={unitTone}>{unit}</span>
+          </span>
+          {/* A signed figure, not "1.00 less": the words pushed the difference
+              onto a line of its own in a list column. */}
+          {off !== null && Math.abs(off) > 0.005 ? (
+            <span className={off > 0 ? "text-success" : "text-warning"}>
+              {off > 0 ? "−" : "+"}
+              {Math.abs(off).toFixed(2)}
+            </span>
+          ) : null}
         </span>
+        <span className="text-muted-foreground">{t("Normal price")}</span>
         <span className="text-muted-foreground">
-          {standard !== null
-            ? `· ${t("book")} ${standard.toFixed(2)}${per(bookByItem)}`
-            : `· ${t("book rate not recorded")}`}
+          {standard !== null ? (
+            <>
+              {currency} {standard.toFixed(2)} <span className={unitTone}>{bookUnit}</span>
+            </>
+          ) : (
+            t("not recorded")
+          )}
         </span>
-        {off !== null && Math.abs(off) > 0.005 ? (
-          <span className={off > 0 ? "text-success" : "text-warning"}>
-            {off > 0 ? "−" : "+"}
-            {Math.abs(off).toFixed(2)}
-          </span>
-        ) : null}
-        {switched ? (
-          <span className="rounded-full bg-warning/15 px-1.5 font-medium text-warning">
-            {t("unit changed")}
-          </span>
-        ) : null}
-      </span>
+      </div>
     );
   }
 
