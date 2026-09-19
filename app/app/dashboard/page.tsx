@@ -153,6 +153,15 @@ async function chinaHeroChips(): Promise<HeroChip[]> {
       label: t(locale, "Cargo today"),
       value: String(summary.shipments),
     },
+    /* The cartons behind the consignments. Every one gets a label and a
+       place on the shelf, so it is the figure the floor's own work is
+       counted in — and four cards sit two by two on a phone, where three
+       left one standing alone. */
+    {
+      icon: Boxes,
+      label: t(locale, "Boxes today"),
+      value: summary.packages.toLocaleString(),
+    },
     {
       icon: Scale,
       label: t(locale, "Weight today"),
@@ -523,11 +532,9 @@ async function ChinaDashboard({
         ]}
       />
 
-      <FloorChips chips={chips} />
-
-      {/* No StatStrip here. FloorChips above already carries this desk's
-          standing numbers, and the same figures twice a centimetre apart is the
-          duplication every other dashboard in this app has had removed. */}
+      {/* What needs doing first, straight under the buttons that do it; the
+          day's numbers after it. The owner's order: a figure nobody acts on
+          does not stand between the desk and its work. */}
       <AttentionCenter
         items={attention}
         reviewAll={{ href: "/app/shipments", label: t(locale, "All cargo") }}
@@ -536,6 +543,11 @@ async function ChinaDashboard({
           "Nothing is waiting on this desk. Every consignment is photographed, on a batch, and moving."
         )}
       />
+
+      {/* No StatStrip here. FloorChips carries this desk's standing numbers,
+          and the same figures twice a centimetre apart is the duplication
+          every other dashboard in this app has had removed. */}
+      <FloorChips chips={chips} />
 
       <div>
         <SectionLabel
@@ -1109,8 +1121,8 @@ async function DarDashboard({
         }))}
       />
 
-      <FloorChips chips={chips} />
-
+      {/* What needs doing first, then the floor's numbers — the same order as
+          Guangzhou. */}
       <AttentionCenter
         items={attention}
         reviewAll={{ href: "/app/exceptions" }}
@@ -1119,6 +1131,8 @@ async function DarDashboard({
           "Nothing is waiting on this floor. Every batch is checked in, nothing is short, and no case is open."
         )}
       />
+
+      <FloorChips chips={chips} />
 
       {/* The floor, in the five states cargo can be in between the plane and
           the customer.

@@ -149,7 +149,11 @@ export function FloorChips({ chips }: { chips: HeroChip[] }) {
   if (chips.length === 0) return null;
 
   return (
-    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    /* Four sit two by two on a phone and in one row on a wide screen; three
+       keep their row of three. */
+    <dl
+      className={`grid grid-cols-2 gap-3 ${chips.length === 4 ? "lg:grid-cols-4" : "sm:grid-cols-3"}`}
+    >
       {chips.map((chip) => {
         const body = (
           <>
