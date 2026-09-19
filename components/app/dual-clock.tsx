@@ -23,10 +23,14 @@ const ZONES = {
 
 export function DualClock({
   emphasis = "CN",
+  inline = false,
   className,
 }: {
   /** Whose local time is the big one — the warehouse you are standing in. */
   emphasis?: "CN" | "TZ";
+  /** One short line — "Guangzhou 03:20 · Dar es Salaam 22:20" — for a banner
+      that has room for a line, not two stacked clocks. */
+  inline?: boolean;
   className?: string;
 }) {
   const T = useT();
@@ -39,6 +43,31 @@ export function DualClock({
   }, []);
 
   const order: ("CN" | "TZ")[] = emphasis === "CN" ? ["CN", "TZ"] : ["TZ", "CN"];
+
+  if (inline) {
+    /* Named by city, as the desks say it on the phone: the warehouse is in
+       Guangzhou and the office in Dar es Salaam. */
+    const CITY = { CN: "Guangzhou", TZ: "Dar es Salaam" } as const;
+    return (
+      <p className={cn("tabular", className)}>
+        {order.map((key, index) => (
+          <span key={key}>
+            {index > 0 ? " · " : ""}
+            {T(CITY[key])}{" "}
+            <span className="font-semibold text-white">
+              {now
+                ? now.toLocaleTimeString("en-GB", {
+                    timeZone: ZONES[key].zone,
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "--:--"}
+            </span>
+          </span>
+        ))}
+      </p>
+    );
+  }
 
   return (
     <div className={cn("flex items-center gap-5", className)}>

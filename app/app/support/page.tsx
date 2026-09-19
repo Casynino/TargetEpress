@@ -22,6 +22,7 @@ import { BarChart } from "@/components/charts/bar-chart";
 import { Donut } from "@/components/charts/donut";
 import { FlowBars } from "@/components/charts/flow-bars";
 import { CargoSearch } from "@/components/app/cargo-search";
+import { DualClock } from "@/components/app/dual-clock";
 import { QuickAction } from "@/components/app/support-forms";
 import { Badge } from "@/components/ui/badge";
 import { creditAlerts } from "@/lib/credit-queries";
@@ -385,7 +386,7 @@ export default async function SupportHome() {
           inside it rather than under it: on this desk the phone is already
           ringing when the page loads, and the first thing wanted is the box on
           the other end of the call. */}
-      <div className="relative mb-6 overflow-hidden rounded-2xl">
+      <div className="relative mb-4 overflow-hidden rounded-2xl">
         <div
           aria-hidden
           className="absolute inset-0 bg-gradient-to-br from-signal via-brand to-info"
@@ -398,36 +399,39 @@ export default async function SupportHome() {
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/5"
         />
-        <div className="relative p-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
+        {/* Compact, the size every desk's banner now is: the day, the desk and
+            both clocks on one short line, then the greeting and the box. */}
+        <div className="relative px-4 py-4 sm:px-6 sm:py-5">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-white/75">
+            <p className="flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
-              {today}
-            </span>
-            <span className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
-              {t(locale, "Support desk")}
-            </span>
+              {today} ·{" "}
+              <span className="font-semibold uppercase tracking-wider text-white/90">
+                {t(locale, "Support desk")}
+              </span>
+            </p>
+            <DualClock inline emphasis="TZ" />
           </div>
           {/* The person, then the job. Every other desk in the app opens by
               greeting whoever signed in; this one opened on an instruction,
               which made it the only screen that did not know who was reading
               it. */}
-          <h1 className="mt-3 font-display text-[32px] font-bold leading-none tracking-tight text-white">
+          <h1 className="mt-2 font-display text-xl font-bold tracking-tight text-white sm:text-2xl">
             {t(locale, "Habari")}, {firstName}
           </h1>
-          <p className="mt-2 text-sm text-white/80">
+          <p className="mt-0.5 hidden text-sm text-white/75 sm:block">
             {t(
               locale,
               "Find cargo by tracking number, a customer’s name, the number they are calling from, a batch or an invoice."
             )}
           </p>
-          <div className="mt-4 max-w-2xl">
-            <CargoSearch action="/app/support/search" />
+          <div className="mt-3 max-w-2xl">
+            <CargoSearch action="/app/support/search" compact />
           </div>
         </div>
       </div>
 
-      <div className="mb-7">
+      <div className="mb-6">
         <ActionPills
           /* Beside Collections, because that is the money row of this desk and
              recording an income is the thing you do from it. It is an action,

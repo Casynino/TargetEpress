@@ -97,7 +97,7 @@ export function ActionPills({
         <Fragment key={item.href}>
         <Link
           href={item.href}
-          className={`focus-ring inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+          className={`focus-ring inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm ${
             item.weight === "primary"
               ? `border-transparent ${SOLID[item.tone ?? "brand"]}`
               : item.weight === "secondary"
@@ -105,7 +105,7 @@ export function ActionPills({
                 : TINT[item.tone ?? "brand"]
           }`}
         >
-          <item.icon className="h-4 w-4" />
+          <item.icon className="h-3.5 w-3.5" />
           {item.label}
         </Link>
         {after && afterHref === item.href ? after : null}

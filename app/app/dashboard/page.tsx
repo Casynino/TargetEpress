@@ -285,9 +285,10 @@ export default async function DashboardPage() {
 
   return (
     <>
-      {/* The warehouses get the banner with both clocks and today's numbers;
-          everyone else keeps the plain greeting. Finance does not care what
-          time it is in Guangzhou. */}
+      {/* The warehouses get their own banner — their greeting follows the
+          floor's clock and their one action differs; every other desk gets
+          the office one. Both are the same compact band, with the two cities'
+          clocks on one short line. */}
       {warehouse ? (
         <WarehouseHero
           firstName={firstName}
@@ -312,11 +313,14 @@ export default async function DashboardPage() {
             Add cargo. Dar keeps the permission, because a box that turns up
             after a flight was closed is added there; it is simply not how
             their morning begins.
+
+            China's row of actions under the banner already opens on Receive
+            Cargo, so the banner carries no button of its own there — the same
+            button twice, one above the other. Dar's row leaves scanning out on
+            purpose, so the banner keeps it.
           */
           action={
-            inChina && can(user.role, "shipment.create")
-              ? { href: "/app/cargo/new", label: t(locale, "Receive cargo") }
-              : { href: "/app/release", label: t(locale, "Scan & release") }
+            inChina ? undefined : { href: "/app/release", label: t(locale, "Scan & release") }
           }
           // The same box the money and support desks open on. The floor is
           // asked "where is my cargo" all day too.

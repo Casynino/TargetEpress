@@ -48,8 +48,10 @@ export async function WarehouseHero({
   firstName: string;
   warehouseName: string;
   emphasis: "CN" | "TZ";
-  /** The one thing this desk starts its day with. */
-  action: { href: string; label: string };
+  /** The one thing this desk starts its day with, when the row of actions
+      under the banner does not already carry it — the same button twice,
+      one above the other, is what the owner asked to be rid of. */
+  action?: { href: string; label: string };
   /**
    * Where the search box posts. Omit and no box is drawn.
    *
@@ -69,12 +71,16 @@ export async function WarehouseHero({
   );
 
   return (
-    <section className="relative mb-6 overflow-hidden rounded-2xl">
+    <section className="relative mb-4 overflow-hidden rounded-2xl">
       {/* The same band the money desk gets, so every department opens onto the
           same thing. Target's own colours: the red off the mark running into
           the blue the app uses for anything you can act on. Nothing moves —
           this page is read a hundred times a day and animation on it becomes
-          wallpaper by lunchtime. */}
+          wallpaper by lunchtime.
+
+          Compact, the size of Swift's: the warehouse and both cities' clocks on
+          one short line, a smaller greeting, the slim search box, and the
+          day's one action as a small round button. */}
       <div
         aria-hidden
         className="absolute inset-0 bg-gradient-to-br from-signal via-brand to-info"
@@ -88,50 +94,39 @@ export async function WarehouseHero({
         className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/5"
       />
 
-      <div className="relative p-6">
-        {/*
-          Two blocks that stack on a phone and sit side by side from `sm`.
-
-          They were both flex children with no width floor, so on a 375px screen
-          the clocks and the scan button — which need about 300px between them —
-          took what they wanted and left the greeting roughly forty pixels to
-          live in. `flex-1` shrinks; it does not wrap. The result was a heading
-          reading one word per line down the middle of the phone, which is what
-          the warehouse actually sees every morning.
-
-          `w-full` below `sm` forces the wrap instead of the squeeze.
-        */}
-        <div className="flex flex-wrap items-start justify-between gap-5 sm:gap-6">
-          <div className="w-full min-w-0 sm:w-auto sm:flex-1">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
-              <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
+      <div className="relative px-4 py-4 sm:px-6 sm:py-5">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-white/75">
+          <p className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
+            <span className="font-semibold uppercase tracking-wider text-white/90">
               {t(locale, warehouseName)}
             </span>
-            <h1 className="mt-3 font-display text-[26px] font-bold leading-tight tracking-tight text-white sm:text-[32px] sm:leading-none">
-              {greeting}, {firstName}
-            </h1>
-            <p className="mt-2 text-sm text-white/80">
-              {t(locale, "Here is what is happening on the floor today.")}
-            </p>
-            {search ? (
-              <div className="mt-4 max-w-2xl">
-                <CargoSearch action={search.action} />
-              </div>
-            ) : null}
+          </p>
+          {/* The warehouse you are standing in first. */}
+          <DualClock inline emphasis={emphasis} />
+        </div>
+        <h1 className="mt-2 font-display text-xl font-bold tracking-tight text-white sm:text-2xl">
+          {greeting}, {firstName}
+        </h1>
+        <p className="mt-0.5 hidden text-sm text-white/75 sm:block">
+          {t(locale, "Here is what is happening on the floor today.")}
+        </p>
+        {search ? (
+          <div className="mt-3 max-w-2xl">
+            <CargoSearch action={search.action} compact />
           </div>
-
-          <div className="flex w-full flex-wrap items-center justify-between gap-4 sm:w-auto sm:justify-start sm:gap-5">
-            <DualClock emphasis={emphasis} />
+        ) : null}
+        {action ? (
+          <div className="mt-3 flex flex-wrap gap-2">
             <Link
               href={action.href}
-              className="focus-ring inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-brand shadow-lift transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
+              className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-full bg-white px-3 text-xs font-semibold text-brand shadow-lift transition-colors hover:bg-white/90"
             >
-              <PackagePlus className="h-4 w-4" />
+              <PackagePlus className="h-3.5 w-3.5" />
               {t(locale, action.label)}
             </Link>
           </div>
-        </div>
-
+        ) : null}
       </div>
     </section>
   );

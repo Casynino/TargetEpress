@@ -19,10 +19,13 @@ export async function CargoSearch({
   action,
   defaultValue,
   placeholder,
+  compact = false,
 }: {
   action: string;
   defaultValue?: string;
   placeholder?: string;
+  /** The slimmer box a home banner carries. */
+  compact?: boolean;
 }) {
   const locale = await viewerLocale();
   return (
@@ -34,11 +37,13 @@ export async function CargoSearch({
           locale,
           placeholder ?? "Tracking number, customer name, phone, batch or invoice"
         )}
-        className="flex-1"
+        className={compact ? "h-9 flex-1 text-sm" : "flex-1"}
         autoComplete="off"
         aria-label={t(locale, "Search cargo")}
       />
-      <Button type="submit">{t(locale, "Search")}</Button>
+      <Button type="submit" size={compact ? "sm" : "default"} className={compact ? "h-9" : undefined}>
+        {t(locale, "Search")}
+      </Button>
     </form>
   );
 }
