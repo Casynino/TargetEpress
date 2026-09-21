@@ -11,6 +11,7 @@ import {
 } from "@/components/app/customer-merge";
 import { CustomerNotesForm } from "@/components/app/customer-notes";
 import { CustomerPhones } from "@/components/app/customer-phones";
+import { CustomerDetails } from "@/components/app/customer-details";
 import { MessageComposer } from "@/components/app/message-composer";
 import { PageHeader } from "@/components/app/page-header";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
@@ -719,27 +720,20 @@ export default async function CustomerProfilePage({
         </div>
 
         <div className="space-y-6">
-          <section className="rounded-xl border bg-card p-5 shadow-soft">
-            <h2 className="mb-3 font-semibold">{t(locale, "Details")}</h2>
-            <dl className="space-y-3 text-sm">
-              {[
-                { label: t(locale, "Customer ID"), value: customer.code },
-                {
-                  label: t(locale, "Phone"),
-                  value: customer.phone ?? t(locale, "Not on file"),
-                },
-                { label: t(locale, "Other phone"), value: customer.altPhone ?? "—" },
-                { label: t(locale, "Email"), value: customer.email ?? "—" },
-                { label: t(locale, "City"), value: customer.city ?? "—" },
-                { label: t(locale, "Address"), value: customer.address ?? "—" },
-              ].map((item) => (
-                <div key={item.label} className="flex justify-between gap-4">
-                  <dt className="text-muted-foreground">{item.label}</dt>
-                  <dd className="text-right font-medium">{item.value}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
+          <CustomerDetails
+            customer={{
+              id: customer.id,
+              code: customer.code,
+              name: customer.name,
+              phone: customer.phone,
+              altPhone: customer.altPhone,
+              email: customer.email,
+              city: customer.city,
+              address: customer.address,
+            }}
+            canEdit={can(user.role, "customer.manage")}
+            canDelete={can(user.role, "customer.delete")}
+          />
 
           {canMessage ? (
             <section className="rounded-xl border bg-card p-5 shadow-soft">

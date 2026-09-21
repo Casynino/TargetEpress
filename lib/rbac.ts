@@ -250,6 +250,11 @@ export type Permission =
   | "customer.view"
   | "customer.manage"
   | "customer.merge"
+  /* Removing a customer record that nothing hangs off — a duplicate typed at
+     the counter, a lead that never shipped. One with cargo, a bill, a payment
+     or any contact on record is refused whoever asks; that history is merged,
+     never deleted. */
+  | "customer.delete"
   // Support desk
   | "ticket.manage"
   | "sourcing.manage"
@@ -354,6 +359,7 @@ const CHINA: Permission[] = [
   "batch.manage",
   "customer.view",
   "customer.manage",
+  "customer.delete",
   // Reads the Issues & Claims, and nothing more. When Dar reports a box
   // missing, the question that follows is "was it loaded in Guangzhou?" —
   // which only this desk can answer, and cannot answer if it cannot see the
@@ -496,7 +502,12 @@ const DAR: Permission[] = [
   "inventory.view",
   "delivery.history",
   "warehouse.reports",
+  /* The owner's instruction: the floor that hands cargo over is the one that
+     finds the wrong number on a record while the customer stands there, so it
+     corrects it — and removes a duplicate nobody ever shipped with. */
   "customer.view",
+  "customer.manage",
+  "customer.delete",
 ];
 
 /**
@@ -616,6 +627,7 @@ const CUSTOMER_CARE: Permission[] = [
   "sourcing.manage",
   "customer.view",
   "customer.manage",
+  "customer.delete",
   /* The desk that hears "but I already paid for the other one" and works out
      that the customer is on the books twice. It is where the duplicate is
      found, so it is where it is closed. */

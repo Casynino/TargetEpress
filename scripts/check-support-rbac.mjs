@@ -63,6 +63,8 @@ const MUST_HAVE = {
   "View shipment details": "shipment.view",
   "View shipment photos and history": "shipment.viewInternal",
   "View customer profiles": "customer.view",
+  "Correct a customer's details": "customer.manage",
+  "Delete a customer record with no history": "customer.delete",
   "View pricing": "finance.view",
   "Generate invoices": "invoice.manage",
   "Edit invoices before payment": "invoice.edit",

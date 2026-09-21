@@ -396,6 +396,14 @@ const DAR_SECTIONS: NavSection[] = [
     title: "Support",
     group: { label: "Support", icon: "MessageSquare" },
     items: [
+      /* The customer at the counter is who the floor answers to, and a wrong
+         number on their record is found while they stand there. */
+      {
+        href: "/app/customers",
+        label: "Customers",
+        icon: "Users",
+        permission: "customer.view",
+      },
       {
         href: "/app/exceptions",
         // Named for what the desk does there rather than the database word:

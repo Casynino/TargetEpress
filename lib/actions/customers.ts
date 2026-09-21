@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
@@ -564,4 +565,314 @@ export async function updateCustomerPhone(input: {
   } catch (error) {
     return fail(toActionError(error));
   }
+}
+
+const detailsSchema = z.object({
+  customerId: z.string().min(1),
+  name: z.string().trim().min(2, "Give the customer's name.").max(120, "Keep the name under 120 characters."),
+  phone: z.string().trim().max(30).optional(),
+  altPhone: z.string().trim().max(30).optional(),
+  email: z
+    .string()
+    .trim()
+    .max(160)
+    .optional()
+    .refine((v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "That email address does not look right."),
+  city: z.string().trim().max(80).optional(),
+  address: z.string().trim().max(300).optional(),
+  reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
+});
+
+const DETAIL_LABELS: Record<string, string> = {
+  name: "Name",
+  phone: "Phone",
+  altPhone: "Other phone",
+  email: "Email",
+  city: "City",
+  address: "Address",
+};
+
+/**
+ * CORRECT A CUSTOMER'S DETAILS FROM THEIR OWN PAGE.
+ *
+ * The page showed the details and let nobody change them there: a wrong name
+ * could only be fixed by editing one of the customer's consignments, and a
+ * wrong number by adding the right one to a list further down and removing the
+ * old. Support, both warehouses, Finance and management correct them here now.
+ *
+ * THE MAIN NUMBER IS REPLACED, NOT ADDED TO. This form is where a mistyped
+ * number is put right, and keeping the wrong one on file would leave it
+ * belonging to this customer — so the real owner of that number could never
+ * be registered under it. A customer who has genuinely changed number and
+ * should keep both is served by the number list below, which adds.
+ *
+ * Every field that moves is written to the change history with its old value
+ * first, as a consignment's are.
+ */
+export async function updateCustomerDetails(
+  _prev: ActionResult<undefined> | undefined,
+  formData: FormData
+): Promise<ActionResult<undefined>> {
+  const locale = await viewerLocale();
+  let user: SessionUser;
+  try {
+    user = await authorize("customer.manage");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const parsed = detailsSchema.safeParse(Object.fromEntries(formData) as Record<string, string>);
+  if (!parsed.success) return fail(t(locale, parsed.error.issues[0]?.message ?? "Check the details."));
+  const input = parsed.data;
+  const orNull = (v: string | undefined) => (v && v.length > 0 ? v : null);
+
+  try {
+    const code = await prisma.$transaction(async (tx) => {
+      const before = await tx.customer.findUnique({
+        where: { id: input.customerId },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          phone: true,
+          altPhone: true,
+          email: true,
+          city: true,
+          address: true,
+        },
+      });
+      if (!before) throw new Error(t(locale, "That customer no longer exists."));
+
+      const phone = input.phone ? normalisePhone(input.phone) : null;
+      if (input.phone && input.phone.replace(/\D/g, "").length < 7) {
+        throw new Error(t(locale, "That phone number is too short."));
+      }
+      const altPhone = input.altPhone ? normalisePhone(input.altPhone) : null;
+      /* A customer who has a number keeps one: the phone is how their cargo
+         finds them. */
+      if (!phone && before.phone) {
+        throw new Error(
+          t(locale, "A customer must keep at least one number — it is how their cargo finds them.")
+        );
+      }
+
+      const after = {
+        name: input.name,
+        phone,
+        altPhone,
+        email: orNull(input.email),
+        city: orNull(input.city),
+        address: orNull(input.address),
+      };
+      const changes = (Object.keys(after) as (keyof typeof after)[])
+        .filter((field) => (before[field] ?? null) !== (after[field] ?? null))
+        .map((field) => ({ field, before: before[field] ?? null, after: after[field] ?? null }));
+      if (changes.length === 0) throw new Error(t(locale, "Nothing was changed."));
+
+      if (phone && phone !== before.phone) {
+        /* A number is an identity: it may not already be somebody else's. */
+        const listed = await tx.customerPhone.findUnique({
+          where: { phone },
+          select: { customerId: true },
+        });
+        const holder = await tx.customer.findUnique({
+          where: { phone },
+          select: { id: true, name: true, code: true },
+        });
+        const otherId =
+          listed && listed.customerId !== before.id
+            ? listed.customerId
+            : holder && holder.id !== before.id
+              ? holder.id
+              : null;
+        if (otherId) {
+          const other = await tx.customer.findUnique({
+            where: { id: otherId },
+            select: { name: true, code: true },
+          });
+          throw new Error(
+            `${phone} ${t(locale, "belongs to")} ${other?.name ?? t(locale, "another customer")} (${other?.code ?? ""}). ${t(locale, "If they are the same person, merge the two records instead.")}`
+          );
+        }
+
+        await tx.customerPhone.updateMany({
+          where: { customerId: before.id },
+          data: { isPrimary: false },
+        });
+        if (listed) {
+          await tx.customerPhone.updateMany({
+            where: { customerId: before.id, phone },
+            data: { isPrimary: true },
+          });
+        } else {
+          await tx.customerPhone.create({
+            data: { customerId: before.id, phone, isPrimary: true, addedById: user.id },
+          });
+        }
+        /* The corrected number replaces the one it corrects. */
+        if (before.phone) {
+          await tx.customerPhone.deleteMany({
+            where: { customerId: before.id, phone: before.phone },
+          });
+        }
+      }
+
+      await tx.customer.update({
+        where: { id: before.id },
+        data: after,
+      });
+
+      await tx.fieldChange.createMany({
+        data: changes.map((change) => ({
+          entity: "Customer",
+          entityId: before.id,
+          field: change.field,
+          before: change.before,
+          after: change.after,
+          actorId: user.id,
+          actorName: user.name,
+          reason: orNull(input.reason),
+        })),
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "customer.update",
+          entity: "Customer",
+          entityId: before.id,
+          summary: `Corrected ${before.name} (${before.code}) — ${changes
+            .map((c) => DETAIL_LABELS[c.field] ?? c.field)
+            .join(", ")}`,
+          metadata: {
+            changes: changes.map(
+              (c) => `${DETAIL_LABELS[c.field] ?? c.field}: ${c.before ?? "—"} → ${c.after ?? "—"}`
+            ),
+            reason: orNull(input.reason),
+          },
+        },
+        tx
+      );
+      return before.code;
+    });
+
+    revalidatePath(`/app/customers/${code}`);
+    revalidatePath(`/app/customers/${input.customerId}`);
+    revalidatePath("/app/customers");
+    return ok(undefined);
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
+/**
+ * DELETE A CUSTOMER THAT NOTHING HANGS OFF.
+ *
+ * A duplicate typed at the counter, a name registered for a shipment that never
+ * came — records with no history. Anything with history is refused, by whoever
+ * asks: cargo, a bill, a payment, a pickup note, a payment claim, a support
+ * ticket, a sourcing request or a message on record. Deleting those would take
+ * money and a paper trail with it, or leave them belonging to nobody; a
+ * duplicate with history is merged into the right customer instead.
+ *
+ * What was deleted is kept in the audit log — name, code, numbers, email,
+ * city, address — so a deletion can always be explained.
+ */
+export async function deleteCustomer(
+  _prev: ActionResult<undefined> | undefined,
+  formData: FormData
+): Promise<ActionResult<undefined>> {
+  const locale = await viewerLocale();
+  let user: SessionUser;
+  try {
+    user = await authorize("customer.delete");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+  const customerId = String(formData.get("customerId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim().slice(0, 300);
+  if (!customerId) return fail(t(locale, "That customer no longer exists."));
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const customer = await tx.customer.findUnique({
+        where: { id: customerId },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          phone: true,
+          altPhone: true,
+          email: true,
+          city: true,
+          address: true,
+          phones: { select: { phone: true } },
+          _count: {
+            select: {
+              shipments: true,
+              invoices: true,
+              payments: true,
+              pickupNotes: true,
+              submissions: true,
+              tickets: true,
+              requests: true,
+              messages: true,
+              packageCombinations: true,
+            },
+          },
+        },
+      });
+      if (!customer) throw new Error(t(locale, "That customer no longer exists."));
+
+      const c = customer._count;
+      const held = [
+        c.shipments ? `${c.shipments} ${t(locale, c.shipments === 1 ? "consignment" : "consignments")}` : null,
+        c.invoices ? `${c.invoices} ${t(locale, c.invoices === 1 ? "bill" : "bills")}` : null,
+        c.payments ? `${c.payments} ${t(locale, c.payments === 1 ? "payment" : "payments")}` : null,
+        c.pickupNotes ? `${c.pickupNotes} ${t(locale, "pickup note(s)")}` : null,
+        c.submissions ? `${c.submissions} ${t(locale, "payment claim(s)")}` : null,
+        c.tickets ? `${c.tickets} ${t(locale, "support ticket(s)")}` : null,
+        c.requests ? `${c.requests} ${t(locale, "sourcing request(s)")}` : null,
+        c.messages ? `${c.messages} ${t(locale, "message(s) on record")}` : null,
+        c.packageCombinations ? `${c.packageCombinations} ${t(locale, "combined package(s)")}` : null,
+      ].filter(Boolean);
+      if (held.length > 0) {
+        throw new Error(
+          `${customer.name} (${customer.code}) ${t(locale, "has")} ${held.join(", ")}, ${t(locale, "so the record cannot be deleted — that history must keep its owner. If this is a duplicate, merge it into the right customer instead (Support or Finance can).")}`
+        );
+      }
+
+      await tx.customer.delete({ where: { id: customer.id } });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "customer.delete",
+          entity: "Customer",
+          entityId: customer.id,
+          summary: `Deleted ${customer.name} (${customer.code})${reason ? ` — ${reason}` : ""}`,
+          metadata: {
+            code: customer.code,
+            name: customer.name,
+            phone: customer.phone,
+            phones: customer.phones.map((p) => p.phone),
+            altPhone: customer.altPhone,
+            email: customer.email,
+            city: customer.city,
+            address: customer.address,
+            reason: reason || null,
+          },
+        },
+        tx
+      );
+    });
+
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+  /* Straight to the list. The page the button was on is the record that no
+     longer exists, and left to refresh itself it answered "not found". Outside
+     the try: a redirect is thrown, and the catch above would swallow it. */
+  revalidatePath("/app/customers");
+  redirect("/app/customers");
 }
