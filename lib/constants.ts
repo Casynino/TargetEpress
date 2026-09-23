@@ -12,6 +12,7 @@ import type {
   Role,
   ShipmentStatus,
   SubmissionStatus,
+  CargoCondition,
 } from "@prisma/client";
 
 import { t } from "@/lib/i18n";
@@ -969,6 +970,21 @@ export const RESOLUTION_NOTE_REQUIRED: readonly ResolutionType[] = [
   "CARGO_LOST",
   "OTHER",
 ];
+
+/**
+ * The state cargo was in when the Dar floor counted it.
+ *
+ * Said in the floor's own words. None of these stops the cargo being received,
+ * priced or billed — what happens about damage is the investigation's answer,
+ * not the check-in's.
+ */
+export const CARGO_CONDITION_LABELS: Record<CargoCondition, string> = {
+  GOOD: "Good",
+  MINOR_DAMAGE: "Minor damage",
+  DAMAGED: "Damaged",
+  WET: "Wet",
+  REPACKED: "Repacked",
+};
 
 export const DAMAGE_SEVERITY_LABELS: Record<DamageSeverity, string> = {
   MINOR: "Minor",

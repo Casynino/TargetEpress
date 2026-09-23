@@ -27,6 +27,7 @@ import { PackageList } from "@/components/app/package-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  CARGO_CONDITION_LABELS,
   BILLED_INVOICE_STATUSES,
   DAMAGE_SEVERITY_LABELS,
   EXCEPTION_STATUS_LABELS,
@@ -53,6 +54,7 @@ import { t } from "@/lib/i18n";
 import { composeMessage, whatsappLink } from "@/lib/messages";
 import { freightBasisOf } from "@/lib/support";
 import { shortfallBill } from "@/lib/collections";
+import { chinaFiguresOf } from "@/lib/china-figures";
 import { prisma } from "@/lib/prisma";
 import { shipmentQrDataUrl } from "@/lib/qr";
 import { FIELD_LABELS, changeHistory } from "@/lib/change-history";
@@ -503,6 +505,10 @@ export default async function ShipmentDetailPage({
               batchId={shipment.batch!.id}
               shipmentId={shipment.id}
               trackingNumber={shipment.trackingNumber}
+              customerName={shipment.customer.name}
+              chinaSaid={chinaFiguresOf(shipment)}
+              condition={shipment.condition}
+              shelfLocation={shipment.shelfLocation}
               weightKg={toNumber(shipment.weightKg)}
               packageType={shipment.packageType}
               packageList={shipment.packageList.map((pkg) => ({
@@ -559,6 +565,33 @@ export default async function ShipmentDetailPage({
                   value: shipment.volumeCbm
                     ? `${toNumber(shipment.volumeCbm)} CBM`
                     : "—",
+                  note:
+                    shipment.declaredVolumeCbm === null
+                      ? null
+                      : `${t(locale, "China said")} ${toNumber(shipment.declaredVolumeCbm)} CBM`,
+                },
+                /* What the Dar floor wrote down when it counted the cargo in.
+                   Absent on anything that landed before the dialog asked, and
+                   on cargo that has not landed at all — said as a dash rather
+                   than hidden, so the row does not appear and disappear as
+                   consignments move. */
+                {
+                  label: t(locale, "Pieces"),
+                  value: shipment.pieces === null ? "—" : String(shipment.pieces),
+                  note:
+                    shipment.declaredPieces === null
+                      ? null
+                      : `${t(locale, "China said")} ${shipment.declaredPieces}`,
+                },
+                {
+                  label: t(locale, "Condition"),
+                  value: shipment.condition
+                    ? t(locale, CARGO_CONDITION_LABELS[shipment.condition])
+                    : "—",
+                },
+                {
+                  label: t(locale, "Shelf / location"),
+                  value: shipment.shelfLocation ?? "—",
                 },
                 {
                   label: t(locale, "Batch"),

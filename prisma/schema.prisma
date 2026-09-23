@@ -191,6 +191,21 @@ enum PackageType {
   OTHER
 }
 
+/// What state cargo was in when Dar took it off the plane.
+///
+/// GOOD is the ordinary answer and the one the tick records without asking.
+/// The other four are said out loud by the floor; none of them stops the
+/// cargo being received, priced or billed — a damaged box is still the
+/// customer's box, and what happens about the damage is the investigation's
+/// answer, not the check-in's.
+enum CargoCondition {
+  GOOD
+  MINOR_DAMAGE
+  DAMAGED
+  WET
+  REPACKED
+}
+
 enum PhotoKind {
   CARGO
   PACKAGING
@@ -428,78 +443,78 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Operational back-references
-  createdCustomers      Customer[]              @relation("CustomerCreatedBy")
-  addedCustomerPhones   CustomerPhone[]         @relation("CustomerPhoneAddedBy")
-  createdShipments      Shipment[]              @relation("ShipmentCreatedBy")
-  createdBatches        Batch[]                 @relation("BatchCreatedBy")
-  closedBatches         Batch[]                 @relation("BatchClosedBy")
-  statementsSubmitted   BatchStatement[]        @relation("StatementSubmittedBy")
-  statementsReviewed    BatchStatement[]        @relation("StatementReviewedBy")
-  payrollPrepared       PayrollRun[]            @relation("PayrollPreparedBy")
-  payrollApproved       PayrollRun[]            @relation("PayrollApprovedBy")
-  payrollPaid           PayrollRun[]            @relation("PayrollPaidBy")
-  payrollLines          PayrollItem[]           @relation("PayrollItemStaff")
-  reconciliationsDone   AccountReconciliation[] @relation("ReconciliationCheckedBy")
-  reviewsGiven          ManagerReview[]         @relation("ManagerReviewBy")
-  statusChanges         ShipmentStatusHistory[]
-  uploadedPhotos        ShipmentPhoto[]
-  uploadedDocuments     ShipmentDocument[]
-  verifications         BatchVerification[]
-  raisedExceptions      ShipmentException[]     @relation("ExceptionRaisedBy")
-  resolvedExceptions    ShipmentException[]     @relation("ExceptionResolvedBy")
-  assignedExceptions    ShipmentException[]     @relation("ExceptionAssignedTo")
-  exceptionEvents       ExceptionEvent[]        @relation("ExceptionEventActor")
-  recordedCompensations Compensation[]          @relation("CompensationRecordedBy")
-  issuedInvoices        Invoice[]
-  receivedPayments      Payment[]
-  submittedPayments     PaymentSubmission[]     @relation("SubmittedPayments")
-  reviewedPayments      PaymentSubmission[]     @relation("ReviewedPayments")
-  adjustmentsMade       InvoiceAdjustment[]     @relation("AdjustmentsMade")
-  adjustmentsReversed   InvoiceAdjustment[]     @relation("AdjustmentsReversed")
-  priceChangesMade      InvoicePriceChange[]    @relation("PriceChangesMade")
-  priceChangesReviewed  InvoicePriceChange[]    @relation("PriceChangesReviewed")
-  issuedReceipts        Receipt[]
-  issuedPickupNotes     PickupNote[]
-  releasedDeliveries    DeliveryRecord[]
-  auditLogs             AuditLog[]
-  exchangeRates         ExchangeRate[]
-  openedTickets         SupportTicket[]         @relation("TicketOpenedBy")
-  assignedTickets       SupportTicket[]         @relation("TicketAssignedTo")
-  ticketNotes           TicketNote[]
-  openedRequests        SourcingRequest[]       @relation("SourcingOpenedBy")
-  assignedRequests      SourcingRequest[]       @relation("SourcingAssignedTo")
-  sentMessages          CustomerMessage[]
-  sentInvoices          Invoice[]               @relation("InvoiceSentBy")
-  confirmedInvoices     Invoice[]               @relation("InvoiceConfirmedBy")
+  createdCustomers        Customer[]              @relation("CustomerCreatedBy")
+  addedCustomerPhones     CustomerPhone[]         @relation("CustomerPhoneAddedBy")
+  createdShipments        Shipment[]              @relation("ShipmentCreatedBy")
+  createdBatches          Batch[]                 @relation("BatchCreatedBy")
+  closedBatches           Batch[]                 @relation("BatchClosedBy")
+  statementsSubmitted     BatchStatement[]        @relation("StatementSubmittedBy")
+  statementsReviewed      BatchStatement[]        @relation("StatementReviewedBy")
+  payrollPrepared         PayrollRun[]            @relation("PayrollPreparedBy")
+  payrollApproved         PayrollRun[]            @relation("PayrollApprovedBy")
+  payrollPaid             PayrollRun[]            @relation("PayrollPaidBy")
+  payrollLines            PayrollItem[]           @relation("PayrollItemStaff")
+  reconciliationsDone     AccountReconciliation[] @relation("ReconciliationCheckedBy")
+  reviewsGiven            ManagerReview[]         @relation("ManagerReviewBy")
+  statusChanges           ShipmentStatusHistory[]
+  uploadedPhotos          ShipmentPhoto[]
+  uploadedDocuments       ShipmentDocument[]
+  verifications           BatchVerification[]
+  raisedExceptions        ShipmentException[]     @relation("ExceptionRaisedBy")
+  resolvedExceptions      ShipmentException[]     @relation("ExceptionResolvedBy")
+  assignedExceptions      ShipmentException[]     @relation("ExceptionAssignedTo")
+  exceptionEvents         ExceptionEvent[]        @relation("ExceptionEventActor")
+  recordedCompensations   Compensation[]          @relation("CompensationRecordedBy")
+  issuedInvoices          Invoice[]
+  receivedPayments        Payment[]
+  submittedPayments       PaymentSubmission[]     @relation("SubmittedPayments")
+  reviewedPayments        PaymentSubmission[]     @relation("ReviewedPayments")
+  adjustmentsMade         InvoiceAdjustment[]     @relation("AdjustmentsMade")
+  adjustmentsReversed     InvoiceAdjustment[]     @relation("AdjustmentsReversed")
+  priceChangesMade        InvoicePriceChange[]    @relation("PriceChangesMade")
+  priceChangesReviewed    InvoicePriceChange[]    @relation("PriceChangesReviewed")
+  issuedReceipts          Receipt[]
+  issuedPickupNotes       PickupNote[]
+  releasedDeliveries      DeliveryRecord[]
+  auditLogs               AuditLog[]
+  exchangeRates           ExchangeRate[]
+  openedTickets           SupportTicket[]         @relation("TicketOpenedBy")
+  assignedTickets         SupportTicket[]         @relation("TicketAssignedTo")
+  ticketNotes             TicketNote[]
+  openedRequests          SourcingRequest[]       @relation("SourcingOpenedBy")
+  assignedRequests        SourcingRequest[]       @relation("SourcingAssignedTo")
+  sentMessages            CustomerMessage[]
+  sentInvoices            Invoice[]               @relation("InvoiceSentBy")
+  confirmedInvoices       Invoice[]               @relation("InvoiceConfirmedBy")
   /// Credit: who asked, who decided, and whose customers hold a facility. Three
   /// separate relations because "requested by me" and "approved by me" must
   /// never collapse into one — the split IS the control.
-  voidedPayments        Payment[]               @relation("PaymentVoidedBy")
+  voidedPayments          Payment[]               @relation("PaymentVoidedBy")
   /// Settlements this person decided: which share of a payment answered which
   /// bill. Kept because reallocating money between a customer's invoices is a
   /// judgement, and judgements have names on them.
-  paymentAllocations    PaymentAllocation[]     @relation("PaymentAllocationsMade")
-  creditRequests        Invoice[]               @relation("CreditRequestedBy")
-  creditDecisions       Invoice[]               @relation("CreditDecidedBy")
-  creditFacilities      Customer[]              @relation("CustomerCreditApprovedBy")
-  paymentProofs         PaymentProof[]
-  deletedShipments      Shipment[]              @relation("ShipmentDeletedBy")
-  receivedPackages      Package[]               @relation("PackageReceivedBy")
-  fieldChanges          FieldChange[]
-  ledgerEntries         LedgerEntry[]
-  recordedTransfers     AccountTransfer[]
-  recordedLoanMovements LoanMovement[]    @relation("LoanMovementRecordedBy")
-  cashCounts            CashCount[]
-  recordedExpenses      Expense[]               @relation("ExpenseRecordedBy")
-  approvedExpenses      Expense[]               @relation("ExpenseApprovedBy")
-  expenseReceipts       ExpenseReceipt[]
-  companySettings       CompanySetting[]
+  paymentAllocations      PaymentAllocation[]     @relation("PaymentAllocationsMade")
+  creditRequests          Invoice[]               @relation("CreditRequestedBy")
+  creditDecisions         Invoice[]               @relation("CreditDecidedBy")
+  creditFacilities        Customer[]              @relation("CustomerCreditApprovedBy")
+  paymentProofs           PaymentProof[]
+  deletedShipments        Shipment[]              @relation("ShipmentDeletedBy")
+  receivedPackages        Package[]               @relation("PackageReceivedBy")
+  fieldChanges            FieldChange[]
+  ledgerEntries           LedgerEntry[]
+  recordedTransfers       AccountTransfer[]
+  recordedLoanMovements   LoanMovement[]          @relation("LoanMovementRecordedBy")
+  cashCounts              CashCount[]
+  recordedExpenses        Expense[]               @relation("ExpenseRecordedBy")
+  approvedExpenses        Expense[]               @relation("ExpenseApprovedBy")
+  expenseReceipts         ExpenseReceipt[]
+  companySettings         CompanySetting[]
+  /// Boxes this person taped together, and any they opened again.
+  packageCombinations     PackageCombination[]    @relation("PackageCombinationBy")
+  packageCombinationUndos PackageCombination[]    @relation("PackageCombinationUndoneBy")
 
   @@index([role])
   @@index([department, active])
-  /// Boxes this person taped together, and any they opened again.
-  packageCombinations     PackageCombination[] @relation("PackageCombinationBy")
-  packageCombinationUndos PackageCombination[] @relation("PackageCombinationUndoneBy")
 }
 
 // ---------------------------------------------------------------------------
@@ -565,22 +580,22 @@ model Customer {
   /// Why this customer is trusted, in the words of whoever decided it.
   creditNote         String?
 
-  shipments   Shipment[]
-  invoices    Invoice[]
+  shipments           Shipment[]
+  invoices            Invoice[]
   /// Payments Support has claimed on their behalf, awaiting Finance.
-  submissions PaymentSubmission[]
-  pickupNotes PickupNote[]
-  tickets     SupportTicket[]
-  requests    SourcingRequest[]
-  messages    CustomerMessage[]
+  submissions         PaymentSubmission[]
+  pickupNotes         PickupNote[]
+  tickets             SupportTicket[]
+  requests            SourcingRequest[]
+  messages            CustomerMessage[]
+  /// Their boxes packed into one carton — never anybody else's.
+  packageCombinations PackageCombination[]
 
   @@index([name])
   @@index([phone])
   @@index([createdAt])
   /// The credit customer list, and it alone — most customers have no facility.
   @@index([creditLimitUsd])
-  /// Their boxes packed into one carton — never anybody else's.
-  packageCombinations PackageCombination[]
 }
 
 /// One number a customer registers cargo from.
@@ -858,6 +873,45 @@ model Shipment {
   packageType     PackageType @default(PACKAGE)
   weightKg        Decimal     @db.Decimal(10, 3)
   volumeCbm       Decimal?    @db.Decimal(10, 4)
+
+  /// Loose items inside the boxes — twenty phones in one carton is one package
+  /// and twenty pieces. Recorded because the customer and the claim both count
+  /// in pieces; nothing is ever priced on it. Per-item cargo is priced on
+  /// `packages`, which is the figure the rate book has always multiplied.
+  pieces Int?
+
+  // --- What Guangzhou said, kept after Dar says otherwise -------------------
+  /// THE FIGURES CHINA DECLARED, FROZEN THE FIRST TIME DAR WRITES ITS OWN.
+  ///
+  /// `weightKg`, `packages`, `pieces` and `volumeCbm` above are the live
+  /// figures — China's until the cargo is checked in at Dar, Dar's afterwards,
+  /// because everything downstream (the price, the bill, the manifest, the
+  /// release) must read one number and it has to be the one somebody put on a
+  /// scale. That overwrite used to lose what China had said: the floor could
+  /// see "China said 28" while the dialog was open and never again.
+  ///
+  /// So the declared figure is copied here at the moment it is replaced, once,
+  /// and never touched again. The difference between the two columns is the
+  /// difference between the packing list and the pallet, which is the question
+  /// Guangzhou is asked at the end of every month.
+  declaredPackages  Int?
+  declaredPieces    Int?
+  declaredWeightKg  Decimal? @db.Decimal(10, 3)
+  declaredVolumeCbm Decimal? @db.Decimal(10, 4)
+
+  /// The state the cargo was in when the Dar floor checked it in. Null until
+  /// somebody has looked at it.
+  ///
+  /// Separate from an investigation on purpose: "arrived, a bit wet, still
+  /// fine" is a fact about the goods that the counter and Finance should both
+  /// be able to read, and forcing it through a case would put every scuffed
+  /// carton in the investigation queue.
+  condition CargoCondition?
+
+  /// Where the box is standing in the Dar warehouse — a shelf, a bay, a
+  /// corner. Free text because that is how the floor talks about it, and
+  /// because the room is re-arranged more often than a picker list would be.
+  shelfLocation String?
 
   /// Where this cargo actually loaded, which is wherever its batch loaded — a
   /// batch is one physical load, so every piece on it left from the same place.
@@ -1439,16 +1493,16 @@ model Invoice {
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
 
-  currency              String    @default("USD")
+  currency            String   @default("USD")
   /// What the rate book says this cargo costs. Always the rate-book figure —
   /// it is never overwritten by hand, so the variance below stays visible.
-  freightCost           Decimal   @db.Decimal(12, 2)
+  freightCost         Decimal  @db.Decimal(12, 2)
   /// Finance's own freight figure, when they disagree with the rate book.
   /// Null means the rate book stands. Kept beside `freightCost` rather than
   /// replacing it: an override with nothing to compare against is just a typed
   /// number, and the point of the rate book is that every departure from it is
   /// visible and explained.
-  freightOverride       Decimal?  @db.Decimal(12, 2)
+  freightOverride     Decimal? @db.Decimal(12, 2)
   /// THE RATE FINANCE AGREED FOR THIS CONSIGNMENT, AND ONLY THIS ONE.
   ///
   /// A large customer is given USD 11.50/kg where the book says 12.50. That is
@@ -1464,7 +1518,7 @@ model Invoice {
   ///
   /// In the rate book's own unit unless `freightRateMethod` says otherwise:
   /// per kg for weight-priced cargo, per item for the per-piece rates.
-  freightRateOverride   Decimal?  @db.Decimal(12, 2)
+  freightRateOverride Decimal? @db.Decimal(12, 2)
 
   /// THE UNIT THE AGREED RATE IS IN, WHEN IT IS NOT THE BOOK'S.
   ///
@@ -1498,13 +1552,13 @@ model Invoice {
   ///
   /// Null with the rate, and on every bill agreed before it existed, where the
   /// shipment's own figures answer as they always have.
-  freightRateQuantity   Decimal?  @db.Decimal(10, 3)
+  freightRateQuantity   Decimal?       @db.Decimal(10, 3)
   freightOverrideReason String?
   /// Free storage runs out after a grace period; after that each day is
   /// chargeable. Both the count and the money are stored so an invoice can be
   /// re-explained months later, when "today" is a different date.
-  storageDays           Int       @default(0)
-  storageCharge         Decimal   @default(0) @db.Decimal(12, 2)
+  storageDays           Int            @default(0)
+  storageCharge         Decimal        @default(0) @db.Decimal(12, 2)
   /// What was calculated, what was forgiven, and by whom.
   ///
   /// A waiver is never a deletion. `storageCharge` keeps the figure the policy
@@ -1513,17 +1567,17 @@ model Invoice {
   /// derivable from one row. Silently zeroing the charge would make waived
   /// storage indistinguishable from storage that never accrued, and those are
   /// very different facts about a month.
-  storageWaivedUsd      Decimal   @default(0) @db.Decimal(12, 2)
+  storageWaivedUsd      Decimal        @default(0) @db.Decimal(12, 2)
   storageWaivedAt       DateTime?
   storageWaivedById     String?
-  storageWaivedBy       User?     @relation("StorageWaivedBy", fields: [storageWaivedById], references: [id], onDelete: SetNull)
+  storageWaivedBy       User?          @relation("StorageWaivedBy", fields: [storageWaivedById], references: [id], onDelete: SetNull)
   /// Required whenever anything is waived — "why" is the whole point of keeping
   /// the record, and it is the first question asked months later.
   storageWaiveReason    String?
-  otherCharges          Decimal   @default(0) @db.Decimal(12, 2)
-  discount              Decimal   @default(0) @db.Decimal(12, 2)
-  total                 Decimal   @db.Decimal(12, 2)
-  amountPaid            Decimal   @default(0) @db.Decimal(12, 2)
+  otherCharges          Decimal        @default(0) @db.Decimal(12, 2)
+  discount              Decimal        @default(0) @db.Decimal(12, 2)
+  total                 Decimal        @db.Decimal(12, 2)
+  amountPaid            Decimal        @default(0) @db.Decimal(12, 2)
 
   /// WHAT FINANCE CLEARED WITHOUT MONEY ARRIVING.
   ///
@@ -1543,12 +1597,12 @@ model Invoice {
   amountAdjusted Decimal @default(0) @db.Decimal(12, 2)
 
   /// Every clearing decision, kept for ever. See InvoiceAdjustment.
-  adjustments    InvoiceAdjustment[]
+  adjustments InvoiceAdjustment[]
 
   /// Every time this bill's price moved, and who moved it. See
   /// InvoicePriceChange.
   priceChanges   InvoicePriceChange[]
-  status         InvoiceStatus       @default(UNPAID)
+  status         InvoiceStatus        @default(UNPAID)
   /// When this bill was given up on, and who decided. Set only alongside
   /// status WRITTEN_OFF — the status says what it is, these say who owns it.
   writtenOffAt   DateTime?
@@ -2480,9 +2534,9 @@ model PackageCombination {
 
   note String?
 
-  combinedAt   DateTime @default(now())
-  combinedById String?
-  combinedBy   User?    @relation("PackageCombinationBy", fields: [combinedById], references: [id], onDelete: SetNull)
+  combinedAt     DateTime @default(now())
+  combinedById   String?
+  combinedBy     User?    @relation("PackageCombinationBy", fields: [combinedById], references: [id], onDelete: SetNull)
   /// Kept beside the relation, the way FieldChange keeps actorName: the owner
   /// asked to see who combined them, and that has to survive the account being
   /// closed years later.
@@ -2765,8 +2819,8 @@ model CompanyAccount {
 
   /// On a LOAN account: the money the lender handed over and the repayments,
   /// each its own record. On a company account: the ones it paid or received.
-  loanMovements      LoanMovement[] @relation("LoanMovementLoan")
-  loanMovementsCash  LoanMovement[] @relation("LoanMovementAccount")
+  loanMovements     LoanMovement[] @relation("LoanMovementLoan")
+  loanMovementsCash LoanMovement[] @relation("LoanMovementAccount")
 
   @@index([active, sortOrder])
 }
@@ -2805,7 +2859,6 @@ enum LedgerKind {
    * Borrowed money: the lender handing cash to the company (OUT of the LOAN
    * account, IN to a real one), and the company paying the lender back (OUT of
    * a real account, IN to the LOAN account).
-   *
    * Neither is income and neither is a cost. The money a loan paid for is
    * already an EXPENSE line on the loan account, counted like every other cost;
    * the repayment is settling a debt, and counted as spending it would charge
@@ -2868,16 +2921,16 @@ model LedgerEntry {
   /// own money and belongs on the account it left. Same shape a transfer has
   /// always had, and the same reason: two legs, one source row, the database
   /// refusing a third.
-  paymentId  String?
-  payment    Payment?         @relation(fields: [paymentId], references: [id], onDelete: Restrict)
-  expenseId  String?          @unique
-  expense    Expense?         @relation(fields: [expenseId], references: [id], onDelete: Restrict)
+  paymentId      String?
+  payment        Payment?         @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  expenseId      String?          @unique
+  expense        Expense?         @relation(fields: [expenseId], references: [id], onDelete: Restrict)
   /// A transfer writes two legs, so this is not unique — the pair below is.
-  transferId String?
-  transfer   AccountTransfer? @relation(fields: [transferId], references: [id], onDelete: Restrict)
+  transferId     String?
+  transfer       AccountTransfer? @relation(fields: [transferId], references: [id], onDelete: Restrict)
   /// Two legs as well: the loan account and the company account.
   loanMovementId String?
-  loanMovement   LoanMovement? @relation(fields: [loanMovementId], references: [id], onDelete: Restrict)
+  loanMovement   LoanMovement?    @relation(fields: [loanMovementId], references: [id], onDelete: Restrict)
 
   /// Append-only correction chain.
   reversesId String?      @unique
@@ -3530,12 +3583,12 @@ model InvoicePriceChange {
   /// means, and they are absolute figures rather than deltas: a delta applied
   /// days later against a bill that has moved again lands on a number nobody
   /// chose.
-  totalBefore    Decimal  @db.Decimal(12, 2)
+  totalBefore    Decimal        @db.Decimal(12, 2)
   /// Null means the bill was on the rate book's own figure, which is a
   /// different state from being on an agreed one that happens to match it —
   /// and putting it back has to reproduce the state, not the number.
-  freightBefore  Decimal? @db.Decimal(12, 2)
-  rateBefore     Decimal? @db.Decimal(12, 2)
+  freightBefore  Decimal?       @db.Decimal(12, 2)
+  rateBefore     Decimal?       @db.Decimal(12, 2)
   /// The unit that rate was in — per kg or per piece. A rate restored in the
   /// wrong unit is a different price: 13.50 a kilo on two documents put back
   /// as 13.50 a piece bills 27.00, not 13.50. Null beside a rate only on rows
@@ -3544,10 +3597,10 @@ model InvoicePriceChange {
   /// And what that rate was multiplied by. Worked out again at restore time it
   /// follows today's weight and today's rate book, so a consignment re-weighed
   /// after the change came back at a price it never had.
-  quantityBefore Decimal? @db.Decimal(10, 3)
-  storageBefore  Decimal  @db.Decimal(12, 2)
-  otherBefore    Decimal  @db.Decimal(12, 2)
-  discountBefore Decimal  @db.Decimal(12, 2)
+  quantityBefore Decimal?       @db.Decimal(10, 3)
+  storageBefore  Decimal        @db.Decimal(12, 2)
+  otherBefore    Decimal        @db.Decimal(12, 2)
+  discountBefore Decimal        @db.Decimal(12, 2)
 
   /// What the customer owes now. Stored so the queue can show the movement
   /// without loading every bill it lists.

@@ -19,12 +19,15 @@ import type { LucideIcon } from "lucide-react";
 
 import { SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
-import { PhotoCapture } from "@/components/app/photo-capture";
 import {
-  gapOf,
-  WEIGH_BOX,
-  WeighFigures,
-} from "@/components/app/weigh-figures";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { PhotoCapture } from "@/components/app/photo-capture";
+import { gapOf, WEIGH_BOX, WeighFigures } from "@/components/app/weigh-figures";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -67,11 +70,16 @@ const NOTE_PLACEHOLDERS: Record<ReceivingOutcome, string> = {
   WRONG_ITEM: "e.g. label says phone cases, the box holds shoes",
   WRONG_QUANTITY: "e.g. manifest says five cartons, three on the floor",
   /* The ticker is off for this one, so the count lives here or nowhere. */
-  OVER_QUANTITY: "e.g. manifest says three cartons, four on the floor — the fourth has no label",
-  MISSING: "e.g. nothing with this label came off the flight; not on any pallet",
-  SHORT_LANDED: "e.g. offloaded in Guangzhou for weight, booked on Friday GZ-33",
-  AT_CUSTOMS: "e.g. held by TRA for inspection, reference and who is following it up",
-  NO_LABEL: "e.g. label torn off, matched to this booking by contents and weight",
+  OVER_QUANTITY:
+    "e.g. manifest says three cartons, four on the floor — the fourth has no label",
+  MISSING:
+    "e.g. nothing with this label came off the flight; not on any pallet",
+  SHORT_LANDED:
+    "e.g. offloaded in Guangzhou for weight, booked on Friday GZ-33",
+  AT_CUSTOMS:
+    "e.g. held by TRA for inspection, reference and who is following it up",
+  NO_LABEL:
+    "e.g. label torn off, matched to this booking by contents and weight",
   RESTRICTED: "e.g. two lithium power banks packed loose inside the carton",
   HOLD: "e.g. label unreadable and no paperwork — held until checked",
 };
@@ -97,9 +105,11 @@ type PackageRow = { id: string; sequence: number };
  * this panel is the long way round to the same decision, not a second system.
  */
 export function ReceivingOutcomePanel({
+  onDone,
   batchId,
   shipmentId,
   trackingNumber,
+  customerName,
   packageType,
   packageList,
   photosDurable,
@@ -110,19 +120,23 @@ export function ReceivingOutcomePanel({
   batchId: string;
   shipmentId: string;
   trackingNumber: string;
+  /** On the dialog's own line, so the clerk knows whose cargo this is. */
+  customerName: string;
   packageType: string;
   packageList: PackageRow[];
   photosDurable: boolean;
   weightKg: number;
   /** The row's own action, so one error surface serves the whole row. */
   action: (formData: FormData) => void;
+  /** Closing the dialog, from the X, the overlay or Escape. */
+  onDone: () => void;
 }) {
   const t = useT();
   const [outcome, setOutcome] = useState<ReceivingOutcome | null>(null);
   // Everything is assumed present — the common case is a complete shipment, and
   // the clerk only has to act on what is not.
   const [present, setPresent] = useState<string[]>(
-    packageList.map((pkg) => pkg.id)
+    packageList.map((pkg) => pkg.id),
   );
   /* The same figure as present.length, held as text so the box can be cleared
      and retyped without snapping back to a number mid-keystroke. */
@@ -173,105 +187,129 @@ export function ReceivingOutcomePanel({
   const blocked = ticker && manyBoxes && missingCount === 0;
 
   return (
-    <div className="mt-2 space-y-4 rounded-lg border border-destructive/30 bg-destructive/[0.03] p-3">
-      <div>
-        <p className="text-xs font-medium">{t("What happened to this cargo?")}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {t("Only")}{" "}
-          <span className="font-medium">{t("Received")}</span>{" "}
-          {t(
-            "reaches the pickup counter. Everything else opens a case and holds the cargo."
-          )}
-        </p>
-      </div>
+    /*
+      A DIALOG, NOT A PANEL UNDER THE ROW.
 
-      <div
-        role="radiogroup"
-        aria-label={`${t("Check-in outcome for")} ${trackingNumber}`}
-        className="grid grid-cols-2 gap-2 sm:grid-cols-3"
-      >
-        {RECEIVING_OUTCOMES.map((value) => {
-          const Icon = OUTCOME_ICONS[value];
-          const on = outcome === value;
-          const clean = value === "RECEIVED";
-          return (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={on}
-              onClick={() => setOutcome(on ? null : value)}
-              className={`focus-ring flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm font-medium transition-colors ${
-                on
-                  ? clean
-                    ? "border-success bg-success/10 text-success"
-                    : "border-destructive bg-destructive/10 text-destructive"
-                  : "bg-card hover:bg-muted"
-              }`}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span className="min-w-0">
-                {t(RECEIVING_OUTCOME_LABELS[value])}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      Eleven outcomes, a note, a severity, photographs and a per-box ticker
+      pushed the row it belonged to off a phone screen, and the clerk answering
+      for TX-000136 could no longer see which consignment they were answering
+      for. The tracking number and the customer's name are in the title now,
+      above everything, where they cannot scroll away.
+    */
+    <Dialog open onOpenChange={(next) => (next ? null : onDone())}>
+      <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            <span className="font-mono">{trackingNumber}</span>
+            <span className="text-muted-foreground"> — </span>
+            {t("something is wrong")}
+          </DialogTitle>
+          <DialogDescription>{customerName}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <p className="text-xs font-medium">
+              {t("What happened to this cargo?")}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t("Only")} <span className="font-medium">{t("Received")}</span>{" "}
+              {t(
+                "reaches the pickup counter. Everything else opens a case and holds the cargo.",
+              )}
+            </p>
+          </div>
 
-      {outcome ? (
-        <form action={action} className="space-y-3 border-t pt-3">
-          <input type="hidden" name="batchId" value={batchId} />
-          <input type="hidden" name="shipmentId" value={shipmentId} />
-          <input type="hidden" name="outcome" value={outcome} />
+          <div
+            role="radiogroup"
+            aria-label={`${t("Check-in outcome for")} ${trackingNumber}`}
+            className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+          >
+            {RECEIVING_OUTCOMES.map((value) => {
+              const Icon = OUTCOME_ICONS[value];
+              const on = outcome === value;
+              const clean = value === "RECEIVED";
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setOutcome(on ? null : value)}
+                  className={`focus-ring flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm font-medium transition-colors ${
+                    on
+                      ? clean
+                        ? "border-success bg-success/10 text-success"
+                        : "border-destructive bg-destructive/10 text-destructive"
+                      : "bg-card hover:bg-muted"
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="min-w-0">
+                    {t(RECEIVING_OUTCOME_LABELS[value])}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
-          {/* A damaged carton is still weighed, and a wrong item is still
+          {outcome ? (
+            <form action={action} className="space-y-3 border-t pt-3">
+              <input type="hidden" name="batchId" value={batchId} />
+              <input type="hidden" name="shipmentId" value={shipmentId} />
+              <input type="hidden" name="outcome" value={outcome} />
+
+              {/* A damaged carton is still weighed, and a wrong item is still
               weighed. The scale reading belongs to the check-in, not to the
               fault — so it is offered on this path too, said in the same three
               figures as the tick path, and changes nothing unless somebody
               types over it. */}
-          <div className="rounded-md border bg-card p-3">
-            <WeighFigures
-              label="weight"
-              was={String(weightKg)}
-              unit="kg"
-              delta={kgDelta}
-              moved={kgMoved}
-            >
-              <input
-                name="weightKg"
-                type="number"
-                step="0.01"
-                min="0"
-                inputMode="decimal"
-                value={kg}
-                onChange={(event) => setKg(event.target.value)}
-                className={WEIGH_BOX}
-                aria-label={t("Weight in Dar")}
-              />
-            </WeighFigures>
-          </div>
+              <div className="rounded-md border bg-card p-3">
+                <WeighFigures
+                  label="weight"
+                  was={String(weightKg)}
+                  unit="kg"
+                  delta={kgDelta}
+                  moved={kgMoved}
+                >
+                  <input
+                    name="weightKg"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    inputMode="decimal"
+                    value={kg}
+                    onChange={(event) => setKg(event.target.value)}
+                    className={WEIGH_BOX}
+                    aria-label={t("Weight in Dar")}
+                  />
+                </WeighFigures>
+              </div>
 
-          <p className="text-xs text-muted-foreground">
-            {t(RECEIVING_OUTCOME_HINTS[outcome])}
-          </p>
+              <p className="text-xs text-muted-foreground">
+                {t(RECEIVING_OUTCOME_HINTS[outcome])}
+              </p>
 
-          {/* Which boxes are on the floor. The short-shipment case is the only
+              {/* Which boxes are on the floor. The short-shipment case is the only
               one that asks, and it always states its answer to the server —
               including on a single-box shipment, where the answer is "the one
               box is here and its contents are short". */}
-          {ticker ? (
-            <div>
-              <input type="hidden" name="packageSelection" value="explicit" />
-              {packageList.map((pkg) => (
-                <input
-                  key={pkg.id}
-                  type="hidden"
-                  name="packageIds"
-                  value={present.includes(pkg.id) ? pkg.id : ""}
-                />
-              ))}
+              {ticker ? (
+                <div>
+                  <input
+                    type="hidden"
+                    name="packageSelection"
+                    value="explicit"
+                  />
+                  {packageList.map((pkg) => (
+                    <input
+                      key={pkg.id}
+                      type="hidden"
+                      name="packageIds"
+                      value={present.includes(pkg.id) ? pkg.id : ""}
+                    />
+                  ))}
 
-              {/*
+                  {/*
                 THE THREE FIGURES, SAID AS FIGURES.
 
                 The line under the ticker explains the consequence in a
@@ -280,101 +318,101 @@ export function ReceivingOutcomePanel({
                 is on the floor, and the difference between them — in a shape a
                 clerk can check against the pallet without reading anything.
               */}
-              {/* Counted the way the scale is read: what China sent, what is on
+                  {/* Counted the way the scale is read: what China sent, what is on
                   the floor, and the gap. A typed number rather than a figure
                   the clerk has to assemble by unticking — the owner asked for
                   the same control the weight has, and a single-carton
                   consignment showed no figures at all before. */}
-              <div className="mb-2 rounded-md border bg-card p-3">
-                <WeighFigures
-                  label="boxes"
-                  was={String(packageList.length)}
-                  unit={unit.many}
-                  delta={-missingCount}
-                  moved={missingCount > 0}
-                >
-                  <input
-                    type="number"
-                    min="0"
-                    max={packageList.length}
-                    step="1"
-                    inputMode="numeric"
-                    value={boxText}
-                    onChange={(event) => {
-                      const typed = event.target.value;
-                      setBoxText(typed);
-                      const n = Number(typed);
-                      if (
-                        Number.isInteger(n) &&
-                        n >= 0 &&
-                        n <= packageList.length
-                      ) {
-                        /* The first n cartons stand for the ones on the floor.
+                  <div className="mb-2 rounded-md border bg-card p-3">
+                    <WeighFigures
+                      label="boxes"
+                      was={String(packageList.length)}
+                      unit={unit.many}
+                      delta={-missingCount}
+                      moved={missingCount > 0}
+                    >
+                      <input
+                        type="number"
+                        min="0"
+                        max={packageList.length}
+                        step="1"
+                        inputMode="numeric"
+                        value={boxText}
+                        onChange={(event) => {
+                          const typed = event.target.value;
+                          setBoxText(typed);
+                          const n = Number(typed);
+                          if (
+                            Number.isInteger(n) &&
+                            n >= 0 &&
+                            n <= packageList.length
+                          ) {
+                            /* The first n cartons stand for the ones on the floor.
                            Which n is only a guess until somebody unticks the
                            real ones below, and the server is told the ids
                            either way — a count alone would leave the release
                            counter unable to say which box it is waiting for. */
-                        setPresent(
-                          packageList.slice(0, n).map((pkg) => pkg.id)
-                        );
-                      }
-                    }}
-                    className={WEIGH_BOX}
-                    aria-label={t("Boxes counted in Dar")}
-                  />
-                </WeighFigures>
-              </div>
-
-              {manyBoxes ? (
-                <>
-                  <p className="text-xs font-medium">
-                    {t("Which")} {t(unit.many)} {t("are on the floor?")}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {t("Untick anything that did not arrive.")}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {packageList.map((pkg) => {
-                      const on = present.includes(pkg.id);
-                      return (
-                        <button
-                          key={pkg.id}
-                          type="button"
-                          aria-pressed={on}
-                          aria-label={`${t(unit.one)} ${pkg.sequence} — ${on ? t("on the floor") : t("did not arrive")}`}
-                          onClick={() =>
-                            setPresent((current) => {
-                              const next = current.includes(pkg.id)
-                                ? current.filter((id) => id !== pkg.id)
-                                : [...current, pkg.id];
-                              setBoxText(String(next.length));
-                              return next;
-                            })
+                            setPresent(
+                              packageList.slice(0, n).map((pkg) => pkg.id),
+                            );
                           }
-                          className={`inline-flex h-11 min-w-11 items-center justify-center rounded-md border px-3 text-sm font-semibold tabular transition-colors ${
-                            on
-                              ? "border-brand bg-brand/10 text-brand"
-                              : "border-dashed border-destructive/50 text-destructive line-through"
-                          }`}
-                        >
-                          {pkg.sequence}
-                        </button>
-                      );
-                    })}
+                        }}
+                        className={WEIGH_BOX}
+                        aria-label={t("Boxes counted in Dar")}
+                      />
+                    </WeighFigures>
                   </div>
-                  <p
-                    className={`mt-2 text-xs ${missingCount > 0 ? "text-warning" : "text-muted-foreground"}`}
-                  >
-                    {missingCount > 0
-                      ? `${missingCount} ${t("of")} ${packageList.length} ${t("short. The")} ${packageList.length - missingCount} ${t("that arrived are checked into the warehouse; release stays shut until the rest turn up.")}`
-                      : `${t("Untick a")} ${t(unit.one)} ${t("above to record it short.")}`}
-                  </p>
-                </>
-              ) : null}
-            </div>
-          ) : null}
 
-          {/*
+                  {manyBoxes ? (
+                    <>
+                      <p className="text-xs font-medium">
+                        {t("Which")} {t(unit.many)} {t("are on the floor?")}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {t("Untick anything that did not arrive.")}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {packageList.map((pkg) => {
+                          const on = present.includes(pkg.id);
+                          return (
+                            <button
+                              key={pkg.id}
+                              type="button"
+                              aria-pressed={on}
+                              aria-label={`${t(unit.one)} ${pkg.sequence} — ${on ? t("on the floor") : t("did not arrive")}`}
+                              onClick={() =>
+                                setPresent((current) => {
+                                  const next = current.includes(pkg.id)
+                                    ? current.filter((id) => id !== pkg.id)
+                                    : [...current, pkg.id];
+                                  setBoxText(String(next.length));
+                                  return next;
+                                })
+                              }
+                              className={`inline-flex h-11 min-w-11 items-center justify-center rounded-md border px-3 text-sm font-semibold tabular transition-colors ${
+                                on
+                                  ? "border-brand bg-brand/10 text-brand"
+                                  : "border-dashed border-destructive/50 text-destructive line-through"
+                              }`}
+                            >
+                              {pkg.sequence}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p
+                        className={`mt-2 text-xs ${missingCount > 0 ? "text-warning" : "text-muted-foreground"}`}
+                      >
+                        {missingCount > 0
+                          ? `${missingCount} ${t("of")} ${packageList.length} ${t("short. The")} ${packageList.length - missingCount} ${t("that arrived are checked into the warehouse; release stays shut until the rest turn up.")}`
+                          : `${t("Untick a")} ${t(unit.one)} ${t("above to record it short.")}`}
+                      </p>
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {/*
             MORE THAN WAS BOOKED.
 
             The ticker cannot ask this — there is no eleventh row to tick — so
@@ -383,97 +421,103 @@ export function ReceivingOutcomePanel({
             the extra carton can be labelled, scanned and released like every
             other. The booked figure stays in the shipment's history.
           */}
-          {outcome === "OVER_QUANTITY" ? (
-            <div className="space-y-2 rounded-md border border-info/40 bg-info/5 p-2.5">
-              <label className="flex items-center justify-between gap-2 text-xs">
-                <span className="font-medium">{t("How many arrived?")}</span>
-                <span className="inline-flex items-center gap-1">
-                  <input
-                    name="packagesArrived"
-                    type="number"
-                    min={packageList.length + 1}
-                    step="1"
-                    inputMode="numeric"
-                    defaultValue={packageList.length + 1}
-                    onChange={(event) =>
-                      setArrived(Number(event.target.value) || 0)
-                    }
-                    className="focus-ring w-20 rounded border bg-card px-2 py-1 text-right tabular-nums outline-none"
+              {outcome === "OVER_QUANTITY" ? (
+                <div className="space-y-2 rounded-md border border-info/40 bg-info/5 p-2.5">
+                  <label className="flex items-center justify-between gap-2 text-xs">
+                    <span className="font-medium">
+                      {t("How many arrived?")}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <input
+                        name="packagesArrived"
+                        type="number"
+                        min={packageList.length + 1}
+                        step="1"
+                        inputMode="numeric"
+                        defaultValue={packageList.length + 1}
+                        onChange={(event) =>
+                          setArrived(Number(event.target.value) || 0)
+                        }
+                        className="focus-ring w-20 rounded border bg-card px-2 py-1 text-right tabular-nums outline-none"
+                      />
+                      <span className="text-muted-foreground">
+                        {t(unit.many)}
+                      </span>
+                    </span>
+                  </label>
+                  <dl className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div>
+                      <dt className="text-muted-foreground">{t("Booked")}</dt>
+                      <dd className="font-semibold tabular-nums">
+                        {packageList.length}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">{t("Arrived")}</dt>
+                      <dd className="font-semibold tabular-nums">{arrived}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">
+                        {t("Difference")}
+                      </dt>
+                      <dd className="font-semibold tabular-nums text-info">
+                        +{Math.max(0, arrived - packageList.length)}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              ) : null}
+
+              {/* How bad, in the four words Finance and the customer both use. */}
+              {outcome === "DAMAGED" ? (
+                <div className="space-y-1.5">
+                  <Label htmlFor={`severity-${shipmentId}`} className="text-xs">
+                    {t("How bad is it?")}
+                  </Label>
+                  <NativeSelect
+                    id={`severity-${shipmentId}`}
+                    name="severity"
+                    defaultValue="MODERATE"
+                  >
+                    {enumOptions(DAMAGE_SEVERITY_LABELS).map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {t(option.label)}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </div>
+              ) : null}
+
+              {outcomeNeedsNote(outcome) ? (
+                <div className="space-y-1.5">
+                  <Label htmlFor={`note-${shipmentId}`} className="text-xs">
+                    {t("What did you see?")}
+                  </Label>
+                  <Textarea
+                    id={`note-${shipmentId}`}
+                    name="note"
+                    rows={2}
+                    required
+                    placeholder={t(NOTE_PLACEHOLDERS[outcome])}
                   />
-                  <span className="text-muted-foreground">{t(unit.many)}</span>
-                </span>
-              </label>
-              <dl className="grid grid-cols-3 gap-2 text-center text-xs">
-                <div>
-                  <dt className="text-muted-foreground">{t("Booked")}</dt>
-                  <dd className="font-semibold tabular-nums">
-                    {packageList.length}
-                  </dd>
                 </div>
-                <div>
-                  <dt className="text-muted-foreground">{t("Arrived")}</dt>
-                  <dd className="font-semibold tabular-nums">{arrived}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">{t("Difference")}</dt>
-                  <dd className="font-semibold tabular-nums text-info">
-                    +{Math.max(0, arrived - packageList.length)}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          ) : null}
+              ) : null}
 
-          {/* How bad, in the four words Finance and the customer both use. */}
-          {outcome === "DAMAGED" ? (
-            <div className="space-y-1.5">
-              <Label htmlFor={`severity-${shipmentId}`} className="text-xs">
-                {t("How bad is it?")}
-              </Label>
-              <NativeSelect
-                id={`severity-${shipmentId}`}
-                name="severity"
-                defaultValue="MODERATE"
-              >
-                {enumOptions(DAMAGE_SEVERITY_LABELS).map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {t(option.label)}
-                  </option>
-                ))}
-              </NativeSelect>
-            </div>
-          ) : null}
-
-          {outcomeNeedsNote(outcome) ? (
-            <div className="space-y-1.5">
-              <Label htmlFor={`note-${shipmentId}`} className="text-xs">
-                {t("What did you see?")}
-              </Label>
-              <Textarea
-                id={`note-${shipmentId}`}
-                name="note"
-                rows={2}
-                required
-                placeholder={t(NOTE_PLACEHOLDERS[outcome])}
-              />
-            </div>
-          ) : null}
-
-          {/* Evidence. Required on damage — this is the only moment the picture
+              {/* Evidence. Required on damage — this is the only moment the picture
               is takeable, and a damage claim with nothing behind it is worth
               nothing to the customer or to Finance. */}
-          {outcome === "DAMAGED" ? (
-            <PhotoCapture
-              name="photos"
-              required
-              max={4}
-              label="Photograph the damage"
-              hint="The damage itself, and the label, so the case can be matched to the carton later."
-              durable={photosDurable}
-            />
-          ) : null}
+              {outcome === "DAMAGED" ? (
+                <PhotoCapture
+                  name="photos"
+                  required
+                  max={4}
+                  label="Photograph the damage"
+                  hint="The damage itself, and the label, so the case can be matched to the carton later."
+                  durable={photosDurable}
+                />
+              ) : null}
 
-          {/* WHAT IS ACTUALLY IN THE CARTON.
+              {/* WHAT IS ACTUALLY IN THE CARTON.
 
               The owner asked for it on a wrong item, and it is the same
               argument as the damage photograph: the box is open, the clerk is
@@ -481,41 +525,41 @@ export function ReceivingOutcomePanel({
               offered, never demanded — a corrected description is not a claim,
               and a mandatory picture on every fault is the step that stops the
               work. */}
-          {outcome !== "RECEIVED" && outcome !== "DAMAGED" ? (
-            photo ? (
-              <PhotoCapture
-                name="photos"
-                max={4}
-                label="Photo (optional)"
-                hint="What is actually in the carton, and the label beside it."
-                durable={photosDurable}
-              />
-            ) : (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setPhoto(true)}
-              >
-                <Camera className="mr-1.5 h-4 w-4" />
-                {t("Add a photo (optional)")}
-              </Button>
-            )
-          ) : null}
+              {outcome !== "RECEIVED" && outcome !== "DAMAGED" ? (
+                photo ? (
+                  <PhotoCapture
+                    name="photos"
+                    max={4}
+                    label="Photo (optional)"
+                    hint="What is actually in the carton, and the label beside it."
+                    durable={photosDurable}
+                  />
+                ) : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPhoto(true)}
+                  >
+                    <Camera className="mr-1.5 h-4 w-4" />
+                    {t("Add a photo (optional)")}
+                  </Button>
+                )
+              ) : null}
 
-          <div className="flex flex-wrap items-center gap-3">
-            <SubmitButton
-              variant={outcome === "RECEIVED" ? "brand" : "destructive"}
-              disabled={blocked}
-              pendingLabel="Recording…"
-              className="h-11 text-sm"
-            >
-              {outcome === "RECEIVED"
-                ? t("Check in — present & correct")
-                : `${t("Open a case —")} ${t(RECEIVING_OUTCOME_LABELS[outcome]).toLowerCase()}`}
-            </SubmitButton>
-            {outcome !== "RECEIVED" ? (
-              /*
+              <div className="flex flex-wrap items-center gap-3">
+                <SubmitButton
+                  variant={outcome === "RECEIVED" ? "brand" : "destructive"}
+                  disabled={blocked}
+                  pendingLabel="Recording…"
+                  className="h-11 text-sm"
+                >
+                  {outcome === "RECEIVED"
+                    ? t("Check in — present & correct")
+                    : `${t("Open a case —")} ${t(RECEIVING_OUTCOME_LABELS[outcome]).toLowerCase()}`}
+                </SubmitButton>
+                {outcome !== "RECEIVED" ? (
+                  /*
                 TWO READERS, TWO ANSWERS.
 
                 This said "Tracking will read" and then named the staff status.
@@ -527,47 +571,49 @@ export function ReceivingOutcomePanel({
                 Said as two lines because they genuinely differ, and the one
                 that matters on the phone is the second.
               */
-              <div className="text-xs text-muted-foreground">
-                <p>
-                  {t("Cargo record:")}{" "}
-                  <span className="font-medium">
-                    {staysHere
-                      ? t(SHIPMENT_STATUS_META.RECEIVED_AT_DAR.label)
-                      : t("Under investigation")}
-                  </span>
-                </p>
-                <p className="mt-0.5">
-                  {t("Customer sees:")}{" "}
-                  <span className="font-medium">
-                    {staysHere && !holdsIt
-                      ? t(SHIPMENT_STATUS_META.RECEIVED_AT_DAR.publicLabel)
-                      : t("Under investigation")}
-                  </span>
-                  {" — "}
-                  {holdsIt || !staysHere
-                    ? t("cannot be collected until the case is closed.")
-                    : t("can still be collected.")}
-                </p>
-                {/* The split, in the owner's words: what goes on the shelf and
+                  <div className="text-xs text-muted-foreground">
+                    <p>
+                      {t("Cargo record:")}{" "}
+                      <span className="font-medium">
+                        {staysHere
+                          ? t(SHIPMENT_STATUS_META.RECEIVED_AT_DAR.label)
+                          : t("Under investigation")}
+                      </span>
+                    </p>
+                    <p className="mt-0.5">
+                      {t("Customer sees:")}{" "}
+                      <span className="font-medium">
+                        {staysHere && !holdsIt
+                          ? t(SHIPMENT_STATUS_META.RECEIVED_AT_DAR.publicLabel)
+                          : t("Under investigation")}
+                      </span>
+                      {" — "}
+                      {holdsIt || !staysHere
+                        ? t("cannot be collected until the case is closed.")
+                        : t("can still be collected.")}
+                    </p>
+                    {/* The split, in the owner's words: what goes on the shelf and
                     what somebody has to go looking for. Only where boxes were
                     actually named, because everywhere else there is no split
                     to state. */}
-                {ticker && missingCount > 0 ? (
-                  <p className="mt-0.5">
-                    <span className="font-medium text-foreground">
-                      {t("Into the warehouse:")} {present.length}
-                    </span>
-                    {" · "}
-                    <span className="font-medium text-warning">
-                      {t("To the case:")} {missingCount}
-                    </span>
-                  </p>
+                    {ticker && missingCount > 0 ? (
+                      <p className="mt-0.5">
+                        <span className="font-medium text-foreground">
+                          {t("Into the warehouse:")} {present.length}
+                        </span>
+                        {" · "}
+                        <span className="font-medium text-warning">
+                          {t("To the case:")} {missingCount}
+                        </span>
+                      </p>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
-            ) : null}
-          </div>
-        </form>
-      ) : null}
-    </div>
+            </form>
+          ) : null}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

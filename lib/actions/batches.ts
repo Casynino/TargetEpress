@@ -984,6 +984,44 @@ export async function verifyShipment(
   if (weighed !== null && (!Number.isFinite(weighed) || weighed <= 0)) {
     return fail(t(locale, "That weight is not a number the scale could show."));
   }
+
+  /*
+    THE REST OF WHAT THE FLOOR CAN SEE, AND NOTHING IT CANNOT.
+
+    Pieces, volume, the state of the goods and where the box was put. Every one
+    is optional: the tick beside this dialog records a consignment that is
+    exactly as booked without asking any of them, and a clerk with a customer
+    waiting must never be held up by a field nobody needs. What each is worth
+    is in the schema; none of them prices anything.
+  */
+  const piecesField = String(formData.get("pieces") ?? "").trim();
+  const piecesCounted = piecesField === "" ? null : Number(piecesField);
+  if (
+    piecesCounted !== null &&
+    (!Number.isInteger(piecesCounted) || piecesCounted < 0)
+  ) {
+    return fail(t(locale, "That is not a number of pieces."));
+  }
+
+  const volumeField = String(formData.get("volumeCbm") ?? "").trim();
+  const measured = volumeField === "" ? null : Number(volumeField);
+  if (measured !== null && (!Number.isFinite(measured) || measured < 0)) {
+    return fail(t(locale, "That volume is not a number."));
+  }
+
+  const conditionField = String(formData.get("condition") ?? "").trim();
+  const CONDITIONS = ["GOOD", "MINOR_DAMAGE", "DAMAGED", "WET", "REPACKED"] as const;
+  const condition =
+    (CONDITIONS as readonly string[]).includes(conditionField)
+      ? (conditionField as (typeof CONDITIONS)[number])
+      : null;
+  if (conditionField !== "" && condition === null) {
+    return fail(t(locale, "That is not a condition this floor records."));
+  }
+
+  const shelfLocation = String(formData.get("shelfLocation") ?? "")
+    .trim()
+    .slice(0, 120);
   // The arrival screen always states which boxes it checked, even when that is
   // none of them. Without the flag, "nothing ticked" and "not a package-aware
   // form" look identical, and the safe reading of those is the opposite.
@@ -1091,6 +1129,16 @@ export async function verifyShipment(
           /* Read to compare against the scale, and to keep as the "before" on
              the history line. */
           weightKg: true,
+          /* The live figures this save may replace, and whether Guangzhou's
+             have already been kept — the snapshot below is taken once. */
+          packages: true,
+          pieces: true,
+          volumeCbm: true,
+          declaredPackages: true,
+          declaredPieces: true,
+          declaredWeightKg: true,
+          declaredVolumeCbm: true,
+          condition: true,
           packageList: {
             select: { id: true, sequence: true, receivedAt: true },
             orderBy: { sequence: "asc" },
@@ -1306,6 +1354,63 @@ export async function verifyShipment(
             actorName: user.name,
           },
         });
+      }
+
+      /*
+        WHAT DAR FOUND, AND WHAT GUANGZHOU HAD SAID.
+
+        The live columns above are what everything downstream reads — the
+        price, the bill, the manifest, the counter — so Dar's figures go on
+        top of China's, as they always have. What was missing is the other
+        half of the sentence: once the scale had spoken, nobody could see what
+        the packing list had claimed, and "China said 28" existed only while
+        the dialog was open.
+
+        So Guangzhou's figures are copied aside the first time Dar writes over
+        them, once, and never touched again. Everything here is optional and
+        nothing is priced on it.
+      */
+      const darCount: Prisma.ShipmentUpdateInput = {};
+      if (shipment.declaredPackages === null) {
+        darCount.declaredPackages = booked;
+      }
+      if (shipment.declaredWeightKg === null) {
+        darCount.declaredWeightKg = shipment.weightKg;
+      }
+      if (shipment.declaredPieces === null && shipment.pieces !== null) {
+        darCount.declaredPieces = shipment.pieces;
+      }
+      if (shipment.declaredVolumeCbm === null && shipment.volumeCbm !== null) {
+        darCount.declaredVolumeCbm = shipment.volumeCbm;
+      }
+      if (piecesCounted !== null) darCount.pieces = piecesCounted;
+      if (measured !== null) darCount.volumeCbm = new Prisma.Decimal(measured);
+      if (shelfLocation) darCount.shelfLocation = shelfLocation;
+      /*
+        The state of the goods, from whichever door said something about it.
+
+        The dialog asks outright. The damage outcome answers it from the
+        severity the clerk already chose, rather than asking the same question
+        twice in two words. And a plain tick — present and correct — says GOOD,
+        which is what "present and correct" means; it is written only while
+        nothing has been recorded yet, so a later note cannot quietly promote a
+        wet consignment back to good.
+      */
+      const fromSeverity =
+        problem === "DAMAGED_CARGO" && severity
+          ? severity === "MINOR"
+            ? ("MINOR_DAMAGE" as const)
+            : ("DAMAGED" as const)
+          : null;
+      const recordedCondition =
+        condition ??
+        fromSeverity ??
+        (problem === null && shipment.condition === null
+          ? ("GOOD" as const)
+          : null);
+      if (recordedCondition !== null) darCount.condition = recordedCondition;
+      if (Object.keys(darCount).length > 0) {
+        await tx.shipment.update({ where: { id: shipmentId }, data: darCount });
       }
 
       if (arrived) {

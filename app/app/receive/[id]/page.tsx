@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { ORIGIN_LABELS } from "@/lib/constants";
 import { formatDate, formatWeight, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
+import { chinaFiguresOf } from "@/lib/china-figures";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -152,6 +153,12 @@ export default async function VerifyBatchPage({
             })),
             photos: shipment.photos,
             weightKg: toNumber(shipment.weightKg),
+            pieces: shipment.pieces,
+            volumeCbm:
+              shipment.volumeCbm === null ? null : toNumber(shipment.volumeCbm),
+            condition: shipment.condition,
+            shelfLocation: shipment.shelfLocation,
+            chinaSaid: chinaFiguresOf(shipment),
             // Resolved here, so a Dar clerk never reads the Chinese the
             // Guangzhou desk typed — and a Guangzhou packer never reads English.
             description: cargoText(locale, shipment, "description"),

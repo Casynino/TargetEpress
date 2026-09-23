@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useId, useState, useTransition } from "react";
+import {
+  useActionState,
+  useEffect,
+  useId,
+  useState,
+  useTransition,
+} from "react";
 import type {
   BatchStatus,
   GoodsType,
@@ -68,6 +74,22 @@ type Row = {
   packageList: PackageRow[];
   photos: { id: string; url: string; kind: string; caption: string | null }[];
   weightKg: number;
+  /** Loose items inside the boxes, where anybody has counted them. */
+  pieces: number | null;
+  volumeCbm: number | null;
+  condition: string | null;
+  shelfLocation: string | null;
+  /**
+   * What Guangzhou declared — the frozen figure once Dar has written its own
+   * over the live column, the live one until then. Printed beside each field
+   * in the count dialog, never typed into it.
+   */
+  chinaSaid: {
+    packages: number;
+    pieces: number | null;
+    weightKg: number;
+    volumeCbm: number | null;
+  };
   description: string;
   /** The renderings of `description`, so a Dar clerk never reads 手机配件. */
   descriptionEn?: string | null;
@@ -134,7 +156,7 @@ export function VerificationList({
   const t = useT();
   const checked = shipments.filter((s) => s.verification).length;
   const flagged = shipments.filter(
-    (s) => s.verification?.result === "EXCEPTION"
+    (s) => s.verification?.result === "EXCEPTION",
   ).length;
   const remaining = shipments.length - checked;
 
@@ -215,11 +237,13 @@ export function VerificationList({
           <li key={shipment.id}>
             <VerificationCard
               picked={picked.has(shipment.id)}
-              onPick={shipment.verification ? undefined : () => pick(shipment.id)}
+              onPick={
+                shipment.verification ? undefined : () => pick(shipment.id)
+              }
               batchId={batchId}
               shipment={shipment}
               locked={batchStatus !== "ARRIVED"}
-          photosDurable={photosDurable}
+              photosDurable={photosDurable}
             />
           </li>
         ))}
@@ -285,7 +309,6 @@ export function VerificationList({
   );
 }
 
-
 /**
  * What the row and the card both read the shipment's look from.
  *
@@ -332,12 +355,22 @@ function VerificationCard({
   const locale = useLocale();
   const [state, action] = useActionState<ActionResult, FormData>(
     verifyShipment,
-    { ok: true }
+    { ok: true },
   );
   const [flagging, setFlagging] = useState(false);
   /* Its own opener, because a re-weigh is not a fault and does not belong
      under "what happened to this cargo?". */
   const [weighing, setWeighing] = useState(false);
+
+  /* A dialog that recorded the count and stayed open reads as though nothing
+     happened, and the clerk presses it again. The row behind it has already
+     re-rendered with the new figures; this closes the sheet over it. */
+  useEffect(() => {
+    if (state.ok) {
+      setWeighing(false);
+      setFlagging(false);
+    }
+  }, [state]);
   const [open, setOpen] = useState(false);
   const detailId = useId();
 
@@ -408,14 +441,16 @@ function VerificationCard({
               {formatPackagesShort(
                 shipment.packageList.length,
                 shipment.packageType,
-                locale
+                locale,
               )}
             </span>
           ) : (
             formatPackagesShort(shipment.packages, shipment.packageType, locale)
           )}
         </span>
-        <span>{t(GOODS_TYPE_LABELS[shipment.goodsType] ?? shipment.goodsType)}</span>
+        <span>
+          {t(GOODS_TYPE_LABELS[shipment.goodsType] ?? shipment.goodsType)}
+        </span>
         {shipment.photos.length > 0 ? (
           <span className="flex items-center gap-1 tabular">
             <Camera className="h-3.5 w-3.5" />
@@ -451,7 +486,7 @@ function VerificationCard({
           >
             <Scale className="h-5 w-5" />
             <span className="sr-only">
-              {t("Correct the weight")} — {shipment.trackingNumber}
+              {t("The count Dar made")} — {shipment.trackingNumber}
             </span>
           </button>
           <button
@@ -512,8 +547,11 @@ function VerificationCard({
             batchId={batchId}
             shipmentId={shipment.id}
             trackingNumber={shipment.trackingNumber}
-            weightKg={shipment.weightKg}
+            customerName={shipment.customerName}
             packages={shipment.packageList.length}
+            chinaSaid={shipment.chinaSaid}
+            condition={shipment.condition}
+            shelfLocation={shipment.shelfLocation}
             photosDurable={photosDurable}
             action={action}
             onDone={() => setWeighing(false)}
@@ -525,12 +563,14 @@ function VerificationCard({
         <ReceivingOutcomePanel
           batchId={batchId}
           shipmentId={shipment.id}
+          customerName={shipment.customerName}
           trackingNumber={shipment.trackingNumber}
           packageType={shipment.packageType}
           packageList={shipment.packageList}
           weightKg={shipment.weightKg}
           photosDurable={photosDurable}
           action={action}
+          onDone={() => setFlagging(false)}
         />
       ) : null}
 
@@ -561,12 +601,22 @@ function VerificationRow({
   const locale = useLocale();
   const [state, action] = useActionState<ActionResult, FormData>(
     verifyShipment,
-    { ok: true }
+    { ok: true },
   );
   const [flagging, setFlagging] = useState(false);
   /* Its own opener, because a re-weigh is not a fault and does not belong
      under "what happened to this cargo?". */
   const [weighing, setWeighing] = useState(false);
+
+  /* A dialog that recorded the count and stayed open reads as though nothing
+     happened, and the clerk presses it again. The row behind it has already
+     re-rendered with the new figures; this closes the sheet over it. */
+  useEffect(() => {
+    if (state.ok) {
+      setWeighing(false);
+      setFlagging(false);
+    }
+  }, [state]);
   // Collapsed by default. The dense list is the point of this screen; the detail
   // is for the one row the operator is standing in front of, and it is mounted
   // only when opened so the other eighty-six cost nothing to render or fetch.
@@ -652,7 +702,11 @@ function VerificationRow({
           {short > 0 && shipment.verification ? (
             <span className="font-semibold text-warning">
               {shipment.packages - short} {t("of")}{" "}
-              {formatPackagesShort(shipment.packages, shipment.packageType, locale)}
+              {formatPackagesShort(
+                shipment.packages,
+                shipment.packageType,
+                locale,
+              )}
             </span>
           ) : (
             formatPackagesShort(shipment.packages, shipment.packageType, locale)
@@ -710,12 +764,12 @@ function VerificationRow({
                   setWeighing((v) => !v);
                   setFlagging(false);
                 }}
-                title={t("Correct the weight")}
+                title={t("The count Dar made")}
                 className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-md border text-brand hover:bg-brand/5"
               >
                 <Scale className="h-4 w-4" />
                 <span className="sr-only">
-                  {t("Correct the weight")} — {shipment.trackingNumber}
+                  {t("The count Dar made")} — {shipment.trackingNumber}
                 </span>
               </button>
               <button
@@ -776,8 +830,11 @@ function VerificationRow({
                   batchId={batchId}
                   shipmentId={shipment.id}
                   trackingNumber={shipment.trackingNumber}
-                  weightKg={shipment.weightKg}
+                  customerName={shipment.customerName}
                   packages={shipment.packageList.length}
+                  chinaSaid={shipment.chinaSaid}
+                  condition={shipment.condition}
+                  shelfLocation={shipment.shelfLocation}
                   photosDurable={photosDurable}
                   action={action}
                   onDone={() => setWeighing(false)}
@@ -789,12 +846,14 @@ function VerificationRow({
               <ReceivingOutcomePanel
                 batchId={batchId}
                 shipmentId={shipment.id}
+                customerName={shipment.customerName}
                 trackingNumber={shipment.trackingNumber}
                 packageType={shipment.packageType}
                 packageList={shipment.packageList}
                 weightKg={shipment.weightKg}
-          photosDurable={photosDurable}
+                photosDurable={photosDurable}
                 action={action}
+                onDone={() => setFlagging(false)}
               />
             ) : null}
 
@@ -883,7 +942,7 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
       ) : (
         <p className="text-xs text-muted-foreground">
           {t(
-            "No photos were taken in China for this cargo — check the label and the"
+            "No photos were taken in China for this cargo — check the label and the",
           )}{" "}
           {unitOne} {t("count instead.")}
         </p>
@@ -909,7 +968,11 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
           <p className="text-xs font-medium">
             {shipment.packageList.filter((pkg) => pkg.received).length}{" "}
             {t("of")}{" "}
-            {formatPackages(shipment.packageList.length, shipment.packageType, locale)}{" "}
+            {formatPackages(
+              shipment.packageList.length,
+              shipment.packageType,
+              locale,
+            )}{" "}
             {t("checked in")}
           </p>
           <ul className="mt-2 divide-y rounded-lg border">
@@ -1085,7 +1148,7 @@ function CompleteButton({
             <DialogTitle>{t("Are you sure?")}</DialogTitle>
             <DialogDescription>
               {t(
-                "Confirm that the cargo and packages you have checked are correct and safe to proceed."
+                "Confirm that the cargo and packages you have checked are correct and safe to proceed.",
               )}
             </DialogDescription>
           </DialogHeader>

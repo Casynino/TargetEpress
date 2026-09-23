@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { AlertTriangle, Check, Scale } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
@@ -26,26 +26,49 @@ export function CargoCheckIn({
   batchId,
   shipmentId,
   trackingNumber,
+  customerName,
   weightKg,
   packageType,
   packageList,
+  chinaSaid,
+  condition,
+  shelfLocation,
   photosDurable,
 }: {
   batchId: string;
   shipmentId: string;
   trackingNumber: string;
+  customerName: string;
   weightKg: number;
   packageType: string;
   packageList: { id: string; sequence: number }[];
+  /** What Guangzhou declared, printed beside each field in the count dialog. */
+  chinaSaid: {
+    packages: number;
+    pieces: number | null;
+    weightKg: number;
+    volumeCbm: number | null;
+  };
+  condition: string | null;
+  shelfLocation: string | null;
   photosDurable: boolean;
 }) {
   const t = useT();
   const [state, action] = useActionState<ActionResult, FormData>(
     verifyShipment,
-    { ok: true }
+    { ok: true },
   );
   const [weighing, setWeighing] = useState(false);
   const [flagging, setFlagging] = useState(false);
+
+  /* A dialog that recorded the count and stayed open reads as though nothing
+     happened, and the clerk presses it again. */
+  useEffect(() => {
+    if (state.ok) {
+      setWeighing(false);
+      setFlagging(false);
+    }
+  }, [state]);
 
   return (
     <section className="rounded-xl border bg-card shadow-soft">
@@ -53,7 +76,7 @@ export function CargoCheckIn({
         <h2 className="font-display text-lg font-bold">{t("Check it in")}</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
           {t(
-            "This cargo is on a flight that has landed and has not been checked in yet."
+            "This cargo is on a flight that has landed and has not been checked in yet.",
           )}
         </p>
       </div>
@@ -83,7 +106,7 @@ export function CargoCheckIn({
             className="focus-ring inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium text-brand hover:bg-brand/5"
           >
             <Scale className="h-4 w-4" />
-            {t("Correct the weight")}
+            {t("The count Dar made")}
           </button>
 
           <button
@@ -104,8 +127,11 @@ export function CargoCheckIn({
             batchId={batchId}
             shipmentId={shipmentId}
             trackingNumber={trackingNumber}
-            weightKg={weightKg}
+            customerName={customerName}
             packages={packageList.length}
+            chinaSaid={chinaSaid}
+            condition={condition}
+            shelfLocation={shelfLocation}
             photosDurable={photosDurable}
             action={action}
             onDone={() => setWeighing(false)}
@@ -116,12 +142,14 @@ export function CargoCheckIn({
           <ReceivingOutcomePanel
             batchId={batchId}
             shipmentId={shipmentId}
+            customerName={customerName}
             trackingNumber={trackingNumber}
             packageType={packageType}
             packageList={packageList}
             weightKg={weightKg}
             photosDurable={photosDurable}
             action={action}
+            onDone={() => setFlagging(false)}
           />
         ) : null}
 
