@@ -4,6 +4,7 @@ import type { MessageKind } from "@prisma/client";
 
 import { COMPANY, PAYMENT_METHODS, STORAGE_POLICY } from "@/lib/constants";
 import { siteUrl } from "@/lib/site-url";
+import { trackKey } from "@/lib/track-key";
 import { formatLocal, formatUsd } from "@/lib/fx";
 
 /**
@@ -106,9 +107,32 @@ const TRACK_URL = `${PUBLIC_HOST}/track`;
  * changes. A link is the invoice itself.
  */
 export function trackLink(trackingNumber: string | null | undefined) {
+  /*
+    The key is what turns the page into this customer's own.
+
+    Anybody may type a tracking number and read the figures; the invoice as a
+    FILE carries their name, their phone and their city, so it is offered only
+    to a page opened from the link we sent them. The key is derived from the
+    tracking number (lib/track-key.ts), so a message sent last month still
+    opens the bill today and nothing has to be stored to make that true.
+  */
   return trackingNumber
-    ? `${TRACK_URL}?q=${encodeURIComponent(trackingNumber)}`
+    ? `${TRACK_URL}?q=${encodeURIComponent(trackingNumber)}&k=${trackKey(trackingNumber)}`
     : TRACK_URL;
+}
+
+/**
+ * Where the customer's own bill lives, said the same way in every message.
+ *
+ * The owner's instruction: the text that tells somebody their cargo has
+ * arrived must carry the link their invoice can be downloaded from. One
+ * sentence, one place — a link written out per template is how five of them
+ * end up pointing somewhere slightly different.
+ */
+function invoiceLine(trackingNumber: string | null | undefined) {
+  return (
+    `Angalia mzigo wako na kupakua invoice (PDF):\n${trackLink(trackingNumber)}`
+  );
 }
 
 /**
@@ -236,8 +260,8 @@ function moneyMessage(context: MessageContext, opening: string) {
     */
     `${bold("STORAGE:")} Siku ${STORAGE_POLICY.freeDays} bure, baada ya hapo USD ${STORAGE_POLICY.perDayUsd}/siku hadi mzigo uchukuliwe.`,
     ``,
-    bold("Angalia invoice yako kamili na njia za malipo:"),
-    `${TRACK_URL}${tracking ? `?q=${encodeURIComponent(tracking)}` : ""}`,
+    bold("Angalia invoice yako kamili, ipakue na uone njia za malipo:"),
+    trackLink(tracking),
   ]
     .join("\n")
     .replace(/\n{3,}/g, "\n\n");
@@ -257,7 +281,7 @@ export function composeMessage(
       return (
         `Habari ${name}, mzigo wako (${cargo}) umepokelewa katika ghala letu China.\n` +
         `Namba ya kufuatilia: ${tracking}\n` +
-        `Fuatilia hapa: ${TRACK_URL}\n\n` +
+        `Fuatilia hapa: ${trackLink(tracking)}\n\n` +
         `Hello ${name}, we have received your cargo at our China warehouse. ` +
         `Track it any time with ${tracking}.` +
         sign
@@ -268,7 +292,8 @@ export function composeMessage(
         `Habari ${name}, mzigo wako ${tracking} umeondoka China` +
         (context.batchNumber ? ` (batch ${context.batchNumber})` : "") +
         ` na uko njiani kuja Dar es Salaam.\n\n` +
-        `Hello ${name}, your cargo ${tracking} has left China and is on its way to Dar es Salaam.` +
+        `Hello ${name}, your cargo ${tracking} has left China and is on its way to Dar es Salaam.\n\n` +
+        invoiceLine(tracking) +
         sign
       );
 
@@ -280,7 +305,8 @@ export function composeMessage(
         `Baada ya hapo ni USD ${STORAGE_POLICY.perDayUsd} kwa siku.\n\n` +
         `Hello ${name}, your cargo ${tracking} has arrived in Dar es Salaam. ` +
         `We are checking it in and will send your invoice shortly. ` +
-        `Your ${STORAGE_POLICY.freeDays} free storage days start today.` +
+        `Your ${STORAGE_POLICY.freeDays} free storage days start today.\n\n` +
+        invoiceLine(tracking) +
         sign
       );
 
@@ -303,7 +329,8 @@ export function composeMessage(
         `Njoo na namba hii ya kufuatilia.\n` +
         `Siku ${STORAGE_POLICY.freeDays} za kwanza za kuhifadhi ni bure.\n\n` +
         `Hello ${name}, payment is complete and cargo ${tracking} is ready for ` +
-        `collection at our office. Bring this tracking number with you.` +
+        `collection at our office. Bring this tracking number with you.\n\n` +
+        invoiceLine(tracking) +
         sign
       );
 
@@ -324,7 +351,8 @@ export function composeMessage(
         `Hello ${name}, cargo ${tracking} has now been in our warehouse ${held} days — ` +
         `${over} day(s) past your ${STORAGE_POLICY.freeDays} free days. ` +
         `Storage so far is USD ${fee.toFixed(2)} and keeps growing at ` +
-        `USD ${STORAGE_POLICY.perDayUsd} a day until you collect.` +
+        `USD ${STORAGE_POLICY.perDayUsd} a day until you collect.\n\n` +
+        invoiceLine(tracking) +
         sign
       );
     }
@@ -471,10 +499,13 @@ export function severalBillsReminderSwahili(input: {
     ARRIVED_AND_HELD,
     ``,
     `${bold(`Mizigo yako ${input.lines.length} inasubiri malipo`)}`,
-    ...input.lines.map(
-      (line) =>
-        `• ${bold(line.trackingNumber)}${line.description ? ` — ${line.description}` : ""}: ${line.amount}`
-    ),
+    /* Each consignment carries its own link, because each has its own bill.
+       One link at the bottom would open one of them and leave the customer
+       asking us for the other two. */
+    ...input.lines.flatMap((line) => [
+      `• ${bold(line.trackingNumber)}${line.description ? ` — ${line.description}` : ""}: ${line.amount}`,
+      trackLink(line.trackingNumber),
+    ]),
     ``,
     `${bold("JUMLA:")} ${input.total}${input.totalUsd ? ` (${input.totalUsd})` : ""}`,
     ``,

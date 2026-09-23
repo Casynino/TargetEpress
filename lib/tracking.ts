@@ -4,6 +4,7 @@ import type { ShipmentStatus } from "@prisma/client";
 
 import { CATEGORY_LABELS } from "@/lib/cargo";
 import {
+  BILLED_INVOICE_STATUSES,
   SHIPMENT_FLOW,
   SHIPMENT_STATUS_META,
   STORAGE_POLICY,
@@ -170,6 +171,17 @@ export type PublicCharge = {
    * Null once the bill is settled: nothing moves after that.
    */
   mayChange: string | null;
+  /**
+   * May this bill be handed over as a file?
+   *
+   * The page shows a figure for anything that is not a draft; the document is
+   * stricter, because a file leaves the building and is forwarded afterwards.
+   * A bill voided with its consignment, or written off, is not one a customer
+   * should be holding a fresh copy of — so the download and the route that
+   * serves it answer the question the same way, from here, and the page can
+   * never offer a button that leads to a refusal.
+   */
+  downloadable: boolean;
 };
 
 /**
@@ -712,6 +724,9 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
           outstanding <= 0
             ? null
             : `Storage ni bure kwa siku ${STORAGE_POLICY.freeDays} tu kuanzia siku ya kupokea mzigo. Baada ya hapo, ni USD ${STORAGE_POLICY.perDayUsd} kwa siku hadi utakapoichukua. Chukua mapema kuepuka gharama za ziada.\n\nStorage is free for ${STORAGE_POLICY.freeDays} days only from the date your cargo is received. After that, a USD ${STORAGE_POLICY.perDayUsd}/day storage fee applies until pickup. Pick up early to avoid extra charges.`,
+        downloadable: BILLED_INVOICE_STATUSES.includes(
+          invoice.status as (typeof BILLED_INVOICE_STATUSES)[number]
+        ),
       };
     }
 

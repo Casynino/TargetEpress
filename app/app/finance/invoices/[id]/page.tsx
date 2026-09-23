@@ -409,12 +409,13 @@ export default async function InvoicePage({
       The link is the invoice: the full bill, and the accounts to pay it into,
       current every time it is opened. One place to keep right.
     */
-    ...(outstanding > 0
-      ? [
-          `*See the full invoice and how to pay:*`,
-          trackLink(shipment.trackingNumber),
-        ]
-      : []),
+    /* A settled bill is sent too, and the customer still wants the document:
+       for their own books, for a claim, for whoever paid on their behalf. It
+       used to end at "paid in full" with nothing to keep. */
+    outstanding > 0
+      ? `*See the full invoice, download it and how to pay:*`
+      : `*Download your invoice here:*`,
+    trackLink(shipment.trackingNumber),
   ]
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")

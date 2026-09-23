@@ -6,6 +6,8 @@ import {
   Camera,
   CheckCircle2,
   CircleHelp,
+  Download,
+  FileText,
   MapPin,
   MessageCircle,
   Plane,
@@ -27,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { COMPANY, PAYMENT_METHODS } from "@/lib/constants";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { formatShillings, formatUsd, toLocal } from "@/lib/money";
+import { trackKeyValid } from "@/lib/track-key";
 import {
   trackByCode,
   type PublicCharge,
@@ -44,9 +47,17 @@ export const metadata: Metadata = {
 export default async function TrackPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; k?: string }>;
 }) {
-  const { q } = await searchParams;
+  /*
+    `k` is the key on the link we sent this customer.
+
+    It changes nothing about what the page says — the figures below are the
+    same for anybody holding a tracking number. What it unlocks is the bill as
+    a file, which carries the customer's own name, phone and city and so is
+    offered only to the person we sent the link to. See lib/track-key.ts.
+  */
+  const { q, k } = await searchParams;
   const result = q ? await trackByCode(q) : null;
 
   return (
@@ -86,7 +97,11 @@ export default async function TrackPage({
         <SectionBackdrop variant="quiet" />
         <div className="container">
           <div className="mx-auto max-w-3xl">
-            {result ? <TrackingResultView result={result} /> : <EmptyState />}
+            {result ? (
+              <TrackingResultView result={result} invoiceKey={k ?? null} />
+            ) : (
+              <EmptyState />
+            )}
           </div>
         </div>
       </section>
@@ -197,7 +212,14 @@ function InvestigationPanel({
   );
 }
 
-function TrackingResultView({ result }: { result: TrackingResult }) {
+function TrackingResultView({
+  result,
+  invoiceKey,
+}: {
+  result: TrackingResult;
+  /** The key from the customer's own link, when the page was opened from it. */
+  invoiceKey: string | null;
+}) {
   if (result.kind === "not-found") {
     return (
       <div className="rounded-xl border bg-card p-10 text-center shadow-soft">
@@ -583,6 +605,15 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
         note={result.collectionNote}
         held={result.investigation?.blocksCollection ?? false}
         trackingNumber={result.trackingNumber}
+        /* Only from the customer's own link, and only for a bill the download
+           itself will serve — the route applies the same two tests, so the
+           button can never lead anywhere but the file. */
+        invoiceHref={
+          result.charge?.downloadable &&
+          trackKeyValid(result.trackingNumber, invoiceKey)
+            ? `/track/${encodeURIComponent(result.trackingNumber)}/invoice?k=${encodeURIComponent(invoiceKey!)}`
+            : null
+        }
       />
 
       <div className="p-6">
@@ -629,6 +660,7 @@ function ChargePanel({
   note,
   held,
   trackingNumber,
+  invoiceHref,
 }: {
   charge: PublicCharge | null;
   collectable: boolean;
@@ -637,6 +669,14 @@ function ChargePanel({
   trackingNumber: string;
   /** An investigation is holding the cargo — do not promise the next step. */
   held: boolean;
+  /**
+   * The same bill as a file, when this page was opened from our own message.
+   *
+   * Null for anybody who simply typed a tracking number: the document names
+   * the customer, their phone and their city, which is why the page itself
+   * only ever shows initials.
+   */
+  invoiceHref: string | null;
 }) {
   if (!charge) {
     return (
@@ -711,6 +751,43 @@ function ChargePanel({
           <p className="mt-1 font-mono text-xs text-muted-foreground">
             Invoice {charge.invoiceNumber}
           </p>
+
+          {/*
+            THE BILL ITSELF, TO KEEP.
+
+            Everything below this is the invoice read onto a screen, which is
+            enough to know what to pay and nothing to hand to anybody else. A
+            customer clearing goods, claiming from an employer or filing their
+            own books needs the document — and WhatsApp cannot carry a PDF
+            through a wa.me link, so the message carries this link and the
+            file is downloaded from here.
+
+            Under the figure and above the breakdown: the amount is what they
+            came for, and this is the next thing they want.
+          */}
+          {invoiceHref ? (
+            <a
+              href={invoiceHref}
+              download
+              rel="nofollow"
+              className="focus-ring mt-4 flex w-full max-w-sm items-center gap-3 rounded-xl border border-brand/30 bg-brand/5 p-3 transition-colors hover:bg-brand/10"
+            >
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand/15 text-brand">
+                <FileText className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-foreground">
+                  Pakua invoice yako
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Download your invoice · PDF
+                </span>
+              </span>
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand text-brand-foreground">
+                <Download className="h-4 w-4" />
+              </span>
+            </a>
+          ) : null}
 
           {/* How the figure was reached.
               The reminder tells a customer to come here and "see your full

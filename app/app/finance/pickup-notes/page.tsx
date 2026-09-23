@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { formatDate, formatMoney, formatRelative } from "@/lib/format";
 import { t } from "@/lib/i18n";
+import { composeMessage, whatsappLink } from "@/lib/messages";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -306,6 +307,23 @@ export default async function PickupNotesPage({
               {notes.map((note) => {
                 const waiting = note.status === "ACTIVE";
                 const digits = note.customer.phone?.replace(/[^0-9]/g, "") ?? "";
+                /*
+                  The message this desk is actually sending, already typed.
+
+                  This button opened an empty WhatsApp chat and left the clerk
+                  to write "your cargo is ready" by hand, several times a day,
+                  in whatever words came out — so the one message a customer
+                  most needs the link in was the one message that never had
+                  it. The template carries the office address, the free-storage
+                  days and the link their invoice downloads from.
+                */
+                const ready = whatsappLink(
+                  note.customer.phone,
+                  composeMessage("READY_FOR_PICKUP", {
+                    customerName: note.customer.name,
+                    trackingNumber: note.shipment.trackingNumber,
+                  })
+                );
                 return (
                   <TableRow key={note.id} className="group">
                     <TableCell className="whitespace-nowrap py-2.5">
@@ -382,7 +400,7 @@ export default async function PickupNotesPage({
                           </IconHint>
                           <IconHint label={t(locale, "Notify on WhatsApp")}>
                             <a
-                              href={`https://wa.me/${digits}`}
+                              href={ready}
                               target="_blank"
                               rel="noreferrer"
                               aria-label={`WhatsApp ${note.customer.name}`}
