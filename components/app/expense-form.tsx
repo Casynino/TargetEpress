@@ -1,7 +1,22 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
-import { ChevronDown, Paperclip, Plus, X, Zap } from "lucide-react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  CircleDashed,
+  Crown,
+  Landmark,
+  Paperclip,
+  Plane,
+  Plus,
+  Search,
+  Sparkles,
+  Users,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 
 import {
   FormError,
@@ -20,8 +35,13 @@ import { Label } from "@/components/ui/label";
 import { MoneyInput } from "@/components/ui/money-input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { recordExpense } from "@/lib/actions/expenses";
-import { EXPENSE_CLASSES, EXPENSE_CLASS_LABELS } from "@/lib/expenses";
-import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
+import {
+  COMMON_EXPENSES,
+  EXPENSE_CATEGORY_GROUPS,
+  EXPENSE_CATEGORY_LABELS,
+  EXPENSE_CLASSES,
+  EXPENSE_CLASS_LABELS,
+} from "@/lib/expenses";
 import type { ActionResult } from "@/lib/actions/types";
 
 export type ExpenseAccount = {
@@ -41,20 +61,34 @@ export type QuickExpense = { label: string; category: string };
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
+/** One picture per group, so a list of costs is scannable rather than read. */
+const GROUP_ICONS: Record<string, LucideIcon> = {
+  batch: Plane,
+  office: Building2,
+  staff: Users,
+  financial: Landmark,
+  executive: Crown,
+  other: CircleDashed,
+};
+
 /**
- * Recording what the business spent.
+ * RECORDING A COST, IN TWO QUESTIONS.
  *
- * The costs an air-cargo operation pays are the same ones every week — fuel,
- * the clearing agent, customs, the warehouse rent — and every one of them was
- * four fields and a category chosen from eighteen. The quick picks fill the
- * description AND the category together, which removes the typing and also
- * stops one cost being filed under three different categories by three
- * different people.
+ * It used to be one screen of eight fields, and the two that always had to be
+ * answered — what was it, and how much — sat among six that almost never did.
+ * A clerk with a receipt in one hand was reading a form about batches and
+ * cost classes before reaching the amount.
  *
- * The receipt is a first-class field, not something behind a disclosure. A
- * typed amount is a claim; the photo of the receipt is what settles an argument
- * about it in four months, and the moment it is easiest to attach is the moment
- * the cost is being recorded.
+ * So it asks what it is, then asks how much. Nothing was removed: the batch,
+ * the date, the kind of cost and the receipt are all still here, folded behind
+ * one line on the second step, where somebody who needs them knows to look.
+ *
+ * The first step is a list rather than a text box, because the costs an air
+ * cargo business pays are the same every week and the expensive mistake is not
+ * the typing — it is the same cost filed under three different categories by
+ * three different people, which makes every report quietly wrong. Picking from
+ * the list answers both at once. What has been recorded before rises to the
+ * top on its own, so the list gets shorter the longer it is used.
  */
 export function ExpenseForm({
   categories,
@@ -91,41 +125,115 @@ export function ExpenseForm({
   >(recordExpense, { ok: true });
   const idem = useIdempotencyKey();
 
-  /* Costs come in runs — three deliveries off one flight — so the key is
-     retired as soon as one lands, or the second would be read as the first. */
-  useEffect(() => {
-    if (state.ok && state.data?.expenseNumber) idem.reset();
-  }, [state]);
-
   const [open, setOpen] = useState(alwaysOpen);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [chosen, setChosen] = useState<QuickExpense | null>(null);
+  const [query, setQuery] = useState("");
+  const [groupKey, setGroupKey] = useState("used");
+  const [naming, setNaming] = useState(false);
+  const [newLabel, setNewLabel] = useState("");
+  const [newCategory, setNewCategory] = useState("OTHER");
+
   const [more, setMore] = useState(false);
   const [currency, setCurrency] = useState("TZS");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("OTHER");
+  const [amount, setAmount] = useState("");
+  const [paidFrom, setPaidFrom] = useState("");
   const amountRef = useRef<HTMLInputElement>(null);
 
-  const eligible = accounts.filter((a) => a.currency === currency);
-  /* Borrowed money listed apart from the company's own, under its own heading,
-     so nobody reads a lender's loan as another till. */
-  const ownMoney = eligible.filter((a) => a.kind !== "LOAN");
-  const borrowed = eligible.filter((a) => a.kind === "LOAN");
-  const [paidFrom, setPaidFrom] = useState("");
-  const loanChosen = borrowed.find((a) => a.id === paidFrom) ?? null;
+  /* Costs come in runs — three deliveries off one flight — so the key is
+     retired as soon as one lands, or the second would be read as the first.
+     The form goes back to its first question at the same moment: the clerk
+     with three receipts is already looking for the second one. */
+  useEffect(() => {
+    if (state.ok && state.data?.expenseNumber) {
+      idem.reset();
+      setStep(1);
+      setChosen(null);
+      setAmount("");
+      setQuery("");
+      setNaming(false);
+    }
+  }, [state]);
 
-  /** One tap fills what it is and what kind it is, then asks for the amount. */
+  const categoryOptions = useMemo(
+    () =>
+      categories && categories.length > 0
+        ? categories
+        : Object.entries(EXPENSE_CATEGORY_LABELS).map(([value, label]) => ({
+            value,
+            label,
+          })),
+    [categories]
+  );
+
+  /**
+   * Everything this desk can pick from: what it has recorded before, then the
+   * costs the business is seeded with. Deduplicated on the name, most-recorded
+   * first, so a cost somebody has actually paid outranks the same word from
+   * the seed list.
+   */
+  const catalogue = useMemo(() => {
+    const seen = new Set<string>();
+    const out: QuickExpense[] = [];
+    for (const item of [...quick, ...COMMON_EXPENSES]) {
+      const key = item.label.trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(item);
+    }
+    return out;
+  }, [quick]);
+
+  const groups = useMemo(() => {
+    const used = quick.slice(0, 8);
+    const rest = EXPENSE_CATEGORY_GROUPS.map((group) => ({
+      key: group.key,
+      label: group.label,
+      items: catalogue.filter((item) => group.categories.includes(item.category)),
+    })).filter((group) => group.items.length > 0);
+    return used.length > 0
+      ? [{ key: "used", label: "Used most", items: used }, ...rest]
+      : rest;
+  }, [catalogue, quick]);
+
+  const matches = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return null;
+    return catalogue.filter(
+      (item) =>
+        item.label.toLowerCase().includes(needle) ||
+        t(EXPENSE_CATEGORY_LABELS[item.category] ?? item.category)
+          .toLowerCase()
+          .includes(needle)
+    );
+  }, [catalogue, query, t]);
+
+  const shown =
+    matches ?? groups.find((g) => g.key === groupKey)?.items ?? groups[0]?.items ?? [];
+
   const pick = (item: QuickExpense) => {
-    setDescription(item.label);
-    setCategory(item.category);
-    amountRef.current?.focus();
+    setChosen(item);
+    setStep(2);
+    setNaming(false);
+    /* The amount is the only thing left to answer, so the caret starts in it.
+       After paint: the field is rendered by the step this press switches to. */
+    setTimeout(() => amountRef.current?.focus(), 0);
   };
 
-  const categoryOptions =
-    categories && categories.length > 0
-      ? categories
-      : Object.entries(EXPENSE_CATEGORY_LABELS).map(([value, label]) => ({
-          value,
-          label,
-        }));
+  const eligible = accounts.filter((a) => a.currency === currency);
+  /* Borrowed money listed apart from the company's own, so nobody reads a
+     lender's loan as another till. */
+  const ownMoney = eligible.filter((a) => a.kind !== "LOAN");
+  const borrowed = eligible.filter((a) => a.kind === "LOAN");
+  const loanChosen = borrowed.find((a) => a.id === paidFrom) ?? null;
+
+  const typed = Number(amount);
+  const amountGiven = Number.isFinite(typed) && typed > 0;
+  const moneyLabel = amountGiven
+    ? `${currency === "TZS" ? "TSh" : "USD"} ${typed.toLocaleString("en-US", {
+        maximumFractionDigits: 2,
+      })}`
+    : "";
 
   if (!open) {
     return (
@@ -136,10 +244,34 @@ export function ExpenseForm({
     );
   }
 
+  const Icon = chosen
+    ? GROUP_ICONS[
+        EXPENSE_CATEGORY_GROUPS.find((g) => g.categories.includes(chosen.category))
+          ?.key ?? "other"
+      ] ?? CircleDashed
+    : CircleDashed;
+
   return (
     <section className="overflow-hidden rounded-xl border bg-card shadow-soft">
       <div className="flex items-center justify-between gap-3 border-b px-5 py-3">
-        <h2 className="font-semibold">{t("Record a cost")}</h2>
+        {/* Which of the two questions is being answered, and which is next. */}
+        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest">
+          <span
+            className={`rounded-full px-2 py-1 ${
+              step === 1 ? "bg-foreground text-background" : "bg-muted text-muted-foreground"
+            }`}
+          >
+            1 {t("What")}
+          </span>
+          <span className="h-px w-3 bg-border" />
+          <span
+            className={`rounded-full px-2 py-1 ${
+              step === 2 ? "bg-foreground text-background" : "bg-muted text-muted-foreground"
+            }`}
+          >
+            2 {t("How much")}
+          </span>
+        </div>
         {alwaysOpen ? null : (
           <button
             type="button"
@@ -154,99 +286,223 @@ export function ExpenseForm({
         )}
       </div>
 
-      {/* The usual suspects, one tap each. */}
-      {quick.length > 0 ? (
-        <div className="border-b bg-muted/30 px-5 py-3">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            <Zap className="h-3.5 w-3.5" />
-            {t("The usual")}
+      {step === 1 ? (
+        <div className="p-5">
+          <h2 className="font-display text-lg font-bold">
+            {t("What did you pay for?")}
+          </h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {t("Search, or pick from a group. What you record shows up here next time.")}
           </p>
-          {/* One row that scrolls, not a block that grows. Twelve usual costs
-              wrapped into four lines and pushed the amount field — the only
-              field that always has to be filled — below the fold. */}
-          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
-            {quick.map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => pick(item)}
-                className={`focus-ring shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                  description === item.label
-                    ? "border-brand bg-brand text-brand-foreground"
-                    : "bg-card hover:bg-accent"
-                }`}
-              >
-                {t(item.label)}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
 
-      <form action={action} className="p-5">
-        <IdempotencyKey value={idem.key} />
-        {/* Re-baselined on the expense number the action hands back, so the tap
-            straight after recording a cost is not met with "discard changes?"
-            about a cost already in the ledger. */}
-        <UnsavedGuard
-          savedKey={state.ok && state.data ? state.data.expenseNumber : null}
-        />
-
-        {/* Carried, not asked for — this form is already inside the flight. */}
-        {fixedDispatch ? (
-          <input type="hidden" name="batchId" value={fixedDispatch.id} />
-        ) : null}
-        {/*
-          Two columns, and `min-w-0` on every one of them.
-
-          This was a twelve-column grid keyed to the WINDOW's width, while the
-          form now sits in a dialog a third of it — so on a wide screen it laid
-          three columns into 670px and pushed "Paid from" and the receipt row off
-          the edge. A grid track's default minimum is its content, which is what
-          turns a long account name into a page that scrolls sideways.
-        */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {/*
-            Grouped by question, not by how important the field is.
-
-            What it was for and what kind of cost it is are the same
-            question asked twice — a clerk answers them in one breath — so
-            they sit on one row now instead of a whole other row apart with
-            Amount and Paid from wedged between them.
-          */}
-          <div className="min-w-0 space-y-1.5">
-            <Label htmlFor="description" className="text-xs">
-              {t("What was it for")}
-            </Label>
+          <div className="relative mt-4">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              id="description"
-              name="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t("Fuel, customs, a repair…")}
-              required
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t("Search — customs, fuel, salary, rent…")}
+              className="h-11 pl-9"
+              aria-label={t("Search costs")}
             />
           </div>
 
-          <div className="min-w-0 space-y-1.5">
-            <Label htmlFor="category" className="text-xs">
-              {t("Category")}
-            </Label>
-            <NativeSelect
-              id="category"
-              name="category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              {categoryOptions.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {t(c.label)}
-                </option>
-              ))}
-            </NativeSelect>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
+            {/* One row that scrolls on a phone, one column on a desk. Same
+                buttons either way — a second copy of this list is a second
+                list to keep right. */}
+            <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-col sm:overflow-visible sm:px-0 sm:pb-0">
+              {groups.map((group) => {
+                const GroupIcon =
+                  group.key === "used" ? Sparkles : GROUP_ICONS[group.key] ?? CircleDashed;
+                const on = !matches && group.key === groupKey;
+                return (
+                  <button
+                    key={group.key}
+                    type="button"
+                    onClick={() => {
+                      setGroupKey(group.key);
+                      setQuery("");
+                    }}
+                    className={`focus-ring flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors sm:w-full ${
+                      on ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <GroupIcon className="h-4 w-4 shrink-0" />
+                    <span className="min-w-0 flex-1 truncate text-left">
+                      {t(group.label)}
+                    </span>
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      {group.items.length}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="min-w-0 rounded-lg border">
+              <p className="border-b px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                {matches
+                  ? `${shown.length} ${t("found")}`
+                  : t(groups.find((g) => g.key === groupKey)?.label ?? "Used most")}
+              </p>
+              <div className="max-h-[15rem] overflow-y-auto">
+                {shown.map((item) => {
+                  const ItemIcon =
+                    GROUP_ICONS[
+                      EXPENSE_CATEGORY_GROUPS.find((g) =>
+                        g.categories.includes(item.category)
+                      )?.key ?? "other"
+                    ] ?? CircleDashed;
+                  return (
+                    <button
+                      key={`${item.label}-${item.category}`}
+                      type="button"
+                      onClick={() => pick(item)}
+                      className="focus-ring flex w-full items-center gap-3 border-b px-3 py-2.5 text-left last:border-b-0 hover:bg-accent"
+                    >
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand">
+                        <ItemIcon className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">
+                          {t(item.label)}
+                        </span>
+                        {/* The seeded costs are named after the category they
+                            file under — "Customs" filed under Customs — and
+                            printing both reads as a stutter. It is said only
+                            when it adds something, which is exactly when the
+                            desk typed a name of its own. */}
+                        {t(EXPENSE_CATEGORY_LABELS[item.category] ?? item.category) !==
+                        t(item.label) ? (
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {t(EXPENSE_CATEGORY_LABELS[item.category] ?? item.category)}
+                          </span>
+                        ) : null}
+                      </span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    </button>
+                  );
+                })}
+                {shown.length === 0 ? (
+                  <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+                    {t("Nothing here by that name.")}
+                  </p>
+                ) : null}
+              </div>
+
+              {/* Anything the list does not have. The typed name carries over,
+                  because somebody who has just searched for it has typed it. */}
+              {naming ? (
+                <div className="space-y-2 border-t bg-muted/30 p-3">
+                  <Input
+                    autoFocus
+                    value={newLabel}
+                    onChange={(event) => setNewLabel(event.target.value)}
+                    placeholder={t("What was it for")}
+                  />
+                  <NativeSelect
+                    value={newCategory}
+                    onChange={(event) => setNewCategory(event.target.value)}
+                    aria-label={t("Category")}
+                  >
+                    {categoryOptions.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {t(c.label)}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="brand"
+                      disabled={newLabel.trim().length < 3}
+                      onClick={() =>
+                        pick({ label: newLabel.trim(), category: newCategory })
+                      }
+                    >
+                      {t("Continue")}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setNaming(false)}
+                      className="focus-ring rounded text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                    >
+                      {t("Cancel")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewLabel(query.trim());
+                    setNaming(true);
+                  }}
+                  className="focus-ring flex w-full items-center gap-2 border-t px-3 py-2.5 text-sm font-medium text-brand hover:bg-accent"
+                >
+                  <Plus className="h-4 w-4" />
+                  {t("Something else — record a new cost")}
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="min-w-0 space-y-1.5">
+          <FormSuccess
+            message={
+              state.ok && state.data
+                ? `${t("Recorded")} ${state.data.expenseNumber}`
+                : null
+            }
+          />
+        </div>
+      ) : (
+        <form action={action} className="p-5">
+          <IdempotencyKey value={idem.key} />
+          {/* Re-baselined on the expense number the action hands back, so the
+              tap straight after recording a cost is not met with "discard
+              changes?" about a cost already in the ledger. */}
+          <UnsavedGuard
+            savedKey={state.ok && state.data ? state.data.expenseNumber : null}
+          />
+          {/* Answered on the first step, carried here. */}
+          <input type="hidden" name="description" value={chosen?.label ?? ""} />
+          <input type="hidden" name="category" value={chosen?.category ?? "OTHER"} />
+          {/* Carried, not asked for — this form is already inside the flight. */}
+          {fixedDispatch ? (
+            <input type="hidden" name="batchId" value={fixedDispatch.id} />
+          ) : null}
+
+          <h2 className="font-display text-lg font-bold">{t("How much was paid?")}</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {t("It leaves the account you name, straight away.")}
+          </p>
+
+          <div className="mt-4 flex items-center gap-3 rounded-xl border p-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand">
+              <Icon className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold">
+                {t(chosen?.label ?? "")}
+              </span>
+              {t(EXPENSE_CATEGORY_LABELS[chosen?.category ?? "OTHER"] ?? "Miscellaneous") !==
+              t(chosen?.label ?? "") ? (
+                <span className="block truncate text-xs text-muted-foreground">
+                  {t(EXPENSE_CATEGORY_LABELS[chosen?.category ?? "OTHER"] ?? "Miscellaneous")}
+                </span>
+              ) : null}
+            </span>
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="focus-ring shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-medium hover:bg-accent"
+            >
+              {t("Change")}
+            </button>
+          </div>
+
+          <div className="mt-4 space-y-1.5">
             <Label htmlFor="expenseAmount" className="text-xs">
               {t("Amount")}
             </Label>
@@ -255,7 +511,9 @@ export function ExpenseForm({
                 id="expenseAmount"
                 ref={amountRef}
                 name="amount"
-                className="min-w-0"
+                value={amount}
+                onValueChange={setAmount}
+                className="h-12 min-w-0 flex-1 text-lg"
                 required
               />
               <NativeSelect
@@ -263,7 +521,7 @@ export function ExpenseForm({
                 aria-label={t("Currency")}
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="w-[5.5rem] shrink-0"
+                className="h-12 w-[5.5rem] shrink-0"
               >
                 <option value="TZS">TSh</option>
                 <option value="USD">USD</option>
@@ -271,45 +529,47 @@ export function ExpenseForm({
             </div>
           </div>
 
-          <div className="min-w-0 space-y-1.5">
-            <Label htmlFor="expenseAccount" className="text-xs">
-              {t("Paid from")}
-            </Label>
+          <div className="mt-4 space-y-1.5">
+            <Label className="text-xs">{t("Paid from")}</Label>
             {/*
-              Compulsory, like every other place money is written down.
+              Compulsory, like every other place money is written down. A cost
+              is money that has left an account, so there is always one to name.
 
-              "Not paid yet" used to sit at the top of this list and record a
-              bill the company owed with no account against it. A real thing —
-              but never once used here, and the single gap in the owner's rule
-              that nothing is recorded without saying where the money is. A
-              cost is money that has left an account, so there is always one
-              to name.
+              Chips rather than a dropdown: there are five or six of these, the
+              clerk knows which one they used, and a list you can see is one
+              tap where a dropdown is three.
             */}
-            <NativeSelect
-              id="expenseAccount"
-              name="accountId"
-              required
-              value={paidFrom}
-              onChange={(event) => setPaidFrom(event.target.value)}
-            >
-              <option value="" disabled>
-                {t("Choose the account")}
-              </option>
+            <input type="hidden" name="accountId" value={paidFrom} required />
+            <div className="flex flex-wrap gap-2">
               {ownMoney.map((account) => (
-                <option key={account.id} value={account.id}>
+                <button
+                  key={account.id}
+                  type="button"
+                  onClick={() => setPaidFrom(account.id)}
+                  className={`focus-ring rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                    paidFrom === account.id
+                      ? "border-brand bg-brand text-brand-foreground"
+                      : "hover:bg-accent"
+                  }`}
+                >
                   {account.name}
-                </option>
+                </button>
               ))}
-              {borrowed.length > 0 ? (
-                <optgroup label={t("Borrowed money (loan)")}>
-                  {borrowed.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null}
-            </NativeSelect>
+              {borrowed.map((account) => (
+                <button
+                  key={account.id}
+                  type="button"
+                  onClick={() => setPaidFrom(account.id)}
+                  className={`focus-ring rounded-lg border border-dashed px-3 py-2 text-sm font-medium transition-colors ${
+                    paidFrom === account.id
+                      ? "border-warning bg-warning/15 text-warning"
+                      : "text-muted-foreground hover:bg-accent"
+                  }`}
+                >
+                  {account.name}
+                </button>
+              ))}
+            </div>
             {loanChosen ? (
               /* Said the moment it is chosen: this is not company money, and
                  recording it creates a debt the company has to pay back. */
@@ -317,158 +577,156 @@ export function ExpenseForm({
                 {loanChosen.accountName || loanChosen.name}{" "}
                 {t("paid this personally. It is recorded as a normal cost, and the company now owes the money back.")}
               </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                {t("Where the money actually left. The cost is paid in one step.")}
-              </p>
-            )}
+            ) : null}
           </div>
 
-          {/*
-            WHO RECEIVED IT, IN PLAIN VIEW — NOT BEHIND A DISCLOSURE, AND STILL
-            OPTIONAL.
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/*
+              WHO RECEIVED IT, IN PLAIN VIEW — AND STILL OPTIONAL.
 
-            It used to take an extra tap to even see this field, on the theory
-            that most costs do not need it. But it is the one field that lets
-            anyone trace a payment back to a real person or company months
-            later — "who did we actually pay" is the first question an
-            investigation asks, and a field nobody can see is a field nobody
-            fills in. Visible does not mean required: a clerk in a hurry can
-            still leave it blank exactly as before.
-          */}
-          <div className="min-w-0 space-y-1.5">
-            <Label htmlFor="vendor" className="text-xs">
-              {t("Paid to")}
-            </Label>
-            <Input
-              id="vendor"
-              name="vendor"
-              placeholder={t("Who received it — a person, a company, a till")}
-            />
+              It is the one field that lets anyone trace a payment back to a
+              real person or company months later — "who did we actually pay"
+              is the first question an investigation asks, and a field nobody
+              can see is a field nobody fills in.
+            */}
+            <div className="min-w-0 space-y-1.5">
+              <Label htmlFor="vendor" className="text-xs">
+                {t("Paid to")}
+              </Label>
+              <Input
+                id="vendor"
+                name="vendor"
+                placeholder={t("Supplier or person")}
+              />
+            </div>
+            <div className="min-w-0 space-y-1.5">
+              <Label htmlFor="expenseNote" className="text-xs">
+                {t("Details")}{" "}
+                <span className="text-muted-foreground">{t("(optional)")}</span>
+              </Label>
+              <Input
+                id="expenseNote"
+                name="note"
+                placeholder={t("e.g. for September")}
+              />
+            </div>
           </div>
 
-          {/* First class, not behind a disclosure: the moment the receipt is
-              easiest to attach is the moment the cost is being recorded. */}
-          <div className="min-w-0 space-y-1.5">
-            <Label htmlFor="receipt" className="flex items-center gap-1.5 text-xs">
-              <Paperclip className="h-3.5 w-3.5" />
-              {t("Receipt or photo")}
-            </Label>
-            <Input
-              id="receipt"
-              name="receipt"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              multiple
-              className="file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs"
-            />
-          </div>
-
-          <div className="sm:col-span-2">
+          <div className="mt-4 rounded-xl border">
             <button
               type="button"
               onClick={() => setMore((v) => !v)}
-              className="focus-ring inline-flex items-center gap-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground"
+              className="focus-ring flex w-full items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium"
             >
+              <span className="flex items-center gap-2">
+                <Paperclip className="h-4 w-4 text-muted-foreground" />
+                {t("Receipt, batch, date & type")}{" "}
+                <span className="text-muted-foreground">{t("— optional")}</span>
+              </span>
               <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform ${more ? "rotate-180" : ""}`}
+                className={`h-4 w-4 text-muted-foreground transition-transform ${
+                  more ? "rotate-180" : ""
+                }`}
               />
-              {more ? t("Fewer details") : t("Which batch, what date")}
             </button>
-          </div>
 
-          {more ? (
-            <>
-              {!fixedDispatch && dispatches && dispatches.length > 0 ? (
-                <div className="min-w-0 space-y-1.5">
-                  <Label htmlFor="expenseBatch" className="text-xs">
-                    {t("Against a dispatch")}
+            {more ? (
+              <div className="grid grid-cols-1 gap-3 border-t p-3 sm:grid-cols-2">
+                {/* The moment the receipt is easiest to attach is the moment
+                    the cost is being recorded. */}
+                <div className="min-w-0 space-y-1.5 sm:col-span-2">
+                  <Label htmlFor="receipt" className="text-xs">
+                    {t("Receipt or photo")}
                   </Label>
-                  <NativeSelect id="expenseBatch" name="batchId" defaultValue="">
-                    <option value="">{t("Not one batch")}</option>
-                    {dispatches.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.label}
+                  <Input
+                    id="receipt"
+                    name="receipt"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    multiple
+                    className="file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs"
+                  />
+                </div>
+
+                {!fixedDispatch && dispatches && dispatches.length > 0 ? (
+                  <div className="min-w-0 space-y-1.5">
+                    <Label htmlFor="expenseBatch" className="text-xs">
+                      {t("Against a dispatch")}
+                    </Label>
+                    <NativeSelect id="expenseBatch" name="batchId" defaultValue="">
+                      <option value="">{t("Not one batch")}</option>
+                      {dispatches.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.label}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  </div>
+                ) : null}
+
+                <div className="min-w-0 space-y-1.5">
+                  <Label htmlFor="incurredAt" className="text-xs">
+                    {t("Date")}
+                  </Label>
+                  <Input id="incurredAt" name="incurredAt" type="date" max={TODAY} />
+                  {/*
+                    Nothing to type, most of the time. Left blank, the cost is
+                    dated to this exact moment — the day AND the time, which a
+                    plain "today" default would have lost.
+                  */}
+                  <p className="text-[11px] text-muted-foreground">
+                    {t(
+                      "Leave this blank — it is recorded as happening right now. Only set it when backdating a cost found later."
+                    )}
+                  </p>
+                </div>
+
+                <div className="min-w-0 space-y-1.5">
+                  <Label htmlFor="expenseClass" className="text-xs">
+                    {t("Type of cost")}
+                  </Label>
+                  <NativeSelect
+                    id="expenseClass"
+                    name="expenseClass"
+                    defaultValue="OPERATING"
+                  >
+                    {EXPENSE_CLASSES.map((value) => (
+                      <option key={value} value={value}>
+                        {t(EXPENSE_CLASS_LABELS[value])}
                       </option>
                     ))}
                   </NativeSelect>
+                  <p className="text-[11px] text-muted-foreground">
+                    {t(
+                      "Almost everything is Operating — leave it as it is. Special is only for something like an owner's personal draw, which should not count as a running cost of the business."
+                    )}
+                  </p>
                 </div>
-              ) : null}
-              <div className="min-w-0 space-y-1.5">
-                <Label htmlFor="incurredAt" className="text-xs">
-                  {t("Date")}
-                </Label>
-                <Input id="incurredAt" name="incurredAt" type="date" max={TODAY} />
-                {/*
-                  Nothing to type, most of the time.
-
-                  Left blank, the cost is dated to this exact moment — the day
-                  AND the time, not just today's date, which is what a plain
-                  "today" default would have lost. This field exists for the
-                  one case that actually needs it: a receipt found in
-                  somebody's bag two days after the port run.
-                */}
-                <p className="text-[11px] text-muted-foreground">
-                  {t(
-                    "Leave this blank — it is recorded as happening right now. Only set it when backdating a cost found later."
-                  )}
-                </p>
               </div>
-              {/*
-                Operating or special.
+            ) : null}
+          </div>
 
-                Defaulted to operating because almost everything is, and put
-                behind "more" for the same reason — the one desk that needs the
-                other option knows it needs it. The hint used to explain the
-                accounting term rather than the actual, rare situation it is
-                for, which read as a question nobody recording a fuel receipt
-                should have to stop and answer.
-              */}
-              <div className="min-w-0 space-y-1.5">
-                <Label htmlFor="expenseClass" className="text-xs">
-                  {t("Type of cost")}
-                </Label>
-                <NativeSelect
-                  id="expenseClass"
-                  name="expenseClass"
-                  defaultValue="OPERATING"
-                >
-                  {EXPENSE_CLASSES.map((value) => (
-                    <option key={value} value={value}>
-                      {t(EXPENSE_CLASS_LABELS[value])}
-                    </option>
-                  ))}
-                </NativeSelect>
-                <p className="text-[11px] text-muted-foreground">
-                  {t(
-                    "Almost everything is Operating — leave it as it is. Special is only for something like an owner's personal draw, which should not count as a running cost of the business."
-                  )}
-                </p>
-              </div>
-            </>
-          ) : null}
-        </div>
+          <FormError state={state} />
 
-        <FormError state={state} />
-        <FormSuccess
-          message={
-            state.ok && state.data
-              ? `${t("Recorded")} ${state.data.expenseNumber}`
-              : null
-          }
-        />
-
-        <div className="mt-4 flex flex-wrap items-center gap-3 border-t pt-4">
-          <SubmitButton variant="brand" size="sm" pendingLabel={t("Recording…")}>
-            {t("Record cost")}
-          </SubmitButton>
-          {/* Nothing waits for a signature any more; see recordExpense. What
-              is worth saying is the one thing still true of a blank account. */}
-          <p className="text-xs text-muted-foreground">
-            {t("Leave the account blank and it is recorded as still to pay.")}
-          </p>
-        </div>
-      </form>
+          <div className="mt-4">
+            {/* The button says what pressing it does, once there is a figure
+                to say. A cost recorded by mistake is money missing from an
+                account until somebody reverses it. */}
+            <SubmitButton
+              variant="brand"
+              className="h-12 w-full rounded-xl text-base"
+              disabled={!amountGiven || !paidFrom || !chosen}
+              pendingLabel={t("Recording…")}
+            >
+              {!amountGiven
+                ? t("Enter the amount")
+                : !paidFrom
+                  ? t("Say which account it left")
+                  : `${t("Record")} ${moneyLabel}`}
+            </SubmitButton>
+          </div>
+        </form>
+      )}
     </section>
   );
 }
