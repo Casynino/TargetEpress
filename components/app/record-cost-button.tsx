@@ -8,6 +8,7 @@ import {
   type ExpenseAccount,
   type QuickExpense,
 } from "@/components/app/expense-form";
+import type { ExpensePickerData } from "@/lib/expense-picker";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 
@@ -22,6 +23,7 @@ import { Button } from "@/components/ui/button";
 export function RecordCostButton({
   accounts,
   quick,
+  picker,
   rate,
   categories = [],
   dispatches = [],
@@ -29,6 +31,9 @@ export function RecordCostButton({
 }: {
   accounts: ExpenseAccount[];
   quick: QuickExpense[];
+  /** What the register knows — see ExpenseForm. Absent on screens that only
+      record the odd office cost. */
+  picker?: ExpensePickerData;
   rate: number | null;
   /** The Expenses page names its own; the ledger takes the defaults. */
   categories?: { value: string; label: string }[];
@@ -84,6 +89,7 @@ export function RecordCostButton({
               accounts={accounts}
               dispatches={dispatches}
               quick={quick}
+              picker={picker}
               rate={rate}
               alwaysOpen
             />

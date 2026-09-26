@@ -9,6 +9,7 @@ import { RecordCostButton } from "@/components/app/record-cost-button";
 import { RecordIncome } from "@/components/app/record-income";
 import { useT } from "@/components/app/locale-provider";
 import type { ExpenseAccount } from "@/components/app/expense-form";
+import type { ExpensePickerData } from "@/lib/expense-picker";
 
 /**
  * THE FOUR THINGS A MONEY DESK DOES, ON EVERY SCREEN IT DOES THEM FROM.
@@ -28,6 +29,7 @@ import type { ExpenseAccount } from "@/components/app/expense-form";
 export function FinanceActions({
   accounts,
   quickExpenses,
+  picker,
   rate,
   canTakeMoney,
   canRecordCost,
@@ -40,6 +42,8 @@ export function FinanceActions({
 }: {
   accounts: ExpenseAccount[];
   quickExpenses: { label: string; category: string }[];
+  /** What the register knows — see ExpenseForm. */
+  picker?: ExpensePickerData;
   rate: number | null;
   canTakeMoney: boolean;
   canRecordCost: boolean;
@@ -89,6 +93,7 @@ export function FinanceActions({
           compact
           accounts={accounts}
           quick={quickExpenses}
+          picker={picker}
           rate={rate}
         />
       ) : null}

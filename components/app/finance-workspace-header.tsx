@@ -5,6 +5,7 @@ import { FinanceActions } from "@/components/app/finance-actions";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { PageHeader } from "@/components/app/page-header";
 import { activeAccounts, spendingAccounts } from "@/lib/accounts";
+import { expensePickerData } from "@/lib/expense-picker";
 import { COMMON_EXPENSES } from "@/lib/expenses";
 import { financeTabs } from "@/lib/finance-tabs";
 import { toNumber } from "@/lib/format";
@@ -56,9 +57,13 @@ export async function FinanceWorkspaceHeader({
   /* A cost may be paid from a lender's loan, but only by a desk that may
      record against one — see loan.record. Everybody else is offered company
      money only. The income form below never sees a loan either way. */
-  const [accounts, rateRow] = await Promise.all([
+  const [accounts, rateRow, picker] = await Promise.all([
     can(role, "loan.record") ? spendingAccounts() : activeAccounts(),
     currentRate(),
+    /* What the register knows about spending: how often each cost is really
+       paid, which flights are carrying nothing yet, and who has drawn. Read
+       once for the whole department rather than per tab. */
+    can(role, "expense.record") ? expensePickerData() : Promise.resolve(undefined),
   ]);
   const rate = rateRow ? toNumber(rateRow.rate) : null;
 
@@ -93,6 +98,7 @@ export async function FinanceWorkspaceHeader({
                   accountName: a.accountName,
                 }))}
                 quickExpenses={COMMON_EXPENSES}
+                picker={picker}
                 rate={rate}
                 canTakeMoney={canTakeMoney}
                 canRecordCost={canRecordCost}
