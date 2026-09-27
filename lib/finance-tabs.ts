@@ -85,6 +85,20 @@ export function financeTabs(role: Role): FinanceTab[] {
     },
     {
       /*
+        The other half of the register, and it had no tab of its own.
+
+        Spending has a screen; what arrived had four — the overview's money
+        band, the payments list, the ledger's money-in total and the
+        collections queue — each answering "what came in" in its own words for
+        its own period. This is the one page that answers it for a period the
+        reader picks, beside the costs for the same days.
+      */
+      href: "/app/finance/received",
+      label: "Income",
+      visible: can(role, "accounting.view"),
+    },
+    {
+      /*
         Beside Expenses, because that is what it becomes.
 
         Payroll is the largest regular payment the company makes and it reaches

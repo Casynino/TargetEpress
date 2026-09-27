@@ -46,6 +46,12 @@ const CHECKED = new Set([
   "app/app/finance/credit/page.tsx",
   "app/app/manager/reconciliation/page.tsx",
   "lib/support.ts",
+  /* Income totals shillings in SQL with the same rule rowInShillings applies —
+     a shilling payment at its own `amount`, a dollar one through the snapshot
+     once — and prints it with formatShillingTotal. The only place it calls
+     formatShillings is a figure that is dollar-native either way: what a bill
+     was made of, and what a customer still owes. */
+  "app/app/finance/received/page.tsx",
 ]);
 
 /** Totalling the dollar snapshot, in SQL or in code. */
