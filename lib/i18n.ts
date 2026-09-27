@@ -4248,6 +4248,7 @@ const ZH: Record<string, string> = {
   "Every shilling received from customers, and the account it landed in. Cargo is what this business sells, so this is the freight and storage its customers paid for.": "客户支付的每一先令，以及款项进入的账户。本公司经营货运，因此这里是客户支付的运费与仓储费。",
   "Show": "查看",
   "Income received": "已收到的收入",
+  "Everything received": "全部收入",
   "cancelled ones taken off": "已扣除作废的款项",
   "Not said where it went": "未说明进入哪个账户",
   "Customer, tracking number, receipt, reference…": "客户、追踪号、收据、参考号……",

@@ -28,6 +28,15 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const PERIODS = [
+  /*
+    EVERYTHING FIRST.
+
+    It opened on today, which on a quiet morning is an empty page under a
+    heading that says Income — the owner's words: "I should see the income
+    there, don't filter it to today only". So the register opens as a register,
+    and the periods narrow it when somebody wants a day or a month.
+  */
+  { key: "all", label: "All time" },
   { key: "today", label: "Today" },
   { key: "yesterday", label: "Yesterday" },
   { key: "week", label: "This week" },
@@ -47,6 +56,9 @@ const LIST_CAP = 200;
  */
 function windowOf(period: string, from?: string, to?: string) {
   const now = new Date();
+  /* Before this business existed, so "all time" is a window like any other
+     and every figure on the page is summed the one way. */
+  const DAWN = new Date(2000, 0, 1);
   const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const day = (d: Date, n: number) =>
     new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
@@ -58,6 +70,7 @@ function windowOf(period: string, from?: string, to?: string) {
       return { start: a, end: day(b, 1), custom: true };
     }
   }
+  if (period === "all") return { start: DAWN, end: day(midnight, 1), custom: false };
   if (period === "today") return { start: midnight, end: day(midnight, 1), custom: false };
   if (period === "yesterday") {
     return { start: day(midnight, -1), end: midnight, custom: false };
@@ -117,7 +130,7 @@ export default async function IncomePage({
 
   const period = PERIODS.some((p) => p.key === params.period)
     ? (params.period as string)
-    : "today";
+    : "all";
   const { start, end, custom } = windowOf(period, params.from, params.to);
   const search = (params.q ?? "").trim();
   const account = (params.account ?? "").trim();
@@ -227,7 +240,11 @@ export default async function IncomePage({
 
   const windowLabel = custom
     ? `${formatDate(start, locale)} → ${formatDate(new Date(end.getTime() - 1), locale)}`
-    : formatDate(start, locale);
+    : period === "all"
+      ? t(locale, "Everything received")
+      : period === "today" || period === "yesterday"
+        ? formatDate(start, locale)
+        : `${formatDate(start, locale)} → ${formatDate(new Date(end.getTime() - 1), locale)}`;
 
   /* One day per heading, in the order the money came in. */
   const byDay = new Map<string, typeof payments>();
@@ -384,7 +401,7 @@ export default async function IncomePage({
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="mb-3 flex flex-wrap items-center gap-2 [&>form]:min-w-0 [&>form]:flex-1">
             <SearchBox
               placeholder={t(locale, "Customer, tracking number, receipt, reference…")}
               defaultValue={search}
@@ -505,7 +522,7 @@ export default async function IncomePage({
               })}
               {payments.length === LIST_CAP ? (
                 <p className="border-t px-4 py-2 text-center text-xs text-muted-foreground">
-                  {t(locale, "Showing the first")} {LIST_CAP}{" "}
+                  {t(locale, "Showing the most recent")} {LIST_CAP}{" "}
                   {t(locale, "payments of this period — narrow the dates to see the rest.")}
                 </p>
               ) : null}
