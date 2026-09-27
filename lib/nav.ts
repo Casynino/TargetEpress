@@ -202,6 +202,16 @@ const SECTIONS: NavSection[] = [
         icon: "Wallet",
         permission: "accounting.view",
       },
+      {
+        /* Beside the overview because it is the other half of the same
+           question: the overview says how the department stands, this says
+           what came in and from whom. Under it, not above, because a desk
+           opening Finance is usually going to the whole picture first. */
+        href: "/app/finance/received",
+        label: "Income",
+        icon: "Banknote",
+        permission: "accounting.view",
+      },
     ],
   },
   {
@@ -561,6 +571,16 @@ const FINANCE_SECTIONS: NavSection[] = [
         href: "/app/finance",
         label: "Overview",
         icon: "Wallet",
+        permission: "accounting.view",
+      },
+      {
+        /* Beside the overview because it is the other half of the same
+           question: the overview says how the department stands, this says
+           what came in and from whom. Under it, not above, because a desk
+           opening Finance is usually going to the whole picture first. */
+        href: "/app/finance/received",
+        label: "Income",
+        icon: "Banknote",
         permission: "accounting.view",
       },
       // Collections is both a row here and a tab inside the General ledger, at
@@ -965,6 +985,7 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/app/finance/pricing", label: "Price configuration", icon: "Tags", permission: "pricing.view" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode", permission: "pickupNote.view" },
       { href: "/app/finance", label: "Overview", icon: "Wallet", permission: "accounting.view" },
+      { href: "/app/finance/received", label: "Income", icon: "Banknote", permission: "accounting.view" },
       /* Off the tab row and into the menu — see the note in FINANCE_SECTIONS.
          The owner reads all six; with the pills gone, a row each is the only
          way to any of them. */
@@ -1088,6 +1109,7 @@ const MANAGER_SECTIONS: NavSection[] = [
          because it is where somebody goes once a figure above has raised a
          question — the answer, not the summary. */
       { href: "/app/finance", label: "Overview", icon: "Wallet" },
+      { href: "/app/finance/received", label: "Income", icon: "Banknote" },
       { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
       { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp" },
       { href: "/app/manager/reconciliation", label: "Reconciliation", icon: "Scale" },
