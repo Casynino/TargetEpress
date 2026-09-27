@@ -531,7 +531,16 @@ export default async function IncomePage({
         </div>
 
         {/* WHAT IS STILL OUT THERE — right now, not over the period. */}
-        <aside className="rounded-xl border border-warning/30 bg-warning/5 p-4">
+        {/*
+          It ends where its last row ends.
+
+          A grid item fills the row's height by default, so the panel stretched
+          to match a register of two hundred payments and drew a hand-tall box
+          of nothing under "Show all". It sits to the top of its column instead
+          and stays there while the list scrolls past it, which is the only
+          reason to put it in a column at all.
+        */}
+        <aside className="self-start rounded-xl border border-warning/30 bg-warning/5 p-4 lg:sticky lg:top-4">
           <p className="flex items-center gap-2 text-sm font-semibold">
             <Clock3 className="h-4 w-4 text-warning" />
             {t(locale, "To collect")}
