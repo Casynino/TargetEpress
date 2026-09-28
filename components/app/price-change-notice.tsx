@@ -94,179 +94,177 @@ export function PriceChangeNotice({
   */
   const netZero = Math.abs(difference) <= 0.005;
 
+  /* A rate worth printing: both sides known, and either the figure or the
+     unit really moved — 40.00 a piece and 40.00 a kilo are different prices. */
+  const showRates =
+    rateBefore !== null &&
+    rateAfter !== null &&
+    (Math.abs(rateAfter - rateBefore) > 0.0005 ||
+      (perItemBefore ?? perItem) !== perItem);
+
   return (
+    /*
+      ONE SMALL PANEL, THE SIZE OF THE FACT IT CARRIES.
+
+      This was a full-width card: an icon block, a heading, a sentence, a
+      boxed table of four figures, a boxed reason, a by-line and a row of
+      buttons — eight blocks for "the price moved, here is what it was". Beside
+      the old-weight notice two inches above it, which says the same kind of
+      thing in three lines, it read as a different and more serious species of
+      message. The owner's instruction was simply to make them the same, and
+      the smaller one was right.
+
+      Everything the old panel said is still said; it is said in sentences
+      rather than in furniture.
+    */
     <div
       className={
-        "no-print mb-6 rounded-xl border p-4 " +
-        (netZero ? "border-border bg-muted/40" : "border-warning/40 bg-warning/5")
+        "no-print rounded-lg border px-3 py-2.5 " +
+        (netZero
+          ? "border-border bg-muted/40"
+          : "border-warning/40 bg-warning/10")
       }
     >
-      <div className="flex items-start gap-3">
-        <span
-          className={
-            "mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg " +
-            (netZero
-              ? "bg-muted text-muted-foreground"
-              : "bg-warning/15 text-warning")
-          }
-        >
-          <Scale className="h-4 w-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold">
-            {netZero
-              ? t("This price was changed and put back")
-              : t("This price was changed")}
-          </p>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {netZero
-              ? t("The bill is back at the figure it started on, so the customer owes what they always owed. Finance has not checked it yet.")
-              : t("The new figure is already on the bill and the customer can be sent it. Finance has not checked it yet.")}
-          </p>
+      <p
+        className={
+          "flex items-center gap-1.5 text-xs font-semibold " +
+          (netZero ? "text-foreground" : "text-warning")
+        }
+      >
+        <Scale className="h-3.5 w-3.5 shrink-0" />
+        {netZero
+          ? t("This price was changed and put back")
+          : t("This price was changed")}
+      </p>
 
-          <p className="mt-3 font-mono text-sm tabular-nums">
-            <span
-              className={
-                netZero ? "text-muted-foreground" : "text-muted-foreground line-through"
-              }
-            >
-              {money(totalBefore)}
+      <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+        {/* The figures first, in the order they happened, bold where the eye
+            should land. A rate beside them only where one moved — it is what
+            makes a wrong figure obvious. */}
+        <span className="font-mono tabular-nums">{money(totalBefore)}</span>
+        {" → "}
+        <span className="font-mono font-semibold tabular-nums text-foreground">
+          {money(totalAfter)}
+        </span>
+        {Math.abs(difference) > 0.005 ? (
+          <span
+            className={
+              difference < 0
+                ? " font-medium text-warning"
+                : " font-medium text-success"
+            }
+          >
+            {" "}
+            ({difference < 0 ? "−" : "+"}
+            {money(difference)})
+          </span>
+        ) : null}
+        {showRates ? (
+          <>
+            {", "}
+            <span className="font-mono tabular-nums">
+              {currency} {rateBefore!.toFixed(2)}
             </span>
             {" → "}
-            <span className="font-semibold text-foreground">
-              {money(totalAfter)}
-            </span>
-            {Math.abs(difference) > 0.005 ? (
-              <span
-                className={
-                  difference < 0 ? " text-warning" : " text-success"
-                }
-              >
-                {" "}
-                ({difference < 0 ? "−" : "+"}
-                {money(difference)})
-              </span>
-            ) : null}
-          </p>
-
-          {/* The rate is what makes a wrong figure obvious. 12.50 → 23.00 on a
-              corridor billed at 12.50 reads as a mistake; the totals it
-              produces do not. */}
-          {/* A unit switched is a change even where the figure is the same
-              number: 40.00 a piece and 40.00 a kilo are different prices. Each
-              side carries its own unit when they differ. */}
-          {rateBefore !== null &&
-          rateAfter !== null &&
-          (Math.abs(rateAfter - rateBefore) > 0.0005 ||
-            (perItemBefore ?? perItem) !== perItem) ? (
-            <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
-              <span className="line-through">
-                {currency} {rateBefore.toFixed(2)}
-                {(perItemBefore ?? perItem) !== perItem
-                  ? ` ${(perItemBefore ?? perItem) ? t("per item") : t("per kg")}`
-                  : ""}
-              </span>
-              {" → "}
-              <span className="font-semibold text-foreground">
-                {currency} {rateAfter.toFixed(2)}
-              </span>{" "}
+            <span className="font-mono font-medium tabular-nums text-foreground">
+              {currency} {rateAfter!.toFixed(2)}{" "}
               {perItem ? t("per item") : t("per kg")}
-            </p>
-          ) : null}
+            </span>
+          </>
+        ) : null}
+        {". "}
+        {/* A sentence, not a heap of fragments: "Changed by Hawa" where it
+            happened once, and the count in front where a desk corrected
+            itself on the way. */}
+        {steps > 1
+          ? `${t("Changed")} ${steps} ${t("times")}, ${t("by")} ${changedBy}`
+          : `${t("Changed by")} ${changedBy}`}
+        {" · "}
+        {changedAt}. {reason ? `“${reason}” ` : ""}
+        {netZero
+          ? t("The bill is back where it started.")
+          : t("Finance has not checked it yet.")}
+      </p>
 
-          {/* Said plainly, because "put it back" goes to the start of the run
-              and a reader seeing one arrow would assume it goes back one step. */}
-          {steps > 1 ? (
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              {t("Changed")} {steps}{" "}
-              {netZero
-                ? t("times, ending on the original figure.")
-                : t("times. Putting it back goes to where the bill started.")}
-            </p>
-          ) : null}
+      <FormError state={state} />
+      <FormError state={undo} />
 
-          {reason ? (
-            <p className="mt-2 rounded-lg border bg-card px-3 py-2 text-sm">
-              <span className="text-muted-foreground">{t("Reason")}: </span>
-              {reason}
-            </p>
-          ) : null}
-          <p className="mt-1.5 text-[11px] text-muted-foreground">
-            {t("Changed by")} {changedBy} · {changedAt}
-          </p>
-
-          <FormError state={state} />
-          <FormError state={undo} />
-
-          {canReview ? (
-            mode === null ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                <form action={action}>
-                  <input type="hidden" name="changeId" value={changeId} />
-                  <input type="hidden" name="decision" value="CONFIRM" />
-                  <SubmitButton size="sm" variant="brand" pendingLabel={t("Saving…")}>
-                    <Check className="mr-1.5 h-3.5 w-3.5" />
-                    {t("Checked — this price is fine")}
-                  </SubmitButton>
-                </form>
-                <button
-                  type="button"
-                  onClick={() => setMode("revert")}
-                  className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-1.5 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
-                >
-                  <Undo2 className="h-3.5 w-3.5" />
-                  {t("Put it back")}
-                </button>
-              </div>
-            ) : (
-              <form action={action} className="mt-3 space-y-2">
-                <input type="hidden" name="changeId" value={changeId} />
-                <input type="hidden" name="decision" value="REVERT" />
-                <Input
-                  name="reviewNote"
-                  placeholder={t("Why it goes back — the desk reads this")}
-                  className="h-8 text-xs"
-                />
-                <div className="flex items-center gap-2">
-                  <SubmitButton
-                    size="sm"
-                    variant="destructive"
-                    pendingLabel={t("Putting it back…")}
-                  >
-                    {`${t("Put it back to")} ${money(totalBefore)}`}
-                  </SubmitButton>
-                  <button
-                    type="button"
-                    onClick={() => setMode(null)}
-                    className="focus-ring rounded text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-                  >
-                    {t("Cancel")}
-                  </button>
-                </div>
-              </form>
-            )
-          ) : canUndo ? (
-            /* The desk that made it, before anybody has looked. Taking it back
-               puts the bill in exactly the state it was in — not a second
-               change typed from memory. */
-            <form action={undoAction} className="mt-3">
+      {canReview ? (
+        mode === null ? (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <form action={action}>
               <input type="hidden" name="changeId" value={changeId} />
+              <input type="hidden" name="decision" value="CONFIRM" />
               <SubmitButton
                 size="sm"
-                variant="outline"
-                pendingLabel={t("Putting it back…")}
+                variant="brand"
+                pendingLabel={t("Saving…")}
               >
-                <Undo2 className="mr-1.5 h-3.5 w-3.5" />
-                {`${t("Undo this change")} — ${t("back to")} ${money(totalBefore)}`}
+                <Check className="mr-1.5 h-3.5 w-3.5" />
+                {t("Checked — this price is fine")}
               </SubmitButton>
             </form>
-          ) : (
-            <p className="mt-3 text-xs text-muted-foreground">
-              {t("Finance will check this change.")}
-            </p>
-          )}
-        </div>
-      </div>
+            <button
+              type="button"
+              onClick={() => setMode("revert")}
+              className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-2.5 py-1.5 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+              {t("Put it back")}
+            </button>
+          </div>
+        ) : (
+          <form action={action} className="mt-2 space-y-2">
+            <input type="hidden" name="changeId" value={changeId} />
+            <input type="hidden" name="decision" value="REVERT" />
+            <Input
+              name="reviewNote"
+              placeholder={t("Why it goes back — the desk reads this")}
+              className="h-8 text-xs"
+            />
+            <div className="flex items-center gap-2">
+              <SubmitButton
+                size="sm"
+                variant="destructive"
+                pendingLabel={t("Putting it back…")}
+              >
+                {`${t("Put it back to")} ${money(totalBefore)}`}
+              </SubmitButton>
+              <button
+                type="button"
+                onClick={() => setMode(null)}
+                className="focus-ring rounded text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                {t("Cancel")}
+              </button>
+            </div>
+          </form>
+        )
+      ) : canUndo ? (
+        /* The desk that made it, before anybody has looked. Taking it back
+           puts the bill in exactly the state it was in — not a second change
+           typed from memory. What that state IS goes on the button, because a
+           run of changes goes back to where the run started, rate and all. */
+        <form action={undoAction} className="mt-2">
+          <input type="hidden" name="changeId" value={changeId} />
+          <SubmitButton
+            size="sm"
+            variant="outline"
+            pendingLabel={t("Putting it back…")}
+          >
+            <Undo2 className="mr-1.5 h-3.5 w-3.5" />
+            {`${t("Undo — back to")} ${money(totalBefore)}${
+              showRates
+                ? ` ${t("at")} ${currency} ${rateBefore!.toFixed(2)}`
+                : ""
+            }`}
+          </SubmitButton>
+        </form>
+      ) : (
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          {t("Finance will check this change.")}
+        </p>
+      )}
     </div>
   );
 }

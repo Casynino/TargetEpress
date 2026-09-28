@@ -18,15 +18,23 @@ import { formatPackages } from "@/lib/constants";
 import { activeAccounts } from "@/lib/accounts";
 import { accountsForInvoice } from "@/lib/company-settings";
 import { LOCAL_CURRENCY, formatLocal, toLocal } from "@/lib/fx";
-import { MESSAGE_KIND_LABELS, composeMessage, trackLink, whatsappLink } from "@/lib/messages";
+import {
+  MESSAGE_KIND_LABELS,
+  composeMessage,
+  trackLink,
+  whatsappLink,
+} from "@/lib/messages";
 import { rateFactsOf } from "@/lib/agreed-rate";
 import { poolShareFor } from "@/lib/minimum-pool";
 import { freightBasisOf } from "@/lib/support";
 import { AIRPORT_LABELS, CATEGORY_LABELS, METHOD_LABELS } from "@/lib/cargo";
+import { COMPANY } from "@/lib/constants";
 import {
-  COMPANY,
-} from "@/lib/constants";
-import { formatDate, formatDateTime, formatWeight, toNumber } from "@/lib/format";
+  formatDate,
+  formatDateTime,
+  formatWeight,
+  toNumber,
+} from "@/lib/format";
 import { outstandingOf } from "@/lib/invoice-balance";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -61,7 +69,9 @@ export default async function InvoicePage({
   const { id } = await params;
 
   const invoice = await prisma.invoice.findFirst({
-    where: { OR: [{ id }, { invoiceNumber: decodeURIComponent(id).toUpperCase() }] },
+    where: {
+      OR: [{ id }, { invoiceNumber: decodeURIComponent(id).toUpperCase() }],
+    },
     include: {
       customer: true,
       issuedBy: { select: { name: true } },
@@ -107,7 +117,13 @@ export default async function InvoicePage({
              instead of just going quiet. */
           voidedBy: { select: { name: true } },
           proofs: {
-            select: { id: true, url: true, filename: true, contentType: true, bytes: true },
+            select: {
+              id: true,
+              url: true,
+              filename: true,
+              contentType: true,
+              bytes: true,
+            },
           },
         },
       },
@@ -135,7 +151,9 @@ export default async function InvoicePage({
 
   // The rate this invoice was raised at, not today's. A customer quoted a
   // shilling figure has to keep seeing that figure.
-  const invoiceRate = invoice.exchangeRate ? toNumber(invoice.exchangeRate) : null;
+  const invoiceRate = invoice.exchangeRate
+    ? toNumber(invoice.exchangeRate)
+    : null;
   const localCurrency = invoice.localCurrency ?? LOCAL_CURRENCY;
   const totalLocal = invoice.totalLocal
     ? toNumber(invoice.totalLocal)
@@ -143,7 +161,9 @@ export default async function InvoicePage({
       ? null
       : toLocal(toNumber(invoice.total), invoiceRate);
   const outstandingLocal =
-    invoiceRate === null ? null : toLocal(Math.max(0, outstanding), invoiceRate);
+    invoiceRate === null
+      ? null
+      : toLocal(Math.max(0, outstanding), invoiceRate);
 
   // A settled invoice shows what was paid, not a zero: "TZS 0" under the word
   // PAID reads as a document that failed to render, and it is the copy the
@@ -191,11 +211,14 @@ export default async function InvoicePage({
               {invoice.dueDate
                 ? `${t(locale, "Due")} ${formatDate(invoice.dueDate, locale)} · `
                 : ""}
-              {money(Math.max(0, outstanding), currency)} {t(locale, "still owed")}
+              {money(Math.max(0, outstanding), currency)}{" "}
+              {t(locale, "still owed")}
               {invoice.creditDecidedBy?.name
                 ? ` · ${t(locale, "approved by")} ${invoice.creditDecidedBy.name}`
                 : ""}
-              {invoice.creditDecisionNote ? ` · “${invoice.creditDecisionNote}”` : ""}
+              {invoice.creditDecisionNote
+                ? ` · “${invoice.creditDecisionNote}”`
+                : ""}
             </p>
           </>
         ) : creditState === "REQUESTED" ? (
@@ -210,7 +233,9 @@ export default async function InvoicePage({
               {invoice.creditRequestedBy?.name
                 ? `${t(locale, "asked by")} ${invoice.creditRequestedBy.name}`
                 : ""}
-              {invoice.creditRequestNote ? ` · “${invoice.creditRequestNote}”` : ""}
+              {invoice.creditRequestNote
+                ? ` · “${invoice.creditRequestNote}”`
+                : ""}
               {" · "}
               {t(locale, "the cargo stays here until they answer")}
             </p>
@@ -222,7 +247,9 @@ export default async function InvoicePage({
             </p>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
               {invoice.creditDecisionNote ?? t(locale, "no reason recorded")}
-              {invoice.creditDecidedBy?.name ? ` — ${invoice.creditDecidedBy.name}` : ""}
+              {invoice.creditDecidedBy?.name
+                ? ` — ${invoice.creditDecidedBy.name}`
+                : ""}
             </p>
           </>
         ) : (
@@ -240,9 +267,10 @@ export default async function InvoicePage({
         )}
       </div>
     );
-  const heroUsd = paidInFull ? toNumber(invoice.total) : Math.max(0, outstanding);
-  const heroLocal =
-    invoiceRate === null ? null : toLocal(heroUsd, invoiceRate);
+  const heroUsd = paidInFull
+    ? toNumber(invoice.total)
+    : Math.max(0, outstanding);
+  const heroLocal = invoiceRate === null ? null : toLocal(heroUsd, invoiceRate);
 
   /*
     A draft is the system's own working figure and must not leave the building.
@@ -293,7 +321,9 @@ export default async function InvoicePage({
     invoice.status !== "WRITTEN_OFF" &&
     invoice.status !== "VOID" &&
     toNumber(invoice.amountPaid) <= 0.005 &&
-    (isDraft ? can(user.role, "invoice.priceConfirm") : can(user.role, "ledger.adjust"));
+    (isDraft
+      ? can(user.role, "invoice.priceConfirm")
+      : can(user.role, "ledger.adjust"));
 
   // What this invoice was issued with, not what Settings says today.
   const accounts = accountsForInvoice(invoice.paymentSnapshot);
@@ -319,7 +349,7 @@ export default async function InvoicePage({
           locale,
           rateFacts.ratePerItem
             ? "Charged per item — the rate book prices it per kg"
-            : "Charged per kg — the rate book prices it per item"
+            : "Charged per kg — the rate book prices it per item",
         )
       : shipment.quotedMethod
         ? t(locale, METHOD_LABELS[shipment.quotedMethod])
@@ -347,15 +377,15 @@ export default async function InvoicePage({
     rateFacts.agreedRate !== null && !rateFacts.ratePerItem
       ? `× ${rateFacts.ratePricedOn.toFixed(2)} ${t(locale, "kg chargeable")}`
       : rateFacts.ratePerItem
-      ? `× ${formatPackages(shipment.packages, shipment.packageType, locale)}`
-      : shipment.chargeableKg
-        ? `× ${toNumber(shipment.chargeableKg).toFixed(2)} ${t(locale, "kg chargeable")}`
-        : null,
+        ? `× ${formatPackages(shipment.packages, shipment.packageType, locale)}`
+        : shipment.chargeableKg
+          ? `× ${toNumber(shipment.chargeableKg).toFixed(2)} ${t(locale, "kg chargeable")}`
+          : null,
     /* Named on the face of the bill, not left to be noticed. */
     rateFacts.agreedRate !== null && rateFacts.standardRate !== null
       ? `(${t(locale, "special rate — standard")} ${money(
           rateFacts.standardRate,
-          currency
+          currency,
         )}${bookUnit})`
       : null,
   ]
@@ -390,7 +420,9 @@ export default async function InvoicePage({
     `*Weight:* ${formatWeight(shipment.weightKg)} · ${formatPackages(shipment.packages, shipment.packageType, locale)}`,
     ``,
     `*Total:* ${money(toNumber(invoice.total), currency)}` +
-      (totalLocal === null ? "" : ` / ${formatLocal(totalLocal, localCurrency)}`),
+      (totalLocal === null
+        ? ""
+        : ` / ${formatLocal(totalLocal, localCurrency)}`),
     outstanding > 0
       ? `*Outstanding:* ${money(outstanding, currency)}` +
         (outstandingLocal === null
@@ -478,7 +510,7 @@ export default async function InvoicePage({
           <p className="min-w-0 flex-1 text-sm text-signal">
             {t(
               locale,
-              "This price has not been confirmed yet. Confirm it before downloading or sending the invoice."
+              "This price has not been confirmed yet. Confirm it before downloading or sending the invoice.",
             )}
           </p>
           <Button asChild variant="signal" size="sm">
@@ -497,42 +529,47 @@ export default async function InvoicePage({
         is the whole of what the owner asked to be able to see.
       */}
       {uncheckedPrice && runStart ? (
-        <PriceChangeNotice
-          changeId={uncheckedPrice.id}
-          currency={currency}
-          totalBefore={toNumber(runStart.totalBefore)}
-          totalAfter={toNumber(uncheckedPrice.totalAfter)}
-          /* The rate the bill carried when the run began, against the one it
+        <div className="mb-6">
+          <PriceChangeNotice
+            changeId={uncheckedPrice.id}
+            currency={currency}
+            totalBefore={toNumber(runStart.totalBefore)}
+            totalAfter={toNumber(uncheckedPrice.totalAfter)}
+            /* The rate the bill carried when the run began, against the one it
              carries now — read from the row and from the bill, never divided
              out of a total that may also hold storage and a discount. */
-          rateBefore={
-            runStart.rateBefore === null
-              ? rateFacts.standardRate
-              : toNumber(runStart.rateBefore)
-          }
-          rateAfter={rateFacts.agreedRate ?? rateFacts.standardRate}
-          perItem={rateFacts.ratePerItem}
-          /* The unit the run started in: the one recorded with its rate, or
+            rateBefore={
+              runStart.rateBefore === null
+                ? rateFacts.standardRate
+                : toNumber(runStart.rateBefore)
+            }
+            rateAfter={rateFacts.agreedRate ?? rateFacts.standardRate}
+            perItem={rateFacts.ratePerItem}
+            /* The unit the run started in: the one recorded with its rate, or
              the book's where it started on the book. */
-          perItemBefore={
-            runStart.rateBefore !== null && runStart.methodBefore !== null
-              ? runStart.methodBefore === "FIXED_PER_ITEM"
-              : rateFacts.bookPerItem
-          }
-          steps={uncheckedRun.length}
-          reason={uncheckedPrice.reason}
-          changedBy={uncheckedPrice.changedBy?.name ?? t(locale, "a colleague")}
-          changedAt={formatDateTime(uncheckedPrice.changedAt, locale)}
-          canReview={can(user.role, "invoice.priceReview")}
-          /* Her own, and only while nobody has looked. The action checks the
+            perItemBefore={
+              runStart.rateBefore !== null && runStart.methodBefore !== null
+                ? runStart.methodBefore === "FIXED_PER_ITEM"
+                : rateFacts.bookPerItem
+            }
+            steps={uncheckedRun.length}
+            reason={uncheckedPrice.reason}
+            changedBy={
+              uncheckedPrice.changedBy?.name ?? t(locale, "a colleague")
+            }
+            changedAt={formatDateTime(uncheckedPrice.changedAt, locale)}
+            canReview={can(user.role, "invoice.priceReview")}
+            /* Her own, and only while nobody has looked. The action checks the
              same two things against the row — and, like it, withholds the
              door on a bill with money on it from a desk that may not correct
              one, where the button could only fail. */
-          canUndo={
-            uncheckedRun.every((c) => c.changedById === user.id) &&
-            (toNumber(invoice.amountPaid) <= 0.005 || can(user.role, "ledger.adjust"))
-          }
-        />
+            canUndo={
+              uncheckedRun.every((c) => c.changedById === user.id) &&
+              (toNumber(invoice.amountPaid) <= 0.005 ||
+                can(user.role, "ledger.adjust"))
+            }
+          />
+        </div>
       ) : null}
 
       {/* The arithmetic behind a bill that shares a minimum with the rest of
@@ -616,7 +653,11 @@ export default async function InvoicePage({
           originLabel: t(locale, AIRPORT_LABELS[shipment.origin]),
           description: cargoText(locale, shipment, "description"),
           weightLabel: formatWeight(shipment.weightKg),
-          quantityLabel: formatPackages(shipment.packages, shipment.packageType, locale),
+          quantityLabel: formatPackages(
+            shipment.packages,
+            shipment.packageType,
+            locale,
+          ),
           cargoLabel:
             shipment.cargoType?.name ??
             t(locale, CATEGORY_LABELS[shipment.cargoCategory]),
@@ -646,8 +687,8 @@ export default async function InvoicePage({
             payment._count.allocations > 1
               ? toNumber(
                   invoice.paymentAllocations.find(
-                    (a) => a.paymentId === payment.id
-                  )?.amount ?? 0
+                    (a) => a.paymentId === payment.id,
+                  )?.amount ?? 0,
                 )
               : null,
           line: [
@@ -669,10 +710,10 @@ export default async function InvoicePage({
               ? money(
                   toNumber(
                     invoice.paymentAllocations.find(
-                      (a) => a.paymentId === payment.id
-                    )?.amount ?? 0
+                      (a) => a.paymentId === payment.id,
+                    )?.amount ?? 0,
                   ),
-                  currency
+                  currency,
                 )
               : null,
           voided: payment.voidedAt !== null,
@@ -739,7 +780,7 @@ export default async function InvoicePage({
           <p className="mb-4 text-sm text-muted-foreground">
             {t(
               locale,
-              "Open it in WhatsApp, then record it — recording marks the invoice as sent, which is what the follow-up queue works from."
+              "Open it in WhatsApp, then record it — recording marks the invoice as sent, which is what the follow-up queue works from.",
             )}
           </p>
           <MessageComposer
@@ -755,7 +796,9 @@ export default async function InvoicePage({
                 : null
             }
             templates={(
-              Object.keys(MESSAGE_KIND_LABELS) as (keyof typeof MESSAGE_KIND_LABELS)[]
+              Object.keys(
+                MESSAGE_KIND_LABELS,
+              ) as (keyof typeof MESSAGE_KIND_LABELS)[]
             ).map((kind) => ({
               kind,
               label: t(locale, MESSAGE_KIND_LABELS[kind]),
@@ -767,7 +810,8 @@ export default async function InvoicePage({
                 // A Guangzhou clerk sending this must not send 手机配件 to Dar.
                 description: cargoText("en", shipment, "description"),
                 invoiceNumber: invoice.invoiceNumber,
-                amountUsd: outstanding > 0 ? outstanding : toNumber(invoice.total),
+                amountUsd:
+                  outstanding > 0 ? outstanding : toNumber(invoice.total),
                 amountLocal:
                   outstandingLocal !== null && outstanding > 0
                     ? outstandingLocal
@@ -793,7 +837,6 @@ export default async function InvoicePage({
           />
         </section>
       ) : null}
-
     </div>
   );
 }
