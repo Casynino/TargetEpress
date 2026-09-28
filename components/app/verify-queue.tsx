@@ -12,7 +12,7 @@ import {
 } from "@/components/app/bulk-select";
 import { verifySubmissions } from "@/lib/actions/submission-bulk";
 import { rateFactsOf } from "@/lib/agreed-rate";
-import { rateSwitchesFor } from "@/lib/rate-basis";
+import { billedQuantityOf, rateSwitchesFor } from "@/lib/rate-basis";
 import { activeAccounts } from "@/lib/accounts";
 import { bookedWeights } from "@/lib/weight-changes";
 import { claimBatches, shortfallBill, submissionQueue } from "@/lib/collections";
@@ -566,10 +566,13 @@ export async function VerifyQueue() {
                                     ? (booked.get(row.invoice.shipment.id) ?? null)
                                     : toNumber(row.invoice.shipment.declaredWeightKg),
                                 weighsKg: toNumber(row.invoice.shipment.weightKg),
-                                pricedOnKg:
-                                  row.invoice.shipment.chargeableKg === null
-                                    ? null
-                                    : toNumber(row.invoice.shipment.chargeableKg),
+                                /* See billedQuantityOf — a per-piece cargo
+                                   switched to a per-kilo rate carries its
+                                   kilos on the bill, not on the cargo. */
+                                pricedOnKg: billedQuantityOf(
+                                  row.invoice.shipment,
+                                  row.invoice
+                                ),
                               }),
                         }}
                         accounts={accounts.map((a) => ({

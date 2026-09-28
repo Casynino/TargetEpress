@@ -231,3 +231,45 @@ export function agreementBefore(
           : toNumber(shipment.chargeableKg ?? 0) || toNumber(shipment.weightKg)));
   return { methodBefore: method, quantityBefore: quantity };
 }
+
+/**
+ * THE KILOS THE BILL IS ACTUALLY STANDING ON.
+ *
+ * Read by the queues to answer one question on a list row: did the price
+ * follow the scale, or is it still on the figure Guangzhou declared?
+ *
+ * The obvious source — the shipment's own chargeable weight — is right for
+ * ordinary cargo and silently wrong for the case the owner found. The rate
+ * book sells some goods per PIECE, and a consignment it priced that way
+ * carries no chargeable weight at all: the column is null, because nothing
+ * was ever worked out on its weight. Switch such a bill to an agreed per-kilo
+ * rate and the kilos it is charged on live on the BILL (freightRateQuantity),
+ * not on the cargo — so the row said "KG changed — price unchanged" over a
+ * bill that was 6.4 kg × 13.50 to the cent.
+ *
+ * Null where the bill is charged per piece, and that is not a gap: a price
+ * multiplied by boxes did not follow the scale, and saying the kilos moved
+ * the price would be untrue.
+ */
+export function billedQuantityOf(
+  shipment: { quotedMethod?: string | null; chargeableKg?: Numeric | null },
+  invoice?: {
+    freightRateOverride: Numeric | null;
+    freightRateMethod?: string | null;
+    freightRateQuantity?: Numeric | null;
+  } | null
+): number | null {
+  const agreed = invoice?.freightRateOverride ?? null;
+  /* The unit the bill is charged in: the one the desk agreed where it moved
+     the rate off the book, otherwise the book's own. */
+  const perItem =
+    agreed !== null && invoice?.freightRateMethod
+      ? invoice.freightRateMethod === "FIXED_PER_ITEM"
+      : shipment.quotedMethod === "FIXED_PER_ITEM";
+  if (perItem) return null;
+
+  if (agreed !== null && invoice?.freightRateQuantity != null) {
+    return toNumber(invoice.freightRateQuantity);
+  }
+  return shipment.chargeableKg == null ? null : toNumber(shipment.chargeableKg);
+}

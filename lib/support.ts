@@ -25,6 +25,7 @@ import {
   standingPriceChanges,
   type StandingPriceChange,
 } from "@/lib/price-change-run";
+import { billedQuantityOf } from "@/lib/rate-basis";
 import { bookedWeights } from "@/lib/weight-changes";
 import { rateSwitchesFor } from "@/lib/rate-basis";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
@@ -685,8 +686,12 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
         shipment.declaredWeightKg === null
           ? (booked.get(shipment.id) ?? null)
           : toNumber(shipment.declaredWeightKg),
-      pricedOnKg:
-        shipment.chargeableKg === null ? null : toNumber(shipment.chargeableKg),
+      /* Through billedQuantityOf, not off the cargo: a consignment the book
+         prices per piece has no chargeable weight of its own, and when such a
+         bill is switched to a per-kilo rate the kilos it is charged on are on
+         the BILL. Read off the cargo, those rows claimed the price had not
+         followed the scale when it had. */
+      pricedOnKg: billedQuantityOf(shipment, invoice),
       priceChange: invoice ? (priceChanges.get(invoice.id) ?? null) : null,
       /* With the bill, so the call list and the message it sends quote
          the rate the customer is actually being charged. */
