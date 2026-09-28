@@ -644,6 +644,15 @@ const FINANCE_SECTIONS: NavSection[] = [
         permission: "credit.view",
       },
       {
+        /* Under Credit, where the owner put it: both rows are somebody being
+           owed on terms — one is the customer owing us, the other is us owing
+           the lender — and Finance reads the two together. */
+        href: "/app/finance/loans",
+        label: "Loans",
+        icon: "Banknote",
+        permission: "loan.view",
+      },
+      {
         /* This desk BUILDS the run and cannot pay it; the manager agrees it
            without writing the figures. Two screens, one for each half. */
         href: "/app/finance/payroll",
@@ -674,12 +683,6 @@ const FINANCE_SECTIONS: NavSection[] = [
         label: "Expenses",
         icon: "Receipt",
         permission: "expense.view",
-      },
-      {
-        href: "/app/finance/loans",
-        label: "Loans",
-        icon: "Banknote",
-        permission: "loan.view",
       },
       {
         href: "/app/collections/follow-up",
