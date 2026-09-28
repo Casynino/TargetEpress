@@ -6,6 +6,7 @@ import { recordAudit } from "@/lib/audit";
 import { toNumber } from "@/lib/format";
 import { Prisma } from "@prisma/client";
 
+import { AUTO_WEIGHT_REASON } from "@/lib/price-changes";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -187,6 +188,8 @@ async function uncheckedRun(invoiceId: string) {
       status: true,
       currency: true,
       changedById: true,
+      /* Whether the system worked this one out — see AUTO_WEIGHT_REASON. */
+      reason: true,
       invoiceId: true,
       totalBefore: true,
       totalAfter: true,
@@ -350,9 +353,22 @@ export async function undoPriceChange(
   const last = run[run.length - 1];
   const ids = run.map((r) => r.id);
 
-  /* Every step of it has to be yours. Taking back a run that somebody else
-     started would undo their work under your name. */
-  if (run.some((r) => r.changedById !== user.id)) {
+  /*
+    WHOSE RUN IT IS — AND THE ONE CASE WHERE THAT DOES NOT MATTER.
+
+    A price somebody typed is theirs: taking back a run another desk started
+    would undo their work under your name. A price the SYSTEM worked out from
+    a corrected weight is nobody's agreement — the warehouse moved the kilos
+    and the rate book did the rest — and the desk about to take money on that
+    bill is exactly who should be able to say "no, put it back".
+
+    The owner's rule, in his words: the undo has to be simple, and Support and
+    Finance are not supposed to do manual work to get back to where they were.
+    So a run made only of automatic re-prices is open to anybody who may set a
+    price at all; anything with a typed change in it stays with its author.
+  */
+  const automatic = run.every((r) => r.reason === AUTO_WEIGHT_REASON);
+  if (!automatic && run.some((r) => r.changedById !== user.id)) {
     return fail(
       "Somebody else has also changed this price. Ask Finance to put it back."
     );
@@ -381,7 +397,13 @@ export async function undoPriceChange(
 
   const claimedAt = new Date();
   const claimed = await prisma.invoicePriceChange.updateMany({
-    where: { id: { in: ids }, status: "UNSEEN", changedById: user.id },
+    where: {
+      id: { in: ids },
+      status: "UNSEEN",
+      /* Claimed by author where a person made it, by the row itself where the
+         system did — the check above already decided which of the two. */
+      ...(automatic ? {} : { changedById: user.id }),
+    },
     data: { status: "UNDONE", reviewedAt: claimedAt },
   });
   if (claimed.count === 0) {
@@ -389,10 +411,19 @@ export async function undoPriceChange(
   }
 
   /* To where the bill stood before this desk started — `first`, not `last`. */
-  const applied = await restoreTo(first, "Undone by the desk that made it");
+  const applied = await restoreTo(
+    first,
+    automatic
+      ? "Put back after the weight was corrected"
+      : "Undone by the desk that made it"
+  );
   if (!applied.ok) {
     await prisma.invoicePriceChange.updateMany({
-      where: { id: { in: ids }, status: "UNDONE", changedById: user.id },
+      where: {
+        id: { in: ids },
+        status: "UNDONE",
+        ...(automatic ? {} : { changedById: user.id }),
+      },
       data: { status: "UNSEEN", reviewedAt: null },
     });
     return fail(applied.error);

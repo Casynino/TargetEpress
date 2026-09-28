@@ -54,12 +54,26 @@ async function pick(where: Prisma.ShipmentWhereInput, skip: string[]) {
 const done: Case[] = [];
 const used: string[] = [];
 
-/* Clear whatever a previous run left, so every case starts from the book. */
-async function reset(shipmentId: string, invoiceId: string) {
+/*
+  Clear whatever a previous run left, and hand back the weight this cargo
+  really had before any of it.
+
+  Without that last part a second run read the seeded weight as the original
+  and added to it again — 4 kg became 64.5, then 64.5 became 125 — so the case
+  drifted further from the real cargo every time somebody re-ran the script.
+*/
+async function reset(shipmentId: string, invoiceId: string, current: number) {
   await prisma.invoicePriceChange.deleteMany({ where: { invoiceId } });
+  const seeded = await prisma.fieldChange.findFirst({
+    where: { entityId: shipmentId, field: "weightKg", actorName: "Seeded" },
+    orderBy: { createdAt: "asc" },
+    select: { before: true },
+  });
   await prisma.fieldChange.deleteMany({
     where: { entityId: shipmentId, field: "weightKg", actorName: "Seeded" },
   });
+  const original = seeded === null ? current : Number(seeded.before);
+  return Number.isFinite(original) && original > 0 ? original : current;
 }
 
 // ── 1. Re-weighed, bill still on the old kilos ───────────────────────────────
@@ -67,8 +81,7 @@ async function reset(shipmentId: string, invoiceId: string) {
   const s = await pick({ invoice: { status: { in: ["DRAFT", "UNPAID"] } } }, used);
   if (s) {
     used.push(s.trackingNumber);
-    await reset(s.id, s.invoice!.id);
-    const was = toNumber(s.weightKg);
+    const was = await reset(s.id, s.invoice!.id, toNumber(s.weightKg));
     const now = Math.round((was + 60.5) * 10) / 10;
     await prisma.shipment.update({
       where: { id: s.id },
@@ -105,8 +118,7 @@ async function reset(shipmentId: string, invoiceId: string) {
   const s = await pick({ invoice: { status: { in: ["DRAFT", "UNPAID"] } } }, used);
   if (s) {
     used.push(s.trackingNumber);
-    await reset(s.id, s.invoice!.id);
-    const was = toNumber(s.weightKg);
+    const was = await reset(s.id, s.invoice!.id, toNumber(s.weightKg));
     const now = Math.round((was + 25) * 10) / 10;
     const agreed = 12.9;
     await prisma.shipment.update({
@@ -153,8 +165,7 @@ async function reset(shipmentId: string, invoiceId: string) {
   const s = await pick({ invoice: { status: "PAID" } }, used);
   if (s) {
     used.push(s.trackingNumber);
-    await reset(s.id, s.invoice!.id);
-    const was = toNumber(s.weightKg);
+    const was = await reset(s.id, s.invoice!.id, toNumber(s.weightKg));
     const now = Math.round((was + 18) * 10) / 10;
     await prisma.shipment.update({
       where: { id: s.id },
@@ -191,12 +202,21 @@ async function reset(shipmentId: string, invoiceId: string) {
   });
   if (s && hawa) {
     used.push(s.trackingNumber);
-    await reset(s.id, s.invoice!.id);
+    await reset(s.id, s.invoice!.id, toNumber(s.weightKg));
     const invoice = await prisma.invoice.findUnique({
       where: { id: s.invoice!.id },
       select: { total: true, freightCost: true, storageCharge: true, otherCharges: true, discount: true, currency: true },
     });
-    const before = toNumber(invoice!.total);
+    /* From the rate book's own freight, not from whatever a previous run
+       left on the bill — otherwise the "mistake" grows 40% every time. */
+    const before =
+      Math.round(
+        (toNumber(invoice!.freightCost) +
+          toNumber(invoice!.storageCharge) +
+          toNumber(invoice!.otherCharges) -
+          toNumber(invoice!.discount)) *
+          100
+      ) / 100;
     const after = Math.round(before * 1.4 * 100) / 100;
     await prisma.invoice.update({
       where: { id: s.invoice!.id },

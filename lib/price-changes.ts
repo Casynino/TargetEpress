@@ -23,6 +23,17 @@ import type { TxClient } from "@/lib/prisma";
  * price is not news to Finance, and a queue that lists its own work is a queue
  * nobody reads.
  */
+/**
+ * THE REASON A PRICE MOVED BY ITSELF.
+ *
+ * A run made only of these was worked out by the system from a corrected
+ * weight — nobody agreed it, nobody typed it. That is what lets a desk other
+ * than the one that triggered it put the bill back: undoing a figure a person
+ * chose would be undoing their work under somebody else's name, and undoing
+ * one the rate book produced is not.
+ */
+export const AUTO_WEIGHT_REASON = "Re-priced on the corrected weight.";
+
 export async function recordPriceChange(
   tx: TxClient,
   input: {

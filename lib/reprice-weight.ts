@@ -6,7 +6,7 @@ import { autoPriceShipments, type AutoPriceResult } from "@/lib/auto-price";
 import { recordAudit } from "@/lib/audit";
 import { toNumber } from "@/lib/format";
 import { toLocal } from "@/lib/fx";
-import { recordPriceChange } from "@/lib/price-changes";
+import { AUTO_WEIGHT_REASON, recordPriceChange } from "@/lib/price-changes";
 import { quote, quoteContext } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 
@@ -277,7 +277,7 @@ export async function repriceForWeight(
           otherBefore: other,
           discountBefore: discount,
           totalAfter: total,
-          reason: "Re-priced on the corrected weight.",
+          reason: AUTO_WEIGHT_REASON,
         });
 
         await recordAudit(

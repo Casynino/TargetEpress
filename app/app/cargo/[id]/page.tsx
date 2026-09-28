@@ -1,4 +1,5 @@
 import { rateFactsOf } from "@/lib/agreed-rate";
+import { AUTO_WEIGHT_REASON } from "@/lib/price-changes";
 import { PriceChangeNotice } from "@/components/app/price-change-notice";
 import { RepriceOnWeight } from "@/components/app/reprice-on-weight";
 import { weightBasisOf } from "@/lib/rate-basis";
@@ -216,6 +217,12 @@ export default async function ShipmentDetailPage({
     .sort((a, b) => a.changedAt.getTime() - b.changedAt.getTime());
   const priceRunStart = priceRun[0];
   const priceRunLast = priceRun[priceRun.length - 1];
+  /* Every step of it worked out by the rate book from a corrected weight —
+     see AUTO_WEIGHT_REASON. Nobody agreed this price, so anybody who may set
+     one may set it back. */
+  const autoPriced =
+    priceRun.length > 0 &&
+    priceRun.every((change) => change.reason === AUTO_WEIGHT_REASON);
 
   /*
     A BILL STANDING ON A WEIGHT THIS CARGO NO LONGER IS.
@@ -1218,11 +1225,18 @@ export default async function ShipmentDetailPage({
                  off, so passing the wrong permission here offered Hawa a
                  button the server then refused. */
               canReview={can(user.role, "invoice.priceReview")}
-              /* Her own change, while nobody has looked at it: the same two
-                 things the action checks against the row. A bill with money
-                 on it is only undone by a desk that may correct the ledger. */
+              automatic={autoPriced}
+              /*
+                Her own change, while nobody has looked at it — or ANY change
+                the system worked out from a corrected weight, because nobody
+                agreed that one and the desk about to take the money is who
+                should be able to put it back. The action checks the same two
+                things against the rows themselves.
+              */
               canUndo={
-                priceRun.every((change) => change.changedById === user.id) &&
+                (autoPriced ||
+                  priceRun.every((change) => change.changedById === user.id)) &&
+                can(user.role, "invoice.discount") &&
                 (toNumber(shipment.invoice!.amountPaid) <= 0.005 ||
                   can(user.role, "ledger.adjust"))
               }

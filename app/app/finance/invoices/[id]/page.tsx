@@ -7,6 +7,7 @@ import { CreditRequest } from "@/components/app/credit-request";
 import { InvoiceDocument } from "@/components/app/invoice-document";
 import { InvoiceEditor } from "@/components/app/invoice-editor";
 import { PriceChangeNotice } from "@/components/app/price-change-notice";
+import { AUTO_WEIGHT_REASON } from "@/lib/price-changes";
 import { MinimumPoolNote } from "@/components/app/minimum-pool-note";
 import { MessageComposer } from "@/components/app/message-composer";
 import { SmartBack } from "@/components/app/smart-back";
@@ -310,6 +311,11 @@ export default async function InvoicePage({
   const uncheckedRun = invoice.priceChanges
     .filter((c) => c.status === "UNSEEN")
     .sort((a, b) => a.changedAt.getTime() - b.changedAt.getTime());
+  /* Worked out by the rate book from a corrected weight, every step of it:
+     nobody agreed it, so anybody who may set a price may set it back. */
+  const autoPriced =
+    uncheckedRun.length > 0 &&
+    uncheckedRun.every((c) => c.reason === AUTO_WEIGHT_REASON);
   const runStart = uncheckedRun[0];
   const uncheckedPrice = uncheckedRun[uncheckedRun.length - 1];
   /* A draft is nobody's demand for money, so the desk that raises bills may
@@ -563,8 +569,11 @@ export default async function InvoicePage({
              same two things against the row — and, like it, withholds the
              door on a bill with money on it from a desk that may not correct
              one, where the button could only fail. */
+            automatic={autoPriced}
             canUndo={
-              uncheckedRun.every((c) => c.changedById === user.id) &&
+              (autoPriced ||
+                uncheckedRun.every((c) => c.changedById === user.id)) &&
+              can(user.role, "invoice.discount") &&
               (toNumber(invoice.amountPaid) <= 0.005 ||
                 can(user.role, "ledger.adjust"))
             }

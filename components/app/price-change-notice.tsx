@@ -41,6 +41,7 @@ export function PriceChangeNotice({
   changedAt,
   canReview,
   canUndo = false,
+  automatic = false,
 }: {
   changeId: string;
   currency: string;
@@ -70,6 +71,15 @@ export function PriceChangeNotice({
   canReview: boolean;
   /** Made this change, and nobody has looked at it yet. */
   canUndo?: boolean;
+  /**
+   * The system worked this out from a corrected weight — nobody typed it.
+   *
+   * It changes what the panel has to say. A price somebody agreed is news
+   * about a decision; a price the rate book re-did because the warehouse put
+   * the box on a scale is news about the cargo, and the desk reading it is
+   * usually about to take money on the new figure.
+   */
+  automatic?: boolean;
 }) {
   const t = useT();
   const [mode, setMode] = useState<null | "revert">(null);
@@ -134,7 +144,9 @@ export function PriceChangeNotice({
         <Scale className="h-3.5 w-3.5 shrink-0" />
         {netZero
           ? t("This price was changed and put back")
-          : t("This price was changed")}
+          : automatic
+            ? t("The weight changed, so the price did")
+            : t("This price was changed")}
       </p>
 
       <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
@@ -183,7 +195,9 @@ export function PriceChangeNotice({
         {changedAt}. {reason ? `“${reason}” ` : ""}
         {netZero
           ? t("The bill is back where it started.")
-          : t("Finance has not checked it yet.")}
+          : automatic
+            ? t("The kilos changed, so the price was worked out again. Record the new figure, or undo to put the old one back.")
+            : t("Finance has not checked it yet.")}
       </p>
 
       <FormError state={state} />
