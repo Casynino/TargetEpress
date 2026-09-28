@@ -169,6 +169,8 @@ export type StorageDueRow = {
   invoiceId: string;
   invoiceNumber: string;
   arrivedAt: Date | null;
+  /** Which flight it came on — how the floor is actually organised. */
+  batchNumber: string | null;
   daysHeld: number;
   chargeableDays: number;
   /** What the policy says today. */
@@ -214,6 +216,7 @@ export async function storageDue(): Promise<StorageDueRow[]> {
           trackingNumber: true,
           status: true,
           arrivedAt: true,
+          batch: { select: { batchNumber: true } },
           pickupNote: { select: { status: true } },
         },
       },
@@ -238,6 +241,7 @@ export async function storageDue(): Promise<StorageDueRow[]> {
       invoiceId: bill.id,
       invoiceNumber: bill.invoiceNumber,
       arrivedAt,
+      batchNumber: bill.shipment!.batch?.batchNumber ?? null,
       daysHeld,
       chargeableDays,
       owedUsd: chargeableDays * STORAGE_POLICY.perDayUsd,

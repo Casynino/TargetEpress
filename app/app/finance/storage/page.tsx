@@ -59,6 +59,47 @@ export default async function StorageDuePage() {
   const waived = rows.filter((row) => row.waivedUsd > 0.005);
   const money = (usd: number) => formatShillings(usd, rate);
 
+  /*
+    WHY 143 BOXES ARE STANDING HERE — THE OWNER'S OWN QUESTION.
+
+    A hundred and forty-three rows is a list, not an answer. A cargo floor is
+    organised by flight, and read that way the list turns into three or four
+    facts: one old flight nobody chased, and a recent one that crossed its
+    free week this morning. That is something a desk can act on — ring the
+    customers on GZ-34 — where a list of rows is something a desk scrolls.
+  */
+  const flights = new Map<
+    string,
+    {
+      batchNumber: string;
+      boxes: number;
+      oldestDays: number;
+      storageUsd: number;
+      pendingUsd: number;
+      paidInFull: number;
+    }
+  >();
+  for (const row of rows) {
+    const key = row.batchNumber ?? "—";
+    const flight = flights.get(key) ?? {
+      batchNumber: key,
+      boxes: 0,
+      oldestDays: 0,
+      storageUsd: 0,
+      pendingUsd: 0,
+      paidInFull: 0,
+    };
+    flight.boxes += 1;
+    flight.oldestDays = Math.max(flight.oldestDays, row.chargeableDays);
+    flight.storageUsd += row.owedUsd;
+    flight.pendingUsd += pendingOf(row);
+    if (row.outstandingUsd <= 0.005) flight.paidInFull += 1;
+    flights.set(key, flight);
+  }
+  const byFlight = [...flights.values()].sort(
+    (a, b) => b.oldestDays - a.oldestDays || b.boxes - a.boxes
+  );
+
   const tiles = [
     {
       label: "Cargo past its free days",
@@ -133,6 +174,58 @@ export default async function StorageDuePage() {
               />
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {byFlight.length > 0 ? (
+        <div className="mb-4 overflow-hidden rounded-xl border bg-card shadow-soft">
+          <div className="border-b px-4 py-3">
+            <h2 className="font-display text-sm font-semibold">
+              {t(locale, "Where they are")}
+            </h2>
+            <p className="text-[11px] text-muted-foreground">
+              {t(
+                locale,
+                "The same cargo by flight. One old flight nobody collected reads very differently from a flight that crossed its free week this morning."
+              )}
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[40rem] text-sm">
+              <thead className="border-b bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="p-3 font-medium">{t(locale, "Flight")}</th>
+                  <th className="p-3 font-medium">{t(locale, "Boxes")}</th>
+                  <th className="p-3 font-medium">{t(locale, "Longest")}</th>
+                  <th className="p-3 font-medium">{t(locale, "Storage")}</th>
+                  <th className="p-3 font-medium">
+                    {t(locale, "Freight already paid")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {byFlight.map((flight) => (
+                  <tr key={flight.batchNumber}>
+                    <td className="p-3 font-mono text-xs">
+                      {flight.batchNumber}
+                    </td>
+                    <td className="p-3 tabular-nums">{flight.boxes}</td>
+                    <td className="p-3 tabular-nums">
+                      {flight.oldestDays} {t(locale, "d")}
+                    </td>
+                    <td className="p-3 font-mono tabular-nums">
+                      {money(flight.storageUsd)}
+                    </td>
+                    <td className="p-3 tabular-nums">
+                      {/* How many on this flight owe nothing but the storage —
+                          the ones a phone call gets money out of today. */}
+                      {flight.paidInFull} {t(locale, "of")} {flight.boxes}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : null}
 
