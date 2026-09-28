@@ -13,6 +13,7 @@ import {
   ORIGIN_LABELS,
   PACKAGE_TYPE_LABELS,
 } from "@/lib/constants";
+import { confirmClean } from "@/lib/confirm-price";
 import { repriceForWeight } from "@/lib/reprice-weight";
 import { recordAudit, withNote } from "@/lib/audit";
 import { CLOSEABLE_FROM, batchOwing, buildStatement } from "@/lib/batch-close";
@@ -878,7 +879,7 @@ async function attachArrivalPhotos(
  */
 async function priceAfterCheckIn(
   shipmentIds: string[],
-  actorId: string
+  actor: SessionUser
 ): Promise<boolean> {
   if (shipmentIds.length === 0) return true;
   try {
@@ -887,7 +888,12 @@ async function priceAfterCheckIn(
        move a bill Finance already confirmed, and that is the one thing
        auto-pricing refuses to do. Drafts are priced by exactly the same code
        underneath — nothing about a first check-in changes. */
-    await repriceForWeight(shipmentIds, actorId);
+    await repriceForWeight(shipmentIds, actor.id);
+    /* And the draft is signed off here where nothing about it is in question,
+       so the customer can be quoted and can pay without waiting for a desk to
+       press a button about a figure the rate book worked out. Which ones are
+       left for Finance is confirmClean's decision, not this one's. */
+    await confirmClean(shipmentIds, actor);
     return true;
   } catch (error) {
     console.error("Auto-pricing failed after a Dar check-in", {
@@ -1624,7 +1630,7 @@ export async function verifyShipment(
 
     // Outside the transaction, and never able to fail the check-in. See
     // lib/auto-price and priceAfterCheckIn.
-    const priced = await priceAfterCheckIn(landed ? [landed] : [], user.id);
+    const priced = await priceAfterCheckIn(landed ? [landed] : [], user);
 
     revalidatePath(`/app/receive/${batchId}`);
     revalidatePath("/app/receive");
@@ -1878,7 +1884,7 @@ export async function verifyBatchAll(
     // `try` either — see priceAfterCheckIn: one throw in here used to make an
     // eighty-seven-line manifest that HAD been checked in report as though it
     // had done nothing at all.
-    const priced = await priceAfterCheckIn(checkedIn, user.id);
+    const priced = await priceAfterCheckIn(checkedIn, user);
 
     revalidatePath(`/app/receive/${batchId}`);
     revalidatePath("/app/receive");
