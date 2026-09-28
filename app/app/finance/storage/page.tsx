@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { AlertTriangle, Timer, Warehouse } from "lucide-react";
 
 import { FinanceWorkspaceHeader } from "@/components/app/finance-workspace-header";
+import { StorageForgive } from "@/components/app/storage-forgive";
 import { StorageRefresh } from "@/components/app/storage-refresh";
 import { Badge } from "@/components/ui/badge";
 import { STORAGE_POLICY } from "@/lib/constants";
@@ -117,9 +118,21 @@ export default async function StorageDuePage() {
         ))}
       </div>
 
-      {can(user.role, "invoice.edit") ? (
-        <div className="mb-4 rounded-xl border bg-card p-4 shadow-soft">
-          <StorageRefresh />
+      {can(user.role, "invoice.edit") || wouldBeHeld.length > 0 ? (
+        <div className="mb-4 space-y-3 rounded-xl border bg-card p-4 shadow-soft">
+          {can(user.role, "invoice.edit") ? <StorageRefresh /> : null}
+          {/* Only while there is somebody it would save a wasted journey —
+              see the action's own note. */}
+          {wouldBeHeld.length > 0 && can(user.role, "invoice.storage.waive") ? (
+            <div className="border-t pt-3">
+              <StorageForgive
+                count={wouldBeHeld.length}
+                amount={money(
+                  wouldBeHeld.reduce((sum, row) => sum + pendingOf(row), 0)
+                )}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
 

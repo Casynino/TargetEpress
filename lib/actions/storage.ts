@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { recordAudit, withNote } from "@/lib/audit";
 import { releaseCargoIfSettled } from "@/lib/cargo-hold";
-import { runStorageMeter } from "@/lib/storage-meter";
+import { runStorageMeter, storageDue } from "@/lib/storage-meter";
 import { chargeStorageOn, currentStorage } from "@/lib/storage-charge";
 import { toNumber } from "@/lib/format";
 import { toLocal } from "@/lib/fx";
@@ -399,6 +399,67 @@ export async function updateStorageNow(): Promise<ActionResult<{ charged: number
       charged: run.charged.length,
       usd: run.charged.reduce((sum, c) => sum + c.usd, 0),
     });
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
+
+/**
+ * FORGIVING THE DAYS ON CARGO THAT IS PAID AND CLEARED TO GO.
+ *
+ * The owner's decision when the meter was switched on, and the reason it
+ * exists as a button rather than a one-off script: these are customers who
+ * paid in full, were told their cargo was ready, and are on their way to
+ * Kariakoo. Putting the standing days onto their bills takes the cargo back
+ * off the shelf and turns them away at the counter over money nobody ever
+ * mentioned to them. Everybody else — every bill with a balance still on it —
+ * is charged normally, because they have not been quoted a final figure yet.
+ *
+ * It keeps working after that first night, and it should: a consignment that
+ * is settled and cleared, with days the meter has not yet reached, is the
+ * same situation every time it happens.
+ *
+ * ONE PRESS, ONE WAIVER EACH. Every bill gets its own arithmetic, its own
+ * waiver row and its own audit line — the same ones a desk waiving by hand
+ * would produce. A waived bill is then left alone by the meter until somebody
+ * presses "Charge it after all"; that is what waiving means here.
+ */
+export async function forgiveStorageOnCleared(): Promise<
+  ActionResult<{ count: number; usd: number }>
+> {
+  const locale = await viewerLocale();
+  try {
+    const user = await authorize("invoice.storage.waive");
+    const rows = (await storageDue()).filter(
+      (row) =>
+        row.clearedForPickup &&
+        row.waivedUsd <= 0.005 &&
+        row.owedUsd - row.onBillUsd > 0.005
+    );
+
+    let count = 0;
+    let usd = 0;
+    for (const row of rows) {
+      const found = await currentStorage(row.invoiceId);
+      if (!found) continue;
+      const refusal = await waiveOne(
+        found,
+        "Paid and cleared before the storage meter was switched on.",
+        user,
+        locale
+      );
+      /* One bill's refusal does not stop the rest: the others are all still
+         customers about to be turned away, and the one that refused is named
+         on its own audit line. */
+      if (refusal) continue;
+      count += 1;
+      usd += row.owedUsd;
+    }
+
+    revalidatePath("/app/finance/storage");
+    revalidatePath("/app/collections/follow-up");
+    return ok({ count, usd });
   } catch (error) {
     return fail(t(locale, toActionError(error)));
   }
