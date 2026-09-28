@@ -4996,6 +4996,7 @@ const ZH: Record<string, string> = {
   "This cargo has not been billed yet.": "该货物尚未开单。",
   "This cargo is not cleared for release.": "该货物尚未获准放货。",
   "STORAGE OUTSTANDING — DO NOT RELEASE": "仓储费未结清 — 不得放货",
+  "Every consignment standing past its free week, and how long it has been here. Cargo cannot be released while its storage is unpaid.": "所有超过免费仓储期的货物，以及各自已存放的天数。仓储费未结清前不得放货。",
   "Where they are": "分布情况",
   "The same cargo by flight. One old flight nobody collected reads very differently from a flight that crossed its free week this morning.": "同一批货物按航班列出。一个长期无人提取的旧航班，与今早刚过免费期的航班，意义完全不同。",
   "Longest": "最长",

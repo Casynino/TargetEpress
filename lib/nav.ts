@@ -411,6 +411,16 @@ const DAR_SECTIONS: NavSection[] = [
         icon: "History",
         permission: "delivery.history",
       },
+      {
+        /* Which boxes have outstayed their free week, by flight — the shelves
+           to clear and the customers about to be turned away at the counter.
+           Days and counts only: the shillings are absent from what this desk
+           is sent, the same rule the scan screen follows. */
+        href: "/app/finance/storage",
+        label: "Storage",
+        icon: "Warehouse",
+        permission: "storage.view",
+      },
     ],
   },
   {
@@ -503,6 +513,10 @@ const SUPPORT_SECTIONS: NavSection[] = [
          before the chase list rather than after it. */
       { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock" },
       { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
+      /* Beside the chase list because it IS one: a box standing three weeks
+         is a customer nobody has rung. This desk reads the figures — it holds
+         finance.view — and may forgive the days on a single consignment. */
+      { href: "/app/finance/storage", label: "Storage", icon: "Warehouse" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode" },
       /* The dashboard pill is the fast way in; this is the way in for
          somebody who came down the sidebar instead, browsing rather than

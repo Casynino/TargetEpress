@@ -156,6 +156,13 @@ export type Permission =
   | "invoice.discount"
   | "invoice.rate"
   | "invoice.storage.waive"
+  /* READING THE STORAGE LIST — every desk the cargo passes through.
+     Separate from accounting.view because it is not one of the company's own
+     books: it is a list of boxes standing on our floor, which the warehouse
+     needs in order to clear shelves and the counter needs in order to ring
+     customers. What it costs is gated separately, on finance.view, so the
+     warehouse reads days and the desks that handle money read money. */
+  | "storage.view"
   | "invoice.send"
   | "payment.record"
   /* Credit sales. Four permissions rather than one, because the whole control
@@ -499,6 +506,10 @@ const DAR: Permission[] = [
   // rather than here: a permission cannot see whether a payout is attached.
   "exception.close",
   "shipment.release",
+  /* The boxes standing past their free week, by flight — which shelves to
+     clear and who is coming. Days only; the money is gated on finance.view,
+     which this desk does not hold. */
+  "storage.view",
   "inventory.view",
   "delivery.history",
   "warehouse.reports",
@@ -598,6 +609,9 @@ const CUSTOMER_CARE: Permission[] = [
     desk the power to write money off generally.
   */
   "invoice.storage.waive",
+  /* And the list of everything accruing it, because this is the desk that
+     rings the customer whose box has been standing three weeks. */
+  "storage.view",
   // Correcting which flight a box is on: a customer rings to say their cargo
   // is not on the flight they were told, and this desk takes that call.
   "shipment.move",
@@ -683,6 +697,7 @@ const FINANCE: Permission[] = [
   "invoice.discount",
   "invoice.rate",
   "invoice.storage.waive",
+  "storage.view",
   "invoice.send",
   "message.send",
   "payment.record",
@@ -1075,6 +1090,10 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // Ahead of /app/finance because finance.view is also held by Customer Care:
   // the pickup-note register is reachable by Support, which holds finance.view
   // but must not be admitted by it alone.
+  /* Ahead of /app/finance for the opposite reason to the rows below it: this
+     one is deliberately WIDER than finance.view, because the warehouse reads
+     it too. The money on the page is gated inside it. */
+  { prefix: "/app/finance/storage", permission: "storage.view" },
   { prefix: "/app/finance/pickup-notes", permission: "pickupNote.view" },
   // The company's own money, for the same reason again. finance.view is about
   // a customer's bill; these two are about what the business is worth, and

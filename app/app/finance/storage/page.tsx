@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { AlertTriangle, Timer, Warehouse } from "lucide-react";
 
 import { FinanceWorkspaceHeader } from "@/components/app/finance-workspace-header";
+import { PageHeader } from "@/components/app/page-header";
 import { StorageForgive } from "@/components/app/storage-forgive";
 import { StorageRefresh } from "@/components/app/storage-refresh";
 import { Badge } from "@/components/ui/badge";
@@ -36,10 +37,20 @@ export async function generateMetadata(): Promise<Metadata> {
  * because a desk should ring them before the meter does it for them.
  */
 export default async function StorageDuePage() {
-  const user = await requirePermission("accounting.view");
+  const user = await requirePermission("storage.view");
   const locale = await viewerLocale();
   const rows = await storageDue();
   const rate = await currentRateValue();
+  /*
+    THE WAREHOUSE READS DAYS; THE DESKS THAT HANDLE MONEY READ MONEY.
+
+    The owner's standing rule is that warehouse staff do not read prices off a
+    screen, and this list exists for them too — which shelves are filling up,
+    which flight nobody has collected, who is coming in. So every figure in
+    shillings is simply absent from what that reader is sent, and the counts
+    and the days, which are what the floor works from, are not.
+  */
+  const showMoney = can(user.role, "finance.view");
 
   /*
     WHAT THE METER WILL ACTUALLY ADD TO THIS BILL.
@@ -108,13 +119,23 @@ export default async function StorageDuePage() {
       Icon: Warehouse,
       tone: "text-foreground",
     },
-    {
-      label: "Not on the bills yet",
-      value: money(notYetOnBills),
-      hint: "The meter puts this on tonight, or press the button below",
-      Icon: Timer,
-      tone: notYetOnBills > 0.005 ? "text-warning" : "text-success",
-    },
+    showMoney
+      ? {
+          label: "Not on the bills yet",
+          value: money(notYetOnBills),
+          hint: "The meter puts this on tonight, or press the button below",
+          Icon: Timer,
+          tone: notYetOnBills > 0.005 ? "text-warning" : "text-success",
+        }
+      : {
+          /* The same fact without the figure: how long the worst of it has
+             been standing, which is what a floor acts on. */
+          label: "Longest standing",
+          value: `${rows.reduce((most, row) => Math.max(most, row.daysHeld), 0)} ${t(locale, "days")}`,
+          hint: "Days on our floor, counting from the day it landed",
+          Icon: Timer,
+          tone: "text-warning",
+        },
     {
       label: "Paid cargo that will be held",
       value: String(wouldBeHeld.length),
@@ -126,14 +147,33 @@ export default async function StorageDuePage() {
 
   return (
     <div className="p-4 sm:p-6">
-      <FinanceWorkspaceHeader
-        role={user.role}
-        title={t(locale, "Storage")}
-        description={t(
-          locale,
-          "Every consignment standing past its free week, what the days have come to, and which of them are already paid for. The meter adds these to the bills by itself every night and again whenever the warehouse scans a box."
-        )}
-      />
+      {/*
+        THE DEPARTMENT HEADER BELONGS TO THE DEPARTMENT.
+
+        This list is now read by the warehouse and the counter as well, and
+        wearing Finance's tab row — Overview, Accounts, General ledger — over
+        a page a warehouse clerk opened would be nine doors they cannot go
+        through and a heading that is not theirs. They get the page's own
+        name; Finance keeps the workspace it belongs to.
+      */}
+      {can(user.role, "accounting.view") ? (
+        <FinanceWorkspaceHeader
+          role={user.role}
+          title={t(locale, "Storage")}
+          description={t(
+            locale,
+            "Every consignment standing past its free week, what the days have come to, and which of them are already paid for. The meter adds these to the bills by itself every night and again whenever the warehouse scans a box."
+          )}
+        />
+      ) : (
+        <PageHeader
+          title={t(locale, "Storage")}
+          description={t(
+            locale,
+            "Every consignment standing past its free week, and how long it has been here. Cargo cannot be released while its storage is unpaid."
+          )}
+        />
+      )}
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {tiles.map((tile) => (
@@ -197,7 +237,9 @@ export default async function StorageDuePage() {
                   <th className="p-3 font-medium">{t(locale, "Flight")}</th>
                   <th className="p-3 font-medium">{t(locale, "Boxes")}</th>
                   <th className="p-3 font-medium">{t(locale, "Longest")}</th>
-                  <th className="p-3 font-medium">{t(locale, "Storage")}</th>
+                  {showMoney ? (
+                    <th className="p-3 font-medium">{t(locale, "Storage")}</th>
+                  ) : null}
                   <th className="p-3 font-medium">
                     {t(locale, "Freight already paid")}
                   </th>
@@ -213,9 +255,11 @@ export default async function StorageDuePage() {
                     <td className="p-3 tabular-nums">
                       {flight.oldestDays} {t(locale, "d")}
                     </td>
-                    <td className="p-3 font-mono tabular-nums">
-                      {money(flight.storageUsd)}
-                    </td>
+                    {showMoney ? (
+                      <td className="p-3 font-mono tabular-nums">
+                        {money(flight.storageUsd)}
+                      </td>
+                    ) : null}
                     <td className="p-3 tabular-nums">
                       {/* How many on this flight owe nothing but the storage —
                           the ones a phone call gets money out of today. */}
@@ -242,9 +286,17 @@ export default async function StorageDuePage() {
                   <th className="p-3 font-medium">{t(locale, "Customer")}</th>
                   <th className="p-3 font-medium">{t(locale, "Cargo")}</th>
                   <th className="p-3 font-medium">{t(locale, "Days")}</th>
-                  <th className="p-3 font-medium">{t(locale, "Storage")}</th>
-                  <th className="p-3 font-medium">{t(locale, "On the bill")}</th>
-                  <th className="p-3 font-medium">{t(locale, "Still owed")}</th>
+                  {showMoney ? (
+                    <>
+                      <th className="p-3 font-medium">{t(locale, "Storage")}</th>
+                      <th className="p-3 font-medium">
+                        {t(locale, "On the bill")}
+                      </th>
+                      <th className="p-3 font-medium">
+                        {t(locale, "Still owed")}
+                      </th>
+                    </>
+                  ) : null}
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -285,7 +337,8 @@ export default async function StorageDuePage() {
                             variant="outline"
                             className="mt-1 border-warning/40 text-warning"
                           >
-                            {t(locale, "waived")} {money(row.waivedUsd)}
+                            {t(locale, "waived")}
+                            {showMoney ? ` ${money(row.waivedUsd)}` : ""}
                           </Badge>
                         ) : null}
                       </td>
@@ -295,28 +348,32 @@ export default async function StorageDuePage() {
                           {t(locale, "of")} {row.daysHeld} {t(locale, "here")}
                         </span>
                       </td>
-                      <td className="p-3 font-mono tabular-nums">
-                        {money(row.owedUsd)}
-                      </td>
-                      <td className="p-3 font-mono tabular-nums">
-                        {money(row.onBillUsd)}
-                        {pending > 0.005 ? (
-                          <span className="block text-[11px] font-sans text-warning">
-                            +{money(pending)} {t(locale, "to come")}
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="p-3 font-mono tabular-nums">
-                        <span
-                          className={
-                            row.outstandingUsd > 0.005
-                              ? "text-destructive"
-                              : "text-success"
-                          }
-                        >
-                          {money(Math.max(0, row.outstandingUsd))}
-                        </span>
-                      </td>
+                      {showMoney ? (
+                        <>
+                          <td className="p-3 font-mono tabular-nums">
+                            {money(row.owedUsd)}
+                          </td>
+                          <td className="p-3 font-mono tabular-nums">
+                            {money(row.onBillUsd)}
+                            {pending > 0.005 ? (
+                              <span className="block text-[11px] font-sans text-warning">
+                                +{money(pending)} {t(locale, "to come")}
+                              </span>
+                            ) : null}
+                          </td>
+                          <td className="p-3 font-mono tabular-nums">
+                            <span
+                              className={
+                                row.outstandingUsd > 0.005
+                                  ? "text-destructive"
+                                  : "text-success"
+                              }
+                            >
+                              {money(Math.max(0, row.outstandingUsd))}
+                            </span>
+                          </td>
+                        </>
+                      ) : null}
                     </tr>
                   );
                 })}
