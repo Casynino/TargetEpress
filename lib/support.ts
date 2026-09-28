@@ -21,6 +21,10 @@ import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
 import { formatShillings, formatUsd } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
+import {
+  standingPriceChanges,
+  type StandingPriceChange,
+} from "@/lib/price-change-run";
 import { bookedWeights } from "@/lib/weight-changes";
 import { rateSwitchesFor } from "@/lib/rate-basis";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
@@ -340,6 +344,11 @@ export type FollowUpRow = {
   /** The chargeable weight the bill was worked out on. */
   pricedOnKg: number | null;
   /**
+   * The price change this bill is still standing in front of, if any — so the
+   * payment form on the row can say it and offer the one press back.
+   */
+  priceChange: StandingPriceChange | null;
+  /**
    * How the freight figure was reached, ready to print: "USD 13.50/KG
    * (Minimum 1 KG)". Composed where the quote is read rather than at each
    * screen, so no two messages state the same rate differently.
@@ -542,6 +551,23 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       .map((shipment) => shipment.id)
   );
 
+  /*
+    AND WHAT MOVED THE PRICE, for the payment form behind the icon on the row.
+
+    A desk works this queue with a customer on the phone and takes the money
+    without leaving it. If the figure in front of them is not the figure the
+    bill carried this morning, that has to be said where they are reading —
+    the cargo page saying it is no use to somebody who never opens it.
+  */
+  const priceChanges = await standingPriceChanges(
+    shipments
+      .filter((shipment) => shipment.invoice !== null)
+      .map((shipment) => ({
+        id: shipment.invoice!.id,
+        paid: toNumber(shipment.invoice!.amountPaid) > 0.005,
+      }))
+  );
+
   const cashRows: FollowUpRow[] = shipments.map((shipment) => {
     const storageDays = storageDaysFor(shipment.arrivedAt, shipment.deliveredAt);
     const invoice = shipment.invoice;
@@ -661,6 +687,7 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
           : toNumber(shipment.declaredWeightKg),
       pricedOnKg:
         shipment.chargeableKg === null ? null : toNumber(shipment.chargeableKg),
+      priceChange: invoice ? (priceChanges.get(invoice.id) ?? null) : null,
       /* With the bill, so the call list and the message it sends quote
          the rate the customer is actually being charged. */
       freightBasis: freightBasisOf(shipment, invoice),
@@ -797,6 +824,9 @@ function creditFollowUpRow(r: CreditRow): FollowUpRow {
     weightKg: null,
     declaredWeightKg: null,
     pricedOnKg: null,
+    /* A credit row is a debt, not a box: its cargo has gone and its price is
+       not being re-worked from a weight. */
+    priceChange: null,
     /* The consignment behind a credit has usually gone, and the quote went
        with it — the bill is what is outstanding. */
     freightBasis: null,

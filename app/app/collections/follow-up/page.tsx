@@ -921,6 +921,49 @@ export default async function FollowUpPage({
                           storageUncharged={row.invoiceStorageUncharged}
                           storageFreeDaysLeft={row.invoiceStorageFreeDays}
                           canWaiveStorage={can(user.role, "invoice.storage.waive")}
+                          /*
+                            WHAT THIS FIGURE WAS, WHERE THE MONEY IS TAKEN.
+
+                            Same panel as the cargo page, same undo, worked
+                            out the same way — who may check a price, and who
+                            may put one back. A desk reading a re-priced bill
+                            on the call list was being shown the new figure
+                            and nothing else.
+                          */
+                          priceChange={
+                            row.priceChange
+                              ? {
+                                  changeId: row.priceChange.changeId,
+                                  totalBefore: row.priceChange.totalBefore,
+                                  totalAfter: row.priceChange.totalAfter,
+                                  rateBefore:
+                                    row.priceChange.rateBefore ??
+                                    row.standardRate,
+                                  perItemBefore: row.priceChange.perItemBefore,
+                                  rateAfter: row.agreedRate ?? row.standardRate,
+                                  perItem: row.ratePerItem,
+                                  steps: row.priceChange.steps,
+                                  reason: row.priceChange.reason,
+                                  changedBy: row.priceChange.changedBy,
+                                  changedAt: formatDate(
+                                    row.priceChange.changedAt,
+                                    locale
+                                  ),
+                                  automatic: row.priceChange.automatic,
+                                  reviewed: row.priceChange.reviewed,
+                                  canReview:
+                                    !row.priceChange.reviewed &&
+                                    can(user.role, "invoice.priceReview"),
+                                  canUndo:
+                                    (row.priceChange.automatic ||
+                                      row.priceChange.changedById ===
+                                        user.id) &&
+                                    can(user.role, "invoice.discount") &&
+                                    ((row.paid ?? 0) <= 0.005 ||
+                                      can(user.role, "ledger.adjust")),
+                                }
+                              : null
+                          }
                           label={`${t(locale, "Record a payment for")} ${row.invoiceNumber ?? row.trackingNumber}`}
                         />
                       </IconHint>

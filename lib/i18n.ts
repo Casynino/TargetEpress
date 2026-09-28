@@ -6113,6 +6113,8 @@ const ZH: Record<string, string> = {
   "KG changed — price unchanged": "重量已更改——价格未变",
   "The weight changed, so the price did": "重量变了，价格也随之更新",
   "The kilos changed, so the price was worked out again. Record the new figure, or undo to put the old one back.": "重量已更改，价格已重新计算。可按新金额收款，或撤销以恢复原价。",
+  "The kilos changed, so the price was worked out again. Finance has checked it. Take the new figure, or undo to put the old one back.": "重量已更改，价格已重新计算，财务已核对。可按新金额收款，或撤销以恢复原价。",
+  "Finance has checked this price.": "财务已核对此价格。",
   "was": "原为",
   "times": "次",
   "The bill is back where it started.": "账单已恢复原状。",

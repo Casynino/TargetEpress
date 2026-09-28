@@ -42,6 +42,7 @@ export function PriceChangeNotice({
   canReview,
   canUndo = false,
   automatic = false,
+  reviewed = false,
 }: {
   changeId: string;
   currency: string;
@@ -80,6 +81,15 @@ export function PriceChangeNotice({
    * usually about to take money on the new figure.
    */
   automatic?: boolean;
+  /**
+   * Finance has already ticked this one off, and it is showing anyway.
+   *
+   * Only ever an automatic re-price: a tick settles a price somebody agreed
+   * and does not settle one the rate book worked out from a new weight, so
+   * that one keeps its undo until money lands. The panel drops the review
+   * buttons — there is nothing left to review — and says so.
+   */
+  reviewed?: boolean;
 }) {
   const t = useT();
   const [mode, setMode] = useState<null | "revert">(null);
@@ -196,7 +206,9 @@ export function PriceChangeNotice({
         {netZero
           ? t("The bill is back where it started.")
           : automatic
-            ? t("The kilos changed, so the price was worked out again. Record the new figure, or undo to put the old one back.")
+            ? reviewed
+              ? t("The kilos changed, so the price was worked out again. Finance has checked it. Take the new figure, or undo to put the old one back.")
+              : t("The kilos changed, so the price was worked out again. Record the new figure, or undo to put the old one back.")
             : t("Finance has not checked it yet.")}
       </p>
 
@@ -276,7 +288,9 @@ export function PriceChangeNotice({
         </form>
       ) : (
         <p className="mt-2 text-[11px] text-muted-foreground">
-          {t("Finance will check this change.")}
+          {reviewed
+            ? t("Finance has checked this price.")
+            : t("Finance will check this change.")}
         </p>
       )}
     </div>

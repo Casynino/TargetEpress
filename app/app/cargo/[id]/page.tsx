@@ -1,5 +1,5 @@
 import { rateFactsOf } from "@/lib/agreed-rate";
-import { AUTO_WEIGHT_REASON } from "@/lib/price-changes";
+import { standingRun } from "@/lib/price-change-run";
 import { PriceChangeNotice } from "@/components/app/price-change-notice";
 import { RepriceOnWeight } from "@/components/app/reprice-on-weight";
 import { weightBasisOf } from "@/lib/rate-basis";
@@ -212,17 +212,19 @@ export default async function ShipmentDetailPage({
   /* The run of price changes nobody has checked yet, oldest first: where the
      bill stood before the desk started, and where it stands now. A desk that
      mistyped and corrected itself is one run, not three. */
-  const priceRun = (shipment.invoice?.priceChanges ?? [])
-    .filter((change) => change.status === "UNSEEN")
-    .sort((a, b) => a.changedAt.getTime() - b.changedAt.getTime());
+  /* Unchecked changes, or — while no money has landed — the last re-price the
+     rate book worked out by itself, which Finance's tick does not close. See
+     standingRun for why those two are not the same thing. */
+  const priceStanding = standingRun(shipment.invoice?.priceChanges ?? [], {
+    paid: toNumber(shipment.invoice?.amountPaid ?? 0) > 0.005,
+  });
+  const priceRun = priceStanding.run;
   const priceRunStart = priceRun[0];
   const priceRunLast = priceRun[priceRun.length - 1];
   /* Every step of it worked out by the rate book from a corrected weight —
      see AUTO_WEIGHT_REASON. Nobody agreed this price, so anybody who may set
      one may set it back. */
-  const autoPriced =
-    priceRun.length > 0 &&
-    priceRun.every((change) => change.reason === AUTO_WEIGHT_REASON);
+  const autoPriced = priceStanding.automatic;
 
   /*
     A BILL STANDING ON A WEIGHT THIS CARGO NO LONGER IS.
@@ -1224,8 +1226,11 @@ export default async function ShipmentDetailPage({
                  moves one — Support may agree a rate and may not sign its own
                  off, so passing the wrong permission here offered Hawa a
                  button the server then refused. */
-              canReview={can(user.role, "invoice.priceReview")}
+              canReview={
+                !priceStanding.reviewed && can(user.role, "invoice.priceReview")
+              }
               automatic={autoPriced}
+              reviewed={priceStanding.reviewed}
               /*
                 Her own change, while nobody has looked at it — or ANY change
                 the system worked out from a corrected weight, because nobody

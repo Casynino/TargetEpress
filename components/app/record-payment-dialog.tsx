@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Banknote, X } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
+import { PriceChangeNotice } from "@/components/app/price-change-notice";
 import { RecordCollectionForm } from "@/components/app/record-collection-form";
 
 /**
@@ -41,6 +42,7 @@ export function RecordPaymentDialog({
   storageUncharged,
   storageFreeDaysLeft,
   canWaiveStorage,
+  priceChange,
   label,
 }: {
   invoiceId: string;
@@ -64,6 +66,31 @@ export function RecordPaymentDialog({
   storageUncharged?: number;
   storageFreeDaysLeft?: number | null;
   canWaiveStorage?: boolean;
+  /**
+   * WHAT MOVED THIS PRICE, IF ANYTHING HAS.
+   *
+   * The desk taking the money is the last person who can catch a figure that
+   * is not the one the customer was quoted, and on this queue they never see
+   * the cargo page where it is said. Carries its own undo, so a re-price they
+   * do not want goes back without leaving the call list.
+   */
+  priceChange?: {
+    changeId: string;
+    totalBefore: number;
+    totalAfter: number;
+    rateBefore: number | null;
+    perItemBefore: boolean | null;
+    rateAfter: number | null;
+    perItem: boolean;
+    steps: number;
+    reason: string | null;
+    changedBy: string | null;
+    changedAt: string;
+    automatic: boolean;
+    reviewed: boolean;
+    canReview: boolean;
+    canUndo: boolean;
+  } | null;
   /** For the screen reader, so the row it belongs to is not a guess. */
   label: string;
 }) {
@@ -104,7 +131,29 @@ export function RecordPaymentDialog({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="max-h-[75vh] overflow-y-auto p-4">
+        <div className="max-h-[75vh] space-y-3 overflow-y-auto p-4">
+          {/* Above the form, not beside it: the figure it is about to take is
+              the one this notice is about. */}
+          {priceChange ? (
+            <PriceChangeNotice
+              changeId={priceChange.changeId}
+              currency={currency}
+              totalBefore={priceChange.totalBefore}
+              totalAfter={priceChange.totalAfter}
+              rateBefore={priceChange.rateBefore}
+              rateAfter={priceChange.rateAfter}
+              perItem={priceChange.perItem}
+              perItemBefore={priceChange.perItemBefore ?? undefined}
+              steps={priceChange.steps}
+              reason={priceChange.reason}
+              changedBy={priceChange.changedBy ?? t("somebody")}
+              changedAt={priceChange.changedAt}
+              canReview={priceChange.canReview}
+              canUndo={priceChange.canUndo}
+              automatic={priceChange.automatic}
+              reviewed={priceChange.reviewed}
+            />
+          ) : null}
           <RecordCollectionForm
             invoiceId={invoiceId}
             invoiceNumber={invoiceNumber}

@@ -7,6 +7,7 @@ import { toNumber } from "@/lib/format";
 import { Prisma } from "@prisma/client";
 
 import { AUTO_WEIGHT_REASON } from "@/lib/price-changes";
+import { standingRun } from "@/lib/price-change-run";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -180,14 +181,41 @@ export async function reviewPriceChange(
  * putting it back to before the desk started, not to the step before last.
  */
 async function uncheckedRun(invoiceId: string) {
+  return runRows(invoiceId, ["UNSEEN"]);
+}
+
+/**
+ * THE RUN A DESK MAY STILL TAKE BACK.
+ *
+ * Unchecked changes where there are any; otherwise the last automatic
+ * re-price, while the bill has no money on it. Why the second one outlives
+ * Finance's tick is in standingRun, which decides it — this only fetches the
+ * rows both cases need and lets that function pick.
+ */
+async function undoableRun(invoiceId: string) {
+  const rows = await runRows(invoiceId, ["UNSEEN", "CONFIRMED"]);
+  const bill = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: { amountPaid: true },
+  });
+  return standingRun(rows, {
+    paid: bill !== null && toNumber(bill.amountPaid) > 0.005,
+  }).run;
+}
+
+async function runRows(
+  invoiceId: string,
+  statuses: ("UNSEEN" | "CONFIRMED")[]
+) {
   return prisma.invoicePriceChange.findMany({
-    where: { invoiceId, status: "UNSEEN" },
+    where: { invoiceId, status: { in: statuses } },
     orderBy: { changedAt: "asc" },
     select: {
       id: true,
       status: true,
       currency: true,
       changedById: true,
+      changedAt: true,
       /* Whether the system worked this one out — see AUTO_WEIGHT_REASON. */
       reason: true,
       invoiceId: true,
@@ -336,10 +364,22 @@ export async function undoPriceChange(
 
   const named = await prisma.invoicePriceChange.findUnique({
     where: { id: changeId },
-    select: { invoiceId: true, status: true },
+    select: { invoiceId: true, status: true, reason: true },
   });
   if (!named) return fail("That price change no longer exists.");
-  if (named.status !== "UNSEEN") {
+  /*
+    A TICK FROM FINANCE CLOSES A PRICE SOMEBODY AGREED. NOT ONE THE BOOK MADE.
+
+    Finance agreeing a typed rate is a decision, and re-opening it behind them
+    is undoing their work. Finance agreeing that a re-weighed bill adds up is
+    not an agreement about the price at all — the kilos moved and the rate
+    book did the rest — so the desk that next picks that bill up keeps the one
+    press that puts it back, until money lands on it. See standingRun.
+  */
+  const settled =
+    named.status !== "UNSEEN" &&
+    !(named.status === "CONFIRMED" && named.reason === AUTO_WEIGHT_REASON);
+  if (settled) {
     return fail(
       "Finance has already looked at this one. Change the price again if it is wrong — that goes up as a new change."
     );
@@ -347,7 +387,7 @@ export async function undoPriceChange(
 
   /* The whole run, so a desk that mistyped and corrected itself goes back to
      the price the bill actually started at rather than to its own typo. */
-  const run = await uncheckedRun(named.invoiceId);
+  const run = await undoableRun(named.invoiceId);
   if (run.length === 0) return fail("Finance has already looked at this one.");
   const first = run[0];
   const last = run[run.length - 1];
@@ -399,7 +439,9 @@ export async function undoPriceChange(
   const claimed = await prisma.invoicePriceChange.updateMany({
     where: {
       id: { in: ids },
-      status: "UNSEEN",
+      /* Re-stated as it was read: an automatic run may have been ticked off
+         by Finance and is still the desk's to take back. */
+      status: automatic ? { in: ["UNSEEN", "CONFIRMED"] } : "UNSEEN",
       /* Claimed by author where a person made it, by the row itself where the
          system did — the check above already decided which of the two. */
       ...(automatic ? {} : { changedById: user.id }),
