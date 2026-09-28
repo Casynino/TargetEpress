@@ -41,7 +41,9 @@ export async function holdCargoUntilSettled(
     } | null;
     /** The status the bill has just been moved to. */
     nextStatus: InvoiceStatus | null;
-    actorId: string;
+    /* Null where the storage meter did it rather than a person — the
+       timeline row carries no actor, which is exactly what happened. */
+    actorId: string | null;
     /** Why, in the words that go on the consignment's own timeline. */
     reason: string;
   }
@@ -74,4 +76,60 @@ export async function holdCargoUntilSettled(
     },
   });
   return "held";
+}
+
+/**
+ * AND LETTING THEM GO AGAIN WHEN THE DEBT IS CLEARED.
+ *
+ * The mirror of holdCargoUntilSettled, and it exists because forgiving a debt
+ * has to undo exactly what raising one did. Storage reopens a settled bill and
+ * pulls the consignment off the shelf; paying it puts the consignment back,
+ * and that path has always existed inside the payment. Waiving it did not —
+ * so Finance could forgive sixteen days of storage, watch the bill go back to
+ * settled, and the counter would still turn the customer away, because the
+ * only thing the release gate reads is the consignment's own status.
+ *
+ * THE NOTE IS THE CLEARANCE. Nothing new is issued: the note the customer is
+ * holding was never cancelled — see the note above — and it becomes usable
+ * again the moment the balance is gone.
+ *
+ * Deliberately does NOT lift an investigation lock or any other hold: those
+ * are answered by their own screens, and a bill coming to nothing says
+ * nothing about a box nobody can find.
+ */
+export async function releaseCargoIfSettled(
+  tx: TxClient,
+  args: {
+    shipment: {
+      id: string;
+      status: string;
+      pickupNote: { noteNumber: string; status: string } | null;
+    } | null;
+    /** The status the bill has just been moved to. */
+    nextStatus: InvoiceStatus | null;
+    actorId: string | null;
+    reason: string;
+  }
+): Promise<boolean> {
+  const { shipment, nextStatus } = args;
+  if (!shipment || !shipment.pickupNote) return false;
+  if (nextStatus !== "PAID") return false;
+  if (shipment.pickupNote.status !== "ACTIVE") return false;
+  if (shipment.status !== "RECEIVED_AT_DAR") return false;
+
+  await tx.shipment.update({
+    where: { id: shipment.id },
+    data: { status: "READY_FOR_PICKUP", readyForPickup: new Date() },
+  });
+  await tx.shipmentStatusHistory.create({
+    data: {
+      shipmentId: shipment.id,
+      fromStatus: "RECEIVED_AT_DAR",
+      toStatus: "READY_FOR_PICKUP",
+      location: "Dar es Salaam warehouse",
+      note: args.reason,
+      actorId: args.actorId,
+    },
+  });
+  return true;
 }

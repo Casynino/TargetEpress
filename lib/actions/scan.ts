@@ -87,6 +87,20 @@ export type ScanResult = {
     amountPaid?: number;
     currency?: string;
   } | null;
+  /**
+   * THE DAYS THIS BOX HAS COST, WHERE THEY ARE STILL OWED.
+   *
+   * A consignment paid in full, cleared, and then left standing accrues
+   * storage by itself — and the bill reopens under a pickup note the customer
+   * is holding. The counter has to be able to say what happened, and the
+   * clerk must not be left to guess from "not cleared for release".
+   *
+   * The DAYS are here for everyone; the figure only where the viewer may see
+   * money, the same gate the note's amount uses. A clerk does not need the
+   * amount to send somebody to Finance, and the owner's rule is that the
+   * warehouse does not read prices off this screen.
+   */
+  storage: { days: number; owed?: number; currency?: string } | null;
   canRelease: boolean;
 };
 
@@ -194,6 +208,10 @@ async function describe(
           creditStatus: true,
           currency: true,
           status: true,
+          /* What the meter has put on this bill, so the counter can be told
+             WHY a consignment it cleared last week is being held. */
+          storageCharge: true,
+          storageDays: true,
         },
       },
       pickupNote: {
@@ -223,6 +241,20 @@ async function describe(
   const outstanding = shipment.invoice
     ? outstandingOf(shipment.invoice)
     : null;
+  /*
+    HELD BECAUSE THE METER RAN, AS OPPOSED TO NEVER PAID AT ALL.
+
+    Both look the same from the shipment's status. The difference is that this
+    bill carries a storage line and a note was issued against it — the
+    customer paid, was cleared, and then left the box here. It changes what
+    the clerk says, so it is worked out once and read in two places below.
+  */
+  const heldForStorage = Boolean(
+    shipment.invoice &&
+      toNumber(shipment.invoice.storageCharge) > 0.005 &&
+      (outstanding ?? 0) > 0.005 &&
+      shipment.pickupNote !== null
+  );
 
   /**
    * The investigation lock, asked here as well as at the point of release.
@@ -294,7 +326,29 @@ async function describe(
         detail: pickupLockMessage(lock, shipment.trackingNumber, locale),
       };
     } else if (shipment.status !== "READY_FOR_PICKUP") {
-      if (shipment.status === "RECEIVED_AT_DAR") {
+      if (shipment.status === "RECEIVED_AT_DAR" && heldForStorage) {
+        /*
+          THE ONE REFUSAL THE COUNTER COULD NOT EXPLAIN.
+
+          Paid in full, note issued, cargo left standing — and the storage
+          meter reopens the bill, which pulls the clearance. To the clerk that
+          looked identical to a customer who had never paid, and the customer
+          knew perfectly well they had. Named for what it is, with the days
+          behind it and the desk that can settle it.
+
+          The warehouse cannot waive it. That is Finance's decision and the
+          counter's, deliberately not the warehouse's.
+        */
+        verdict = {
+          tone: "block",
+          headline: t(locale, "STORAGE BALANCE — DO NOT RELEASE"),
+          detail: `${shipment.invoice!.storageDays} ${t(locale, "day(s) of storage beyond the free week")}${
+            showMoney
+              ? ` · ${shipment.invoice!.currency} ${(outstanding ?? 0).toFixed(2)}`
+              : ""
+          }. ${t(locale, "The customer settles this with Finance before the cargo leaves.")}`,
+        };
+      } else if (shipment.status === "RECEIVED_AT_DAR") {
         // Three different situations used to share one sentence. The counter
         // has to tell the customer something, and "not cleared" does not say
         // whether they owe money or are waiting on our own paperwork. Read off
@@ -469,6 +523,17 @@ async function describe(
             ? {
                 amountPaid: toNumber(shipment.pickupNote.amountPaid),
                 currency: shipment.pickupNote.currency,
+              }
+            : {}),
+        }
+      : null,
+    storage: heldForStorage
+      ? {
+          days: shipment.invoice!.storageDays,
+          ...(showMoney
+            ? {
+                owed: outstanding ?? 0,
+                currency: shipment.invoice!.currency,
               }
             : {}),
         }

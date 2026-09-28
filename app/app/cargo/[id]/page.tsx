@@ -1155,6 +1155,13 @@ export default async function ShipmentDetailPage({
                       waivedAt: shipment.invoice.storageWaivedAt,
                       waiveReason: shipment.invoice.storageWaiveReason,
                       canDecide: canWaive,
+                      /* The bill without its storage line: what the cargo
+                         itself came to. See the card's own note. */
+                      cargoUsd:
+                        toNumber(shipment.invoice.total) -
+                        toNumber(shipment.invoice.storageCharge),
+                      paidUsd: toNumber(shipment.invoice.amountPaid),
+                      outstandingUsd: outstandingOf(shipment.invoice),
                     }
                   : undefined
               }

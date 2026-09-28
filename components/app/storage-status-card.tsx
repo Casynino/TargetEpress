@@ -42,6 +42,10 @@ export function StorageStatusCard({
     waivedAt: Date | null;
     waiveReason: string | null;
     canDecide: boolean;
+    /** The rest of the position — see StorageDecision. */
+    cargoUsd?: number | null;
+    paidUsd?: number | null;
+    outstandingUsd?: number | null;
   };
   className?: string;
 }) {
@@ -131,7 +135,7 @@ export function StorageStatusCard({
           {status.collected
             ? `${t(locale, "Collected — the clock stopped")} · ${formatDate(status.arrivedAt, locale)}`
             : status.expired
-              ? `${t(locale, "uncollected since")} ${formatDate(status.arrivedAt, locale)} · ${t(locale, "charged at pickup")}`
+              ? `${t(locale, "uncollected since")} ${formatDate(status.arrivedAt, locale)} · ${t(locale, "charged every day")}`
               : `${status.freeDaysRemaining} ${t(locale, status.freeDaysRemaining === 1 ? "free day left" : "free days left")} · USD ${STORAGE_POLICY.perDayUsd}/${t(locale, "day")} ${t(locale, "after that")}`}
         </p>
       </div>
@@ -146,6 +150,9 @@ export function StorageStatusCard({
           waivedOn={decision.waivedAt ? formatDate(decision.waivedAt, locale) : null}
           waiveReason={decision.waiveReason}
           canDecide={decision.canDecide}
+          cargoUsd={decision.cargoUsd ?? null}
+          paidUsd={decision.paidUsd ?? null}
+          outstandingUsd={decision.outstandingUsd ?? null}
         />
       ) : null}
     </section>

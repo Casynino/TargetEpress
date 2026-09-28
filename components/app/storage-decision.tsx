@@ -31,6 +31,9 @@ export function StorageDecision({
   waivedOn,
   waiveReason,
   canDecide,
+  cargoUsd = null,
+  paidUsd = null,
+  outstandingUsd = null,
 }: {
   invoiceId: string;
   /** What the policy says has accrued, right now. */
@@ -41,6 +44,22 @@ export function StorageDecision({
   waivedOn: string | null;
   waiveReason: string | null;
   canDecide: boolean;
+  /**
+   * THE WHOLE POSITION, NOT JUST THE STORAGE PART OF IT.
+   *
+   * The owner's list: what the cargo cost, what has been paid, what storage
+   * was charged, what was taken off, and what is left. A card that showed
+   * only the last three was read as "the customer owes two dollars" by a desk
+   * that could not see the eighty-six they had already paid — and the
+   * customer, who had paid in full, was told they had not.
+   *
+   * The cargo figure is the bill WITHOUT storage: freight, extras and
+   * discount. Null on a consignment with no bill yet, and then the card says
+   * only what it knows.
+   */
+  cargoUsd?: number | null;
+  paidUsd?: number | null;
+  outstandingUsd?: number | null;
 }) {
   const t = useT();
   const [chargeState, charge] = useActionState<ActionResult | undefined, FormData>(
@@ -70,7 +89,44 @@ export function StorageDecision({
           <dt className="text-muted-foreground">{t("On the bill")}</dt>
           <dd className="font-semibold tabular-nums">{money(chargedUsd)}</dd>
         </div>
-        {waivedUsd > 0 ? (
+        {/*
+        WHAT IS STILL OWED, AND WHAT IT IS MADE OF.
+
+        Only once there is a bill and something has actually moved on it —
+        a consignment inside its free days with nothing charged says nothing
+        here, because there is no position to explain.
+      */}
+      {cargoUsd !== null && (chargedUsd > 0 || waivedUsd > 0) ? (
+        <dl className="flex flex-wrap gap-x-4 gap-y-1 border-t pt-2 text-[11px]">
+          <div className="flex gap-1.5">
+            <dt className="text-muted-foreground">{t("Cargo")}</dt>
+            <dd className="font-semibold tabular-nums">{money(cargoUsd)}</dd>
+          </div>
+          {paidUsd !== null ? (
+            <div className="flex gap-1.5">
+              <dt className="text-muted-foreground">{t("Paid")}</dt>
+              <dd className="font-semibold tabular-nums text-success">
+                {money(paidUsd)}
+              </dd>
+            </div>
+          ) : null}
+          {outstandingUsd !== null ? (
+            <div className="flex gap-1.5">
+              <dt className="text-muted-foreground">{t("Still owed")}</dt>
+              <dd
+                className={
+                  "font-semibold tabular-nums " +
+                  (outstandingUsd > 0.005 ? "text-destructive" : "text-success")
+                }
+              >
+                {money(Math.max(0, outstandingUsd))}
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+      ) : null}
+
+      {waivedUsd > 0 ? (
           <div className="flex gap-1.5">
             <dt className="text-muted-foreground">{t("Waived")}</dt>
             <dd className="font-semibold tabular-nums text-warning">

@@ -5,8 +5,8 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { recordAudit, withNote } from "@/lib/audit";
-import { holdCargoUntilSettled } from "@/lib/cargo-hold";
-import { STORAGE_POLICY, storageStatus } from "@/lib/constants";
+import { releaseCargoIfSettled } from "@/lib/cargo-hold";
+import { chargeStorageOn, currentStorage } from "@/lib/storage-charge";
 import { toNumber } from "@/lib/format";
 import { toLocal } from "@/lib/fx";
 import { t } from "@/lib/i18n";
@@ -53,42 +53,6 @@ const schema = z.object({
   invoiceId: z.string().min(1),
   reason: z.string().trim().optional(),
 });
-
-/** Recompute from the dates, so the figure can never be stale or typed. */
-async function currentStorage(invoiceId: string) {
-  const invoice = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
-    select: {
-      id: true,
-      invoiceNumber: true,
-      status: true,
-      total: true,
-      amountPaid: true,
-      amountAdjusted: true,
-      storageCharge: true,
-      storageDays: true,
-      storageWaivedUsd: true,
-      freightCost: true,
-      freightOverride: true,
-      otherCharges: true,
-      discount: true,
-      exchangeRate: true,
-      shipment: {
-        select: {
-          trackingNumber: true,
-          arrivedAt: true,
-          deliveredAt: true,
-        },
-      },
-    },
-  });
-  if (!invoice) return null;
-  const status = storageStatus(
-    invoice.shipment?.arrivedAt ?? null,
-    invoice.shipment?.deliveredAt ?? null
-  );
-  return { invoice, status };
-}
 
 /**
  * Put the accrued storage fee onto the bill.
@@ -147,182 +111,18 @@ export async function chargeStorageFee(
       return ok();
     }
 
-    const found = await currentStorage(parsed.data.invoiceId);
-    if (!found) return fail(t(locale, "That invoice no longer exists."));
-    const { invoice, status } = found;
+    const outcome = await chargeStorageOn(
+      parsed.data.invoiceId,
+      user,
+      locale,
+      /* A desk pressing this IS the decision to charge after all — see the
+         option's own note. The nightly meter is the one that leaves a
+         waived bill alone. */
+      { respectWaiver: false }
+    );
+    if (!outcome.charged) return fail(outcome.reason);
 
-    if (status.chargeUsd <= 0) {
-      return fail(
-        t(locale, "Nothing to charge — this cargo is still inside its free days.")
-      );
-    }
-
-    const before = toNumber(invoice.storageCharge);
-    if (before === status.chargeUsd && toNumber(invoice.storageWaivedUsd) === 0) {
-      return fail(t(locale, "That storage fee is already on the bill."));
-    }
-
-    let total = 0;
-    let rate: number | null = null;
-    let totalLocal: number | null = null;
-    await prisma.$transaction(async (tx) => {
-      /*
-        THE MONEY FIELDS ARE RE-READ INSIDE THE TRANSACTION. The first version
-        computed the new total from a read taken before the transaction opened,
-        so a payment or an adjustment landing in between was silently written
-        over. The storage CLOCK (days, charge) may stay from the pre-read —
-        it is derived from dates, not from the row's money.
-      */
-      const fresh = await tx.invoice.findUnique({
-        where: { id: invoice.id },
-        select: {
-          status: true,
-          amountPaid: true,
-          amountAdjusted: true,
-          freightCost: true,
-          freightOverride: true,
-          otherCharges: true,
-          discount: true,
-          exchangeRate: true,
-          total: true,
-          /* The clearance this charge may have to withdraw — see below. */
-          shipment: {
-            select: {
-              id: true,
-              trackingNumber: true,
-              status: true,
-              pickupNote: { select: { id: true, noteNumber: true, status: true } },
-            },
-          },
-        },
-      });
-      if (!fresh) throw new Error(t(locale, "That invoice no longer exists."));
-
-      /* A dead bill cannot grow. VOID and WRITTEN_OFF are final words. */
-      if (fresh.status === "VOID" || fresh.status === "WRITTEN_OFF") {
-        throw new Error(
-          `${invoice.invoiceNumber} ${t(
-            locale,
-            "is closed, so nothing more can be charged on it."
-          )}`
-        );
-      }
-
-      const freight =
-        fresh.freightOverride === null
-          ? toNumber(fresh.freightCost)
-          : toNumber(fresh.freightOverride);
-      total =
-        freight +
-        status.chargeUsd +
-        toNumber(fresh.otherCharges) -
-        toNumber(fresh.discount);
-      rate = fresh.exchangeRate === null ? null : toNumber(fresh.exchangeRate);
-      totalLocal = rate === null ? null : toLocal(total, rate);
-
-      /*
-        THE STATUS FOLLOWS THE TOTAL. Charging storage on a settled bill used
-        to leave status at PAID while the total rose above amountPaid — and the
-        pickup gate reads the status, so the cargo walked out with the storage
-        unpaid. The label is re-derived from the same arithmetic every payment
-        uses.
-      */
-      const paidSoFar = toNumber(fresh.amountPaid);
-      const nextStatus =
-        invoiceStatusFor(
-          fresh.status,
-          paidSoFar,
-          total,
-          toNumber(fresh.amountAdjusted)
-        ) ?? fresh.status;
-
-      /* Conditional on the total this transaction read: a concurrent change
-         makes this touch nothing, and the person is told to look again. */
-      const claimed = await tx.invoice.updateMany({
-        where: { id: invoice.id, total: fresh.total },
-        data: {
-          storageDays: status.chargeableDays,
-          storageCharge: new Prisma.Decimal(status.chargeUsd),
-          /* Charging replaces any earlier waiver on the same invoice — the
-             decision has been reversed, and the audit log carries both. */
-          storageWaivedUsd: new Prisma.Decimal(0),
-          storageWaivedAt: null,
-          storageWaivedById: null,
-          storageWaiveReason: null,
-          total: new Prisma.Decimal(total),
-          totalLocal:
-            totalLocal === null ? null : new Prisma.Decimal(totalLocal),
-          status: nextStatus,
-        },
-      });
-      if (claimed.count === 0) {
-        throw new Error(
-          t(locale, "This bill changed a moment ago. Reload the page and look again.")
-        );
-      }
-
-      /*
-        THE CLEARANCE GOES WITH THE DEBT.
-
-        A pickup note is the company saying the bill is settled and the cargo
-        may go. Charging storage on a bill that was settled reopens it — and the
-        note said nothing about storage, so the boxes walked out on a clearance
-        that was true when it was printed and false by the time it was used. The
-        release path never re-reads the invoice, so nothing downstream would
-        have caught it.
-
-        A note already USED is left alone and said out loud in the audit line:
-        the cargo has gone, and cancelling the note would only make the record
-        disagree with the warehouse. That is a live debt for somebody to chase.
-      */
-      /* Through lib/cargo-hold.ts, which this door's own logic became: two
-         other doors in Finance can reopen a settled bill the same way, and all
-         three now answer "may these boxes still leave" with one function
-         rather than three that could drift. */
-      const cargo = fresh.shipment;
-      const note = cargo?.pickupNote ?? null;
-      const noteOutcome = await holdCargoUntilSettled(tx, {
-        shipment: cargo,
-        nextStatus,
-        actorId: user.id,
-        reason:
-          "Storage charged. Held until the new balance is settled; the pickup note it holds stands.",
-      });
-
-      await recordAudit(
-        {
-          actor: user,
-          action: "storage.charged",
-          entity: "Invoice",
-          entityId: invoice.id,
-          summary:
-            `${invoice.invoiceNumber}: storage fee of USD ${status.chargeUsd.toFixed(2)} charged — ${status.chargeableDays} day(s) beyond the ${STORAGE_POLICY.freeDays} free days` +
-            (noteOutcome === "already-collected"
-              ? ` — WARNING: pickup note ${note?.noteNumber} was already used, the cargo has been collected and this storage is now a live debt`
-              : noteOutcome === "held"
-                ? ` — ${cargo?.trackingNumber} held against pickup note ${note?.noteNumber} until the storage is paid`
-                : ""),
-          metadata: {
-            tracking: invoice.shipment?.trackingNumber ?? null,
-            pickupNote: note?.noteNumber ?? null,
-            pickupNoteOutcome: noteOutcome,
-            cargoAlreadyCollected: noteOutcome === "already-collected",
-            daysInWarehouse: status.daysInWarehouse,
-            freeDays: STORAGE_POLICY.freeDays,
-            chargeableDays: status.chargeableDays,
-            perDayUsd: STORAGE_POLICY.perDayUsd,
-            storageUsd: status.chargeUsd,
-            previousStorageUsd: before,
-            newTotal: total,
-            exchangeRate: rate,
-            newTotalLocal: totalLocal,
-          },
-        },
-        tx
-      );
-    });
-
-    revalidatePath(`/app/finance/invoices/${invoice.id}`);
+    revalidatePath(`/app/finance/invoices/${parsed.data.invoiceId}`);
     revalidatePath("/app/collections/follow-up");
     return ok();
   } catch (error) {
@@ -449,6 +249,15 @@ async function waiveOne(
           discount: true,
           exchangeRate: true,
           total: true,
+          /* The consignment the storage took off the shelf — see below. */
+          shipment: {
+            select: {
+              id: true,
+              trackingNumber: true,
+              status: true,
+              pickupNote: { select: { noteNumber: true, status: true } },
+            },
+          },
         },
       });
       if (!fresh) throw new Error(t(locale, "That invoice no longer exists."));
@@ -520,6 +329,22 @@ async function waiveOne(
         );
       }
 
+      /*
+        FORGIVING THE DEBT HAS TO GIVE THE CARGO BACK.
+
+        The storage that reopened this bill pulled the consignment off the
+        shelf; waiving it settled the bill and left the boxes standing there,
+        so the counter went on refusing a customer who owed nothing. Paying
+        has always put them back — this is the same thing for the other way a
+        balance can reach zero.
+      */
+      const freed = await releaseCargoIfSettled(tx, {
+        shipment: fresh.shipment,
+        nextStatus,
+        actorId: user.id,
+        reason: `Storage waived. Pickup note ${fresh.shipment?.pickupNote?.noteNumber ?? ""} stands.`.trim(),
+      });
+
       await recordAudit(
         {
           actor: user,
@@ -536,6 +361,7 @@ async function waiveOne(
             chargeableDays: status.chargeableDays,
             waivedUsd: waived,
             reason: reason,
+            cargoReleased: freed,
             newTotal: total,
             exchangeRate: rate,
             newTotalLocal: totalLocal,

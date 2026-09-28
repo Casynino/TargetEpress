@@ -572,7 +572,33 @@ function CargoFacts({
           </div>
         ) : null}
 
-        {note && note.status === "ACTIVE" ? (
+        {/*
+          A GREEN PANEL IS PERMISSION, AND THIS BILL IS NOT SETTLED.
+
+          The note says what the customer paid the day it was issued, which is
+          true and, on a consignment the storage meter has since reopened, the
+          single most misleading thing on the screen: a full-width green
+          "Payment — settled in full" under a red refusal. The days it has
+          stood here take its place until somebody settles them.
+        */}
+        {target.storage ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-destructive/50 bg-destructive/10 px-4 py-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-destructive/80">
+                {t("Storage")}
+              </p>
+              <p className="font-display text-lg font-bold leading-tight text-destructive">
+                {target.storage.owed !== undefined && target.storage.currency
+                  ? formatMoney(target.storage.owed, target.storage.currency)
+                  : t("Owing — do not release")}
+              </p>
+            </div>
+            <p className="text-right text-xs text-destructive/80">
+              {target.storage.days} {t("day(s) beyond the free week")}
+              <span className="block">{t("Finance settles this")}</span>
+            </p>
+          </div>
+        ) : note && note.status === "ACTIVE" ? (
           /*
             Only while the note is live.
 

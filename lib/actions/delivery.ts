@@ -8,6 +8,9 @@ import { packageProgress, resolveScannedCode } from "@/lib/packages";
 import { findPickupLock, pickupLockMessage } from "@/lib/pickup-lock";
 import { prisma } from "@/lib/prisma";
 import { filesFrom, putImages } from "@/lib/storage";
+import { runStorageMeter } from "@/lib/storage-meter";
+import { toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { authorize, type SessionUser } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -228,6 +231,43 @@ export async function releaseShipment(
     return fail(t(locale, toActionError(error)));
   }
 
+  /*
+    THE METER IS BROUGHT UP TO DATE BEFORE THE DECISION, NOT AFTER IT.
+
+    The nightly sweep does this for the whole floor, and a consignment
+    collected at ten in the morning has had a night's charging since. More to
+    the point, a sweep that failed, or a day the scheduler was down, must not
+    be the reason a customer walks out without paying for the days the boxes
+    stood here. So the one consignment in front of the counter is re-derived
+    right now, and the guards below then read a bill that is true.
+
+    Nothing accumulates: re-deriving twice in a minute writes the same figure
+    twice. Recorded as the meter rather than as the clerk — the clerk did not
+    decide anything, they scanned a label.
+  */
+  const settling =
+    scanned?.shipmentId ??
+    (input.pickupNoteId
+      ? ((
+          await prisma.pickupNote.findUnique({
+            where: { id: input.pickupNoteId },
+            select: { shipmentId: true },
+          })
+        )?.shipmentId ?? null)
+      : null);
+  if (settling) {
+    try {
+      await runStorageMeter({ shipmentId: settling });
+    } catch (error) {
+      /* Never the reason a handover cannot be recorded. The guards below read
+         whatever the bill says, which is the figure before this run. */
+      console.error("The storage meter failed at the counter", {
+        shipmentId: settling,
+        error,
+      });
+    }
+  }
+
   try {
     const trackingNumber = await prisma.$transaction(async (tx) => {
       /**
@@ -257,6 +297,21 @@ export async function releaseShipment(
               trackingNumber: true,
               status: true,
               packageType: true,
+              /* So a refusal can say WHAT is owed, rather than "not cleared".
+                 The counter cannot settle it and must not try; naming the
+                 figure is what sends the customer to Finance instead of into
+                 an argument with the clerk. */
+              invoice: {
+                select: {
+                  invoiceNumber: true,
+                  currency: true,
+                  total: true,
+                  amountPaid: true,
+                  amountAdjusted: true,
+                  storageCharge: true,
+                  storageDays: true,
+                },
+              },
               packageList: {
                 select: {
                   id: true,
@@ -314,6 +369,28 @@ export async function releaseShipment(
         );
       }
       if (note.shipment.status !== "READY_FOR_PICKUP") {
+        /*
+          A STORAGE BALANCE IS SAID IN SO MANY WORDS.
+
+          "This cargo is not cleared for release" is true and useless: the
+          clerk cannot tell a customer why, the customer believes they have
+          paid — and they HAVE paid, for the freight — and the desk has no
+          idea who to send them to. Where what reopened the bill is the
+          storage meter, the refusal names the figure and the desk.
+
+          The warehouse cannot waive it. That permission is Finance's and the
+          counter's, and it is deliberately not the warehouse's: the person
+          holding the box is the last person who should be deciding whether
+          the late days are collected.
+        */
+        const bill = note.shipment.invoice;
+        const owing = bill ? outstandingOf(bill) : 0;
+        const storage = bill ? toNumber(bill.storageCharge) : 0;
+        if (bill && owing > 0.005 && storage > 0.005) {
+          throw new Error(
+            `${t(locale, "STORAGE BALANCE — DO NOT RELEASE")}. ${bill.currency} ${owing.toFixed(2)} ${t(locale, "is owing on")} ${bill.invoiceNumber} — ${bill.storageDays} ${t(locale, "day(s) of storage beyond the free week")}. ${t(locale, "The customer settles this with Finance before the cargo leaves.")}`
+          );
+        }
         throw new Error(t(locale, "This cargo is not cleared for release."));
       }
 
