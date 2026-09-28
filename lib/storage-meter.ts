@@ -108,7 +108,9 @@ export async function runStorageMeter(
     const owed =
       Math.max(0, days - STORAGE_POLICY.freeDays + 1) * STORAGE_POLICY.perDayUsd;
     if (owed <= 0) continue;
-    if (Math.abs(toNumber(bill.storageCharge) - owed) < 0.005) continue;
+    /* Already right, or already carrying more than the policy — see
+       neverLower. Both are left exactly as they are. */
+    if (toNumber(bill.storageCharge) >= owed - 0.005) continue;
 
     if (dryRun) {
       run.charged.push({
@@ -122,6 +124,7 @@ export async function runStorageMeter(
     try {
       const outcome = await chargeStorageOn(bill.id, actor, "en", {
         respectWaiver: true,
+        neverLower: true,
       });
       if (outcome.charged) {
         run.charged.push({
@@ -146,4 +149,113 @@ export async function runStorageMeter(
   }
 
   return run;
+}
+
+/**
+ * EVERY CONSIGNMENT THE METER IS COUNTING, READ-ONLY.
+ *
+ * The same population the sweep works on, for the screen that shows it. It
+ * writes nothing: this is what Finance reads before deciding, and what the
+ * owner reads to see the storage the floor is carrying.
+ *
+ * Waived consignments stay in the list. A screen that hid them would answer
+ * "why is that box not being charged" with silence, which is the question an
+ * auditor asks first.
+ */
+export type StorageDueRow = {
+  shipmentId: string;
+  trackingNumber: string;
+  customerName: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  arrivedAt: Date | null;
+  daysHeld: number;
+  chargeableDays: number;
+  /** What the policy says today. */
+  owedUsd: number;
+  /** What the bill already carries. */
+  onBillUsd: number;
+  waivedUsd: number;
+  currency: string;
+  exchangeRate: number | null;
+  outstandingUsd: number;
+  /**
+   * The customer has paid, holds a live note and may collect right now — so
+   * putting this storage on the bill takes the cargo back off the shelf and
+   * they will be turned away at the counter. The number that matters more
+   * than the money on the first day a meter runs.
+   */
+  clearedForPickup: boolean;
+};
+
+export async function storageDue(): Promise<StorageDueRow[]> {
+  const bills = await prisma.invoice.findMany({
+    where: {
+      status: { notIn: ["DRAFT", "VOID", "WRITTEN_OFF"] },
+      shipment: {
+        arrivedAt: { not: null, lte: storageChargingSince() },
+        deliveredAt: null,
+      },
+    },
+    select: {
+      id: true,
+      invoiceNumber: true,
+      currency: true,
+      exchangeRate: true,
+      total: true,
+      amountPaid: true,
+      amountAdjusted: true,
+      storageCharge: true,
+      storageWaivedUsd: true,
+      customer: { select: { name: true } },
+      shipment: {
+        select: {
+          id: true,
+          trackingNumber: true,
+          status: true,
+          arrivedAt: true,
+          pickupNote: { select: { status: true } },
+        },
+      },
+    },
+  });
+
+  const rows: StorageDueRow[] = [];
+  for (const bill of bills) {
+    const arrivedAt = bill.shipment?.arrivedAt ?? null;
+    const daysHeld = arrivedAt
+      ? Math.max(0, Math.floor((Date.now() - arrivedAt.getTime()) / 86_400_000))
+      : 0;
+    const chargeableDays = Math.max(0, daysHeld - STORAGE_POLICY.freeDays + 1);
+    if (chargeableDays <= 0) continue;
+    const onBillUsd = toNumber(bill.storageCharge);
+    const outstandingUsd =
+      toNumber(bill.total) - toNumber(bill.amountPaid) - toNumber(bill.amountAdjusted);
+    rows.push({
+      shipmentId: bill.shipment!.id,
+      trackingNumber: bill.shipment!.trackingNumber,
+      customerName: bill.customer?.name ?? "—",
+      invoiceId: bill.id,
+      invoiceNumber: bill.invoiceNumber,
+      arrivedAt,
+      daysHeld,
+      chargeableDays,
+      owedUsd: chargeableDays * STORAGE_POLICY.perDayUsd,
+      onBillUsd,
+      waivedUsd: toNumber(bill.storageWaivedUsd),
+      currency: bill.currency,
+      exchangeRate:
+        bill.exchangeRate === null ? null : toNumber(bill.exchangeRate),
+      outstandingUsd,
+      clearedForPickup:
+        bill.shipment!.status === "READY_FOR_PICKUP" &&
+        bill.shipment!.pickupNote?.status === "ACTIVE" &&
+        outstandingUsd <= 0.005,
+    });
+  }
+
+  /* Longest-standing first: the boxes that have been here most days are the
+     ones somebody should be ringing about. */
+  rows.sort((a, b) => b.chargeableDays - a.chargeableDays);
+  return rows;
 }

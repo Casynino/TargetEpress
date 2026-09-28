@@ -212,6 +212,17 @@ const SECTIONS: NavSection[] = [
         icon: "Banknote",
         permission: "accounting.view",
       },
+      {
+        /* Beside Collections, because they are the same job from two ends:
+           that one chases money for cargo that has gone, this one watches
+           cargo that has not. The meter charges by itself — what this row is
+           for is seeing what is standing, and who is about to be turned away
+           at the counter over it. */
+        href: "/app/finance/storage",
+        label: "Storage",
+        icon: "Warehouse",
+        permission: "accounting.view",
+      },
     ],
   },
   {
@@ -581,6 +592,17 @@ const FINANCE_SECTIONS: NavSection[] = [
         href: "/app/finance/received",
         label: "Income",
         icon: "Banknote",
+        permission: "accounting.view",
+      },
+      {
+        /* Beside Collections, because they are the same job from two ends:
+           that one chases money for cargo that has gone, this one watches
+           cargo that has not. The meter charges by itself — what this row is
+           for is seeing what is standing, and who is about to be turned away
+           at the counter over it. */
+        href: "/app/finance/storage",
+        label: "Storage",
+        icon: "Warehouse",
         permission: "accounting.view",
       },
       // Collections is both a row here and a tab inside the General ledger, at
@@ -986,6 +1008,7 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode", permission: "pickupNote.view" },
       { href: "/app/finance", label: "Overview", icon: "Wallet", permission: "accounting.view" },
       { href: "/app/finance/received", label: "Income", icon: "Banknote", permission: "accounting.view" },
+      { href: "/app/finance/storage", label: "Storage", icon: "Warehouse", permission: "accounting.view" },
       /* Off the tab row and into the menu — see the note in FINANCE_SECTIONS.
          The owner reads all six; with the pills gone, a row each is the only
          way to any of them. */
@@ -1110,6 +1133,7 @@ const MANAGER_SECTIONS: NavSection[] = [
          question — the answer, not the summary. */
       { href: "/app/finance", label: "Overview", icon: "Wallet" },
       { href: "/app/finance/received", label: "Income", icon: "Banknote" },
+      { href: "/app/finance/storage", label: "Storage", icon: "Warehouse" },
       { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
       { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp" },
       { href: "/app/manager/reconciliation", label: "Reconciliation", icon: "Scale" },

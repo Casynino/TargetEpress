@@ -89,6 +89,20 @@ export async function chargeStorageOn(
      * false, which is the whole point of that button.
      */
     respectWaiver: boolean;
+    /**
+     * NEVER TAKE STORAGE OFF A BILL THAT ALREADY CARRIES MORE.
+     *
+     * The owner's rule, in his words: storage is continuous, "never
+     * duplicated, restarted, or manually re-added" — and a sweep that wrote
+     * the policy figure over a LARGER one already on the bill would be
+     * restarting it downwards, quietly reversing a figure somebody agreed
+     * with a customer. Lowering a charge is a decision; the meter makes none.
+     *
+     * The nightly run passes true. A desk pressing "Charge it after all"
+     * passes false, because putting the policy figure back is exactly what
+     * that button is for.
+     */
+    neverLower: boolean;
   }
 ): Promise<StorageChargeOutcome> {
   const found = await currentStorage(invoiceId);
@@ -114,6 +128,12 @@ export async function chargeStorageOn(
   }
 
   const before = toNumber(invoice.storageCharge);
+  if (opts.neverLower && before > status.chargeUsd + 0.005) {
+    return {
+      charged: false,
+      reason: t(locale, "The bill already carries more storage than the policy."),
+    };
+  }
   if (before === status.chargeUsd && toNumber(invoice.storageWaivedUsd) === 0) {
     return {
       charged: false,

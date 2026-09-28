@@ -157,7 +157,16 @@ export function StorageDecision({
               waiting. Full width and thumb-tall below sm; the desk keeps its
               compact inline pair. */}
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            {accruedUsd > 0 && chargedUsd !== accruedUsd ? (
+            {/*
+              NOBODY ADDS STORAGE BY HAND ANY MORE.
+
+              The owner's rule: storage is continuous and "never manually
+              re-added" — the meter puts it on every night and again whenever
+              the warehouse scans a box, so a button that did it too was a
+              second hand on the same dial. What is left is the one case that
+              IS a decision: putting back a fee somebody waived.
+            */}
+            {waivedUsd > 0 && accruedUsd > 0 ? (
               <form action={charge}>
                 <input type="hidden" name="invoiceId" value={invoiceId} />
                 <SubmitButton
@@ -165,9 +174,7 @@ export function StorageDecision({
                   className="h-11 w-full px-2.5 text-[11px] sm:h-7 sm:w-auto"
                 >
                   <BadgeCheck className="mr-1.5 h-3.5 w-3.5" />
-                  {waivedUsd > 0
-                    ? `${t("Charge it after all")} · ${money(accruedUsd)}`
-                    : `${t("Add storage fee")} · ${money(accruedUsd)}`}
+                  {`${t("Charge it after all")} · ${money(accruedUsd)}`}
                 </SubmitButton>
               </form>
             ) : null}

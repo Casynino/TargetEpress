@@ -341,7 +341,7 @@ async function describe(
         */
         verdict = {
           tone: "block",
-          headline: t(locale, "STORAGE BALANCE — DO NOT RELEASE"),
+          headline: t(locale, "STORAGE OUTSTANDING — DO NOT RELEASE"),
           detail: `${shipment.invoice!.storageDays} ${t(locale, "day(s) of storage beyond the free week")}${
             showMoney
               ? ` · ${shipment.invoice!.currency} ${(outstanding ?? 0).toFixed(2)}`

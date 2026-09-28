@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { recordAudit, withNote } from "@/lib/audit";
 import { releaseCargoIfSettled } from "@/lib/cargo-hold";
+import { runStorageMeter } from "@/lib/storage-meter";
 import { chargeStorageOn, currentStorage } from "@/lib/storage-charge";
 import { toNumber } from "@/lib/format";
 import { toLocal } from "@/lib/fx";
@@ -118,7 +119,7 @@ export async function chargeStorageFee(
       /* A desk pressing this IS the decision to charge after all — see the
          option's own note. The nightly meter is the one that leaves a
          waived bill alone. */
-      { respectWaiver: false }
+      { respectWaiver: false, neverLower: false }
     );
     if (!outcome.charged) return fail(outcome.reason);
 
@@ -373,6 +374,31 @@ async function waiveOne(
 
     revalidatePath(`/app/finance/invoices/${invoice.id}`);
     return null;
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
+
+/**
+ * BRING EVERY BILL UP TO TODAY, NOW.
+ *
+ * The meter runs itself nightly and at the counter, so this button is not how
+ * storage gets charged — it is how somebody who is looking at the screen
+ * stops waiting for the small hours. Same code, same figures, and running it
+ * twice changes nothing the second time.
+ */
+export async function updateStorageNow(): Promise<ActionResult<{ charged: number; usd: number }>> {
+  const locale = await viewerLocale();
+  try {
+    const user = await authorize("invoice.edit");
+    const run = await runStorageMeter({ actor: user });
+    revalidatePath("/app/finance/storage");
+    revalidatePath("/app/collections/follow-up");
+    return ok({
+      charged: run.charged.length,
+      usd: run.charged.reduce((sum, c) => sum + c.usd, 0),
+    });
   } catch (error) {
     return fail(t(locale, toActionError(error)));
   }

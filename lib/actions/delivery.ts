@@ -388,7 +388,7 @@ export async function releaseShipment(
         const storage = bill ? toNumber(bill.storageCharge) : 0;
         if (bill && owing > 0.005 && storage > 0.005) {
           throw new Error(
-            `${t(locale, "STORAGE BALANCE — DO NOT RELEASE")}. ${bill.currency} ${owing.toFixed(2)} ${t(locale, "is owing on")} ${bill.invoiceNumber} — ${bill.storageDays} ${t(locale, "day(s) of storage beyond the free week")}. ${t(locale, "The customer settles this with Finance before the cargo leaves.")}`
+            `${t(locale, "STORAGE OUTSTANDING — DO NOT RELEASE")}. ${bill.currency} ${owing.toFixed(2)} ${t(locale, "is owing on")} ${bill.invoiceNumber} — ${bill.storageDays} ${t(locale, "day(s) of storage beyond the free week")}. ${t(locale, "The customer settles this with Finance before the cargo leaves.")}`
           );
         }
         throw new Error(t(locale, "This cargo is not cleared for release."));
