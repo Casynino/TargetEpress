@@ -635,7 +635,10 @@ export default async function FollowUpPage({
                     and a worded link under the tracking number made the column
                     three lines tall on every row of a hundred-row queue.
                   */}
-                  {row.invoiceId && row.agreedRate !== null ? (
+                  {/* Also where only the kilos moved: the badge now says
+                      which of the two happened, and a re-weighed consignment
+                      that nobody agreed a rate on used to say nothing at all. */}
+                  {row.invoiceId ? (
                     <AgreedRate
                       standard={row.standardRate}
                       agreed={row.agreedRate}
@@ -643,6 +646,9 @@ export default async function FollowUpPage({
                       perItem={row.ratePerItem}
                       bookPerItem={row.bookPerItem}
                       reason={row.agreedRateReason}
+                      weightBefore={row.declaredWeightKg}
+                      weightNow={row.weightKg}
+                      pricedOnKg={row.pricedOnKg}
                       compact
                       className="mt-1"
                     />

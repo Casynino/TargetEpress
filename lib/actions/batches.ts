@@ -13,7 +13,7 @@ import {
   ORIGIN_LABELS,
   PACKAGE_TYPE_LABELS,
 } from "@/lib/constants";
-import { autoPriceShipments } from "@/lib/auto-price";
+import { repriceForWeight } from "@/lib/reprice-weight";
 import { recordAudit, withNote } from "@/lib/audit";
 import { CLOSEABLE_FROM, batchOwing, buildStatement } from "@/lib/batch-close";
 import { toNumber } from "@/lib/format";
@@ -882,7 +882,12 @@ async function priceAfterCheckIn(
 ): Promise<boolean> {
   if (shipmentIds.length === 0) return true;
   try {
-    await autoPriceShipments(shipmentIds, actorId);
+    /* Through repriceForWeight rather than autoPriceShipments directly: a
+       consignment checked in a second time with a corrected weight has to
+       move a bill Finance already confirmed, and that is the one thing
+       auto-pricing refuses to do. Drafts are priced by exactly the same code
+       underneath — nothing about a first check-in changes. */
+    await repriceForWeight(shipmentIds, actorId);
     return true;
   } catch (error) {
     console.error("Auto-pricing failed after a Dar check-in", {

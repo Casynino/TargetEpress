@@ -6108,6 +6108,8 @@ const ZH: Record<string, string> = {
   "Boxes today": "今日箱数",
   "Show only": "只看",
   "Price changed": "价格已改",
+  "Weight changed": "重量已更改",
+  "Weight & price changed": "重量和价格已更改",
   "per pc": "每件",
   "normal price not recorded": "标准价未记录",
   "To close this account, first set its opening balance — even if it was zero — so money that was in it before the system started is not lost.":

@@ -29,6 +29,9 @@ export function AgreedRate({
   perItem = false,
   bookPerItem,
   reason = null,
+  weightBefore = null,
+  weightNow = null,
+  pricedOnKg = null,
   compact = false,
   className = "",
 }: {
@@ -44,13 +47,40 @@ export function AgreedRate({
   bookPerItem?: boolean;
   /** Why, when the desk gave a reason. */
   reason?: string | null;
+  /**
+   * WHAT THE CARGO WEIGHED WHEN IT WAS BOOKED, AND WHAT IT WEIGHS NOW.
+   *
+   * A price that moved because the warehouse put the box on a scale is a
+   * different event from a price somebody agreed, and the owner asked for the
+   * two to be told apart on sight: weight changed, price changed, or both.
+   * Both null — which is every consignment nobody has re-weighed — and this
+   * says nothing about weight at all.
+   */
+  weightBefore?: number | null;
+  weightNow?: number | null;
+  /**
+   * The weight the BILL was worked out on — the chargeable figure, so the
+   * 1 kg minimum is already in it.
+   *
+   * This is what tells "the kilos moved and the price followed" from "the
+   * kilos moved and the price did not": a bill nobody could re-price, because
+   * the customer has already paid it, is still standing on the old figure.
+   */
+  pricedOnKg?: number | null;
   /** One small line for a list row: the same three facts, the explanation
       and the reason on hover. The full box is for a panel with room. */
   compact?: boolean;
   className?: string;
 }) {
   const t = useT();
-  if (agreed === null) return null;
+  /* The kilos moved if we know both figures and they differ by more than a
+     rounding. Guangzhou's declared weight is frozen the first time Dar writes
+     its own over it, so this is a real before-and-after, not a guess. */
+  const weightMoved =
+    weightBefore !== null &&
+    weightNow !== null &&
+    Math.abs(weightBefore - weightNow) > 0.005;
+  if (agreed === null && !weightMoved) return null;
 
   const unit = perItem ? t("per item") : t("per kg");
   const bookByItem = bookPerItem ?? perItem;
@@ -66,7 +96,7 @@ export function AgreedRate({
   */
   const switched = perItem !== bookByItem;
   const off =
-    standard === null || switched
+    standard === null || agreed === null || switched
       ? null
       : Math.round((standard - agreed) * 100) / 100;
 
@@ -93,14 +123,54 @@ export function AgreedRate({
     ]
       .filter(Boolean)
       .join(" · ");
+    /*
+      WHAT CHANGED, IN THE HEADLINE.
+
+      Three states and the owner named all three: the kilos moved and the
+      price followed, the kilos moved and the price did not, or a rate was
+      agreed with nothing to do with weight. The reader should not have to
+      read the figures to work out which of the three they are looking at.
+    */
+    /* Which figure the bill is standing on. Chargeable, so a 0.4 kg parcel
+       billed at the 1 kg minimum is not read as a bill that ignored the
+       scale. Unknown means we cannot claim the price followed. */
+    const chargeable = (kg: number) => Math.max(kg, 1);
+    const priceFollowed =
+      weightMoved &&
+      pricedOnKg !== null &&
+      Math.abs(pricedOnKg - chargeable(weightNow!)) <=
+        Math.abs(pricedOnKg - chargeable(weightBefore!));
+    const headline = weightMoved
+      ? priceFollowed
+        ? t("Weight & price changed")
+        : t("Weight changed")
+      : t("Price changed");
     return (
       <span
         title={detail}
         className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] leading-4 tabular-nums ${className}`}
       >
         <Tag className="h-3 w-3 shrink-0 text-brand" aria-hidden />
-        <span className="font-medium text-brand">{t("Price changed")}:</span>
-        {standard !== null ? (
+        <span className="font-medium text-brand">{headline}:</span>
+        {weightMoved ? (
+          <>
+            <span className="text-muted-foreground">
+              {weightBefore!.toFixed(weightBefore! % 1 === 0 ? 0 : 1)} kg
+            </span>
+            <span className="text-muted-foreground" aria-hidden>
+              →
+            </span>
+            <span className="font-semibold text-foreground">
+              {weightNow!.toFixed(weightNow! % 1 === 0 ? 0 : 1)} kg
+            </span>
+          </>
+        ) : null}
+        {weightMoved && agreed !== null ? (
+          <span className="text-muted-foreground" aria-hidden>
+            ·
+          </span>
+        ) : null}
+        {agreed !== null && standard !== null ? (
           <>
             <span className="text-muted-foreground">
               {currency} {standard.toFixed(2)} {short(bookByItem)}
@@ -110,15 +180,21 @@ export function AgreedRate({
             </span>
           </>
         ) : null}
-        <span className="font-semibold text-foreground">
-          {currency} {agreed.toFixed(2)} {short(perItem)}
-        </span>
-        {standard === null ? (
+        {agreed !== null ? (
+          <span className="font-semibold text-foreground">
+            {currency} {agreed.toFixed(2)} {short(perItem)}
+          </span>
+        ) : null}
+        {agreed !== null && standard === null ? (
           <span className="text-muted-foreground">({t("normal price not recorded")})</span>
         ) : null}
       </span>
     );
   }
+
+  /* The full box explains an agreed rate. A re-weigh with no agreement has
+     nothing for it to say, and the compact line above already said it. */
+  if (agreed === null) return null;
 
   return (
     <div

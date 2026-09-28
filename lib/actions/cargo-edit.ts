@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 
-import { autoPriceShipments } from "@/lib/auto-price";
+import { repriceForWeight } from "@/lib/reprice-weight";
 import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
 import { PACKAGE_TYPE_LABELS } from "@/lib/constants";
-import { normalisePhone } from "@/lib/format";
+import { normalisePhone, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { packageReference } from "@/lib/ids";
 import { generateQrToken } from "@/lib/ids";
@@ -149,6 +149,10 @@ export async function updateCargo(
         status: true,
         description: true,
         weightKg: true,
+        /* What was on the record before anybody re-weighed it. Frozen the
+           first time a figure is written over, here as at check-in, so a
+           screen can say "weight changed" and print both. */
+        declaredWeightKg: true,
         packages: true,
         packageType: true,
         internalNotes: true,
@@ -324,6 +328,20 @@ export async function updateCargo(
           ...translationColumns("description", describedAs),
           description: input.description,
           weightKg: input.weightKg,
+          /*
+            THE FIGURE BEING REPLACED IS KEPT, ONCE.
+
+            The first correction is the one that matters: after it, `weightKg`
+            is somebody's own count and the packing-list figure is gone unless
+            it was put aside here. Only when nothing has been kept yet —
+            cargo checked in before this floor started recording its own
+            count — so a second correction cannot overwrite the original claim
+            with the first correction's.
+          */
+          ...(before.declaredWeightKg === null &&
+          Math.abs(toNumber(before.weightKg) - input.weightKg) > 0.005
+            ? { declaredWeightKg: before.weightKg }
+            : {}),
           packages: input.packages,
           packageType: input.packageType,
           ...translationColumns("internalNotes", notedAs),
@@ -472,26 +490,35 @@ export async function updateCargo(
       the weight Guangzhou typed — silently, with the right number on the cargo
       page and the wrong one on the customer's bill.
 
-      autoPriceShipments refuses to touch anything that is not still a DRAFT,
-      so a confirmed bill and a paid one are untouched: correcting those is
-      Finance's, through a discount or an adjustment, and must never happen by
-      somebody editing a weight.
+      A bill with nothing paid on it is re-priced from the new kilos, agreed
+      rate and all — the owner's rule, because a warehouse correcting a weight
+      must never have to go and change a price by hand as well. A bill with
+      money against it is NOT touched: a difference there is a refund or a
+      fresh demand, which is Finance's decision, and the caller is told so it
+      can be said on screen.
 
       Outside the transaction and unable to fail the edit — the same rule
       check-in follows. The record is already saved; a pricing engine having a
       bad moment must not tell the clerk their correction did not happen.
     */
-    const repriced =
-      changes.some((c) => c.field === "weightKg" || c.field === "packages")
-        ? await autoPriceShipments([before.id], user.id).catch(() => null)
-        : null;
+    const weighed = changes.some(
+      (c) => c.field === "weightKg" || c.field === "packages"
+    );
+    const repriced = weighed
+      ? await repriceForWeight([before.id], user.id).catch(() => null)
+      : null;
+    const billMoved = repriced?.moved[0] ?? null;
+    const billHeld = repriced?.held[0] ?? null;
 
     revalidatePath(`/app/cargo/${before.trackingNumber}`);
     revalidatePath("/app/batches");
     revalidatePath("/app/finance");
     return ok({
       trackingNumber: before.trackingNumber,
-      repriced: (repriced?.priced ?? 0) > 0,
+      repriced: (repriced?.drafts.priced ?? 0) > 0 || billMoved !== null,
+      /* What the bill did, in the words the screen says it in. */
+      billMoved,
+      billHeld,
     });
   } catch (error) {
     return fail(toActionError(error));

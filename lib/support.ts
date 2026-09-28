@@ -331,6 +331,14 @@ export type FollowUpRow = {
   /** Off the cargo record, for the customer's message. */
   weightKg: number | null;
   /**
+   * What Guangzhou declared, where Dar has since weighed it itself. The queue
+   * says "weight changed" from these two, so a bill that moved because a box
+   * went on a scale reads as that rather than as somebody agreeing a price.
+   */
+  declaredWeightKg: number | null;
+  /** The chargeable weight the bill was worked out on. */
+  pricedOnKg: number | null;
+  /**
    * How the freight figure was reached, ready to print: "USD 13.50/KG
    * (Minimum 1 KG)". Composed where the quote is read rather than at each
    * screen, so no two messages state the same rate differently.
@@ -458,6 +466,9 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       // The customer must be told what their cargo weighs, and nobody at a
       // desk should be typing it.
       weightKg: true,
+      /* And what the packing list claimed, frozen the first time Dar wrote
+         its own figure over it — the before half of "weight changed". */
+      declaredWeightKg: true,
       /* And the rate it was charged at, for the same reason. The customer
          could see the amount but never the arithmetic between the weight and
          it, so the figure arrived as something to be taken on trust.
@@ -634,6 +645,12 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       arrivedAt: shipment.arrivedAt?.toISOString() ?? null,
       daysInWarehouse: shipment.arrivedAt ? daysBetween(shipment.arrivedAt) : 0,
       weightKg: shipment.weightKg === null ? null : toNumber(shipment.weightKg),
+      declaredWeightKg:
+        shipment.declaredWeightKg === null
+          ? null
+          : toNumber(shipment.declaredWeightKg),
+      pricedOnKg:
+        shipment.chargeableKg === null ? null : toNumber(shipment.chargeableKg),
       /* With the bill, so the call list and the message it sends quote
          the rate the customer is actually being charged. */
       freightBasis: freightBasisOf(shipment, invoice),
@@ -768,6 +785,8 @@ function creditFollowUpRow(r: CreditRow): FollowUpRow {
     arrivedAt: null,
     daysInWarehouse: 0,
     weightKg: null,
+    declaredWeightKg: null,
+    pricedOnKg: null,
     /* The consignment behind a credit has usually gone, and the quote went
        with it — the bill is what is outstanding. */
     freightBasis: null,
