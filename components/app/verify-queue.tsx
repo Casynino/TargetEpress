@@ -14,6 +14,7 @@ import { verifySubmissions } from "@/lib/actions/submission-bulk";
 import { rateFactsOf } from "@/lib/agreed-rate";
 import { rateSwitchesFor } from "@/lib/rate-basis";
 import { activeAccounts } from "@/lib/accounts";
+import { bookedWeights } from "@/lib/weight-changes";
 import { claimBatches, shortfallBill, submissionQueue } from "@/lib/collections";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { outstandingOf } from "@/lib/invoice-balance";
@@ -65,6 +66,15 @@ export async function VerifyQueue() {
     activeAccounts(),
     currentRateValue(),
   ]);
+
+  /* What each of these consignments was booked at, where the floor has since
+     weighed it itself — one query for the queue, so the desk agreeing that
+     money arrived can see the figure moved because of a scale. */
+  const booked = await bookedWeights(
+    rows
+      .map((row) => row.invoice?.shipment?.id)
+      .filter((id): id is string => typeof id === "string")
+  );
 
   /*
     THE SAME TWO CARDS THE DESK THAT RAISED THESE ALREADY SEES.
@@ -548,6 +558,18 @@ export async function VerifyQueue() {
                             : {
                                 ...rateFactsOf(row.invoice, row.invoice.shipment),
                                 ...switches.get(row.id),
+                                /* And whether the figure moved because the
+                                   floor re-weighed it, which is the question
+                                   the customer on the phone will ask. */
+                                bookedKg:
+                                  row.invoice.shipment.declaredWeightKg === null
+                                    ? (booked.get(row.invoice.shipment.id) ?? null)
+                                    : toNumber(row.invoice.shipment.declaredWeightKg),
+                                weighsKg: toNumber(row.invoice.shipment.weightKg),
+                                pricedOnKg:
+                                  row.invoice.shipment.chargeableKg === null
+                                    ? null
+                                    : toNumber(row.invoice.shipment.chargeableKg),
                               }),
                         }}
                         accounts={accounts.map((a) => ({

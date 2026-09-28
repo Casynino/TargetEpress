@@ -112,6 +112,17 @@ export function VerifySubmission({
     agreedQuantity: number | null;
     /** The rate book's freight actually on the bill, where it was read. */
     bookFreight: number | null;
+    /**
+     * WHAT THE CARGO WEIGHED WHEN IT WAS BOOKED, AND WHAT IT WEIGHS NOW.
+     *
+     * The desk agreeing that money arrived has to know the figure moved
+     * because the warehouse put the box on a scale — it is the difference
+     * between a price somebody agreed and a price the rate book re-did, and
+     * the customer on the phone will ask about exactly that.
+     */
+    bookedKg?: number | null;
+    weighsKg?: number | null;
+    pricedOnKg?: number | null;
   } | null;
   accounts: { id: string; name: string; currency: string }[];
   /**
@@ -512,6 +523,10 @@ export function VerifySubmission({
             perItem={bill.ratePerItem}
             bookPerItem={bill.bookPerItem}
             reason={bill.agreedRateReason}
+            weightBefore={bill.bookedKg}
+            weightNow={bill.weighsKg}
+            pricedOnKg={bill.pricedOnKg}
+            compact
           />
         ) : null}
 

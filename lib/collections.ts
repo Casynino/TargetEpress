@@ -304,6 +304,11 @@ export async function submissionQueue(
               quotedMethod: true,
               chargeableKg: true,
               weightKg: true,
+              /* And whether the floor re-weighed it, so the desk agreeing the
+                 money can see why the figure moved. `id` for the history
+                 lookup that answers it for cargo older than the column. */
+              id: true,
+              declaredWeightKg: true,
               packages: true,
               /* Which per-kilo rule the rate switch would price on. */
               cargoCategory: true,

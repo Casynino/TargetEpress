@@ -145,7 +145,7 @@ export function PriceChangeNotice({
         {netZero
           ? t("This price was changed and put back")
           : automatic
-            ? t("The weight changed, so the price did")
+            ? t("KG changed — price affected")
             : t("This price was changed")}
       </p>
 

@@ -140,10 +140,14 @@ export function AgreedRate({
       pricedOnKg !== null &&
       Math.abs(pricedOnKg - chargeable(weightNow!)) <=
         Math.abs(pricedOnKg - chargeable(weightBefore!));
+    /* The owner's own words for it: "KG Changed — Price Affected". Said that
+       way only where the price really did follow — on a bill somebody has
+       already paid it cannot, and claiming otherwise on the one line Finance
+       reads before ringing a customer would be a lie about money. */
     const headline = weightMoved
       ? priceFollowed
-        ? t("Weight & price changed")
-        : t("Weight changed")
+        ? t("KG changed — price affected")
+        : t("KG changed — price unchanged")
       : t("Price changed");
     return (
       <span
