@@ -168,6 +168,23 @@ export function RowPriceEditor({
     setOff(discount ? String(discount) : "");
     setOpen(true);
   };
+  /*
+    THE AGREEMENT IS ON ITS WAY OUT.
+
+    Both boxes empty on a consignment that carries an agreed rate: the server
+    will price it from the book, because that is what an empty rate means.
+    Worth saying out loud precisely because it is not what "I did not type
+    anything" usually means.
+  */
+  const droppingAgreement =
+    agreedRate !== null &&
+    agreedRate !== undefined &&
+    rate.trim() === "" &&
+    freight.trim() === "" &&
+    Math.abs((freightOverride ?? rateBookFreight) - rateBookFreight) > 0.005;
+  /* What the bill charges for freight today — the agreed figure where there
+     is one, so the warning quotes the real before. */
+  const agreedFreightNow = freightOverride ?? rateBookFreight;
   /* A typed rate wins, exactly as it does on the server. */
   const fromRate =
     rate.trim() === "" ? null : Math.round(n(rate) * pricedOn * 100) / 100;
@@ -565,6 +582,35 @@ export function RowPriceEditor({
           </span>
         </p>
 
+        {/*
+          EMPTYING THE RATE BOX IS A PRICE CUT, AND IT HAS TO SAY SO.
+
+          The box is empty by design when nobody wants to type a rate — "leave
+          it empty to price this cargo from the rate book". On a consignment
+          that already CARRIES an agreed rate that sentence has a second
+          meaning nobody reads it for: saving now takes the customer's agreed
+          price away and puts the book's back. The dialog was saying "Current
+          rate 12.90 · Special rate: Yes" at the top while the press underneath
+          would have billed 12.50, and the difference is money the desk
+          promised somebody.
+
+          Said in the figures, not in a warning about figures: what it is now,
+          what it becomes.
+        */}
+        {droppingAgreement ? (
+          <p className="rounded-lg border border-warning/40 bg-warning/10 px-2.5 py-2 text-xs text-warning">
+            <span className="font-semibold">
+              {t("This drops the special rate.")}
+            </span>{" "}
+            {t("Saving now prices this cargo from the rate book:")}{" "}
+            <span className="tabular-nums font-medium">
+              {currency} {agreedFreightNow.toFixed(2)} → {currency}{" "}
+              {rateBookFreight.toFixed(2)}
+            </span>
+            . {t("Type the rate back in to keep it.")}
+          </p>
+        ) : null}
+
         <div className="flex items-center gap-2">
           <SubmitButton
             size="sm"
@@ -572,7 +618,7 @@ export function RowPriceEditor({
             pendingLabel={t("Saving…")}
             disabled={switched && rate.trim() === "" && freight.trim() === ""}
           >
-            {t("Save the price")}
+            {droppingAgreement ? t("Drop it and use the rate book") : t("Save the price")}
           </SubmitButton>
           <button
             type="button"

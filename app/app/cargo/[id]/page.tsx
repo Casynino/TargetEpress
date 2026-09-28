@@ -1,4 +1,6 @@
 import { rateFactsOf } from "@/lib/agreed-rate";
+import { PriceChangeNotice } from "@/components/app/price-change-notice";
+import { RepriceOnWeight } from "@/components/app/reprice-on-weight";
 import { weightBasisOf } from "@/lib/rate-basis";
 import { outstandingOf } from "@/lib/invoice-balance";
 import Image from "next/image";
@@ -112,6 +114,20 @@ export default async function ShipmentDetailPage({
         include: {
           /* Who forgave a storage fee, so the card can say so by name. */
           storageWaivedBy: { select: { name: true } },
+          /*
+            EVERY TIME THIS PRICE MOVED, SO IT CAN BE MOVED BACK.
+
+            The desk that mistypes a rate is standing on this page, not on the
+            invoice — the owner's words: "maybe I make a mistake, I write 12.9
+            instead of 12.5, it should be easy to undo". The row that records
+            the change already keeps what the bill was, so putting it back is
+            offered where the mistake is made.
+          */
+          priceChanges: {
+            orderBy: { changedAt: "desc" },
+            take: 5,
+            include: { changedBy: { select: { name: true } } },
+          },
           // What Customer Support has handed up and Finance has not agreed to
           // yet. Fetched here because this page offers a Record payment form
           // with the full balance pre-filled, and money already in the
@@ -192,6 +208,41 @@ export default async function ShipmentDetailPage({
     rule, and then the switch is not offered at all.
   */
   const rateFacts = rateFactsOf(shipment.invoice, shipment);
+  /* The run of price changes nobody has checked yet, oldest first: where the
+     bill stood before the desk started, and where it stands now. A desk that
+     mistyped and corrected itself is one run, not three. */
+  const priceRun = (shipment.invoice?.priceChanges ?? [])
+    .filter((change) => change.status === "UNSEEN")
+    .sort((a, b) => a.changedAt.getTime() - b.changedAt.getTime());
+  const priceRunStart = priceRun[0];
+  const priceRunLast = priceRun[priceRun.length - 1];
+
+  /*
+    A BILL STANDING ON A WEIGHT THIS CARGO NO LONGER IS.
+
+    From now on a corrected weight re-prices the bill by itself. What that
+    cannot do is reach consignments corrected before it existed: booked at
+    33.5 kg, weighed 94 on the floor, billed on 33.5 because nothing at the
+    time carried the new figure through to the money. Nobody will edit those
+    weights again, so the mismatch is said here with the press that fixes it.
+
+    Only where weight is what the price is made of — a per-item rate is
+    multiplied by pieces and a heavier box changes nothing — and only where
+    the bill can still be moved, which is a bill nobody has paid.
+  */
+  const billedOnKg =
+    rateFacts.ratePerItem || shipment.quotedMethod === "FIXED_PER_ITEM"
+      ? null
+      : (rateFacts.agreedQuantity ??
+        (shipment.chargeableKg === null ? null : toNumber(shipment.chargeableKg)));
+  const weighsNow = Math.max(toNumber(shipment.weightKg), 1);
+  const priceOnOldWeight =
+    billedOnKg !== null &&
+    shipment.invoice !== null &&
+    shipment.invoice.status === "UNPAID" &&
+    toNumber(shipment.invoice.amountPaid) < 0.005 &&
+    toNumber(shipment.invoice.amountAdjusted) < 0.005 &&
+    Math.abs(billedOnKg - weighsNow) > 0.005;
   const rateWeightBasis = await weightBasisOf(shipment);
 
   /*
@@ -1118,6 +1169,64 @@ export default async function ShipmentDetailPage({
                 {t(locale, "Paying for several at once? Take it as one payment.")}
               </span>
             </Link>
+          ) : null}
+
+          {priceOnOldWeight ? (
+            <RepriceOnWeight
+              shipmentId={shipment.id}
+              billedKg={billedOnKg!}
+              actualKg={toNumber(shipment.weightKg)}
+              currency={shipment.invoice!.currency}
+              total={toNumber(shipment.invoice!.total)}
+            />
+          ) : null}
+
+          {/*
+            PUT IT BACK, WHERE IT WAS PUT WRONG.
+
+            A rate typed 12.90 instead of 12.50 is a mistake the desk notices
+            one second later, on this page — and the only way back was the
+            invoice screen, if they knew to look. The row recording the change
+            keeps what the bill was, so one press restores it, and only while
+            Finance has not signed it off.
+          */}
+          {priceRunStart && priceRunLast ? (
+            <PriceChangeNotice
+              changeId={priceRunLast.id}
+              currency={shipment.invoice!.currency}
+              totalBefore={toNumber(priceRunStart.totalBefore)}
+              totalAfter={toNumber(priceRunLast.totalAfter)}
+              rateBefore={
+                priceRunStart.rateBefore === null
+                  ? rateFacts.standardRate
+                  : toNumber(priceRunStart.rateBefore)
+              }
+              rateAfter={rateFacts.agreedRate ?? rateFacts.standardRate}
+              perItem={rateFacts.ratePerItem}
+              perItemBefore={
+                priceRunStart.rateBefore !== null &&
+                priceRunStart.methodBefore !== null
+                  ? priceRunStart.methodBefore === "FIXED_PER_ITEM"
+                  : rateFacts.bookPerItem
+              }
+              steps={priceRun.length}
+              reason={priceRunLast.reason}
+              changedBy={priceRunLast.changedBy?.name ?? t(locale, "somebody")}
+              changedAt={formatDateTime(priceRunLast.changedAt, locale)}
+              /* The desk that CHECKS a price, which is not the desk that
+                 moves one — Support may agree a rate and may not sign its own
+                 off, so passing the wrong permission here offered Hawa a
+                 button the server then refused. */
+              canReview={can(user.role, "invoice.priceReview")}
+              /* Her own change, while nobody has looked at it: the same two
+                 things the action checks against the row. A bill with money
+                 on it is only undone by a desk that may correct the ledger. */
+              canUndo={
+                priceRun.every((change) => change.changedById === user.id) &&
+                (toNumber(shipment.invoice!.amountPaid) <= 0.005 ||
+                  can(user.role, "ledger.adjust"))
+              }
+            />
           ) : null}
 
           <ShipmentActions
