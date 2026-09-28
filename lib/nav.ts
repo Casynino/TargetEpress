@@ -400,6 +400,18 @@ const DAR_SECTIONS: NavSection[] = [
     group: { label: "Warehouse", icon: "Warehouse" },
     items: [
       {
+        /* Top of the group, the same place it holds in every other sidebar —
+           see the note on the billing group. Which boxes have outstayed their
+           free week, by flight: the shelves to clear and the customers about
+           to be turned away at the counter. Days and counts only; the
+           shillings are absent from what this desk is sent, the same rule the
+           scan screen follows. */
+        href: "/app/finance/storage",
+        label: "Storage",
+        icon: "Warehouse",
+        permission: "storage.view",
+      },
+      {
         href: "/app/inventory",
         label: "Available Cargo",
         icon: "Boxes",
@@ -410,16 +422,6 @@ const DAR_SECTIONS: NavSection[] = [
         label: "Collected Cargo",
         icon: "History",
         permission: "delivery.history",
-      },
-      {
-        /* Which boxes have outstayed their free week, by flight — the shelves
-           to clear and the customers about to be turned away at the counter.
-           Days and counts only: the shillings are absent from what this desk
-           is sent, the same rule the scan screen follows. */
-        href: "/app/finance/storage",
-        label: "Storage",
-        icon: "Warehouse",
-        permission: "storage.view",
       },
     ],
   },
@@ -508,15 +510,27 @@ const SUPPORT_SECTIONS: NavSection[] = [
     // repeating those down the side is the same navigation twice.
     group: { label: "Billing", icon: "ReceiptText" },
     items: [
-      /* Credit leads the billing group on this desk. It is the list that decides
-         whether a customer's cargo can leave the building at all, so it is read
-         before the chase list rather than after it. */
+      /*
+        STORAGE SITS WHERE IT SITS IN EVERY OTHER DEPARTMENT.
+
+        The owner's rule: one row, one place, at the top of its group — under
+        the department's own front door where there is one, first where there
+        is not. Finance and the manager read it third, under Overview and
+        Income; this desk has no such rows, so it reads it first. An item that
+        moves about between sidebars is an item people stop trusting they have
+        found.
+
+        It earns the position on this desk anyway: a box standing three weeks
+        is a customer nobody has rung, which is this desk's whole job. They
+        read the figures — they hold finance.view — and may forgive the days
+        on a single consignment.
+      */
+      { href: "/app/finance/storage", label: "Storage", icon: "Warehouse" },
+      /* Credit leads the rest of the billing group on this desk. It is the
+         list that decides whether a customer's cargo can leave the building at
+         all, so it is read before the chase list rather than after it. */
       { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock" },
       { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
-      /* Beside the chase list because it IS one: a box standing three weeks
-         is a customer nobody has rung. This desk reads the figures — it holds
-         finance.view — and may forgive the days on a single consignment. */
-      { href: "/app/finance/storage", label: "Storage", icon: "Warehouse" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode" },
       /* The dashboard pill is the fast way in; this is the way in for
          somebody who came down the sidebar instead, browsing rather than
