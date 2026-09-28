@@ -6109,6 +6109,7 @@ const ZH: Record<string, string> = {
   "Show only": "只看",
   "Price changed": "价格已改",
   "Weight changed": "重量已更改",
+  "was": "原为",
   "times": "次",
   "The bill is back where it started.": "账单已恢复原状。",
   "Finance has not checked it yet.": "财务尚未核对。",

@@ -32,6 +32,12 @@ export type CargoLine = {
   description: string;
   category: string;
   weightKg: number;
+  /**
+   * What the packing list claimed, where the floor has since written its own
+   * figure over it. The price beside this row was worked out on one of the
+   * two, and which one is the question the list could not answer.
+   */
+  bookedKg?: number | null;
   /** The billed weight — 1 kg minimum applied. Falls back to weightKg. */
   chargeableKg?: number;
   packages: number;
@@ -375,6 +381,16 @@ export function ShipmentDetailTabs({
                   <span className="font-mono tabular-nums">
                     {line.weightKg.toFixed(1)} kg
                   </span>
+                  {/* Re-weighed on the floor: the figure it came in on, and
+                      the one it is now. Amber, because the price on this row
+                      may still be standing on the first of them. */}
+                  {line.bookedKg !== null &&
+                  line.bookedKg !== undefined &&
+                  Math.abs(line.bookedKg - line.weightKg) > 0.005 ? (
+                    <span className="font-mono tabular-nums text-warning">
+                      {line.bookedKg.toFixed(1)} → {line.weightKg.toFixed(1)} kg
+                    </span>
+                  ) : null}
                   <span className="font-mono tabular-nums">
                     {line.packagesLabel}
                   </span>
@@ -598,6 +614,13 @@ export function ShipmentDetailTabs({
                     </td>
                     <td className="whitespace-nowrap px-3 py-1.5 text-right font-mono tabular-nums">
                       {line.weightKg.toFixed(1)}
+                      {line.bookedKg !== null &&
+                      line.bookedKg !== undefined &&
+                      Math.abs(line.bookedKg - line.weightKg) > 0.005 ? (
+                        <span className="block text-[11px] text-warning">
+                          {t("was")} {line.bookedKg.toFixed(1)}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="whitespace-nowrap px-3 py-1.5 text-right font-mono tabular-nums">
                       {line.packagesLabel}

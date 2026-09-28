@@ -21,6 +21,7 @@ import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
 import { formatShillings, formatUsd } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
+import { bookedWeights } from "@/lib/weight-changes";
 import { rateSwitchesFor } from "@/lib/rate-basis";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
@@ -531,6 +532,15 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
   const switches = await rateSwitchesFor(
     shipments.map((shipment) => ({ key: shipment.id, shipment }))
   );
+  /* What each of them was booked at, for the queue's "weight changed" badge.
+     One query for the page: the frozen column answers it for cargo checked in
+     since it existed, and the change history answers it for everything older,
+     which is most of what is on the floor today. */
+  const booked = await bookedWeights(
+    shipments
+      .filter((shipment) => shipment.declaredWeightKg === null)
+      .map((shipment) => shipment.id)
+  );
 
   const cashRows: FollowUpRow[] = shipments.map((shipment) => {
     const storageDays = storageDaysFor(shipment.arrivedAt, shipment.deliveredAt);
@@ -647,7 +657,7 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       weightKg: shipment.weightKg === null ? null : toNumber(shipment.weightKg),
       declaredWeightKg:
         shipment.declaredWeightKg === null
-          ? null
+          ? (booked.get(shipment.id) ?? null)
           : toNumber(shipment.declaredWeightKg),
       pricedOnKg:
         shipment.chargeableKg === null ? null : toNumber(shipment.chargeableKg),

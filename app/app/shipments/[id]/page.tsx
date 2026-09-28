@@ -5,6 +5,7 @@ import { FileText, Plane, Users, PackagePlus } from "lucide-react";
 
 import { rateFactsOf } from "@/lib/agreed-rate";
 import { weightBasisOf } from "@/lib/rate-basis";
+import { bookedWeights } from "@/lib/weight-changes";
 import { quoteContext } from "@/lib/pricing";
 import { PageHeader } from "@/components/app/page-header";
 import {
@@ -175,6 +176,14 @@ export default async function ShipmentPage({
     )
   );
 
+  /* What each consignment was booked at, where the floor has re-weighed it —
+     one query for the flight, not one per row. */
+  const booked = await bookedWeights(
+    dispatch.shipments
+      .filter((item) => item.declaredWeightKg === null)
+      .map((item) => item.id)
+  );
+
   const cargo: CargoLine[] = dispatch.shipments.map((item) => {
     /* What this consignment was priced at, worked out once per row. */
     const rateFacts = rateFactsOf(item.invoice, item);
@@ -191,6 +200,10 @@ export default async function ShipmentPage({
     , locale),
     category: item.cargoCategory,
     weightKg: toNumber(item.weightKg),
+    bookedKg:
+      item.declaredWeightKg === null
+        ? (booked.get(item.id) ?? null)
+        : toNumber(item.declaredWeightKg),
     chargeableKg: item.chargeableKg === null ? undefined : toNumber(item.chargeableKg),
     packages: item.packages,
     packagesLabel: formatPackagesShort(item.packages, item.packageType, locale),
