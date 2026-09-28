@@ -27,7 +27,9 @@ import {
   COMMON_EXPENSES,
   EXPENSE_CATEGORY_LABELS,
 } from "@/lib/expenses";
+import { Fragment } from "react";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
+import { formatShillingTotal } from "@/lib/money";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { figureSize } from "@/lib/figure-size";
 import { t } from "@/lib/i18n";
@@ -600,6 +602,43 @@ export default async function LedgerPage({
     one job that column exists for. The schema says as much: "balances never
     touch this".
   */
+  /*
+    ONE DAY PER BREAK, WITH WHAT MOVED THAT DAY — as the Income register and
+    the cost register read. The owner asked for the same shape in all three.
+
+    IN AND OUT ARE SAID SEPARATELY, never added. A register's day is not one
+    figure: five hundred thousand received and four hundred thousand paid out
+    is not nine hundred thousand of anything. Netting them would invent a
+    number nobody can find in the books.
+
+    Shillings stay shillings; foreign money converts at today's rate — the
+    same rule every other total on this page is summed with.
+  */
+  const entryDays = new Map<string, typeof entries>();
+  for (const entry of entries) {
+    const key = formatDate(entry.occurredAt, locale);
+    entryDays.set(key, [...(entryDays.get(key) ?? []), entry]);
+  }
+  const dayFlow = (rows: typeof entries) => {
+    const side = (dir: "IN" | "OUT") => {
+      const mine = rows.filter((row) => row.direction === dir);
+      return {
+        tsh: mine.reduce(
+          (sum, row) =>
+            sum +
+            (row.currency === "TZS"
+              ? toNumber(row.amount)
+              : toNumber(row.amountUsd ?? 0) * (rate ?? 0)),
+          0
+        ),
+        /* The dollar total beside it, for the day no rate is published and
+           there is nothing honest to convert with — see formatShillingTotal. */
+        usd: mine.reduce((sum, row) => sum + toNumber(row.amountUsd ?? 0), 0),
+      };
+    };
+    return { in: side("IN"), out: side("OUT") };
+  };
+
   const totalsFor = (dir: "IN" | "OUT") =>
     totals.filter((row) => row.direction === dir);
   const usdTotal = (dir: "IN" | "OUT") =>
@@ -1064,7 +1103,39 @@ export default async function LedgerPage({
           computed once per entry in both, from the same fields.
         */}
         <ul className="divide-y overflow-hidden rounded-xl border bg-card md:hidden">
-          {entries.map((entry) => {
+          {[...entryDays.entries()].map(([day, dayRows]) => (
+            <Fragment key={day}>
+              <li className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 bg-muted/30 px-4 py-2">
+                <p className="text-sm font-semibold">
+                  {day}{" "}
+                  <span className="font-normal text-muted-foreground">
+                    {dayRows.length}{" "}
+                    {dayRows.length === 1
+                      ? t(locale, "line")
+                      : t(locale, "lines")}
+                  </span>
+                </p>
+                <p className="text-xs font-semibold tabular">
+                  <span className="text-success">
+                    {t(locale, "in")}{" "}
+                    {formatShillingTotal(
+                      dayFlow(dayRows).in.tsh,
+                      dayFlow(dayRows).in.usd,
+                      rate
+                    )}
+                  </span>
+                  {" · "}
+                  <span className="text-destructive">
+                    {t(locale, "out")}{" "}
+                    {formatShillingTotal(
+                      dayFlow(dayRows).out.tsh,
+                      dayFlow(dayRows).out.usd,
+                      rate
+                    )}
+                  </span>
+                </p>
+              </li>
+              {dayRows.map((entry) => {
             const inbound = entry.direction === "IN";
             const amount = formatMoney(toNumber(entry.amount), entry.currency);
             /* Reversed rows used to look exactly like any other line — the
@@ -1263,7 +1334,9 @@ export default async function LedgerPage({
                 </Link>
               </li>
             );
-          })}
+              })}
+            </Fragment>
+          ))}
         </ul>
 
         <div className="hidden overflow-x-auto rounded-xl border bg-card md:block">
@@ -1310,7 +1383,48 @@ export default async function LedgerPage({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entries.map((entry) => {
+              {[...entryDays.entries()].map(([day, dayRows]) => (
+                <Fragment key={day}>
+                  {/* The break, across the whole width. colSpan is deliberately
+                      larger than the column count: the Fix column comes and
+                      goes with the reader's permission, and a number that has
+                      to be kept in step with a conditional column is a number
+                      that silently goes wrong. */}
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableCell colSpan={20} className="py-2">
+                      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                        <span className="text-sm font-semibold">
+                          {day}{" "}
+                          <span className="font-normal text-muted-foreground">
+                            {dayRows.length}{" "}
+                            {dayRows.length === 1
+                              ? t(locale, "line")
+                              : t(locale, "lines")}
+                          </span>
+                        </span>
+                        <span className="text-xs font-semibold tabular">
+                          <span className="text-success">
+                            {t(locale, "in")}{" "}
+                            {formatShillingTotal(
+                              dayFlow(dayRows).in.tsh,
+                              dayFlow(dayRows).in.usd,
+                              rate
+                            )}
+                          </span>
+                          {" · "}
+                          <span className="text-destructive">
+                            {t(locale, "out")}{" "}
+                            {formatShillingTotal(
+                              dayFlow(dayRows).out.tsh,
+                              dayFlow(dayRows).out.usd,
+                              rate
+                            )}
+                          </span>
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  {dayRows.map((entry) => {
                 const inbound = entry.direction === "IN";
                 const amount = formatMoney(toNumber(entry.amount), entry.currency);
                 const proof =
@@ -1711,7 +1825,9 @@ export default async function LedgerPage({
                     </TableCell>
                   </TableRow>
                 );
-              })}
+                  })}
+                </Fragment>
+              ))}
             </TableBody>
           </Table>
         </div>

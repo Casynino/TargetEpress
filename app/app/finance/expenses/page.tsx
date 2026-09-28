@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Paperclip } from "lucide-react";
@@ -16,6 +17,7 @@ import {
   EXPENSE_STATUS_LABELS as STATUS_LABEL,
 } from "@/lib/expenses";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
+import { formatShillingTotal } from "@/lib/money";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { LIVE_LEG, moneyOutRows } from "@/lib/ledger";
 import type { MoneyRow } from "@/lib/money-totals";
@@ -748,6 +750,39 @@ export default async function ExpensesPage({
 
   const listCount = merged.length;
   const pageRows = merged.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  /*
+    ONE DAY PER HEADING, WITH THAT DAY'S TOTAL — as the Income register reads.
+
+    A register of a hundred lines answers "what did we spend" only if you add
+    it up yourself. The owner asked for the same break the money-in list has:
+    the date, how many lines it holds, and what the day came to.
+
+    A CANCELLED COST IS IN THE LIST AND IN NO TOTAL, which is the same rule
+    the cards at the top follow — the register keeps its own corrections
+    visible, and a withdrawn cost is not money that left.
+  */
+  const byDay = new Map<string, OutgoingRow[]>();
+  for (const row of pageRows) {
+    const key = formatDate(row.sort, locale);
+    byDay.set(key, [...(byDay.get(key) ?? []), row]);
+  }
+  const dayMoney = (rows: OutgoingRow[]): MoneyRow[] =>
+    rows
+      .filter((row) => row.cost?.status !== "VOID")
+      .map((row) =>
+        row.leg
+          ? {
+              currency: row.leg.currency,
+              amount: row.leg.amount,
+              amountUsd: row.leg.amountUsd,
+            }
+          : {
+              currency: row.cost!.currency,
+              amount: row.cost!.amount,
+              amountUsd: row.cost!.amountUsd,
+            }
+      );
   const pages = Math.max(1, Math.ceil(listCount / PAGE_SIZE));
   const firstOnPage = listCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const lastOnPage = Math.min(page * PAGE_SIZE, listCount);
@@ -1072,7 +1107,31 @@ export default async function ExpensesPage({
       ) : (
         <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
           <ul className="divide-y">
-            {pageRows.map((row) => {
+            {[...byDay.entries()].map(([day, dayRows]) => (
+              <Fragment key={day}>
+                {/* The break itself: the date, the lines under it, and what
+                    they came to. Shillings stay shillings and foreign money
+                    converts once — sumShillings, the same rule every other
+                    total on this page is summed with. */}
+                <li className="flex flex-wrap items-center justify-between gap-3 bg-muted/30 px-4 py-2">
+                  <p className="text-sm font-semibold">
+                    {day}{" "}
+                    <span className="font-normal text-muted-foreground">
+                      {dayRows.length}{" "}
+                      {dayRows.length === 1
+                        ? t(locale, "line")
+                        : t(locale, "lines")}
+                    </span>
+                  </p>
+                  <p className="text-sm font-semibold tabular text-destructive">
+                    {formatShillingTotal(
+                      sumShillings(dayMoney(dayRows), rate),
+                      sumUsd(dayMoney(dayRows), rate),
+                      rate
+                    )}
+                  </p>
+                </li>
+                {dayRows.map((row) => {
               /*
                 THE REGISTER'S OWN OUTGOINGS, IN THE SAME LIST.
 
@@ -1375,7 +1434,9 @@ export default async function ExpensesPage({
 
                 </li>
               );
-            })}
+                })}
+              </Fragment>
+            ))}
           </ul>
         </div>
       )}
