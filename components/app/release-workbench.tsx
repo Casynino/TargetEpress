@@ -998,7 +998,7 @@ function ReleaseForm({
                       "This carton holds more than one consignment. It is handed over whole — all of these go together."
                     )
                   : t(
-                      "This carton holds more than one consignment and cannot be opened at the counter. One of them is not clear, so none of them goes."
+                      "This carton holds more than one consignment. Open it and hand over the ones that are clear; the rest stay on the shelf."
                     )}
               </p>
               <ul className="space-y-1">
@@ -1022,27 +1022,39 @@ function ReleaseForm({
                     >
                       {member.ready ? t("ready") : member.reason}
                     </span>
+                    {member.ready ? null : (
+                      <span className="font-semibold text-destructive">
+                        {t("— stays behind")}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
-              {target.carton.allReady ? (
-                <label className="flex cursor-pointer items-start gap-2 text-xs">
-                  <input
-                    type="checkbox"
-                    name="combinedAccepted"
-                    value="1"
-                    className="mt-0.5 h-4 w-4 shrink-0"
-                  />
-                  <span>
-                    <span className="font-semibold">
-                      {t("The whole carton is going.")}
-                    </span>{" "}
-                    {t(
-                      "All the consignments listed above are handed over together and marked collected."
-                    )}
-                  </span>
-                </label>
-              ) : null}
+              {/* Offered either way now: whole where everything is clear,
+                  opened where it is not. The server releases exactly the
+                  consignments marked ready above, whatever this tick says. */}
+              <label className="flex cursor-pointer items-start gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  name="combinedAccepted"
+                  value="1"
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                />
+                <span>
+                  <span className="font-semibold">
+                    {target.carton.allReady
+                      ? t("The whole carton is going.")
+                      : `${t("Open the carton and release the")} ${target.carton.members.filter((m) => m.ready).length} ${t("that are clear.")}`}
+                  </span>{" "}
+                  {target.carton.allReady
+                    ? t(
+                        "All the consignments listed above are handed over together and marked collected."
+                      )
+                    : t(
+                        "The carton is recorded as opened. The ones that are not clear stay in the warehouse on their own."
+                      )}
+                </span>
+              </label>
             </div>
           ) : null}
 

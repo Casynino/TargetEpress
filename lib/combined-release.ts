@@ -39,6 +39,8 @@ import { prisma } from "@/lib/prisma";
 export type CartonMember = {
   shipmentId: string;
   trackingNumber: string;
+  /** Its own status, so a timeline line can say "nothing moved" truthfully. */
+  status: string;
   noteId: string | null;
   noteNumber: string | null;
   /** Ready to leave on its own terms. */
@@ -146,6 +148,7 @@ export async function cartonFor(
     members.push({
       shipmentId: shipment.id,
       trackingNumber: shipment.trackingNumber,
+      status: shipment.status,
       noteId: shipment.pickupNote?.id ?? null,
       noteNumber: shipment.pickupNote?.noteNumber ?? null,
       ready: reason === null,

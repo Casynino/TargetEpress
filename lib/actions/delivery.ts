@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { ShipmentStatus } from "@prisma/client";
 
 import { recordAudit, withNote } from "@/lib/audit";
 import { t } from "@/lib/i18n";
@@ -506,20 +507,30 @@ export async function releaseShipment(
               (others.length
                 ? ` ${t(locale, "together with")} ${others.map((m) => m.trackingNumber).join(", ")}`
                 : "") +
-              `. ${t(locale, "Tick that the whole carton is going, or open it first and release each consignment on its own.")}`
+              `. ${t(locale, "Tick that the carton is being opened, and the consignments that are clear will go.")}`
           );
         }
-        /* Every consignment in it, put through the checks it would face if it
-           were the one scanned — see lib/combined-release.ts. The carton goes
-           when they all pass, and the refusal names the one that did not. */
-        const blocked = carton?.members.find((m) => !m.ready);
-        if (!carton || blocked) {
+        if (!carton) {
           throw new Error(
-            blocked
-              ? `${blocked.trackingNumber}: ${blocked.reason}. ${t(locale, "The whole carton stays until this is settled.")}`
-              : t(locale, "That combined package has changed. Reload and scan it again.")
+            t(locale, "That combined package has changed. Reload and scan it again.")
           );
         }
+        /*
+          THE ONES THAT ARE CLEAR GO; THE REST STAY IN THE CARTON'S PLACE.
+
+          This refused unless every consignment in the carton was clear, which
+          was true to the tape and false to the counter: a customer with three
+          parcels taped together, two of them paid, was sent home with nothing
+          because the third had a day of storage on it. The owner's rule is the
+          obvious one — give them what they have paid for.
+
+          So the carton is OPENED here rather than handed over whole. That is
+          what physically happens at the counter, and the record has to say so:
+          the combination is stamped opened, every box is released from it, and
+          the parcels that stay behind stand on their own again. A record that
+          still called them one carton, with two of the three gone, would be a
+          record nobody could act on.
+        */
       }
 
       const now = new Date();
@@ -705,8 +716,58 @@ export async function releaseShipment(
         above has already refused a part delivery of one.
       */
       if (carton && input.combinedAccepted) {
+        /*
+          THE CARTON IS OPENED, ONCE, BEFORE ANYTHING LEAVES IT.
+
+          Claimed on undoneAt being null, so two counters opening the same
+          carton at the same moment cannot both think they did it. Everything
+          below — the parcels going and the parcels staying — then stands on
+          its own, which is what the floor looks like once the tape is cut.
+        */
+        const opened = await tx.packageCombination.updateMany({
+          where: { reference: carton.reference, undoneAt: null },
+          data: {
+            undoneAt: now,
+            undoneById: user.id,
+            undoneReason: `Opened at the counter to release ${carton.members
+              .filter((m) => m.ready)
+              .map((m) => m.trackingNumber)
+              .join(", ")}.`,
+          },
+        });
+        if (opened.count === 0) {
+          throw new Error(
+            t(locale, "That combined package was opened a moment ago. Reload and scan it again.")
+          );
+        }
+        await tx.package.updateMany({
+          where: { shipmentId: { in: carton.members.map((m) => m.shipmentId) } },
+          data: { combinationId: null },
+        });
+
+        /* Said on the timeline of each parcel that is NOT going, because that
+           is the one somebody will open tomorrow asking where the rest went. */
+        for (const staying of carton.members.filter((m) => !m.ready)) {
+          await tx.shipmentStatusHistory.create({
+            data: {
+              shipmentId: staying.shipmentId,
+              /* Both sides the same: the carton opening moved nothing about
+                 this parcel, and a history row that claimed otherwise would
+                 be the record inventing a change nobody made. */
+              fromStatus: staying.status as ShipmentStatus,
+              toStatus: staying.status as ShipmentStatus,
+              location: "Dar es Salaam warehouse",
+              note: `Combined carton ${carton.reference} was opened at the counter. This consignment stayed behind — ${staying.reason}`,
+              actorId: user.id,
+            },
+          });
+        }
+
         for (const member of carton.members) {
           if (member.scanned || !member.noteId) continue;
+          /* Only the ones that may go. A parcel with a bill outstanding stays
+             on the shelf and keeps its note; nothing about it is touched. */
+          if (!member.ready) continue;
 
           /* Claimed, not addressed — the same discipline the scanned note
              follows. A sibling released a second ago matches nothing here and
