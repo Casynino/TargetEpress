@@ -4997,6 +4997,7 @@ const ZH: Record<string, string> = {
   "This cargo is not cleared for release.": "该货物尚未获准放货。",
   "STORAGE OUTSTANDING — DO NOT RELEASE": "仓储费未结清 — 不得放货",
   "Combined carton": "合并纸箱",
+  "TX-000086, TX-000086-P1, or the CP number on a combined carton.": "TX-000086、TX-000086-P1，或合并纸箱上的 CP 编号。",
   "This carton holds more than one consignment. It is handed over whole — all of these go together.": "此纸箱内含多票货物，须整箱交付 — 以下货物一并放行。",
   "This carton holds more than one consignment and cannot be opened at the counter. One of them is not clear, so none of them goes.": "此纸箱内含多票货物，柜台不得拆箱。其中一票未放行，故全部不得放行。",
   "ready": "可放行",

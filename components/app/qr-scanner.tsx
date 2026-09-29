@@ -114,6 +114,12 @@ export function QrScanner({
           <Keyboard className="h-3.5 w-3.5" />
           {t("Or type / paste the code")}
         </label>
+        {/* A taped carton has no QR of its own — its number is written on the
+            outside, and typing it opens the whole carton. Said here because
+            the counter is holding a sealed box with nothing to scan. */}
+        <p className="text-[11px] text-muted-foreground">
+          {t("TX-000086, TX-000086-P1, or the CP number on a combined carton.")}
+        </p>
         <div className="flex gap-2">
           <Input
             id="manual-code"

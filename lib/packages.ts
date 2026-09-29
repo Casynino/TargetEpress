@@ -168,6 +168,39 @@ export function packageProgress(
  */
 async function resolveTypedReference(raw: string): Promise<ScanTarget | null> {
   const value = raw.trim().toUpperCase();
+
+  /*
+    THE NUMBER WRITTEN ON A TAPED CARTON.
+
+    A combined carton carries no QR of its own — every box inside keeps its
+    own label, and a token here would have to resolve to several consignments
+    at once. That was fine while a carton could not be released at all. Now
+    that it can, the counter is standing in front of a sealed box whose only
+    marking is CP-000002, with nothing to scan and no way in but to open it.
+
+    So the reference itself is accepted, typed or scanned, and opens the
+    carton through one of the consignments inside it. Which one does not
+    matter: the release screen reads the whole carton and hands it over
+    whole. A carton already opened resolves to nothing, as it should.
+  */
+  if (/^CP-[A-Z0-9]+$/.test(value)) {
+    const carton = await prisma.packageCombination.findFirst({
+      where: { reference: value, undoneAt: null },
+      select: {
+        members: {
+          where: { shipment: { deletedAt: null } },
+          orderBy: { reference: "asc" },
+          select: { shipmentId: true },
+          take: 1,
+        },
+      },
+    });
+    const member = carton?.members[0];
+    return member
+      ? { shipmentId: member.shipmentId, package: null, typed: true }
+      : null;
+  }
+
   if (!/^TX-\d+(-P\d+)?$/.test(value)) return null;
 
   const PACKAGE_FIELDS = {
