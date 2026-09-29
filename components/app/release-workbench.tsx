@@ -971,6 +971,81 @@ function ReleaseForm({
             </div>
           ) : null}
 
+          {/*
+            THE CARTON, AND EVERYTHING GOING OUT WITH IT.
+
+            The counter cannot open a taped carton to hand over one parcel, so
+            this is not a warning to read past — it is the list of what the
+            customer is about to walk out with. Green where a consignment is
+            clear, red where it is not, with the reason in the words the clerk
+            reads out. The tick appears only when every one of them is clear.
+          */}
+          {target.carton ? (
+            <div
+              className={cn(
+                "space-y-2 rounded-xl border-2 p-3",
+                target.carton.allReady
+                  ? "border-brand/50 bg-brand/5"
+                  : "border-destructive/50 bg-destructive/10"
+              )}
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.14em]">
+                {t("Combined carton")} {target.carton.reference}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {target.carton.allReady
+                  ? t(
+                      "This carton holds more than one consignment. It is handed over whole — all of these go together."
+                    )
+                  : t(
+                      "This carton holds more than one consignment and cannot be opened at the counter. One of them is not clear, so none of them goes."
+                    )}
+              </p>
+              <ul className="space-y-1">
+                {target.carton.members.map((member) => (
+                  <li
+                    key={member.trackingNumber}
+                    className="flex flex-wrap items-baseline gap-x-2 text-xs"
+                  >
+                    <span className="font-mono font-semibold">
+                      {member.trackingNumber}
+                    </span>
+                    {member.scanned ? (
+                      <span className="text-muted-foreground">
+                        ({t("scanned")})
+                      </span>
+                    ) : null}
+                    <span
+                      className={
+                        member.ready ? "text-success" : "text-destructive"
+                      }
+                    >
+                      {member.ready ? t("ready") : member.reason}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {target.carton.allReady ? (
+                <label className="flex cursor-pointer items-start gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    name="combinedAccepted"
+                    value="1"
+                    className="mt-0.5 h-4 w-4 shrink-0"
+                  />
+                  <span>
+                    <span className="font-semibold">
+                      {t("The whole carton is going.")}
+                    </span>{" "}
+                    {t(
+                      "All the consignments listed above are handed over together and marked collected."
+                    )}
+                  </span>
+                </label>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="space-y-1.5">
             <Label htmlFor="receiverName" className="text-xs">
               {t("Receiver name")}

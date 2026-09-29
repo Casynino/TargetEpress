@@ -611,6 +611,21 @@ export const releaseSchema = z.object({
     .trim()
     .optional()
     .transform((v) => v === "1" || v === "true" || v === "on"),
+  /*
+    THE WHOLE TAPED CARTON, WITH EVERY CONSIGNMENT IN IT.
+
+    A carton holding three parcels cannot be opened at the counter to hand
+    over one, so the release either takes all three or none. The tick says the
+    counter has read the list and is handing the carton over; without it the
+    old refusal stands word for word. The server checks every consignment in
+    the carton again regardless — see lib/combined-release.ts — so this tick
+    can permit a handover and can never force one.
+  */
+  combinedAccepted: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => v === "1" || v === "true" || v === "on"),
 })
   .refine((v) => Boolean(v.shipmentQr || v.pickupNoteId), {
     message: "Scan the cargo label to confirm.",

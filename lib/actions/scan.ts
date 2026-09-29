@@ -5,6 +5,7 @@ import { formatDate, toNumber } from "@/lib/format";
 import { outstandingOf } from "@/lib/invoice-balance";
 import { t } from "@/lib/i18n";
 import { packageProgress, resolveScannedCode } from "@/lib/packages";
+import { cartonFor } from "@/lib/combined-release";
 import { findPickupLock, pickupLockMessage } from "@/lib/pickup-lock";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -101,6 +102,24 @@ export type ScanResult = {
    * warehouse does not read prices off this screen.
    */
   storage: { days: number; owed?: number; currency?: string } | null;
+  /**
+   * THE TAPED CARTON THIS BOX IS INSIDE, AND EVERYTHING ELSE IN IT.
+   *
+   * A carton is handed over whole — the counter cannot open it to give one
+   * parcel — so the screen has to show what else is going with it and whether
+   * each of those is clear to leave. See lib/combined-release.ts.
+   */
+  carton: {
+    reference: string;
+    customerName: string;
+    allReady: boolean;
+    members: {
+      trackingNumber: string;
+      ready: boolean;
+      reason: string | null;
+      scanned: boolean;
+    }[];
+  } | null;
   canRelease: boolean;
 };
 
@@ -249,6 +268,10 @@ async function describe(
     customer paid, was cleared, and then left the box here. It changes what
     the clerk says, so it is worked out once and read in two places below.
   */
+  /* The taped carton, where there is one — read once and used by the verdict
+     below as well as by the screen. */
+  const carton = mayRelease ? await cartonFor(shipment.id, locale) : null;
+
   const heldForStorage = Boolean(
     shipment.invoice &&
       toNumber(shipment.invoice.storageCharge) > 0.005 &&
@@ -536,6 +559,19 @@ async function describe(
                 currency: shipment.invoice!.currency,
               }
             : {}),
+        }
+      : null,
+    carton: carton
+      ? {
+          reference: carton.reference,
+          customerName: carton.customerName,
+          allReady: carton.allReady,
+          members: carton.members.map((m) => ({
+            trackingNumber: m.trackingNumber,
+            ready: m.ready,
+            reason: m.reason,
+            scanned: m.scanned,
+          })),
         }
       : null,
     canRelease,

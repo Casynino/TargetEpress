@@ -8,6 +8,7 @@ import { packageProgress, resolveScannedCode } from "@/lib/packages";
 import { findPickupLock, pickupLockMessage } from "@/lib/pickup-lock";
 import { prisma } from "@/lib/prisma";
 import { filesFrom, putImages } from "@/lib/storage";
+import { cartonFor } from "@/lib/combined-release";
 import { runStorageMeter } from "@/lib/storage-meter";
 import { toNumber } from "@/lib/format";
 import { outstandingOf } from "@/lib/invoice-balance";
@@ -255,18 +256,35 @@ export async function releaseShipment(
           })
         )?.shipmentId ?? null)
       : null);
+  /*
+    THE CARTON THIS BOX IS TAPED INTO, AND THE METER RUN OVER ALL OF IT.
+
+    Read twice on purpose. The first read only answers WHICH consignments are
+    in the carton; the meter then brings each of their bills up to today, which
+    can take a sibling off the shelf; and the second read is the one the guards
+    below trust. Asking once, before the meter, would judge a carton on
+    yesterday's figures and let a box out with storage owing on it.
+
+    The loop stays out of the transaction: it reads per member and writes
+    through its own, and neither belongs inside the rows a handover is holding.
+    Everything it answers is re-checked as a condition on the writes below.
+  */
+  const inCarton = settling ? await cartonFor(settling, locale) : null;
   if (settling) {
-    try {
-      await runStorageMeter({ shipmentId: settling });
-    } catch (error) {
-      /* Never the reason a handover cannot be recorded. The guards below read
-         whatever the bill says, which is the figure before this run. */
-      console.error("The storage meter failed at the counter", {
-        shipmentId: settling,
-        error,
-      });
+    for (const member of inCarton?.members ?? [{ shipmentId: settling }]) {
+      try {
+        await runStorageMeter({ shipmentId: member.shipmentId });
+      } catch (error) {
+        /* Never the reason a handover cannot be recorded. The guards below
+           read whatever the bill says, which is the figure before this run. */
+        console.error("The storage meter failed at the counter", {
+          shipmentId: member.shipmentId,
+          error,
+        });
+      }
     }
   }
+  const carton = settling ? await cartonFor(settling, locale) : null;
 
   try {
     const trackingNumber = await prisma.$transaction(async (tx) => {
@@ -467,20 +485,41 @@ export async function releaseShipment(
         (box) => box.combination !== null && box.combination.undoneAt === null
       );
       if (taped?.combination) {
-        const others = Array.from(
-          new Set(
-            taped.combination.members
-              .map((m) => m.shipment.trackingNumber)
-              .filter((tn) => tn !== note.shipment.trackingNumber)
-          )
-        );
-        throw new Error(
-          `${t(locale, "This cargo is packed inside combined package")} ${taped.combination.reference}` +
-            (others.length
-              ? ` ${t(locale, "together with")} ${others.join(", ")}`
-              : "") +
-            `. ${t(locale, "Open the combined package first, then release each consignment on its own.")}`
-        );
+        const others = carton
+          ? carton.members.filter((m) => !m.scanned)
+          : [];
+        /*
+          A PART DELIVERY OF A TAPED CARTON IS NOT A THING.
+
+          The carton is one physical piece; you cannot hand over some of what
+          is inside it without opening it, and opening it is a different job
+          done on a different screen.
+        */
+        if (partial) {
+          throw new Error(
+            `${t(locale, "This cargo is packed inside combined package")} ${taped.combination.reference}. ${t(locale, "A combined carton is handed over whole or not at all — open it first if only part of it is going.")}`
+          );
+        }
+        if (!input.combinedAccepted) {
+          throw new Error(
+            `${t(locale, "This cargo is packed inside combined package")} ${taped.combination.reference}` +
+              (others.length
+                ? ` ${t(locale, "together with")} ${others.map((m) => m.trackingNumber).join(", ")}`
+                : "") +
+              `. ${t(locale, "Tick that the whole carton is going, or open it first and release each consignment on its own.")}`
+          );
+        }
+        /* Every consignment in it, put through the checks it would face if it
+           were the one scanned — see lib/combined-release.ts. The carton goes
+           when they all pass, and the refusal names the one that did not. */
+        const blocked = carton?.members.find((m) => !m.ready);
+        if (!carton || blocked) {
+          throw new Error(
+            blocked
+              ? `${blocked.trackingNumber}: ${blocked.reason}. ${t(locale, "The whole carton stays until this is settled.")}`
+              : t(locale, "That combined package has changed. Reload and scan it again.")
+          );
+        }
       }
 
       const now = new Date();
@@ -649,6 +688,121 @@ export async function releaseShipment(
         },
         tx
       );
+
+      /*
+        AND THE REST OF THE CARTON, IN THE SAME TRANSACTION.
+
+        The boxes taped to this one are going out in the customer's hands at
+        the same moment, so they are recorded at the same moment or not at
+        all — a carton half-released is a record that disagrees with the floor.
+        Each sibling gets what the scanned consignment just got: its own
+        delivery record, its own note spent, its own boxes marked gone, its own
+        line on its own timeline and its own audit entry. Nothing is shared
+        except the photographs and the receiver, which is what actually
+        happened at the counter.
+
+        Never partial: a taped carton is one physical piece, and the guard
+        above has already refused a part delivery of one.
+      */
+      if (carton && input.combinedAccepted) {
+        for (const member of carton.members) {
+          if (member.scanned || !member.noteId) continue;
+
+          /* Claimed, not addressed — the same discipline the scanned note
+             follows. A sibling released a second ago matches nothing here and
+             the whole handover unwinds rather than being recorded twice. */
+          const spent = await tx.pickupNote.updateMany({
+            where: { id: member.noteId, status: "ACTIVE" },
+            data: { status: "USED", usedAt: now },
+          });
+          if (spent.count === 0) {
+            throw new Error(
+              `${member.trackingNumber}: ${t(locale, "this cargo has just been handed over. Reload the page before releasing it again.")}`
+            );
+          }
+
+          await tx.deliveryRecord.create({
+            data: {
+              shipmentId: member.shipmentId,
+              pickupNoteId: member.noteId,
+              receiverName: input.receiverName,
+              receiverPhone: input.receiverPhone,
+              receiverIdNumber: input.receiverIdNumber || null,
+              relationship: input.relationship,
+              note: [
+                `Handed over inside combined carton ${carton.reference}, with ${note.shipment.trackingNumber}.`,
+                input.note?.trim(),
+              ]
+                .filter(Boolean)
+                .join(" "),
+              releasedById: user.id,
+              releasedAt: now,
+            },
+          });
+
+          /* The same photographs against each consignment in the carton: one
+             picture is the proof for every parcel that was in it. */
+          await tx.shipmentPhoto.createMany({
+            data: uploaded.map((image) => ({
+              shipmentId: member.shipmentId,
+              url: image.url,
+              kind: "PROOF_OF_DELIVERY" as const,
+              caption: `Released to ${input.receiverName} in carton ${carton.reference}`,
+              uploadedById: user.id,
+            })),
+          });
+
+          await tx.package.updateMany({
+            where: { shipmentId: member.shipmentId, deliveredAt: null },
+            data: { deliveredAt: now },
+          });
+
+          /* Conditional on the status the carton was read at: a sibling that
+             has moved since then matches nothing, and the throw below unwinds
+             the whole handover rather than leaving the carton half out. */
+          const handed = await tx.shipment.updateMany({
+            where: { id: member.shipmentId, status: "READY_FOR_PICKUP" },
+            data: { status: "DELIVERED", deliveredAt: now },
+          });
+          if (handed.count === 0) {
+            throw new Error(
+              `${member.trackingNumber}: ${t(locale, "not cleared for release — check the payment")}. ${t(locale, "The whole carton stays until this is settled.")}`
+            );
+          }
+
+          await tx.shipmentStatusHistory.create({
+            data: {
+              shipmentId: member.shipmentId,
+              fromStatus: "READY_FOR_PICKUP",
+              toStatus: "DELIVERED",
+              location: "Collected by customer",
+              note: `Released to ${input.receiverName} inside combined carton ${carton.reference}, against ${member.noteNumber}.`,
+              actorId: user.id,
+            },
+          });
+
+          await recordAudit(
+            {
+              actor: user,
+              action: "shipment.release",
+              entity: "Shipment",
+              entityId: member.shipmentId,
+              summary: `Released ${member.trackingNumber} to ${input.receiverName} inside carton ${carton.reference}`,
+              metadata: {
+                pickupNote: member.noteNumber,
+                combinedWith: note.shipment.trackingNumber,
+                carton: carton.reference,
+                receiverPhone: input.receiverPhone,
+                relationship: input.relationship,
+                deliveryPhotos: uploaded.length,
+                packagesReleased: member.boxesTotal,
+                scannedPackage: "released inside a combined carton",
+              },
+            },
+            tx
+          );
+        }
+      }
 
       return note.shipment.trackingNumber;
     });
