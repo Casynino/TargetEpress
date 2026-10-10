@@ -57,7 +57,6 @@ export async function clearPoolAfterPayment(
       },
     });
     if (!shipment) continue;
-    if (shipment.pickupNote) continue;
     if (shipment.status !== "RECEIVED_AT_DAR") continue;
     if (shipment.exceptions.length > 0) continue;
     if (!shipment.invoice) continue;
@@ -65,6 +64,44 @@ export async function clearPoolAfterPayment(
     /* Asked again rather than assumed: the charge may have been part-paid, or
        another parcel of the same customer may carry its own hold. */
     if (await poolHold(shipment.id)) continue;
+
+    /*
+      A NOTE IT ALREADY HOLDS IS THE CLEARANCE.
+
+      Cargo cleared before this rule existed, and pulled back off the shelf by
+      the catch-up, keeps its note: PickupNote.shipmentId is unique, so a
+      cancelled one can never be replaced and cancelling would strand the
+      cargo for ever. Paying the charge simply makes it collectable again —
+      the same thing paying storage does.
+    */
+    if (shipment.pickupNote) {
+      try {
+        await prisma.$transaction(async (tx) => {
+          const moved = await tx.shipment.updateMany({
+            where: { id: shipment.id, status: "RECEIVED_AT_DAR" },
+            data: { status: "READY_FOR_PICKUP", readyForPickup: new Date() },
+          });
+          if (moved.count === 0) throw new Error("moved underneath us");
+          await tx.shipmentStatusHistory.create({
+            data: {
+              shipmentId: shipment.id,
+              fromStatus: "RECEIVED_AT_DAR",
+              toStatus: "READY_FOR_PICKUP",
+              location: "Dar es Salaam warehouse",
+              note: `The shared minimum on ${share.carrierTracking} was paid. This parcel carries no charge of its own; the note it holds stands.`,
+              actorId: actor.id,
+            },
+          });
+        });
+        cleared.push(trackingNumber);
+      } catch (error) {
+        console.error("Could not clear a pooled parcel after payment", {
+          trackingNumber,
+          error,
+        });
+      }
+      continue;
+    }
 
     try {
       await prisma.$transaction(async (tx) => {
