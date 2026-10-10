@@ -16,8 +16,33 @@ import { prisma } from "@/lib/prisma";
 import { autoPriceShipments } from "@/lib/auto-price";
 import { toNumber } from "@/lib/format";
 
-const BATCH_A = "cmtq60p8e0001sbwj6lk8i27a";
-const BATCH_B = "cmt2hbt6b023wsbzlphxu4ezo";
+/*
+  FLIGHTS OF ITS OWN, CREATED PER RUN.
+
+  These were two real batches out of the seed, and one of them already carried
+  a real 8.1 kg consignment belonging to the test customer. Every case that
+  put a light parcel on that flight was therefore quietly sharing it with
+  cargo the case never mentioned — invisible while the pool ignored heavy
+  siblings, and the moment it stopped ignoring them, a case about two
+  DIFFERENT customers started failing for a reason that had nothing to do with
+  customers. A fixture that shares a flight with real data is not a fixture.
+*/
+const stamp = Date.now().toString(36).toUpperCase();
+const madeBatches: string[] = [];
+async function flight(suffix: string) {
+  const batch = await prisma.batch.create({
+    data: {
+      batchNumber: `ZZB-${stamp}-${suffix}`,
+      origin: "GUANGZHOU",
+      status: "ARRIVED",
+    },
+    select: { id: true },
+  });
+  madeBatches.push(batch.id);
+  return batch.id;
+}
+const BATCH_A = await flight("A");
+const BATCH_B = await flight("B");
 const CUST_1 = "cmt2hbebb0236sbzl7s6u2rl2";
 const CUST_2 = "cmt2hbkzm023hsbzl6pn23csy";
 const GENERAL = "cms7lcbkl0008y8u1oodevmxl";
@@ -116,6 +141,25 @@ async function check(label: string, ids: string[], expectSum: number, detail?: s
   const a = await ship(50), b = await ship(0.1);
   await autoPriceShipments([a.id, b.id], ACTOR);
   await check("50 kg + 0.1 kg — the big one untouched", [a.id, b.id], 50 * 12.5 + 13.5, "50kg at the >10kg tier + its own minimum");
+  await wipe();
+}
+
+/*
+  3b. THE OWNER'S SECOND REPORT, FROM GZ-36.
+
+  Peter Komba, 1.5 kg and 0.7 kg on one aircraft, billed 20.25 + 13.50 = 33.75:
+  the heavy parcel was not lifted by the minimum, so the pool ignored it and
+  left the light one alone to pay a whole kilo for 0.7. His words: "still its
+  calculated as 1 kg only".
+
+  The customer has 2.2 kg on that flight. The minimum is a floor under their
+  cargo, and 2.2 clears it, so nothing should be lifted to anything: 2.2 ×
+  13.50 = 29.70, and they are owed back the 0.3 kg of air they were charged.
+*/
+{
+  const a = await ship(1.5), b = await ship(0.7);
+  await autoPriceShipments([a.id, b.id], ACTOR);
+  await check("1.5 + 0.7 = 2.2 kg, one of them under the minimum", [a.id, b.id], 29.7, "2.2 × 13.50; was 33.75");
   await wipe();
 }
 
@@ -284,3 +328,6 @@ await wipe();
 console.log(fails === 0 ? "\nEvery case correct." : `\n${fails} FAILED`);
 await prisma.$disconnect();
 process.exit(fails === 0 ? 0 : 1);
+
+/* The flights this run made, gone with the cargo that was on them. */
+await prisma.batch.deleteMany({ where: { id: { in: madeBatches } } });

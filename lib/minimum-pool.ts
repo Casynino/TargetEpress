@@ -25,8 +25,22 @@ type Quoted = Extract<Awaited<ReturnType<typeof quote>>, { ok: true }>;
  * price the rate book gave it.
  */
 export function minimumBit(q: Quoted): boolean {
+  if (!weightTimesRate(q)) return false;
+  return q.chargeableWeightKg! > q.actualWeightKg + GRAM;
+}
+
+/**
+ * A quote this file understands well enough to re-arrange: priced by weight,
+ * and its total is exactly the chargeable weight times the rate.
+ *
+ * The second half is the refusal minimumBit always carried. A rule may also
+ * hold a minimum CHARGE, which lifts the total without touching the weight,
+ * and a pool rebuilt from `weight × rate` would quietly drop that floor. Where
+ * the arithmetic does not reconcile, the consignment keeps what the rate book
+ * gave it.
+ */
+function weightTimesRate(q: Quoted): boolean {
   if (q.method !== "WEIGHT_BASED" || q.chargeableWeightKg === null) return false;
-  if (q.chargeableWeightKg <= q.actualWeightKg + GRAM) return false;
   return Math.abs(q.total - q.chargeableWeightKg * q.rate) <= CENT;
 }
 
@@ -127,7 +141,23 @@ export async function poolShareFor(
     "en",
     ctx
   );
-  if (!mine.ok || !minimumBit(mine)) return null;
+  /*
+    THE HEAVY PARCEL IS IN THE POOL TOO.
+
+    This asked that the consignment being priced was ITSELF lifted by the
+    minimum, and skipped any sibling that was not — so a customer with 1.5 kg
+    and 0.7 kg on one aircraft pooled nothing: the heavy parcel was not
+    minimum-inflated, which left the light one alone in its own pool, and it
+    was charged a whole kilo for 0.7. The owner found it on GZ-36: "still its
+    calculated as 1 kg only".
+
+    A minimum is a floor under a CUSTOMER'S cargo on a FLIGHT, not under each
+    parcel. Once their parcels together clear it, no parcel of theirs should be
+    lifted to it. So every weight-priced consignment of theirs on that flight
+    joins the pool, and whether the minimum still bites is decided once, on the
+    total.
+  */
+  if (!mine.ok || !weightTimesRate(mine)) return null;
 
   const siblings = await prisma.shipment.findMany({
     where: {
@@ -196,17 +226,13 @@ export async function poolShareFor(
       "en",
       ctx
     );
-    if (!q.ok || !minimumBit(q)) continue;
+    if (!q.ok || !weightTimesRate(q)) continue;
     /* One rule, so one minimum and one rate. If the rate book has been edited
-       between two check-ins the members can disagree; leave them all alone
-       rather than pick a winner. */
+       between two check-ins, or the two parcels fall in different weight
+       tiers, the members would be pooled at a rate neither was quoted —
+       leave them all alone rather than invent a blended one. */
     if (q.ruleId !== mine.ruleId) continue;
-    if (
-      Math.abs(q.chargeableWeightKg! - mine.chargeableWeightKg!) > GRAM ||
-      Math.abs(q.rate - mine.rate) > CENT
-    ) {
-      return null;
-    }
+    if (Math.abs(q.rate - mine.rate) > CENT) return null;
     members.push({
       id: sib.id,
       trackingNumber: sib.trackingNumber,
@@ -216,8 +242,22 @@ export async function poolShareFor(
   }
 
   if (members.length < 2) return null;
+  /*
+    NOTHING TO SHARE MEANS NOTHING TO CHANGE.
 
-  const minKg = mine.chargeableWeightKg!;
+    Where no parcel in the group was lifted by the minimum, pooling them would
+    move the same money from several bills onto one for no reason: at one rate,
+    three kilos plus four is seven either way. The pool exists to stop a
+    minimum being charged twice, so where no minimum bit, every bill keeps
+    exactly what the rate book gave it.
+  */
+  if (!members.some((m) => minimumBit(m.q))) return null;
+
+  /* The floor itself, read off whichever member the minimum actually lifted —
+     `mine` may now be a heavy parcel, whose chargeable weight is its own. */
+  const minKg = members
+    .map((m) => (minimumBit(m.q) ? m.q.chargeableWeightKg! : 0))
+    .reduce((most, kg) => Math.max(most, kg), 0);
   const rate = mine.rate;
   const combined = members.reduce((kg, m) => kg + m.q.actualWeightKg, 0);
   const chargeableKg = Math.max(combined, minKg);
