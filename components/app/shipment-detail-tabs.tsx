@@ -81,6 +81,8 @@ export type CargoLine = {
      * holds the money.
      */
     pooledWith?: string | null;
+    /** And whether the bill carrying it has been settled — see the badge. */
+    pooledSettled?: boolean;
     /**
      * A payment already sent up for this bill and waiting on Finance.
      *
@@ -411,8 +413,21 @@ export function ShipmentDetailTabs({
                     <span className="font-mono tabular-nums text-foreground">
                       {line.price.currency} {line.price.amount.toFixed(2)}
                       {line.price.pooledWith ? (
-                        <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                        /* Green once the bill carrying the charge is settled:
+                           this parcel owes nothing AND the lot is paid for, so
+                           it reads like any other settled row. Grey while that
+                           bill is still open — nothing is owed here, but
+                           nothing is going out either. */
+                        <span
+                          className={
+                            "ml-1 rounded px-1.5 py-0.5 text-xs font-semibold " +
+                            (line.price.pooledSettled
+                              ? "bg-success/15 text-success"
+                              : "bg-muted text-muted-foreground")
+                          }
+                        >
                           {t("No charge")} · {line.price.pooledWith}
+                          {line.price.pooledSettled ? ` · ${t("Paid")}` : ""}
                         </span>
                       ) : line.price.paid ? (
                         <span className="ml-1 rounded bg-success/15 px-1.5 py-0.5 text-xs font-semibold text-success">
@@ -685,8 +700,16 @@ export function ShipmentDetailTabs({
                               {line.price.currency} {line.price.amount.toFixed(2)}
                             </span>
                             {line.price.pooledWith ? (
-                              <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                              <span
+                                className={
+                                  "rounded px-1.5 py-0.5 text-xs font-semibold " +
+                                  (line.price.pooledSettled
+                                    ? "bg-success/15 text-success"
+                                    : "bg-muted text-muted-foreground")
+                                }
+                              >
                                 {t("No charge")} · {line.price.pooledWith}
+                                {line.price.pooledSettled ? ` · ${t("Paid")}` : ""}
                               </span>
                             ) : line.price.paid ? (
                               <span className="rounded bg-success/15 px-1.5 py-0.5 text-xs font-semibold text-success">

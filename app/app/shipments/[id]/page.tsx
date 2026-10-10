@@ -193,15 +193,29 @@ export default async function ShipmentPage({
     out a pool asks the rate book per consignment and this list can run to a
     hundred rows. Everything else keeps the figure its bill carries.
   */
-  const pooledWith = new Map<string, string>();
+  const pooledWith = new Map<string, { carrier: string; settled: boolean }>();
   if (showMoney) {
     for (const item of dispatch.shipments) {
       if (!item.invoice) continue;
       if (toNumber(item.invoice.total) > 0.005) continue;
       const share = await poolShareFor(item.id);
-      if (share && !share.carries) {
-        pooledWith.set(item.id, share.carrierTracking);
-      }
+      if (!share || share.carries) continue;
+      /*
+        AND WHETHER THE LOT HAS BEEN PAID FOR.
+
+        "No charge" on its own told the desk this parcel owes nothing and left
+        them to work out whether the customer had actually paid — so a row
+        whose charge was settled an hour ago on a sibling still read as
+        outstanding, which is the question this badge exists to answer. The
+        carrier is on this same flight by definition: a pool is per flight.
+      */
+      const carrier = dispatch.shipments.find(
+        (other) => other.trackingNumber === share.carrierTracking
+      );
+      pooledWith.set(item.id, {
+        carrier: share.carrierTracking,
+        settled: carrier?.invoice?.status === "PAID",
+      });
     }
   }
 
@@ -248,7 +262,8 @@ export default async function ShipmentPage({
             paid: item.invoice.status === "PAID",
             /* Nothing to pay, because a sibling on this flight carries the
                whole minimum — see the note on the prop. */
-            pooledWith: pooledWith.get(item.id) ?? null,
+            pooledWith: pooledWith.get(item.id)?.carrier ?? null,
+            pooledSettled: pooledWith.get(item.id)?.settled ?? false,
             /* A payment already sent up for this bill and waiting on Finance
                — see lib/claimed.ts. The row turns yellow for it. */
             claimed: claims.has(item.invoice.id),
