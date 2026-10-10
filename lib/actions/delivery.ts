@@ -10,6 +10,7 @@ import { findPickupLock, pickupLockMessage } from "@/lib/pickup-lock";
 import { prisma } from "@/lib/prisma";
 import { filesFrom, putImages } from "@/lib/storage";
 import { cartonFor } from "@/lib/combined-release";
+import { poolHold } from "@/lib/minimum-pool";
 import { runStorageMeter } from "@/lib/storage-meter";
 import { toNumber } from "@/lib/format";
 import { outstandingOf } from "@/lib/invoice-balance";
@@ -387,6 +388,21 @@ export async function releaseShipment(
           `${t(locale, "The scanned cargo is not the one on this pickup note")} (${note.shipment.trackingNumber})${t(locale, ". Do not release it.")}`
         );
       }
+      /*
+        THE CHARGE IS ON THE SIBLING, AND IT HAS NOT BEEN PAID.
+
+        Checked here as well as at the shelf, because cargo cleared before
+        this rule existed is still standing at READY_FOR_PICKUP with a live
+        note. The status says it may go and the customer has paid nothing;
+        this is the last point at which that can be stopped.
+      */
+      const heldForPool = await poolHold(note.shipment.id);
+      if (heldForPool) {
+        throw new Error(
+          `${t(locale, "The charge for this customer's parcels on this flight is on")} ${heldForPool.carrierTracking}, ${t(locale, "which is unpaid")} (${heldForPool.currency} ${heldForPool.owed.toFixed(2)}). ${t(locale, "Send the customer to Finance; none of these parcels goes until it is settled.")}`
+        );
+      }
+
       if (note.shipment.status !== "READY_FOR_PICKUP") {
         /*
           A STORAGE BALANCE IS SAID IN SO MANY WORDS.

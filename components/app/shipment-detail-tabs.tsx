@@ -69,6 +69,19 @@ export type CargoLine = {
      */
     paid?: boolean;
     /**
+     * THIS BILL ASKS FOR NOTHING BECAUSE A SIBLING CARRIES THE CHARGE.
+     *
+     * The customer's small parcels on this flight share the route's minimum:
+     * one bill holds it, the rest come to zero. A zero bill is settled, so the
+     * row said "Paid" — and the warehouse read that as money received on
+     * cargo nobody had paid a shilling for. The owner's words: marking it paid
+     * before the payment arrived "is kind not ok".
+     *
+     * So the row says what is true instead: no charge, and which consignment
+     * holds the money.
+     */
+    pooledWith?: string | null;
+    /**
      * A payment already sent up for this bill and waiting on Finance.
      *
      * The whole row turns yellow for it, like every other screen: somebody
@@ -397,7 +410,11 @@ export function ShipmentDetailTabs({
                   {showPrice && line.price ? (
                     <span className="font-mono tabular-nums text-foreground">
                       {line.price.currency} {line.price.amount.toFixed(2)}
-                      {line.price.paid ? (
+                      {line.price.pooledWith ? (
+                        <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                          {t("No charge")} · {line.price.pooledWith}
+                        </span>
+                      ) : line.price.paid ? (
                         <span className="ml-1 rounded bg-success/15 px-1.5 py-0.5 text-xs font-semibold text-success">
                           {t("Paid")}
                         </span>
@@ -667,7 +684,11 @@ export function ShipmentDetailTabs({
                             <span className="font-medium">
                               {line.price.currency} {line.price.amount.toFixed(2)}
                             </span>
-                            {line.price.paid ? (
+                            {line.price.pooledWith ? (
+                              <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                                {t("No charge")} · {line.price.pooledWith}
+                              </span>
+                            ) : line.price.paid ? (
                               <span className="rounded bg-success/15 px-1.5 py-0.5 text-xs font-semibold text-success">
                                 {t("Paid")}
                               </span>

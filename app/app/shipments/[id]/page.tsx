@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { FileText, Plane, Users, PackagePlus } from "lucide-react";
 
 import { rateFactsOf } from "@/lib/agreed-rate";
+import { poolShareFor } from "@/lib/minimum-pool";
 import { weightBasisOf } from "@/lib/rate-basis";
 import { bookedWeights } from "@/lib/weight-changes";
 import { quoteContext } from "@/lib/pricing";
@@ -184,6 +185,26 @@ export default async function ShipmentPage({
       .map((item) => item.id)
   );
 
+  /*
+    WHICH ZERO BILLS ARE ZERO BECAUSE A SIBLING CARRIES THE MINIMUM.
+
+    Asked only of the rows that actually come to nothing — on an ordinary
+    flight that is none of them, and on a bad one a handful — because working
+    out a pool asks the rate book per consignment and this list can run to a
+    hundred rows. Everything else keeps the figure its bill carries.
+  */
+  const pooledWith = new Map<string, string>();
+  if (showMoney) {
+    for (const item of dispatch.shipments) {
+      if (!item.invoice) continue;
+      if (toNumber(item.invoice.total) > 0.005) continue;
+      const share = await poolShareFor(item.id);
+      if (share && !share.carries) {
+        pooledWith.set(item.id, share.carrierTracking);
+      }
+    }
+  }
+
   const cargo: CargoLine[] = dispatch.shipments.map((item) => {
     /* What this consignment was priced at, worked out once per row. */
     const rateFacts = rateFactsOf(item.invoice, item);
@@ -225,6 +246,9 @@ export default async function ShipmentPage({
             /* Settled in full — the fact every desk was opening a consignment
                to find out. */
             paid: item.invoice.status === "PAID",
+            /* Nothing to pay, because a sibling on this flight carries the
+               whole minimum — see the note on the prop. */
+            pooledWith: pooledWith.get(item.id) ?? null,
             /* A payment already sent up for this bill and waiting on Finance
                — see lib/claimed.ts. The row turns yellow for it. */
             claimed: claims.has(item.invoice.id),

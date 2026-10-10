@@ -270,3 +270,69 @@ export async function poolShareFor(
     pooledFreight,
   };
 }
+
+/**
+ * THE PARCELS THAT OWE NOTHING BECAUSE A SIBLING OWES EVERYTHING.
+ *
+ * A customer's small parcels on one flight share the route's minimum: one bill
+ * carries the whole charge and the rest come to nothing. A bill of nothing is
+ * settled, so the system cleared those parcels for collection the moment
+ * Finance confirmed the price — and the customer could walk out with goods
+ * having paid not one shilling, while the parcel holding the charge sat here.
+ *
+ * The owner's decision, in his words: marking it paid before the payment
+ * arrived "is kind not ok". The minimum is charged ONCE for all the parcels
+ * because they are treated as one lot, so the clearance follows the same rule.
+ * None of them goes until the charge is settled.
+ *
+ * Returns null where there is nothing to hold for: the consignment is not in a
+ * pool, it IS the one carrying the charge — then its own bill is the gate, as
+ * for any other cargo — or the pool came to nothing. Otherwise it names the
+ * bill the counter has to send the customer to.
+ */
+export async function poolHold(shipmentId: string): Promise<{
+  carrierTracking: string;
+  owed: number;
+  currency: string;
+} | null> {
+  const share = await poolShareFor(shipmentId);
+  if (!share || share.carries) return null;
+  if (share.pooledFreight <= CENT) return null;
+
+  const carrier = await prisma.shipment.findUnique({
+    where: { trackingNumber: share.carrierTracking },
+    select: {
+      invoice: {
+        select: {
+          total: true,
+          amountPaid: true,
+          amountAdjusted: true,
+          currency: true,
+          status: true,
+        },
+      },
+    },
+  });
+  const bill = carrier?.invoice;
+  /* No bill on the carrier yet means nobody has been asked for the money, so
+     there is certainly nothing paid — hold, and say what it will be. */
+  if (!bill) {
+    return {
+      carrierTracking: share.carrierTracking,
+      owed: share.pooledFreight,
+      currency: share.currency,
+    };
+  }
+  /* A bill somebody wrote off or voided is not a debt anybody is chasing. */
+  if (bill.status === "VOID" || bill.status === "WRITTEN_OFF") return null;
+
+  const owed =
+    toNumber(bill.total) - toNumber(bill.amountPaid) - toNumber(bill.amountAdjusted);
+  if (owed <= CENT) return null;
+
+  return {
+    carrierTracking: share.carrierTracking,
+    owed,
+    currency: bill.currency,
+  };
+}

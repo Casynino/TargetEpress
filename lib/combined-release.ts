@@ -4,6 +4,7 @@ import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { outstandingOf } from "@/lib/invoice-balance";
 import type { Locale } from "@/lib/locale";
+import { poolHold } from "@/lib/minimum-pool";
 import { findPickupLock, pickupLockMessage } from "@/lib/pickup-lock";
 import { prisma } from "@/lib/prisma";
 
@@ -112,6 +113,14 @@ export async function cartonFor(
     },
   });
 
+  /* Which of them owe nothing only because a sibling carries the whole
+     minimum, and that sibling is unpaid — see poolHold. */
+  const pooled = new Map<string, { carrierTracking: string }>();
+  for (const shipment of shipments) {
+    const hold = await poolHold(shipment.id);
+    if (hold) pooled.set(shipment.id, hold);
+  }
+
   const members: CartonMember[] = [];
   for (const shipment of shipments) {
     const boxesTotal = shipment.packageList.length;
@@ -133,6 +142,9 @@ export async function cartonFor(
       reason = pickupLockMessage(lock, shipment.trackingNumber, locale);
     } else if (boxesHere < boxesTotal) {
       reason = `${boxesHere}/${boxesTotal} ${t(locale, "boxes here")}`;
+    } else if (pooled.get(shipment.id)) {
+      const hold = pooled.get(shipment.id)!;
+      reason = `${t(locale, "the charge for these parcels is on")} ${hold.carrierTracking}, ${t(locale, "which is unpaid")}`;
     } else if (owing > 0.005 && storage > 0.005) {
       reason = `${t(locale, "STORAGE OUTSTANDING — DO NOT RELEASE")} · ${shipment.invoice!.storageDays} ${t(locale, "day(s) of storage beyond the free week")}`;
     } else if (!shipment.pickupNote) {

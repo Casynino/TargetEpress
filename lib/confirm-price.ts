@@ -15,7 +15,7 @@ import { LOCAL_CURRENCY, billingRate, toLocal } from "@/lib/fx";
 import { nextPickupNoteNumber } from "@/lib/ids";
 import { invoiceStatusFor } from "@/lib/invoice-status";
 import { outstandingOf } from "@/lib/invoice-balance";
-import { poolShareFor } from "@/lib/minimum-pool";
+import { poolHold, poolShareFor } from "@/lib/minimum-pool";
 import { isDarConfirmed, notPayableMessage } from "@/lib/payable";
 import { prisma } from "@/lib/prisma";
 import { quote } from "@/lib/pricing";
@@ -338,8 +338,19 @@ export async function confirmPrice(
       */
       const settledNow =
         nowPaid + toNumber(invoice.amountAdjusted) + 0.005 >= total;
+      /*
+        A BILL OF NOTHING IS NOT A BILL THAT WAS PAID.
+
+        Where this consignment's freight came to zero because a sibling on the
+        same flight carries the whole minimum, "settled" is true of this bill
+        and false of the customer. Clearing it here handed them goods for
+        nothing while the charge stood unpaid on the next parcel. The pool is
+        one lot and its clearance is one decision — see poolHold.
+      */
+      const pooled = await poolHold(shipment.id);
       if (
         settledNow &&
+        pooled === null &&
         shipment.status === "RECEIVED_AT_DAR" &&
         shipment.pickupNote == null &&
         shipment.exceptions.length === 0 &&

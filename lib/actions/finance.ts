@@ -31,6 +31,7 @@ import { postLedgerEntry } from "@/lib/ledger";
 import { recordPriceChange } from "@/lib/price-changes";
 import { quote } from "@/lib/pricing";
 import { poolShareFor } from "@/lib/minimum-pool";
+import { clearPoolAfterPayment } from "@/lib/pool-clearance";
 import { agreedQuantityOf, agreementBefore } from "@/lib/rate-basis";
 import {
   nextInvoiceNumber,
@@ -2949,8 +2950,29 @@ export async function recordPayment(
         tx
       );
 
-      return { receiptNumber: receipt.receiptNumber, closedBatch: closedNow };
+      return {
+        receiptNumber: receipt.receiptNumber,
+        closedBatch: closedNow,
+        /* For the pooled parcels this payment may have just paid for. Only
+           where it actually settled the bill: a part payment releases
+           nothing, here or anywhere else. */
+        paidShipmentId: settled ? invoice.shipment.id : null,
+      };
     });
+
+    /* And the parcels this payment paid for, which carry no charge of their
+       own — see clearPoolAfterPayment. Outside the transaction on purpose,
+       and never allowed to fail a payment that is already recorded. */
+    if (receiptNumber.paidShipmentId) {
+      try {
+        await clearPoolAfterPayment(receiptNumber.paidShipmentId, user);
+      } catch (error) {
+        console.error("Could not clear the pooled parcels after a payment", {
+          shipmentId: receiptNumber.paidShipmentId,
+          error,
+        });
+      }
+    }
 
     revalidatePath("/app/finance");
     revalidatePath("/app/finance/invoices");
