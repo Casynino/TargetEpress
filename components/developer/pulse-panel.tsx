@@ -145,8 +145,8 @@ export function CargoPanel({ p, o }: { p: Pulse; o: Ops }) {
           label="Open cargo issues"
           value={formatNumber(o.openIssues)}
           detail="damaged, missing or short-landed"
-          tone={o.openIssues > 0 ? "warn" : "good"}
-          statusText={o.openIssues > 0 ? "To resolve" : "Clear"}
+          tone="info"
+          statusText="For awareness"
           icon={AlertTriangle}
           meaning="Problems raised on cargo that nobody has closed yet. The oldest ones are listed below."
         />
@@ -327,8 +327,8 @@ export function MoneyPanel({ p, o }: { p: Pulse; o: Ops }) {
           label="Bills waiting for money"
           value={formatNumber(p.unpaidBills)}
           detail={owedLine}
-          tone={p.unpaidBills > 0 ? "warn" : "good"}
-          statusText={p.unpaidBills > 0 ? "Outstanding" : "Clear"}
+          tone="info"
+          statusText="For awareness"
           icon={ReceiptText}
           meaning="Unpaid and part-paid bills, worked out as total minus paid."
         />
@@ -349,8 +349,8 @@ export function MoneyPanel({ p, o }: { p: Pulse; o: Ops }) {
               ? `oldest ${ageDays(o.oldestSubmission)} days`
               : "nothing waiting"
           }
-          tone={o.pendingSubmissions > 0 ? "warn" : "good"}
-          statusText={o.pendingSubmissions > 0 ? "Queue" : "Clear"}
+          tone="info"
+          statusText="For awareness"
           icon={HandCoins}
           meaning="Payments handed up by Support that Finance has not verified yet. They are not money in the books until checked."
         />
@@ -358,8 +358,8 @@ export function MoneyPanel({ p, o }: { p: Pulse; o: Ops }) {
           label="Expenses waiting approval"
           value={formatNumber(o.pendingExpenses)}
           detail="not yet approved or paid"
-          tone={o.pendingExpenses > 0 ? "warn" : "good"}
-          statusText={o.pendingExpenses > 0 ? "Queue" : "Clear"}
+          tone="info"
+          statusText="For awareness"
           icon={Clock}
           meaning="Costs that have been entered and are still waiting for a decision."
         />
@@ -556,8 +556,8 @@ export function MessagesPanel({ o }: { o: Ops }) {
           label="Open tickets"
           value={formatNumber(o.openTickets)}
           detail="Customer Care"
-          tone={o.openTickets > 0 ? "warn" : "good"}
-          statusText={o.openTickets > 0 ? "Open" : "Clear"}
+          tone="info"
+          statusText="For awareness"
           icon={LifeBuoy}
           meaning="Tickets that are open, in progress or waiting for the customer."
         />
@@ -565,8 +565,8 @@ export function MessagesPanel({ o }: { o: Ops }) {
           label="Requests waiting"
           value={formatNumber(requests)}
           detail={`${plural(o.pendingBookings, "booking")} · ${plural(o.pendingPickups, "pickup")}`}
-          tone={requests > 0 ? "warn" : "good"}
-          statusText={requests > 0 ? "To answer" : "Clear"}
+          tone="info"
+          statusText="For awareness"
           icon={Truck}
           meaning="Booking and pickup requests from the public website that nobody has contacted yet."
         />

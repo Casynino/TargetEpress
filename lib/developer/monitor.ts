@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 
 import { BUILD_ID } from "@/lib/build-id";
 import { prisma } from "@/lib/prisma";
+import { guard } from "@/lib/developer/safe";
 
 /**
  * Everything the Developer Home shows: usage, who signs in, speed, size,
@@ -17,7 +18,30 @@ const TZ = "Africa/Dar_es_Salaam";
 const DAYS = 14;
 
 export type Level = "critical" | "warning" | "info";
-export type Problem = { level: Level; title: string; detail: string; hint: string };
+export type Problem = {
+  level: Level;
+  title: string;
+  detail: string;
+  hint: string;
+  /** Where to look at it, when there is a screen for it. */
+  href?: string;
+};
+
+/**
+ * 100, less what is wrong: a broken thing costs most, a note costs a little.
+ * Each kind has a ceiling, so a long list of small warnings cannot read as
+ * "everything is on fire" — only something broken can take the ring to red.
+ */
+export function scoreOf(problems: Problem[]): number {
+  const n = (level: Level) => problems.filter((p) => p.level === level).length;
+  return Math.max(
+    0,
+    100 -
+      Math.min(70, n("critical") * 35) -
+      Math.min(40, n("warning") * 8) -
+      Math.min(10, n("info") * 2),
+  );
+}
 export type Probe = { label: string; ms: number; ok: boolean };
 export type Monitor = Awaited<ReturnType<typeof getMonitor>>;
 
@@ -40,28 +64,34 @@ const ENV: {
     name: "DIRECT_URL",
     title: "Database direct link",
     required: false,
-    purpose: "Used for schema changes and long jobs that cannot go through the pooled link.",
-    ifMissing: "Schema changes pushed from this machine would fail. The running site is not affected.",
+    purpose:
+      "Used for schema changes and long jobs that cannot go through the pooled link.",
+    ifMissing:
+      "Schema changes pushed from this machine would fail. The running site is not affected.",
   },
   {
     name: "AUTH_SECRET",
     title: "Sign-in signing key",
     required: true,
-    purpose: "Signs sign-in sessions and the “work as” cookie so neither can be forged.",
+    purpose:
+      "Signs sign-in sessions and the “work as” cookie so neither can be forged.",
     ifMissing: "Nobody can sign in, and “work as” cannot start.",
   },
   {
     name: "CRON_SECRET",
     title: "Nightly job key",
     required: true,
-    purpose: "Lets the nightly jobs (storage charges, salary runs) prove they are the scheduler.",
-    ifMissing: "The nightly jobs are refused, so storage stops charging by itself.",
+    purpose:
+      "Lets the nightly jobs (storage charges, salary runs) prove they are the scheduler.",
+    ifMissing:
+      "The nightly jobs are refused, so storage stops charging by itself.",
   },
   {
     name: "BLOB_READ_WRITE_TOKEN",
     title: "File storage",
     required: true,
-    purpose: "Stores photos, payment proofs and documents outside the database.",
+    purpose:
+      "Stores photos, payment proofs and documents outside the database.",
     ifMissing: "Uploads fail, and files that were uploaded cannot be opened.",
   },
   {
@@ -69,7 +99,8 @@ const ENV: {
     title: "Public site address",
     required: false,
     purpose: "Used in links and QR codes that leave the app.",
-    ifMissing: "Links inside messages and QR codes may point to the wrong address.",
+    ifMissing:
+      "Links inside messages and QR codes may point to the wrong address.",
   },
 ];
 
@@ -82,16 +113,9 @@ function lastDays(n: number): string[] {
     day: "2-digit",
   });
   const out: string[] = [];
-  for (let i = n - 1; i >= 0; i--) out.push(fmt.format(new Date(Date.now() - i * 86_400_000)));
+  for (let i = n - 1; i >= 0; i--)
+    out.push(fmt.format(new Date(Date.now() - i * 86_400_000)));
   return out;
-}
-
-async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
-  try {
-    return await fn();
-  } catch {
-    return fallback;
-  }
 }
 
 /** Plain-language browser and device from a User-Agent string. */
@@ -128,7 +152,10 @@ export function describeAgent(ua: string | null | undefined): {
   return { browser, os, mobile: /Android|iPhone|iPad|Mobile/.test(s) };
 }
 
-async function timed(label: string, fn: () => Promise<unknown>): Promise<Probe> {
+async function timed(
+  label: string,
+  fn: () => Promise<unknown>,
+): Promise<Probe> {
   const t0 = Date.now();
   try {
     await fn();
@@ -143,39 +170,59 @@ const count = (rows: { n: bigint | number }[]) => Number(rows[0]?.n ?? 0);
 /** A line written by the Developer account, by either of its two marks. */
 const DEV_LINE_SQL = Prisma.sql`(action LIKE 'developer.%' OR coalesce("metadata" ->> 'developer', '') = 'true')`;
 
-export async function getMonitor() {
+/**
+ * Real queries timed one by one against the live database, after warming the
+ * connection. Run ALONE and before anything else on the page: timed while a
+ * dozen other reads are in flight they would measure the queue, not the
+ * database, and "the database is slow" would be a lie of our own making.
+ */
+export async function runProbes(): Promise<{ dbOk: boolean; probes: Probe[] }> {
+  const since24 = new Date(Date.now() - 86_400_000);
+  const dbOk = await prisma.$queryRaw`SELECT 1`.then(
+    () => true,
+    () => false,
+  );
+  const probes: Probe[] = [];
+  probes.push(await timed("Simple ping", () => prisma.$queryRaw`SELECT 1`));
+  probes.push(
+    await timed("Find one account", () =>
+      prisma.user.findFirst({ select: { id: true } }),
+    ),
+  );
+  probes.push(
+    await timed("Count today's activity", () =>
+      prisma.auditLog.count({ where: { createdAt: { gte: since24 } } }),
+    ),
+  );
+  probes.push(
+    await timed("Load latest 50 activity lines", () =>
+      prisma.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
+    ),
+  );
+  probes.push(
+    await timed("Count cargo", () =>
+      prisma.shipment.count({ where: { deletedAt: null } }),
+    ),
+  );
+  probes.push(
+    await timed("Load 50 customers", () =>
+      prisma.customer.findMany({ take: 50, select: { id: true } }),
+    ),
+  );
+  return { dbOk, probes };
+}
+
+export async function getMonitor(
+  ready?: Awaited<ReturnType<typeof runProbes>>,
+) {
+  const { safe, failures } = guard();
   const days = lastDays(DAYS);
   const since = new Date(Date.now() - DAYS * 86_400_000);
   const since7 = new Date(Date.now() - 7 * 86_400_000);
   const since24 = new Date(Date.now() - 86_400_000);
   const since30 = new Date(Date.now() - 30 * 86_400_000);
 
-  // ── Database: warm the connection, then time a few real queries one by one. ──
-  const dbOk = await safe(async () => {
-    await prisma.$queryRaw`SELECT 1`;
-    return true;
-  }, false);
-  const probes: Probe[] = [];
-  probes.push(await timed("Simple ping", () => prisma.$queryRaw`SELECT 1`));
-  probes.push(await timed("Find one account", () => prisma.user.findFirst({ select: { id: true } })));
-  probes.push(
-    await timed("Count today's activity", () =>
-      prisma.auditLog.count({ where: { createdAt: { gte: since24 } } })
-    )
-  );
-  probes.push(
-    await timed("Load latest 50 activity lines", () =>
-      prisma.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 50 })
-    )
-  );
-  probes.push(
-    await timed("Count cargo", () => prisma.shipment.count({ where: { deletedAt: null } }))
-  );
-  probes.push(
-    await timed("Load 50 customers", () =>
-      prisma.customer.findMany({ take: 50, select: { id: true } })
-    )
-  );
+  const { dbOk, probes } = ready ?? (await runProbes());
 
   const [
     loginsByDay,
@@ -212,7 +259,7 @@ export async function getMonitor() {
           FROM "LoginEvent" l JOIN "User" u ON u.id = l."userId"
           WHERE l."ok" = true AND l."createdAt" >= ${since}
           GROUP BY 1, 2`,
-      []
+      [],
     ),
     safe(
       () =>
@@ -223,7 +270,7 @@ export async function getMonitor() {
           FROM "AuditLog"
           WHERE "createdAt" >= ${since} AND action NOT LIKE 'auth.%'
           GROUP BY 1`,
-      []
+      [],
     ),
     safe(
       () =>
@@ -232,7 +279,7 @@ export async function getMonitor() {
           FROM "AuditLog"
           WHERE "createdAt" >= ${since} AND action NOT LIKE 'auth.%' AND NOT ${DEV_LINE_SQL}
           GROUP BY 1`,
-      []
+      [],
     ),
     safe(
       () =>
@@ -242,7 +289,7 @@ export async function getMonitor() {
           WHERE a."createdAt" >= ${since7} AND a.action NOT LIKE 'auth.%'
             AND NOT (a.action LIKE 'developer.%' OR coalesce(a."metadata" ->> 'developer', '') = 'true')
           GROUP BY 1 ORDER BY n DESC LIMIT 8`,
-      []
+      [],
     ),
     safe(
       () =>
@@ -251,7 +298,7 @@ export async function getMonitor() {
           FROM "AuditLog"
           WHERE "createdAt" >= ${since7} AND action NOT LIKE 'auth.%' AND NOT ${DEV_LINE_SQL}
           GROUP BY 1 ORDER BY n DESC LIMIT 8`,
-      []
+      [],
     ),
     safe(
       () =>
@@ -267,120 +314,175 @@ export async function getMonitor() {
             user: { select: { name: true, role: true } },
           },
         }),
-      []
+      [],
     ),
     safe(
       async () =>
         (
           await prisma.loginEvent.groupBy({
             by: ["userId"],
-            where: { ok: true, userId: { not: null }, createdAt: { gte: since24 } },
+            where: {
+              ok: true,
+              userId: { not: null },
+              createdAt: { gte: since24 },
+            },
           })
         ).length,
-      0
+      0,
     ),
     safe(
       async () =>
         (
           await prisma.loginEvent.groupBy({
             by: ["userId"],
-            where: { ok: true, userId: { not: null }, createdAt: { gte: since7 } },
+            where: {
+              ok: true,
+              userId: { not: null },
+              createdAt: { gte: since7 },
+            },
           })
         ).length,
-      0
+      0,
     ),
     safe(
       async () =>
         Number(
-          (await prisma.$queryRaw<{ b: bigint }[]>`SELECT pg_database_size(current_database())::bigint AS b`)[0]
-            .b
+          (
+            await prisma.$queryRaw<
+              { b: bigint }[]
+            >`SELECT pg_database_size(current_database())::bigint AS b`
+          )[0].b,
         ),
-      0
+      0,
     ),
     safe(
       async () =>
         (
-          await prisma.$queryRaw<{ name: string; bytes: bigint; rows: bigint }[]>`
+          await prisma.$queryRaw<
+            { name: string; bytes: bigint; rows: bigint }[]
+          >`
             SELECT relname AS name, pg_total_relation_size(relid)::bigint AS bytes, n_live_tup::bigint AS rows
             FROM pg_stat_user_tables ORDER BY pg_total_relation_size(relid) DESC LIMIT 8`
-        ).map((t) => ({ name: t.name, bytes: Number(t.bytes), rows: Number(t.rows) })),
-      [] as { name: string; bytes: number; rows: number }[]
+        ).map((t) => ({
+          name: t.name,
+          bytes: Number(t.bytes),
+          rows: Number(t.rows),
+        })),
+      [] as { name: string; bytes: number; rows: number }[],
     ),
     safe(
       () =>
         prisma.user.findMany({
-          where: { status: "ACTIVE", active: true, role: { not: "DEVELOPER" }, lastLoginAt: { lt: since30 } },
+          where: {
+            status: "ACTIVE",
+            active: true,
+            role: { not: "DEVELOPER" },
+            lastLoginAt: { lt: since30 },
+          },
           orderBy: { lastLoginAt: "asc" },
           take: 8,
           select: { id: true, name: true, role: true, lastLoginAt: true },
         }),
-      []
+      [],
     ),
     safe(
       () =>
         prisma.user.findMany({
-          where: { status: "ACTIVE", active: true, role: { not: "DEVELOPER" }, lastLoginAt: null },
+          where: {
+            status: "ACTIVE",
+            active: true,
+            role: { not: "DEVELOPER" },
+            lastLoginAt: null,
+          },
           take: 8,
           select: { id: true, name: true, role: true },
         }),
-      []
+      [],
     ),
-    safe(() => prisma.user.count({ where: { OR: [{ active: false }, { status: "SUSPENDED" }] } }), 0),
+    safe(
+      () =>
+        prisma.user.count({
+          where: { OR: [{ active: false }, { status: "SUSPENDED" }] },
+        }),
+      0,
+    ),
     safe(
       async () =>
         count(
           await prisma.$queryRaw<{ n: bigint }[]>`
-            SELECT count(*)::bigint AS n FROM "Invoice" WHERE "amountPaid" < 0`
+            SELECT count(*)::bigint AS n FROM "Invoice" WHERE "amountPaid" < 0`,
         ),
-      null as number | null
+      null as number | null,
     ),
     safe(
       async () =>
         count(
           await prisma.$queryRaw<{ n: bigint }[]>`
-            SELECT count(*)::bigint AS n FROM pg_trigger WHERE tgname = 'tx_protect_developer_audit_trg'`
+            SELECT count(*)::bigint AS n FROM pg_trigger WHERE tgname = 'tx_protect_developer_audit_trg'`,
         ) > 0,
-      null as boolean | null
+      null as boolean | null,
     ),
-    safe(() => prisma.loginEvent.count({ where: { ok: false, createdAt: { gte: since24 } } }), 0),
+    safe(
+      () =>
+        prisma.loginEvent.count({
+          where: { ok: false, createdAt: { gte: since24 } },
+        }),
+      0,
+    ),
     safe(
       () =>
         prisma.$queryRaw<{ day: string; n: number }[]>`
           SELECT to_char((("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Dar_es_Salaam')::date, 'YYYY-MM-DD') AS day, count(*)::int AS n
           FROM "LoginEvent" WHERE "ok" = false AND "createdAt" >= ${since} GROUP BY 1`,
-      []
+      [],
     ),
     safe(
       () =>
         prisma.$queryRaw<
-          { id: string; email: string; ip: string | null; createdAt: Date; count: number }[]
+          {
+            id: string;
+            email: string;
+            ip: string | null;
+            createdAt: Date;
+            count: number;
+          }[]
         >`
           SELECT max(id) AS id, email, "ipAddress" AS ip, max("createdAt") AS "createdAt", count(*)::int AS count
           FROM "LoginEvent" WHERE "ok" = false AND "createdAt" >= ${since7}
           GROUP BY email, "ipAddress", date_trunc('minute', "createdAt")
           ORDER BY max("createdAt") DESC LIMIT 8`,
-      []
+      [],
     ),
     safe(
       () =>
         prisma.auditLog.count({
-          where: { action: "developer.login.failed", summary: { contains: "locked" }, createdAt: { gte: since24 } },
+          where: {
+            action: "developer.login.failed",
+            summary: { contains: "locked" },
+            createdAt: { gte: since24 },
+          },
         }),
-      0
+      0,
     ),
     safe(
       () =>
         prisma.auditLog.count({
-          where: { action: "developer.login.failed", createdAt: { gte: since24 } },
+          where: {
+            action: "developer.login.failed",
+            createdAt: { gte: since24 },
+          },
         }),
-      0
+      0,
     ),
     safe(
       () =>
         prisma.auditLog.count({
-          where: { action: { in: ["developer.denied", "developer.workas.refused"] }, createdAt: { gte: since24 } },
+          where: {
+            action: { in: ["developer.denied", "developer.workas.refused"] },
+            createdAt: { gte: since24 },
+          },
         }),
-      0
+      0,
     ),
     safe(
       () =>
@@ -388,29 +490,37 @@ export async function getMonitor() {
           SELECT to_char((("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Dar_es_Salaam')::date, 'YYYY-MM-DD') AS day, count(*)::int AS n
           FROM "AuditLog"
           WHERE action IN ('developer.denied', 'developer.workas.refused') AND "createdAt" >= ${since} GROUP BY 1`,
-      []
+      [],
     ),
     safe(
       () =>
         prisma.user.groupBy({ by: ["role", "active"], _count: { _all: true } }),
-      [] as { role: string; active: boolean; _count: { _all: number } }[]
+      [] as { role: string; active: boolean; _count: { _all: number } }[],
     ),
     safe(
       () =>
         prisma.auditLog.findMany({
-          where: { OR: [{ actorRole: "DEVELOPER" }, { action: { startsWith: "developer." } }] },
+          where: {
+            OR: [
+              { actorRole: "DEVELOPER" },
+              { action: { startsWith: "developer." } },
+            ],
+          },
           orderBy: { createdAt: "desc" },
           take: 8,
           select: { id: true, createdAt: true, summary: true, metadata: true },
         }),
-      []
+      [],
     ),
     safe(
       () =>
         prisma.auditLog.count({
-          where: { createdAt: { gte: since24 }, NOT: { action: { startsWith: "auth." } } },
+          where: {
+            createdAt: { gte: since24 },
+            NOT: { action: { startsWith: "auth." } },
+          },
         }),
-      0
+      0,
     ),
   ]);
 
@@ -426,8 +536,12 @@ export async function getMonitor() {
   ] as const;
   const loginSeries = days.map((day) => {
     const row: Record<string, number> = {};
-    for (const r of ROLES) row[r] = loginsByDay.find((x) => x.day === day && x.role === r)?.n ?? 0;
-    return { day, ...row } as { day: string } & Record<(typeof ROLES)[number], number>;
+    for (const r of ROLES)
+      row[r] = loginsByDay.find((x) => x.day === day && x.role === r)?.n ?? 0;
+    return { day, ...row } as { day: string } & Record<
+      (typeof ROLES)[number],
+      number
+    >;
   });
   const activitySeries = days.map((day) => {
     const x = activityByDay.find((a) => a.day === day);
@@ -453,7 +567,9 @@ export async function getMonitor() {
   const problems: Problem[] = [];
   const slowest = probes.reduce((m, p) => Math.max(m, p.ms), 0);
   const failedProbes = probes.filter((p) => !p.ok);
-  const avgMs = Math.round(probes.reduce((s, p) => s + p.ms, 0) / Math.max(1, probes.length));
+  const avgMs = Math.round(
+    probes.reduce((s, p) => s + p.ms, 0) / Math.max(1, probes.length),
+  );
   if (!dbOk || failedProbes.length === probes.length)
     problems.push({
       level: "critical",
@@ -479,7 +595,8 @@ export async function getMonitor() {
     problems.push({
       level: "warning",
       title: "The database link is not the pooled one",
-      detail: "The site uses a direct connection, which can run out of connections when many people are online.",
+      detail:
+        "The site uses a direct connection, which can run out of connections when many people are online.",
       hint: "Use the “pooled” connection string for DATABASE_URL in Vercel.",
     });
   const missing = env.filter((e) => e.required && !e.set);
@@ -501,14 +618,16 @@ export async function getMonitor() {
     problems.push({
       level: "critical",
       title: "Developer audit lines are no longer protected",
-      detail: "The database rule that stops Developer audit lines being edited or deleted is missing.",
+      detail:
+        "The database rule that stops Developer audit lines being edited or deleted is missing.",
       hint: "Run scripts/neon-developer-account.sql on this database again.",
     });
   if (failed24 >= 10)
     problems.push({
       level: "warning",
       title: `${failed24} failed sign-ins in 24 hours`,
-      detail: "That is more than normal typing mistakes and may be someone guessing passwords.",
+      detail:
+        "That is more than normal typing mistakes and may be someone guessing passwords.",
       hint: "Open the “Sign-ins & security” tab. If it looks like an attack, suspend the targeted account from Access.",
     });
   if (devFailed24 > 0)
@@ -539,17 +658,12 @@ export async function getMonitor() {
     problems.push({
       level: "info",
       title: "Some numbers could not be read just now",
-      detail: "A data check did not answer. This is usually a short database hiccup.",
+      detail:
+        "A data check did not answer. This is usually a short database hiccup.",
       hint: "Refresh in a minute. If it keeps happening, check the database in the Neon dashboard.",
     });
 
-  const score = Math.max(
-    0,
-    100 -
-      problems.filter((p) => p.level === "critical").length * 35 -
-      problems.filter((p) => p.level === "warning").length * 12 -
-      problems.filter((p) => p.level === "info").length * 3
-  );
+  const score = scoreOf(problems);
 
   return {
     dbOk,
@@ -568,7 +682,10 @@ export async function getMonitor() {
     hourSeries,
     topActors,
     modules,
-    recentLogins: recentLogins.map((l) => ({ ...l, agent: describeAgent(l.userAgent) })),
+    recentLogins: recentLogins.map((l) => ({
+      ...l,
+      agent: describeAgent(l.userAgent),
+    })),
     signedIn24,
     signedIn7,
     activity24h,
@@ -584,10 +701,17 @@ export async function getMonitor() {
         bad: triggerPresent === null ? null : triggerPresent ? 0 : 1,
       },
     ],
-    security: { failed24, devFailed24, devLocked24, devRefused24, recentFailed },
+    security: {
+      failed24,
+      devFailed24,
+      devLocked24,
+      devRefused24,
+      recentFailed,
+    },
     usersByRole,
     recentDev,
     problems,
     score,
+    readFailures: failures,
   };
 }

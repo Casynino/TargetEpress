@@ -339,6 +339,14 @@ function ProblemCard({ p }: { p: Monitor["problems"][number] }) {
           <span className="font-semibold">What to do: </span>
           {p.hint}
         </p>
+        {p.href ? (
+          <Link
+            href={p.href}
+            className="inline-block text-xs font-medium text-primary hover:underline"
+          >
+            Look at it →
+          </Link>
+        ) : null}
       </div>
     </details>
   );

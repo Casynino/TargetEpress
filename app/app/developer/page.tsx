@@ -21,7 +21,8 @@ import {
 } from "@/components/developer/pulse-panel";
 import { QuickLink } from "@/components/developer/info";
 import { ROLE_LABELS } from "@/lib/constants";
-import { getMonitor } from "@/lib/developer/monitor";
+import { failureProblem, runChecks } from "@/lib/developer/diagnose";
+import { getMonitor, runProbes, scoreOf } from "@/lib/developer/monitor";
 import { workAsPeople } from "@/lib/developer/people";
 import { getOps, getPulse } from "@/lib/developer/pulse";
 import { requirePermission } from "@/lib/session";
@@ -37,12 +38,32 @@ export const metadata: Metadata = { title: "Developer home" };
  */
 export default async function DeveloperHomePage() {
   const me = await requirePermission("developer.access");
-  const m = await getMonitor();
-  const [people, pulse, ops] = await Promise.all([
+  /* The speed probes first and alone — timed in a crowd they would measure the
+     queue, not the database. Then everything else the Home needs, asked at once:
+     the reads do not depend on each other, and run one after another they were
+     what made this page slow. */
+  const ready = await runProbes();
+  const [monitor, people, pulse, ops, checks] = await Promise.all([
+    getMonitor(ready),
     workAsPeople(),
     getPulse(),
     getOps(),
+    runChecks(),
   ]);
+
+  /* One list of everything wrong: the infrastructure checks, plus the rules the
+     system promises. Worst first. */
+  const failed = failureProblem(
+    [...monitor.readFailures, ...pulse.readFailures, ...ops.readFailures],
+    checks.couldNot,
+  );
+  const rank = { critical: 0, warning: 1, info: 2 } as const;
+  const problems = [
+    ...monitor.problems,
+    ...checks.problems,
+    ...(failed ? [failed] : []),
+  ].sort((a, b) => rank[a.level] - rank[b.level]);
+  const m = { ...monitor, problems, score: scoreOf(problems) };
 
   /* Every role but Developer: that one is never given from a screen. */
   const roles = Object.entries(ROLE_LABELS)
@@ -75,27 +96,9 @@ export default async function DeveloperHomePage() {
 
   const tabs: HomeTab[] = [
     { id: "activity", label: "Activity" },
-    {
-      id: "cargo",
-      label: "Cargo",
-      badge: ops.openIssues > 0 ? String(ops.openIssues) : null,
-      tone: "warn",
-    },
-    {
-      id: "money",
-      label: "Money",
-      badge: ops.pendingSubmissions > 0 ? String(ops.pendingSubmissions) : null,
-      tone: "warn",
-    },
-    {
-      id: "messages",
-      label: "Messages & requests",
-      badge:
-        ops.openTickets + ops.pendingBookings + ops.pendingPickups > 0
-          ? String(ops.openTickets + ops.pendingBookings + ops.pendingPickups)
-          : null,
-      tone: "warn",
-    },
+    { id: "cargo", label: "Cargo" },
+    { id: "money", label: "Money" },
+    { id: "messages", label: "Messages & requests" },
     {
       id: "speed",
       label: "Speed & size",

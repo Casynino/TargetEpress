@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import { guard } from "@/lib/developer/safe";
 
 /**
  * WHAT IS REALLY GOING ON IN THE BUSINESS, FOR THE DEVELOPER.
@@ -18,14 +19,6 @@ import { prisma } from "@/lib/prisma";
 const TZ = "Africa/Dar_es_Salaam";
 const DAYS = 14;
 
-const safe = async <T>(fn: () => Promise<T>, fallback: T): Promise<T> => {
-  try {
-    return await fn();
-  } catch {
-    return fallback;
-  }
-};
-
 function lastDays(n: number): string[] {
   const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: TZ,
@@ -41,6 +34,7 @@ function lastDays(n: number): string[] {
 export type Pulse = Awaited<ReturnType<typeof getPulse>>;
 
 export async function getPulse() {
+  const { safe, failures } = guard();
   const days = lastDays(DAYS);
   const since = new Date(Date.now() - DAYS * 86_400_000);
   const since7 = new Date(Date.now() - 7 * 86_400_000);
@@ -249,6 +243,7 @@ export async function getPulse() {
     lastCharge: lastCharge?.createdAt ?? null,
     charged7,
     onlineNow,
+    readFailures: failures,
   };
 }
 
@@ -260,6 +255,7 @@ export type Ops = Awaited<ReturnType<typeof getOps>>;
  * never added up — these are queues, and the question is how long they wait.
  */
 export async function getOps() {
+  const { safe, failures } = guard();
   const days = lastDays(DAYS);
   const since = new Date(Date.now() - DAYS * 86_400_000);
   const since30 = new Date(Date.now() - 30 * 86_400_000);
@@ -468,5 +464,6 @@ export async function getOps() {
     corrections30,
     lastLedger: lastLedger?.occurredAt ?? null,
     ledgerLines30,
+    readFailures: failures,
   };
 }
