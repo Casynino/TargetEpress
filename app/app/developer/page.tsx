@@ -11,7 +11,6 @@ import {
   SecurityPanel,
   SettingsPanel,
   SpeedPanel,
-  StatusStrip,
 } from "@/components/developer/home-sections";
 import { Band, Section } from "@/components/developer/section";
 import {
@@ -21,11 +20,10 @@ import {
 } from "@/components/developer/pulse-panel";
 import { QuickLink } from "@/components/developer/info";
 import { ROLE_LABELS } from "@/lib/constants";
+import { StatusCard } from "@/components/developer/status-card";
+import { ErrorsJobsPanel } from "@/components/developer/system-panels";
 import {
-  ChecksPanel,
-  ErrorsJobsPanel,
-} from "@/components/developer/system-panels";
-import {
+  type CheckResult,
   failureProblem,
   runChecks,
   systemChecks,
@@ -88,28 +86,30 @@ export default async function DeveloperHomePage() {
 
   /* The list behind "System checks": the page-level facts, every rule checked,
      and the jobs, each with how it came out. */
-  const checkList = [
+  const checkList: CheckResult[] = [
     ...systemChecks(monitor, readFailures.length),
     ...checks.checks,
-    ...jobs.rows.map((j) => ({
+    ...jobs.rows.map((j): CheckResult => ({
       label: `${j.name} runs on time`,
       group: "Jobs",
       status:
-        j.state === "ok"
-          ? ("ok" as const)
-          : j.state === "unknown"
-            ? ("unknown" as const)
-            : ("look" as const),
-      note:
+        j.state === "ok" ? "ok" : j.state === "unknown" ? "unknown" : "look",
+      detail:
         j.state === "unknown"
-          ? "No run recorded yet — the first is tonight"
-          : undefined,
+          ? "No run recorded yet."
+          : j.state === "ok"
+            ? "Ran on time."
+            : j.state === "failed"
+              ? "The last run failed."
+              : "It has not run on time.",
     })),
     {
       label: "No unexpected server errors in the last 24 hours",
       group: "Servers",
-      status: errors.kinds24 ? ("look" as const) : ("ok" as const),
-      note: errors.kinds24 ? `${errors.kinds24} different error(s)` : undefined,
+      status: errors.kinds24 ? "look" : "ok",
+      detail: errors.kinds24
+        ? `${errors.kinds24} different error(s).`
+        : "Nothing recorded.",
     },
   ];
 
@@ -165,8 +165,8 @@ export default async function DeveloperHomePage() {
         />
       </section>
 
-      <StatusStrip m={m} />
-      <Attention m={m} />
+      <StatusCard m={m} errors={errors} />
+      <Attention m={m} checks={checkList} />
 
       <Section
         id="activity"
@@ -177,14 +177,6 @@ export default async function DeveloperHomePage() {
       </Section>
 
       <Band>The system</Band>
-
-      <Section
-        id="checks"
-        title="System checks"
-        text="Every rule the system promises, checked just now."
-      >
-        <ChecksPanel checks={checkList} />
-      </Section>
 
       <Section
         id="errors"

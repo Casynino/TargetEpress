@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   AlertTriangle,
+  ArrowRight,
   Banknote,
   Boxes,
   CheckCircle2,
@@ -24,6 +25,7 @@ import {
 
 import type { Monitor, Level } from "@/lib/developer/monitor";
 import { DEVELOPER_LOCKOUT } from "@/lib/developer-shared";
+import type { CheckResult } from "@/lib/developer/diagnose";
 import type { Security } from "@/lib/developer/events";
 import type { Pulse } from "@/lib/developer/pulse";
 import { Card, CardContent } from "@/components/ui/card";
@@ -204,111 +206,25 @@ export function Initials({
   );
 }
 
-/* ───────────────────── status strip (top of Home) ───────────────────── */
-
-/** One compact panel: the verdict, the score wheel, and the four live numbers. */
-export function StatusStrip({ m }: { m: Monitor }) {
-  const crit = m.problems.filter((p) => p.level === "critical").length;
-  const warn = m.problems.filter((p) => p.level === "warning").length;
-  const info = m.problems.length - crit - warn;
-  const headline = crit
-    ? "Needs attention now"
-    : warn
-      ? "Working, with a few things to look at"
-      : "Everything is healthy";
-  const summary = crit
-    ? `${crit} thing${crit > 1 ? "s are" : " is"} broken and should be fixed now.`
-    : warn
-      ? `${warn} thing${warn > 1 ? "s" : ""} worth a look. Nothing is broken.`
-      : "The database is fast, every required setting is in place and nobody is guessing passwords.";
-  const metrics = [
-    {
-      label: "Database",
-      value: m.dbOk ? "Online" : "Down",
-      hint: m.dbOk
-        ? `${m.dbMs} ms${m.pooled ? " · pooled" : ""}`
-        : "cannot connect",
-      tone: m.dbOk ? "text-success" : "text-destructive",
-    },
-    {
-      label: "Signed in today",
-      value: formatNumber(m.signedIn24),
-      hint: "different people",
-      tone: "",
-    },
-    {
-      label: "Actions today",
-      value: formatNumber(m.activity24h),
-      hint: "saved in 24 hours",
-      tone: "",
-    },
-    {
-      label: "Failed sign-ins",
-      value: formatNumber(m.security.failed24),
-      hint: "in 24 hours",
-      tone: m.security.failed24 >= 10 ? "text-warning" : "",
-    },
-  ];
-  return (
-    <Card>
-      <CardContent className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.15fr)] lg:items-center lg:gap-8">
-        <div className="flex items-center gap-5">
-          <ScoreRing score={m.score} size={112} />
-          <div className="lg:hidden">
-            <p className="font-display text-lg font-semibold leading-tight">
-              {headline}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">{summary}</p>
-          </div>
-        </div>
-        <div className="hidden lg:block">
-          <p className="font-display text-xl font-semibold leading-tight">
-            {headline}
-          </p>
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            {summary}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <Badge variant={crit ? "destructive" : "muted"}>
-              {crit} to fix now
-            </Badge>
-            <Badge variant={warn ? "warning" : "muted"}>
-              {warn} to look at
-            </Badge>
-            <Badge variant="muted">{info} for information</Badge>
-          </div>
-        </div>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4 lg:grid-cols-2 lg:border-l lg:border-border lg:pl-8">
-          {metrics.map((x) => (
-            <div key={x.label} className="min-w-0">
-              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {x.label}
-              </dt>
-              <dd
-                className={cn(
-                  "mt-1 font-display text-2xl font-bold leading-none tabular-nums",
-                  x.tone,
-                )}
-              >
-                {x.value}
-              </dd>
-              <p className="mt-1 truncate text-xs text-muted-foreground">
-                {x.hint}
-              </p>
-            </div>
-          ))}
-        </dl>
-      </CardContent>
-    </Card>
-  );
-}
+/* ───────────────────── needs your attention (ORA's design) ───────────────────── */
 
 /** A problem as a compact card; tap to see what it means and what to do. */
-function ProblemCard({ p }: { p: Monitor["problems"][number] }) {
+function ProblemCard({
+  p,
+  showLevel = false,
+}: {
+  p: Monitor["problems"][number];
+  showLevel?: boolean;
+}) {
   const l = LEVEL[p.level];
   const Icon = l.icon;
   return (
-    <details className={cn("group rounded-xl border open:shadow-soft", l.box)}>
+    <details
+      className={cn(
+        "group min-w-0 rounded-xl border open:shadow-soft md:[&:last-child:nth-child(odd)]:col-span-2",
+        l.box,
+      )}
+    >
       <summary className="flex cursor-pointer list-none items-center gap-3 p-3.5 [&::-webkit-details-marker]:hidden">
         <span
           className={cn(
@@ -319,21 +235,23 @@ function ProblemCard({ p }: { p: Monitor["problems"][number] }) {
           <Icon className="size-4" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold">
+          <span className="line-clamp-2 text-sm font-semibold leading-snug">
             {p.title}
           </span>
           <span className="block truncate text-xs text-muted-foreground">
             {p.detail}
           </span>
         </span>
-        <span
-          className={cn(
-            "hidden shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide sm:inline",
-            l.chip,
-          )}
-        >
-          {l.label}
-        </span>
+        {showLevel && (
+          <span
+            className={cn(
+              "hidden shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide sm:inline",
+              l.chip,
+            )}
+          >
+            {l.label}
+          </span>
+        )}
         <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
       </summary>
       <div className="space-y-1.5 border-t border-border/60 px-3.5 py-3 text-sm leading-relaxed">
@@ -352,9 +270,9 @@ function ProblemCard({ p }: { p: Monitor["problems"][number] }) {
         {p.href ? (
           <Link
             href={p.href}
-            className="inline-block text-xs font-medium text-primary hover:underline"
+            className="mt-1 inline-flex items-center gap-1 rounded-full bg-background px-3 py-1.5 text-xs font-semibold text-primary ring-1 ring-border transition-colors hover:bg-muted"
           >
-            Look at it →
+            Look at it <ArrowRight className="size-3.5" />
           </Link>
         ) : null}
       </div>
@@ -362,46 +280,146 @@ function ProblemCard({ p }: { p: Monitor["problems"][number] }) {
   );
 }
 
-/** Problems, most urgent first. Things to act on are up front; "good to know" is quieter. */
-export function Attention({ m }: { m: Monitor }) {
+const CHECK_ORDER = { fix: 0, look: 1, unknown: 2, ok: 3 } as const;
+
+/** Every check that was made, passing or not, folded away until asked for. */
+function CheckList({ checks }: { checks: CheckResult[] }) {
+  const okCount = checks.filter((c) => c.status === "ok").length;
+  const unknown = checks.filter((c) => c.status === "unknown").length;
+  const sorted = [...checks].sort(
+    (a, b) => CHECK_ORDER[a.status] - CHECK_ORDER[b.status],
+  );
+  return (
+    <details className="group border-t border-border">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-5 py-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+        <span>
+          What was checked · {okCount} of {checks.length} fine
+          {unknown > 0 ? `, ${unknown} not checked yet` : ""}
+        </span>
+        <ChevronDown className="size-4 shrink-0 transition-transform group-open:rotate-180" />
+      </summary>
+      <ul className="divide-y divide-border border-t border-border">
+        {sorted.map((c) => (
+          <li key={c.label} className="flex items-start gap-3 px-5 py-2.5">
+            {c.status === "ok" ? (
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
+            ) : c.status === "fix" ? (
+              <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+            ) : c.status === "look" ? (
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+            ) : (
+              <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm">{c.label}</p>
+              <p className="text-xs text-muted-foreground">{c.detail}</p>
+            </div>
+            <Badge
+              className="shrink-0 whitespace-nowrap"
+              variant={
+                c.status === "ok"
+                  ? "success"
+                  : c.status === "fix"
+                    ? "destructive"
+                    : c.status === "look"
+                      ? "warning"
+                      : "secondary"
+              }
+            >
+              {c.status === "ok"
+                ? "Fine"
+                : c.status === "fix"
+                  ? "Fix now"
+                  : c.status === "look"
+                    ? "Look at it"
+                    : "Not checked yet"}
+            </Badge>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+/** Problems, most urgent first, in one bounded panel. "Good to know" stays folded at the bottom. */
+export function Attention({
+  m,
+  checks,
+}: {
+  m: Monitor;
+  checks: CheckResult[];
+}) {
   const act = m.problems.filter((p) => p.level !== "info");
   const know = m.problems.filter((p) => p.level === "info");
+  const crit = act.filter((p) => p.level === "critical").length;
+  const warn = act.length - crit;
+  // Name the level on a card only when the list mixes levels, or the card is critical.
+  const mixed = crit > 0 && warn > 0;
   return (
-    <section className="space-y-4">
-      {act.length === 0 ? (
-        <div className="flex items-center gap-2.5 rounded-xl border border-success/25 bg-success/10 px-4 py-2.5 text-sm">
-          <CheckCircle2 className="size-4 shrink-0 text-success" />
-          <span className="font-medium">Nothing needs your attention</span>
-          <span className="hidden text-muted-foreground sm:inline">
-            — nothing is broken or waiting too long.
-          </span>
-        </div>
-      ) : (
-        <div>
-          <SectionTitle
-            title={`Needs your attention · ${act.length}`}
-            text="Checked just now. Tap a card to see what it means and what to do."
-            className="mb-3"
-          />
-          <div className="grid items-start gap-3 md:grid-cols-2">
-            {act.map((p) => (
-              <ProblemCard key={p.title} p={p} />
-            ))}
+    <section>
+      <Card className="overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3.5">
+          <div>
+            <h2 className="font-display text-base font-semibold tracking-tight">
+              Needs your attention
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Checked just now. Tap a card to see what it means and what to do.
+            </p>
           </div>
+          {act.length === 0 ? (
+            <Badge variant="success">All clear</Badge>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {crit > 0 && (
+                <Badge variant="destructive">{crit} to fix now</Badge>
+              )}
+              {warn > 0 && <Badge variant="warning">{warn} to look at</Badge>}
+            </div>
+          )}
         </div>
-      )}
-      {know.length > 0 && (
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Good to know · {know.length}
-          </p>
-          <div className="grid items-start gap-3 md:grid-cols-2">
-            {know.map((p) => (
-              <ProblemCard key={p.title} p={p} />
-            ))}
-          </div>
+        <div className="p-4 sm:p-5">
+          {act.length === 0 ? (
+            <div className="flex items-center gap-3.5">
+              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-success/15 text-success">
+                <CheckCircle2 className="size-5" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold">
+                  Nothing needs your attention
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Nothing is broken, and every required setting is in place.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
+              {act.map((p) => (
+                <ProblemCard
+                  key={p.title}
+                  p={p}
+                  showLevel={mixed || p.level === "critical"}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      )}
+        <CheckList checks={checks} />
+        {know.length > 0 && (
+          <details className="group border-t border-border">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-5 py-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+              <span>Good to know · {know.length}</span>
+              <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="grid grid-cols-1 items-start gap-3 px-4 pb-4 sm:px-5 sm:pb-5 md:grid-cols-2">
+              {know.map((p) => (
+                <ProblemCard key={p.title} p={p} />
+              ))}
+            </div>
+          </details>
+        )}
+      </Card>
     </section>
   );
 }

@@ -31,6 +31,8 @@ import { prisma } from "@/lib/prisma";
 
 type Check = {
   label: string;
+  /** What is true when it is fine — shown under the label in the checked list. */
+  fine: string;
   /** Where it sits in the list the Developer reads. */
   group: string;
   sql: Prisma.Sql;
@@ -42,8 +44,8 @@ export type CheckResult = {
   label: string;
   group: string;
   status: "ok" | "fix" | "look" | "unknown";
-  /** Why it could not be checked, or what was found. */
-  note?: string;
+  /** One line under the label: what is true when fine, what was found when not. */
+  detail: string;
 };
 
 const s = (n: number, one: string, many = `${one}s`) =>
@@ -52,7 +54,8 @@ const s = (n: number, one: string, many = `${one}s`) =>
 const CHECKS: Check[] = [
   /* ─── The money book: promises that must always hold ─── */
   {
-    label: "Payments missing from the money book",
+    label: "Every received payment is in the money book",
+    fine: "No payment is missing its ledger line.",
     group: "Money book",
     sql: Prisma.sql`
       SELECT count(*)::bigint AS n FROM "Payment" p
@@ -71,7 +74,8 @@ const CHECKS: Check[] = [
         : null,
   },
   {
-    label: "Cancelled payments with no reversing line",
+    label: "Cancelled payments are reversed in the book",
+    fine: "Every cancelled payment has its reversing line.",
     group: "Money book",
     sql: Prisma.sql`
       SELECT count(*)::bigint AS n FROM "Payment" p
@@ -92,7 +96,8 @@ const CHECKS: Check[] = [
         : null,
   },
   {
-    label: "Ledger lines reversed twice",
+    label: "No ledger line is reversed twice",
+    fine: "Each line has at most one reversal.",
     group: "Money book",
     sql: Prisma.sql`
       SELECT count(*)::bigint AS n FROM (
@@ -110,7 +115,8 @@ const CHECKS: Check[] = [
         : null,
   },
   {
-    label: "Ledger lines with a zero or negative amount",
+    label: "Every ledger amount is above zero",
+    fine: "No line has a zero or negative amount.",
     group: "Money book",
     sql: Prisma.sql`SELECT count(*)::bigint AS n FROM "LedgerEntry" WHERE amount <= 0`,
     make: (n) =>
@@ -127,7 +133,8 @@ const CHECKS: Check[] = [
 
   /* ─── Billing: things the system should make impossible ─── */
   {
-    label: "Cargo ready or delivered with no bill",
+    label: "Cargo that is ready or delivered has a bill",
+    fine: "Every such piece of cargo is billed.",
     group: "Billing",
     sql: Prisma.sql`
       SELECT count(*)::bigint AS n FROM "Shipment" s
@@ -149,7 +156,8 @@ const CHECKS: Check[] = [
 
   /* ─── Billing: figures that can never be negative ─── */
   {
-    label: "Bills with a negative total",
+    label: "No bill has a negative total",
+    fine: "All totals are zero or more.",
     group: "Billing",
     sql: Prisma.sql`SELECT count(*)::bigint AS n FROM "Invoice" WHERE total < 0`,
     make: (n) =>
@@ -165,7 +173,8 @@ const CHECKS: Check[] = [
         : null,
   },
   {
-    label: "Money-book lines worth zero or less in dollars",
+    label: "Every ledger line has a dollar value",
+    fine: "No line is worth zero or less in dollars.",
     group: "Money book",
     sql: Prisma.sql`SELECT count(*)::bigint AS n FROM "LedgerEntry" WHERE "amountUsd" <= 0`,
     make: (n) =>
@@ -181,7 +190,8 @@ const CHECKS: Check[] = [
   },
   /* ─── Time: nothing is written in the future ─── */
   {
-    label: "Payments or money-book lines dated in the future",
+    label: "Nothing is dated in the future",
+    fine: "No payment or ledger line is dated ahead.",
     group: "Time",
     sql: Prisma.sql`
       SELECT ((SELECT count(*) FROM "Payment" WHERE "paidAt" > now() + interval '1 day')
@@ -201,6 +211,7 @@ const CHECKS: Check[] = [
   /* ─── Setup: things the system cannot run without ─── */
   {
     label: "An active owner account exists",
+    fine: "At least one owner can sign in.",
     group: "Setup",
     sql: Prisma.sql`SELECT count(*)::bigint AS n FROM "User" WHERE role::text = 'ADMIN' AND active = true`,
     make: (n) =>
@@ -217,6 +228,7 @@ const CHECKS: Check[] = [
   },
   {
     label: "The rate book has active rules",
+    fine: "Cargo can be priced.",
     group: "Setup",
     sql: Prisma.sql`SELECT count(*)::bigint AS n FROM "PricingRule" WHERE active = true`,
     make: (n) =>
@@ -232,6 +244,7 @@ const CHECKS: Check[] = [
   },
   {
     label: "An exchange rate is in force",
+    fine: "Dollar amounts can be shown in shillings.",
     group: "Setup",
     sql: Prisma.sql`SELECT count(*)::bigint AS n FROM "ExchangeRate" WHERE active = true`,
     make: (n) =>
@@ -247,6 +260,7 @@ const CHECKS: Check[] = [
   },
   {
     label: "A company account exists to receive money",
+    fine: "Payments have an account to land in.",
     group: "Setup",
     sql: Prisma.sql`SELECT count(*)::bigint AS n FROM "CompanyAccount" WHERE active = true`,
     make: (n) =>
@@ -343,7 +357,7 @@ export async function runChecks() {
         label: r.check.label,
         group: r.check.group,
         status: "unknown",
-        note: r.error,
+        detail: r.error ?? "",
       });
       continue;
     }
@@ -353,7 +367,7 @@ export async function runChecks() {
       label: r.check.label,
       group: r.check.group,
       status: !p ? "ok" : p.level === "critical" ? "fix" : "look",
-      note: p ? p.title : undefined,
+      detail: p ? p.title : r.check.fine,
     });
   }
 
@@ -364,7 +378,9 @@ export async function runChecks() {
       label: "Every bill's status agrees with its figures",
       group: "Billing",
       status: billProblem ? "look" : "ok",
-      note: billProblem?.title,
+      detail: billProblem
+        ? billProblem.title
+        : "Status, total and paid all match.",
     });
   } catch (error) {
     couldNot.push(`Bill status — ${describe(error)}`);
@@ -372,7 +388,7 @@ export async function runChecks() {
       label: "Every bill's status agrees with its figures",
       group: "Billing",
       status: "unknown",
-      note: describe(error),
+      detail: describe(error),
     });
   }
 
@@ -403,17 +419,21 @@ export async function runChecks() {
         href: "/app/developer",
       });
     checks.push({
-      label: "Storage is being charged on cargo past its free days",
+      label: "Storage is charged on cargo past its free days",
       group: "Billing",
       status: n > 0 && stale ? "look" : "ok",
+      detail:
+        n > 0 && stale
+          ? "Cargo is past its free days but no charge has been written."
+          : "Storage charges are being written.",
     });
   } catch (error) {
     couldNot.push(`Storage charging — ${describe(error)}`);
     checks.push({
-      label: "Storage is being charged on cargo past its free days",
+      label: "Storage is charged on cargo past its free days",
       group: "Billing",
       status: "unknown",
-      note: describe(error),
+      detail: describe(error),
     });
   }
 
@@ -453,7 +473,7 @@ export function failureProblem(
 /**
  * The page-level facts as lines of the same list: the database answering, the
  * settings, maintenance mode, the audit protection. They are decided by the
- * monitor; this only states them in the form the "System checks" list reads.
+ * monitor; this only states them in the form the "What was checked" list reads.
  */
 export function systemChecks(
   m: Monitor,
@@ -463,9 +483,17 @@ export function systemChecks(
   const [negative, trigger] = m.checks;
   const out: CheckResult[] = [
     {
-      label: "The database answers",
+      label: "The database can be reached",
       group: "Servers",
       status: m.dbOk ? "ok" : "fix",
+      detail: m.dbOk ? `Answers in ${m.dbMs} ms.` : "It did not answer.",
+    },
+    {
+      label: "The database is fast",
+      group: "Servers",
+      status:
+        !m.dbOk || m.avgMs >= 400 ? "fix" : m.avgMs >= 150 ? "look" : "ok",
+      detail: `Average ${m.avgMs} ms (healthy is under 150 ms).`,
     },
     ...(process.env.VERCEL
       ? [
@@ -473,41 +501,59 @@ export function systemChecks(
             label: "The database link is the pooled one",
             group: "Servers",
             status: m.pooled ? "ok" : "look",
+            detail: m.pooled
+              ? "Pooled."
+              : "A direct link can run out of connections.",
           } as CheckResult,
         ]
       : []),
     {
-      label: "Every required setting is in place",
+      label: "Required settings are in place",
       group: "Servers",
       status: missing.length ? "fix" : "ok",
-      note: missing.length
-        ? missing.map((x) => x.title).join(", ") + " missing"
-        : undefined,
+      detail: missing.length
+        ? `${missing.map((x) => x.title).join(", ")} missing.`
+        : "All required settings are set.",
     },
     {
-      label: "The site is open (maintenance mode is off)",
+      label: "The site is open",
       group: "Servers",
       status: m.maintenance ? "fix" : "ok",
+      detail: m.maintenance
+        ? "Maintenance mode is ON."
+        : "Maintenance mode is off.",
     },
     {
-      label: negative.label,
+      label: "No bill has a negative paid amount",
       group: "Billing",
       status:
         negative.bad === null ? "unknown" : negative.bad === 0 ? "ok" : "look",
+      detail:
+        negative.bad === null
+          ? "Could not be read just now."
+          : negative.bad === 0
+            ? "All paid amounts are zero or more."
+            : `${negative.bad} found.`,
     },
     {
-      label: trigger.label,
+      label: "Developer audit lines are protected",
       group: "Security",
       status:
         trigger.bad === null ? "unknown" : trigger.bad === 0 ? "ok" : "fix",
+      detail:
+        trigger.bad === 0
+          ? "The database refuses to edit or delete them."
+          : trigger.bad === null
+            ? "Could not be read just now."
+            : "The protecting rule is missing.",
     },
     {
       label: "Every reading on this page could be made",
       group: "Servers",
       status: readFailureCount ? "look" : "ok",
-      note: readFailureCount
-        ? `${readFailureCount} reading(s) failed`
-        : undefined,
+      detail: readFailureCount
+        ? `${readFailureCount} reading(s) failed.`
+        : "Nothing failed to read.",
     },
   ];
   return out;
