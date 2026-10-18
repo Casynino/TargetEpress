@@ -3,7 +3,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 
 import { invoiceStatusFor } from "@/lib/invoice-status";
-import type { Problem } from "@/lib/developer/monitor";
+import type { Monitor, Problem } from "@/lib/developer/monitor";
 import { humanize } from "@/lib/developer/format";
 import { describe } from "@/lib/developer/safe";
 import { prisma } from "@/lib/prisma";
@@ -31,8 +31,19 @@ import { prisma } from "@/lib/prisma";
 
 type Check = {
   label: string;
+  /** Where it sits in the list the Developer reads. */
+  group: string;
   sql: Prisma.Sql;
   make: (n: number) => Problem | null;
+};
+
+/** One line of the "System checks" list: what was asked, and how it came out. */
+export type CheckResult = {
+  label: string;
+  group: string;
+  status: "ok" | "fix" | "look" | "unknown";
+  /** Why it could not be checked, or what was found. */
+  note?: string;
 };
 
 const s = (n: number, one: string, many = `${one}s`) =>
@@ -42,6 +53,7 @@ const CHECKS: Check[] = [
   /* ─── The money book: promises that must always hold ─── */
   {
     label: "Payments missing from the money book",
+    group: "Money book",
     sql: Prisma.sql`
       SELECT count(*)::bigint AS n FROM "Payment" p
       WHERE p."voidedAt" IS NULL AND p."accountId" IS NOT NULL
@@ -60,6 +72,7 @@ const CHECKS: Check[] = [
   },
   {
     label: "Cancelled payments with no reversing line",
+    group: "Money book",
     sql: Prisma.sql`
       SELECT count(*)::bigint AS n FROM "Payment" p
       WHERE p."voidedAt" IS NOT NULL AND p."accountId" IS NOT NULL
@@ -80,6 +93,7 @@ const CHECKS: Check[] = [
   },
   {
     label: "Ledger lines reversed twice",
+    group: "Money book",
     sql: Prisma.sql`
       SELECT count(*)::bigint AS n FROM (
         SELECT "reversesId" FROM "LedgerEntry" WHERE "reversesId" IS NOT NULL
@@ -97,6 +111,7 @@ const CHECKS: Check[] = [
   },
   {
     label: "Ledger lines with a zero or negative amount",
+    group: "Money book",
     sql: Prisma.sql`SELECT count(*)::bigint AS n FROM "LedgerEntry" WHERE amount <= 0`,
     make: (n) =>
       n > 0
@@ -113,6 +128,7 @@ const CHECKS: Check[] = [
   /* ─── Billing: things the system should make impossible ─── */
   {
     label: "Cargo ready or delivered with no bill",
+    group: "Billing",
     sql: Prisma.sql`
       SELECT count(*)::bigint AS n FROM "Shipment" s
       LEFT JOIN "Invoice" i ON i."shipmentId" = s.id
@@ -127,6 +143,120 @@ const CHECKS: Check[] = [
               "Cargo can only be handed out against a bill. These have none, so nothing was charged or can be collected.",
             hint: "Open Business → Cargo and look for the tracking numbers. Older rows from before billing existed can be harmless; recent ones mean a path released cargo without a bill. Tell me which are recent.",
             href: "/app/developer/business?tab=cargo",
+          }
+        : null,
+  },
+
+  /* ─── Billing: figures that can never be negative ─── */
+  {
+    label: "Bills with a negative total",
+    group: "Billing",
+    sql: Prisma.sql`SELECT count(*)::bigint AS n FROM "Invoice" WHERE total < 0`,
+    make: (n) =>
+      n > 0
+        ? {
+            level: "warning",
+            title: `${s(n, "bill")} with a negative total`,
+            detail:
+              "A bill can be zero (no charge) but never below zero. Something wrote a bad figure.",
+            hint: "Do not edit the bill. Open Business → Bills, note the numbers, and tell me which screen produced it.",
+            href: "/app/developer/business?tab=bills",
+          }
+        : null,
+  },
+  {
+    label: "Money-book lines worth zero or less in dollars",
+    group: "Money book",
+    sql: Prisma.sql`SELECT count(*)::bigint AS n FROM "LedgerEntry" WHERE "amountUsd" <= 0`,
+    make: (n) =>
+      n > 0
+        ? {
+            level: "warning",
+            title: `${s(n, "ledger line")} worth nothing in dollars`,
+            detail:
+              "Every line carries its dollar value for the reports. A zero or negative one makes totals wrong.",
+            hint: "Do not edit the book. Tell me; it usually means a missing exchange rate when the line was written.",
+          }
+        : null,
+  },
+  /* ─── Time: nothing is written in the future ─── */
+  {
+    label: "Payments or money-book lines dated in the future",
+    group: "Time",
+    sql: Prisma.sql`
+      SELECT ((SELECT count(*) FROM "Payment" WHERE "paidAt" > now() + interval '1 day')
+            + (SELECT count(*) FROM "LedgerEntry" WHERE "occurredAt" > now() + interval '1 day'))::bigint AS n`,
+    make: (n) =>
+      n > 0
+        ? {
+            level: "warning",
+            title: `${s(n, "record")} dated more than a day ahead`,
+            detail:
+              "A payment or ledger line with a future date usually means a time-zone slip or a mistyped date. It will not appear in today's reports.",
+            hint: "Open Business → Payments and look for dates ahead of today. Do not edit them; tell me which screen wrote them.",
+            href: "/app/developer/business?tab=payments",
+          }
+        : null,
+  },
+  /* ─── Setup: things the system cannot run without ─── */
+  {
+    label: "An active owner account exists",
+    group: "Setup",
+    sql: Prisma.sql`SELECT count(*)::bigint AS n FROM "User" WHERE role::text = 'ADMIN' AND active = true`,
+    make: (n) =>
+      n === 0
+        ? {
+            level: "critical",
+            title: "There is no active owner account",
+            detail:
+              "Nobody can approve what only the owner may approve, or change company settings.",
+            hint: "Add an owner from Home → Add an account, or reactivate the owner's account in Access.",
+            href: "/app/developer/accounts",
+          }
+        : null,
+  },
+  {
+    label: "The rate book has active rules",
+    group: "Setup",
+    sql: Prisma.sql`SELECT count(*)::bigint AS n FROM "PricingRule" WHERE active = true`,
+    make: (n) =>
+      n === 0
+        ? {
+            level: "critical",
+            title: "The rate book is empty",
+            detail:
+              "No cargo can be priced: every rule is switched off or missing.",
+            hint: "Rates are changed by Finance in Price configuration. If they cannot be restored there, tell me before anyone prices cargo.",
+          }
+        : null,
+  },
+  {
+    label: "An exchange rate is in force",
+    group: "Setup",
+    sql: Prisma.sql`SELECT count(*)::bigint AS n FROM "ExchangeRate" WHERE active = true`,
+    make: (n) =>
+      n === 0
+        ? {
+            level: "warning",
+            title: "No exchange rate is in force",
+            detail:
+              "Dollar amounts cannot be shown in shillings, and new ledger lines cannot be valued.",
+            hint: "Finance sets the rate in Finance → Exchange rate. If the page will not save, tell me.",
+          }
+        : null,
+  },
+  {
+    label: "A company account exists to receive money",
+    group: "Setup",
+    sql: Prisma.sql`SELECT count(*)::bigint AS n FROM "CompanyAccount" WHERE active = true`,
+    make: (n) =>
+      n === 0
+        ? {
+            level: "warning",
+            title: "There is no active company account",
+            detail:
+              "Payments have nowhere to land, so the money book cannot record them.",
+            hint: "Finance adds accounts in Finance → Accounts. If that page fails, tell me.",
           }
         : null,
   },
@@ -188,6 +318,7 @@ async function billStatusCheck(): Promise<Problem | null> {
 export async function runChecks() {
   const problems: Problem[] = [];
   const couldNot: string[] = [];
+  const checks: CheckResult[] = [];
 
   const results = await Promise.all(
     CHECKS.map(async (check) => {
@@ -208,17 +339,41 @@ export async function runChecks() {
   for (const r of results) {
     if (r.error) {
       couldNot.push(`${r.check.label} — ${r.error}`);
+      checks.push({
+        label: r.check.label,
+        group: r.check.group,
+        status: "unknown",
+        note: r.error,
+      });
       continue;
     }
     const p = r.check.make(r.n);
     if (p) problems.push(p);
+    checks.push({
+      label: r.check.label,
+      group: r.check.group,
+      status: !p ? "ok" : p.level === "critical" ? "fix" : "look",
+      note: p ? p.title : undefined,
+    });
   }
 
   try {
     const billProblem = await billStatusCheck();
     if (billProblem) problems.push(billProblem);
+    checks.push({
+      label: "Every bill's status agrees with its figures",
+      group: "Billing",
+      status: billProblem ? "look" : "ok",
+      note: billProblem?.title,
+    });
   } catch (error) {
     couldNot.push(`Bill status — ${describe(error)}`);
+    checks.push({
+      label: "Every bill's status agrees with its figures",
+      group: "Billing",
+      status: "unknown",
+      note: describe(error),
+    });
   }
 
   /* Storage that should be charging and is not: needs two facts, so it is asked
@@ -244,14 +399,25 @@ export async function runChecks() {
         detail: `${s(n, "piece")} of cargo has been in Dar for over 10 days (past the free week), yet no storage charge has been written ${
           last ? "for more than 3 days" : "ever"
         }.`,
-        hint: "Storage charges itself every night and at each warehouse scan. Check that CRON_SECRET is set (Settings tab), then Vercel → Cron Jobs → /api/cron/storage for a failed run and its log.",
+        hint: "Storage charges itself every night and at each warehouse scan. Check that CRON_SECRET is set (Settings), then Vercel → Cron Jobs → /api/cron/storage for a failed run and its log.",
         href: "/app/developer",
       });
+    checks.push({
+      label: "Storage is being charged on cargo past its free days",
+      group: "Billing",
+      status: n > 0 && stale ? "look" : "ok",
+    });
   } catch (error) {
     couldNot.push(`Storage charging — ${describe(error)}`);
+    checks.push({
+      label: "Storage is being charged on cargo past its free days",
+      group: "Billing",
+      status: "unknown",
+      note: describe(error),
+    });
   }
 
-  return { problems, couldNot };
+  return { problems, couldNot, checks };
 }
 
 /**
@@ -282,4 +448,67 @@ export function failureProblem(
         : "Refresh in a minute. If it keeps happening, open the Neon dashboard for an outage or a slow query, and send me this message.",
     };
   }
+}
+
+/**
+ * The page-level facts as lines of the same list: the database answering, the
+ * settings, maintenance mode, the audit protection. They are decided by the
+ * monitor; this only states them in the form the "System checks" list reads.
+ */
+export function systemChecks(
+  m: Monitor,
+  readFailureCount: number,
+): CheckResult[] {
+  const missing = m.env.filter((e) => e.required && !e.set);
+  const [negative, trigger] = m.checks;
+  const out: CheckResult[] = [
+    {
+      label: "The database answers",
+      group: "Servers",
+      status: m.dbOk ? "ok" : "fix",
+    },
+    ...(process.env.VERCEL
+      ? [
+          {
+            label: "The database link is the pooled one",
+            group: "Servers",
+            status: m.pooled ? "ok" : "look",
+          } as CheckResult,
+        ]
+      : []),
+    {
+      label: "Every required setting is in place",
+      group: "Servers",
+      status: missing.length ? "fix" : "ok",
+      note: missing.length
+        ? missing.map((x) => x.title).join(", ") + " missing"
+        : undefined,
+    },
+    {
+      label: "The site is open (maintenance mode is off)",
+      group: "Servers",
+      status: m.maintenance ? "fix" : "ok",
+    },
+    {
+      label: negative.label,
+      group: "Billing",
+      status:
+        negative.bad === null ? "unknown" : negative.bad === 0 ? "ok" : "look",
+    },
+    {
+      label: trigger.label,
+      group: "Security",
+      status:
+        trigger.bad === null ? "unknown" : trigger.bad === 0 ? "ok" : "fix",
+    },
+    {
+      label: "Every reading on this page could be made",
+      group: "Servers",
+      status: readFailureCount ? "look" : "ok",
+      note: readFailureCount
+        ? `${readFailureCount} reading(s) failed`
+        : undefined,
+    },
+  ];
+  return out;
 }

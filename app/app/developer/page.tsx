@@ -21,7 +21,17 @@ import {
 } from "@/components/developer/pulse-panel";
 import { QuickLink } from "@/components/developer/info";
 import { ROLE_LABELS } from "@/lib/constants";
-import { failureProblem, runChecks } from "@/lib/developer/diagnose";
+import {
+  ChecksPanel,
+  ErrorsJobsPanel,
+} from "@/components/developer/system-panels";
+import {
+  failureProblem,
+  runChecks,
+  systemChecks,
+} from "@/lib/developer/diagnose";
+import { getErrors, getSecurity } from "@/lib/developer/events";
+import { getJobs } from "@/lib/developer/jobs";
 import { getMonitor, runProbes, scoreOf } from "@/lib/developer/monitor";
 import { workAsPeople } from "@/lib/developer/people";
 import { getOps, getPulse } from "@/lib/developer/pulse";
@@ -43,27 +53,65 @@ export default async function DeveloperHomePage() {
      the reads do not depend on each other, and run one after another they were
      what made this page slow. */
   const ready = await runProbes();
-  const [monitor, people, pulse, ops, checks] = await Promise.all([
-    getMonitor(ready),
-    workAsPeople(),
-    getPulse(),
-    getOps(),
-    runChecks(),
-  ]);
+  const [monitor, people, pulse, ops, checks, sec, errors, jobs] =
+    await Promise.all([
+      getMonitor(ready),
+      workAsPeople(),
+      getPulse(),
+      getOps(),
+      runChecks(),
+      getSecurity(),
+      getErrors(),
+      getJobs(),
+    ]);
 
   /* One list of everything wrong: the infrastructure checks, plus the rules the
      system promises. Worst first. */
-  const failed = failureProblem(
-    [...monitor.readFailures, ...pulse.readFailures, ...ops.readFailures],
-    checks.couldNot,
-  );
+  const readFailures = [
+    ...monitor.readFailures,
+    ...pulse.readFailures,
+    ...ops.readFailures,
+    ...sec.readFailures,
+    ...errors.readFailures,
+    ...jobs.failures,
+  ];
+  const failed = failureProblem(readFailures, checks.couldNot);
   const rank = { critical: 0, warning: 1, info: 2 } as const;
   const problems = [
     ...monitor.problems,
     ...checks.problems,
+    ...errors.problems,
+    ...jobs.problems,
     ...(failed ? [failed] : []),
   ].sort((a, b) => rank[a.level] - rank[b.level]);
   const m = { ...monitor, problems, score: scoreOf(problems) };
+
+  /* The list behind "System checks": the page-level facts, every rule checked,
+     and the jobs, each with how it came out. */
+  const checkList = [
+    ...systemChecks(monitor, readFailures.length),
+    ...checks.checks,
+    ...jobs.rows.map((j) => ({
+      label: `${j.name} runs on time`,
+      group: "Jobs",
+      status:
+        j.state === "ok"
+          ? ("ok" as const)
+          : j.state === "unknown"
+            ? ("unknown" as const)
+            : ("look" as const),
+      note:
+        j.state === "unknown"
+          ? "No run recorded yet — the first is tonight"
+          : undefined,
+    })),
+    {
+      label: "No unexpected server errors in the last 24 hours",
+      group: "Servers",
+      status: errors.kinds24 ? ("look" as const) : ("ok" as const),
+      note: errors.kinds24 ? `${errors.kinds24} different error(s)` : undefined,
+    },
+  ];
 
   /* Every role but Developer: that one is never given from a screen. */
   const roles = Object.entries(ROLE_LABELS)
@@ -131,19 +179,35 @@ export default async function DeveloperHomePage() {
       <Band>The system</Band>
 
       <Section
-        id="speed"
-        title="Speed &amp; size"
-        text="Real queries timed now, and how big the database has grown."
+        id="checks"
+        title="System checks"
+        text="Every rule the system promises, checked just now."
       >
-        <SpeedPanel m={m} />
+        <ChecksPanel checks={checkList} />
+      </Section>
+
+      <Section
+        id="errors"
+        title="Errors &amp; jobs"
+        text="Server errors the app recorded, and the jobs it runs by itself."
+      >
+        <ErrorsJobsPanel errors={errors} jobs={jobs.rows} />
       </Section>
 
       <Section
         id="security"
         title="Sign-ins &amp; security"
-        text="Refused sign-ins, and anything your own account was stopped from doing."
+        text="Wrong passwords, locked sign-ins and what was refused to you."
       >
-        <SecurityPanel m={m} />
+        <SecurityPanel m={m} sec={sec} />
+      </Section>
+
+      <Section
+        id="speed"
+        title="Speed &amp; size"
+        text="Real queries timed now, and how big the database has grown."
+      >
+        <SpeedPanel m={m} />
       </Section>
 
       <Section

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { recordJobRun } from "@/lib/developer/job-log";
 import { can } from "@/lib/rbac";
 import { currentUser } from "@/lib/session";
 import { runStorageMeter } from "@/lib/storage-meter";
@@ -45,7 +46,35 @@ async function run(request: Request) {
     });
   }
 
-  const swept = await runStorageMeter();
+  const started = Date.now();
+  let swept: Awaited<ReturnType<typeof runStorageMeter>>;
+  try {
+    swept = await runStorageMeter();
+  } catch (error) {
+    await recordJobRun({
+      key: "storage",
+      name: "Storage charging",
+      ok: false,
+      ms: Date.now() - started,
+      error,
+    });
+    throw error;
+  }
+  await recordJobRun({
+    key: "storage",
+    name: "Storage charging",
+    ok: swept.failed.length === 0,
+    ms: Date.now() - started,
+    detail: {
+      looked: swept.looked,
+      charged: swept.charged.length,
+      held: swept.held,
+      failed: swept.failed.length,
+    },
+    error: swept.failed.length
+      ? `${swept.failed.length} bill(s) could not be charged`
+      : undefined,
+  });
   /* Logged as well as returned: the scheduler's own answer is read by nobody
      unless something looks wrong, and this is what "nothing looked wrong" is
      supposed to look like in the Vercel log. */

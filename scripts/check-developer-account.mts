@@ -34,6 +34,9 @@ import {
   verifyCredentials,
 } from "@/lib/developer";
 import { decodeWorkAs, encodeWorkAs } from "@/lib/developer-workas";
+import { getJobs, JOBS } from "@/lib/developer/jobs";
+import { recordJobRun } from "@/lib/developer/job-log";
+import { cleanMessage, cleanPath, recordServerError } from "@/lib/developer/server-errors";
 import { prisma } from "@/lib/prisma";
 import { can, ROLE_PERMISSIONS, type Permission } from "@/lib/rbac";
 import type { SessionUser } from "@/lib/session";
@@ -266,6 +269,38 @@ check("no alert reads the business's queues (tickets, requests, submissions, iss
 check("no alert hint hands work to staff", !/\b(Ask|Tell) (the )?(Finance|Customer Care|Dar warehouse|China warehouse|warehouse|Support)\b/i.test(diagnoseSrc + monitorSrc));
 const panelSrc = readFileSync("components/developer/pulse-panel.tsx", "utf8");
 check("the awareness sections carry no to-do lists (oldest tickets, requests, bills, issues)", !/Oldest (open|website|bills)|Waiting for Finance|Expenses waiting|Requests waiting|Open tickets/.test(panelSrc));
+
+section("The system watches itself: errors, jobs, checks");
+const vercelCrons = (JSON.parse(readFileSync("vercel.json", "utf8")).crons ?? []) as { path: string }[];
+check("every scheduled job in vercel.json is watched on the Home", vercelCrons.every((c) => JOBS.some((j) => j.path === c.path)), vercelCrons.map((c) => c.path).join(", "));
+check("the scheduled storage run writes its diary line", readFileSync("app/api/cron/storage/route.ts", "utf8").includes("recordJobRun"));
+check("instrumentation records unexpected server errors", /export async function onRequestError/.test(readFileSync("instrumentation.ts", "utf8")));
+check("an error message loses emails and phone numbers", !/@|2557/.test(cleanMessage(new Error("Cannot email jane.doe@example.com or call +255 712 345 678"))));
+check("a page path loses record ids and the query string", cleanPath("/app/customers/cmt2hd5oe025esbzl0aqul12i/edit?token=abc") === "/app/customers/:id/edit" && cleanPath("/app/cargo/TX-000123") === "/app/cargo/:id");
+await prisma.auditLog.deleteMany({ where: { action: "system.error", summary: { contains: "guard boom" } } });
+await recordServerError(new Error("guard boom for jane@example.com"), { path: "/app/guard/cmt2hd5oe025esbzl0aqul12i", method: "GET" }, { routeType: "render" });
+const errLine = await prisma.auditLog.findFirst({ where: { action: "system.error", summary: { contains: "guard boom" } } });
+check("a server error is recorded with no personal details", !!errLine && !errLine.summary.includes("jane@") && (errLine.metadata as { path?: string })?.path === "/app/guard/:id");
+await recordServerError(new Error("guard boom for jane@example.com"), { path: "/app/guard/cmt2hd5oe025esbzl0aqul12i", method: "GET" }, {});
+check("the same error twice in a minute is written once", (await prisma.auditLog.count({ where: { action: "system.error", summary: { contains: "guard boom" } } })) === 1);
+await recordServerError(new Error("You do not have permission to do that."), { path: "/x", method: "POST" }, {});
+check("a business refusal is not recorded as a server error", (await prisma.auditLog.count({ where: { action: "system.error", summary: { contains: "permission" } } })) === 0);
+await prisma.auditLog.deleteMany({ where: { action: "system.error", summary: { contains: "guard boom" } } });
+
+await prisma.auditLog.deleteMany({ where: { action: "job.run", entityId: "storage" } });
+let jobs = await getJobs();
+check("before any run is recorded the job is 'not recorded yet', not an alarm", jobs.rows[0]?.state === "unknown" && jobs.problems.length === 0);
+await recordJobRun({ key: "storage", name: "Storage charging", ok: true, ms: 1200, detail: { looked: 5, charged: 2, held: 0, failed: 0 } });
+jobs = await getJobs();
+check("a good run reads as on time, with what it did", jobs.rows[0]?.state === "ok" && /charged 2/.test(jobs.rows[0]?.detail ?? "") && jobs.problems.length === 0);
+await recordJobRun({ key: "storage", name: "Storage charging", ok: false, ms: 300, error: new Error("boom") });
+jobs = await getJobs();
+check("a failed run raises an alert that says what to do", jobs.rows[0]?.state === "failed" && jobs.problems.some((p) => /failed on its last run/.test(p.title)));
+await prisma.auditLog.deleteMany({ where: { action: "job.run", entityId: "storage" } });
+await prisma.auditLog.create({ data: { action: "job.run", entity: "Job", entityId: "storage", summary: "old", metadata: { outcome: "success", ms: 1 }, createdAt: new Date(Date.now() - 50 * 3_600_000) } });
+jobs = await getJobs();
+check("a job that last ran 50 hours ago is LATE", jobs.rows[0]?.state === "late" && jobs.problems.some((p) => /not run on time/.test(p.title)));
+await prisma.auditLog.deleteMany({ where: { action: "job.run", entityId: "storage" } });
 
 section("The Developer opens accounts — owner included — and nobody else gains that");
 const usersSrc = readFileSync("lib/actions/users.ts", "utf8");

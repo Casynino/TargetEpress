@@ -10,6 +10,7 @@ import {
   Headset,
   Info,
   KeyRound,
+  Lock,
   Monitor as Desktop,
   ShieldCheck,
   Smartphone,
@@ -22,6 +23,8 @@ import {
 } from "lucide-react";
 
 import type { Monitor, Level } from "@/lib/developer/monitor";
+import { DEVELOPER_LOCKOUT } from "@/lib/developer-shared";
+import type { Security } from "@/lib/developer/events";
 import type { Pulse } from "@/lib/developer/pulse";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -786,58 +789,6 @@ export function SpeedPanel({ m }: { m: Monitor }) {
         <div className="flex flex-col gap-4 [&>*]:flex-1">
           <Card className="h-full">
             <CardContent className="p-5">
-              <h2 className="text-sm font-semibold">Data checks</h2>
-              <p className="mb-4 text-xs text-muted-foreground">
-                Rules that must always be true. If one fails, numbers on screen
-                may be wrong.
-              </p>
-              <ul className="space-y-3">
-                {m.checks.map((c) => (
-                  <li
-                    key={c.label}
-                    className="flex items-start gap-2.5 text-sm"
-                  >
-                    {c.bad === null ? (
-                      <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                    ) : c.bad === 0 ? (
-                      <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
-                    ) : (
-                      <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
-                    )}
-                    <span className="min-w-0">
-                      {c.label}
-                      <span
-                        className={cn(
-                          "ml-1.5 text-xs",
-                          c.bad === null
-                            ? "text-muted-foreground"
-                            : c.bad === 0
-                              ? "text-success"
-                              : "font-semibold text-destructive",
-                        )}
-                      >
-                        {c.bad === null
-                          ? "could not check"
-                          : c.bad === 0
-                            ? "OK"
-                            : `${c.bad} found`}
-                      </span>
-                    </span>
-                  </li>
-                ))}
-                <li className="flex items-start gap-2.5 text-sm">
-                  <Database className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                  <span className="text-muted-foreground">
-                    {m.suspended} suspended account
-                    {m.suspended === 1 ? "" : "s"} · {notSet} setting
-                    {notSet === 1 ? "" : "s"} not set
-                  </span>
-                </li>
-              </ul>
-            </CardContent>
-          </Card>
-          <Card className="h-full">
-            <CardContent className="p-5">
               <h2 className="text-sm font-semibold">This deployment</h2>
               <p className="mb-3 text-xs text-muted-foreground">
                 What is running right now.
@@ -878,97 +829,207 @@ export function SpeedPanel({ m }: { m: Monitor }) {
 
 /* ───────────────────── tab: Sign-ins & security ───────────────────── */
 
-export function SecurityPanel({ m }: { m: Monitor }) {
+export function SecurityPanel({ m, sec }: { m: Monitor; sec: Security }) {
   const s = m.security;
   return (
     <div className="space-y-4">
-      <div className="space-y-4">
-        <div className="grid items-stretch gap-4 lg:grid-cols-3">
-          <div className="lg:col-span-2 [&>*]:h-full">
-            <Card className="h-full">
-              <CardContent className="p-5">
-                <h2 className="text-sm font-semibold">
-                  Failed sign-ins and refused Developer actions per day
-                </h2>
-                <p className="mb-3 text-xs text-muted-foreground">
-                  {s.failed24 === 0
-                    ? "No failed sign-ins in the last 24 hours."
-                    : `${s.failed24} failed sign-in${s.failed24 === 1 ? "" : "s"} in the last 24 hours.`}
-                  {s.devRefused24 > 0 &&
-                    ` ${s.devRefused24} Developer action${s.devRefused24 === 1 ? " was" : "s were"} refused.`}
-                </p>
-                <StackedBars
-                  data={m.securitySeries.map((d) => ({
-                    label: d.day,
-                    values: { failed: d.failed, refused: d.refused },
-                  }))}
-                  series={SECURITY_SERIES}
-                  labelEvery={2}
-                  formatLabel={shortDay}
-                  height={250}
-                  emptyText="No failed sign-ins or refused actions in 14 days. Good."
-                />
-                <Legend series={SECURITY_SERIES} className="mt-4" />
-              </CardContent>
-            </Card>
-          </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <HealthCard
+          label="Failed sign-ins"
+          value={formatNumber(sec.failed14)}
+          detail="in 14 days"
+          tone={s.failed24 >= 10 ? "warn" : "good"}
+          statusText={s.failed24 >= 10 ? "Look" : "Quiet"}
+          icon={UserX}
+          meaning="Wrong password or a blocked account. A few are typing mistakes; a spike on one day, or many tries from one address, means someone is guessing."
+        />
+        <HealthCard
+          label="Successful sign-ins"
+          value={formatNumber(sec.ok14)}
+          detail="in 14 days"
+          tone="info"
+          statusText="Sign-ins"
+          icon={Users}
+          meaning="Each time someone signed in with the right password, staff and customers together."
+        />
+        <HealthCard
+          label="Developer sign-in locked"
+          value={sec.lockedNow ? "Yes" : "No"}
+          detail={`after ${DEVELOPER_LOCKOUT.perAddress} wrong tries in ${DEVELOPER_LOCKOUT.windowMinutes} minutes`}
+          tone={sec.lockedNow ? "warn" : "good"}
+          statusText={sec.lockedNow ? "Locked now" : "Open"}
+          icon={Lock}
+          meaning="The Developer account is refused for 15 minutes after repeated wrong passwords from one address, even if the right one is tried next. It opens again by itself."
+        />
+      </div>
+
+      <div className="grid items-stretch gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2 [&>*]:h-full">
           <Card className="h-full">
-            <CardContent className="p-0">
-              <div className="border-b border-border px-5 py-3.5">
-                <h2 className="text-sm font-semibold">Failed sign-ins</h2>
-                <p className="text-xs text-muted-foreground">
-                  Latest refused attempts. Passwords are never stored. Repeats
-                  within a minute are merged (×N).
-                </p>
-              </div>
-              {s.recentFailed.length === 0 ? (
-                <p className="px-5 py-8 text-center text-sm text-muted-foreground">
-                  None recorded.
-                </p>
-              ) : (
-                <ul className="divide-y divide-border">
-                  {s.recentFailed.map((f) => (
-                    <li key={f.id} className="px-5 py-2.5 text-sm">
-                      <p className="break-all leading-snug">
-                        {f.email}
-                        {f.count > 1 && (
-                          <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold tabular-nums">
-                            ×{f.count}
-                          </span>
-                        )}
-                      </p>
-                      <p
-                        className="mt-0.5 text-xs text-muted-foreground"
-                        title={eat(f.createdAt)}
-                      >
-                        {timeAgo(f.createdAt)}
-                        {f.ip ? ` · ${f.ip}` : ""}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold">
+                Failed sign-ins and refused Developer actions per day
+              </h2>
+              <p className="mb-3 text-xs text-muted-foreground">
+                {s.failed24 === 0
+                  ? "No failed sign-ins in the last 24 hours."
+                  : `${s.failed24} failed sign-in${s.failed24 === 1 ? "" : "s"} in the last 24 hours.`}
+                {s.devRefused24 > 0 &&
+                  ` ${s.devRefused24} Developer action${s.devRefused24 === 1 ? " was" : "s were"} refused.`}
+              </p>
+              <StackedBars
+                data={m.securitySeries.map((d) => ({
+                  label: d.day,
+                  values: { failed: d.failed, refused: d.refused },
+                }))}
+                series={SECURITY_SERIES}
+                labelEvery={2}
+                formatLabel={shortDay}
+                height={250}
+                emptyText="No failed sign-ins or refused actions in 14 days. Good."
+              />
+              <Legend series={SECURITY_SERIES} className="mt-4" />
             </CardContent>
           </Card>
         </div>
-        <div className="grid items-stretch gap-4 lg:grid-cols-2">
-          <InfoCallout
-            className="h-full"
-            icon={KeyRound}
-            tone={s.devLocked24 > 0 ? "warn" : "good"}
-            title="Your Developer sign-in"
-          >
-            {s.devFailed24 === 0
-              ? "No wrong-password tries on your account in the last 24 hours. After 5 wrong tries from one place it locks for 15 minutes."
-              : `${s.devFailed24} wrong-password tr${s.devFailed24 === 1 ? "y" : "ies"} in the last 24 hours${s.devLocked24 > 0 ? ", and it locked itself" : ""}. If these were not you, change your password.`}
-          </InfoCallout>
-          <InfoCallout className="h-full" icon={Info} title="Page crashes">
-            The app does not keep its own crash log. If someone says a page
-            broke, open the project in Vercel → Logs and search the page
-            address.
-          </InfoCallout>
-        </div>
+        <Card className="h-full">
+          <CardContent className="p-0">
+            <div className="border-b border-border px-5 py-3.5">
+              <h2 className="text-sm font-semibold">Latest failed tries</h2>
+              <p className="text-xs text-muted-foreground">
+                Passwords are never stored. Repeats within a minute are merged
+                (×N).
+              </p>
+            </div>
+            {s.recentFailed.length === 0 ? (
+              <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+                None recorded.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {s.recentFailed.map((f) => (
+                  <li key={f.id} className="px-5 py-2.5 text-sm">
+                    <p className="break-all leading-snug">
+                      {f.email}
+                      {f.count > 1 && (
+                        <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold tabular-nums">
+                          ×{f.count}
+                        </span>
+                      )}
+                    </p>
+                    <p
+                      className="mt-0.5 text-xs text-muted-foreground"
+                      title={eat(f.createdAt)}
+                    >
+                      {timeAgo(f.createdAt)}
+                      {f.ip ? ` · ${f.ip}` : ""}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      <div className="grid items-stretch gap-4 lg:grid-cols-2">
+        <Card className="h-full">
+          <CardContent className="p-0">
+            <div className="border-b border-border px-5 py-3.5">
+              <h2 className="text-sm font-semibold">Failed tries by address</h2>
+              <p className="text-xs text-muted-foreground">
+                Last 7 days. One address trying many accounts is a warning sign.
+              </p>
+            </div>
+            {sec.byAddress.length === 0 ? (
+              <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+                No wrong tries from any address in the last 7 days.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Address</TableHead>
+                      <TableHead className="text-right">Tries</TableHead>
+                      <TableHead className="text-right">Accounts</TableHead>
+                      <TableHead className="text-right">Last</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sec.byAddress.map((a) => (
+                      <TableRow key={a.ip ?? "none"}>
+                        <TableCell className="font-mono text-xs">
+                          {a.ip ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {a.tries}
+                        </TableCell>
+                        <TableCell
+                          className={cn(
+                            "text-right tabular-nums",
+                            a.accounts >= 3 && "font-semibold text-warning",
+                          )}
+                        >
+                          {a.accounts}
+                        </TableCell>
+                        <TableCell
+                          className="whitespace-nowrap text-right text-sm text-muted-foreground"
+                          title={eat(a.last)}
+                        >
+                          {timeAgo(a.last)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="h-full">
+          <CardContent className="p-0">
+            <div className="border-b border-border px-5 py-3.5">
+              <h2 className="text-sm font-semibold">Refused to you</h2>
+              <p className="text-xs text-muted-foreground">
+                The last times a page or an action was refused to the Developer
+                account.
+              </p>
+            </div>
+            {sec.refused.length === 0 ? (
+              <p className="m-4 flex items-center gap-2 rounded-lg bg-success/10 px-4 py-3 text-sm text-success">
+                <CheckCircle2 className="size-4" /> Nothing was refused to a
+                Developer account.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {sec.refused.map((r) => (
+                  <li key={r.id} className="px-5 py-2.5 text-sm">
+                    <p className="leading-snug">{r.summary}</p>
+                    <p
+                      className="mt-0.5 text-xs text-muted-foreground"
+                      title={eat(r.createdAt)}
+                    >
+                      {timeAgo(r.createdAt)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <InfoCallout
+        icon={KeyRound}
+        tone={s.devLocked24 > 0 ? "warn" : "good"}
+        title="Your Developer sign-in"
+      >
+        {s.devFailed24 === 0
+          ? "No wrong-password tries on your account in the last 24 hours."
+          : `${s.devFailed24} wrong-password tr${s.devFailed24 === 1 ? "y" : "ies"} in the last 24 hours${s.devLocked24 > 0 ? ", and it locked itself" : ""}. If these were not you, change your password.`}
+      </InfoCallout>
     </div>
   );
 }

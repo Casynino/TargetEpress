@@ -22,6 +22,7 @@ const SCOPES = [
   { key: "all", label: "Everything" },
   { key: "developer", label: "Developer actions" },
   { key: "failures", label: "Failures" },
+  { key: "system", label: "System" },
 ] as const;
 type Scope = (typeof SCOPES)[number]["key"];
 
@@ -44,11 +45,19 @@ const show = (v: unknown) => (typeof v === "string" ? v : JSON.stringify(v));
 export default async function DeveloperAuditPage({
   searchParams,
 }: {
-  searchParams: Promise<{ scope?: string; q?: string; from?: string; to?: string; page?: string }>;
+  searchParams: Promise<{
+    scope?: string;
+    q?: string;
+    from?: string;
+    to?: string;
+    page?: string;
+  }>;
 }) {
   await requirePermission("developer.access");
   const sp = await searchParams;
-  const scope: Scope = SCOPES.some((s) => s.key === sp.scope) ? (sp.scope as Scope) : "all";
+  const scope: Scope = SCOPES.some((s) => s.key === sp.scope)
+    ? (sp.scope as Scope)
+    : "all";
   const q = (sp.q ?? "").trim();
   const from = /^\d{4}-\d{2}-\d{2}$/.test(sp.from ?? "") ? sp.from! : "";
   const to = /^\d{4}-\d{2}-\d{2}$/.test(sp.to ?? "") ? sp.to! : "";
@@ -63,7 +72,24 @@ export default async function DeveloperAuditPage({
         { metadata: { path: ["developer"], equals: true } },
       ],
     });
-  if (scope === "failures") and.push({ metadata: { path: ["outcome"], equals: "failure" } });
+  /* The system's own lines (server errors, job runs) are not "who did what", so
+     they stay out of Everything and have a pill of their own. */
+  if (scope === "system")
+    and.push({
+      OR: [
+        { action: { startsWith: "system." } },
+        { action: { startsWith: "job." } },
+      ],
+    });
+  else
+    and.push({
+      NOT: [
+        { action: { startsWith: "system." } },
+        { action: { startsWith: "job." } },
+      ],
+    });
+  if (scope === "failures")
+    and.push({ metadata: { path: ["outcome"], equals: "failure" } });
   if (q)
     and.push({
       OR: [
@@ -76,8 +102,14 @@ export default async function DeveloperAuditPage({
       ],
     });
   /* Dates are Tanzania days: the owner reads this in Dar es Salaam. */
-  if (from) and.push({ createdAt: { gte: new Date(`${from}T00:00:00+03:00`) } });
-  if (to) and.push({ createdAt: { lt: new Date(new Date(`${to}T00:00:00+03:00`).getTime() + 86_400_000) } });
+  if (from)
+    and.push({ createdAt: { gte: new Date(`${from}T00:00:00+03:00`) } });
+  if (to)
+    and.push({
+      createdAt: {
+        lt: new Date(new Date(`${to}T00:00:00+03:00`).getTime() + 86_400_000),
+      },
+    });
   const where: Prisma.AuditLogWhereInput = and.length ? { AND: and } : {};
 
   const [rows, total] = await Promise.all([
@@ -106,20 +138,25 @@ export default async function DeveloperAuditPage({
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight">Audit</h1>
+        <h1 className="font-display text-2xl font-bold tracking-tight">
+          Audit
+        </h1>
         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-          The permanent diary of the system: who did what, and when. Developer lines can&apos;t be edited or deleted — not
-          even from the database.
+          The permanent diary of the system: who did what, and when. Developer
+          lines can&apos;t be edited or deleted — not even from the database.
         </p>
       </div>
 
       <InfoCallout icon={ScrollText} title="How to read this page">
-        Each line is one thing that happened. An <span className="inline-block size-2 rounded-full bg-warning align-middle" />{" "}
-        orange dot and a <strong className="text-foreground">Developer</strong> tag mean it was done by you — including
-        when you worked as someone. A <span className="inline-block size-2 rounded-full bg-info align-middle" /> blue
-        dot is normal staff work, and a <span className="inline-block size-2 rounded-full bg-destructive align-middle" />{" "}
-        red dot is something that failed. Use the filters to show only your actions, or only failures. Times are
-        Tanzania time.
+        Each line is one thing that happened. An{" "}
+        <span className="inline-block size-2 rounded-full bg-warning align-middle" />{" "}
+        orange dot and a <strong className="text-foreground">Developer</strong>{" "}
+        tag mean it was done by you — including when you worked as someone. A{" "}
+        <span className="inline-block size-2 rounded-full bg-info align-middle" />{" "}
+        blue dot is normal staff work, and a{" "}
+        <span className="inline-block size-2 rounded-full bg-destructive align-middle" />{" "}
+        red dot is something that failed. Use the filters to show only your
+        actions, or only failures. Times are Tanzania time.
       </InfoCallout>
 
       <div className="flex flex-wrap gap-1.5">
@@ -131,7 +168,7 @@ export default async function DeveloperAuditPage({
               "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
               scope === s.key
                 ? "border-primary bg-primary text-primary-foreground"
-                : "border-border text-muted-foreground hover:text-foreground"
+                : "border-border text-muted-foreground hover:text-foreground",
             )}
           >
             {s.label}
@@ -139,10 +176,22 @@ export default async function DeveloperAuditPage({
         ))}
       </div>
 
-      <form method="get" className="grid gap-2 sm:grid-cols-[1fr_9rem_9rem_auto]">
+      <form
+        method="get"
+        className="grid gap-2 sm:grid-cols-[1fr_9rem_9rem_auto]"
+      >
         {scope !== "all" && <input type="hidden" name="scope" value={scope} />}
-        <Input name="q" defaultValue={q} placeholder="Search who, what or where…" />
-        <Input name="from" type="date" defaultValue={from} aria-label="From date" />
+        <Input
+          name="q"
+          defaultValue={q}
+          placeholder="Search who, what or where…"
+        />
+        <Input
+          name="from"
+          type="date"
+          defaultValue={from}
+          aria-label="From date"
+        />
         <Input name="to" type="date" defaultValue={to} aria-label="To date" />
         <Button type="submit" variant="outline">
           Filter
@@ -154,7 +203,9 @@ export default async function DeveloperAuditPage({
           <CardContent className="grid place-items-center gap-2 py-12 text-center">
             <Activity className="size-6 text-muted-foreground" />
             <p className="font-medium">Nothing matches</p>
-            <p className="text-sm text-muted-foreground">Try a wider date range or a different search.</p>
+            <p className="text-sm text-muted-foreground">
+              Try a wider date range or a different search.
+            </p>
           </CardContent>
         </Card>
       ) : (
@@ -162,12 +213,23 @@ export default async function DeveloperAuditPage({
           <CardContent className="p-0">
             <ol className="divide-y divide-border">
               {rows.map((log) => {
-                const m = (log.metadata && typeof log.metadata === "object" && !Array.isArray(log.metadata)
-                  ? log.metadata
-                  : {}) as Meta;
-                const isDev = log.actorRole === "DEVELOPER" || log.action.startsWith("developer.") || m.developer === true;
+                const m = (
+                  log.metadata &&
+                  typeof log.metadata === "object" &&
+                  !Array.isArray(log.metadata)
+                    ? log.metadata
+                    : {}
+                ) as Meta;
+                const isDev =
+                  log.actorRole === "DEVELOPER" ||
+                  log.action.startsWith("developer.") ||
+                  m.developer === true;
                 const failed = m.outcome === "failure";
-                const hasDetail = m.reason || m.before != null || m.after != null || m.ipAddress;
+                const hasDetail =
+                  m.reason ||
+                  m.before != null ||
+                  m.after != null ||
+                  m.ipAddress;
                 const who = log.actor?.name ?? log.actorEmail ?? "System";
                 return (
                   <li key={log.id} className="px-5 py-3">
@@ -175,42 +237,58 @@ export default async function DeveloperAuditPage({
                       <span
                         className={cn(
                           "mt-1.5 size-2 shrink-0 rounded-full",
-                          failed ? "bg-destructive" : isDev ? "bg-warning" : "bg-info"
+                          failed
+                            ? "bg-destructive"
+                            : isDev
+                              ? "bg-warning"
+                              : "bg-info",
                         )}
                       />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm">{log.summary}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {who}
-                          {m.workingAs ? ` (as ${m.workingAs.name})` : ""} · {eat(log.createdAt)} ·{" "}
+                          {m.workingAs
+                            ? ` (as ${m.workingAs.name})`
+                            : ""} · {eat(log.createdAt)} ·{" "}
                           <span className="font-mono">{log.action}</span>
                         </p>
                         {hasDetail && (
                           <details className="mt-1.5 text-xs">
-                            <summary className="cursor-pointer text-primary">Details</summary>
+                            <summary className="cursor-pointer text-primary">
+                              Details
+                            </summary>
                             <dl className="mt-1.5 grid gap-1 rounded-lg bg-muted/40 p-2.5">
                               {m.reason && (
                                 <div>
                                   <dt className="font-medium">Reason</dt>
-                                  <dd className="text-muted-foreground">{m.reason}</dd>
+                                  <dd className="text-muted-foreground">
+                                    {m.reason}
+                                  </dd>
                                 </div>
                               )}
                               {m.before != null && (
                                 <div>
                                   <dt className="font-medium">Before</dt>
-                                  <dd className="break-all font-mono text-muted-foreground">{show(m.before)}</dd>
+                                  <dd className="break-all font-mono text-muted-foreground">
+                                    {show(m.before)}
+                                  </dd>
                                 </div>
                               )}
                               {m.after != null && (
                                 <div>
                                   <dt className="font-medium">After</dt>
-                                  <dd className="break-all font-mono text-muted-foreground">{show(m.after)}</dd>
+                                  <dd className="break-all font-mono text-muted-foreground">
+                                    {show(m.after)}
+                                  </dd>
                                 </div>
                               )}
                               {m.ipAddress && (
                                 <div>
                                   <dt className="font-medium">From</dt>
-                                  <dd className="font-mono text-muted-foreground">{m.ipAddress}</dd>
+                                  <dd className="font-mono text-muted-foreground">
+                                    {m.ipAddress}
+                                  </dd>
                                 </div>
                               )}
                             </dl>
@@ -220,9 +298,15 @@ export default async function DeveloperAuditPage({
                       <div className="flex shrink-0 flex-col items-end gap-1">
                         {isDev && <Badge variant="warning">Developer</Badge>}
                         {m.outcome && (
-                          <Badge variant={failed ? "destructive" : "success"}>{failed ? "Failed" : "Succeeded"}</Badge>
+                          <Badge variant={failed ? "destructive" : "success"}>
+                            {failed ? "Failed" : "Succeeded"}
+                          </Badge>
                         )}
-                        {!isDev && log.actorRole && <Badge variant="outline">{ROLE_LABELS[log.actorRole]}</Badge>}
+                        {!isDev && log.actorRole && (
+                          <Badge variant="outline">
+                            {ROLE_LABELS[log.actorRole]}
+                          </Badge>
+                        )}
                         <Badge variant="outline">{humanize(log.entity)}</Badge>
                       </div>
                     </div>
@@ -236,16 +320,23 @@ export default async function DeveloperAuditPage({
 
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>
-          {formatNumber(total)} {total === 1 ? "entry" : "entries"} · page {page} of {pages}
+          {formatNumber(total)} {total === 1 ? "entry" : "entries"} · page{" "}
+          {page} of {pages}
         </span>
         <div className="flex gap-2">
           {page > 1 && (
-            <Link href={link(page - 1)} className="rounded-lg border border-border px-3 py-1.5 hover:bg-muted">
+            <Link
+              href={link(page - 1)}
+              className="rounded-lg border border-border px-3 py-1.5 hover:bg-muted"
+            >
               Newer
             </Link>
           )}
           {page < pages && (
-            <Link href={link(page + 1)} className="rounded-lg border border-border px-3 py-1.5 hover:bg-muted">
+            <Link
+              href={link(page + 1)}
+              className="rounded-lg border border-border px-3 py-1.5 hover:bg-muted"
+            >
               Older
             </Link>
           )}
