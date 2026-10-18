@@ -1,81 +1,97 @@
 "use client";
 
-import Link from "next/link";
-import { Eye, ShieldAlert, UserRound } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Eye, X } from "lucide-react";
+import { useFormStatus } from "react-dom";
 
-import { useT } from "@/components/app/locale-provider";
-import { logoutAction } from "@/lib/actions/auth";
 import { stopWorkingAs } from "@/lib/actions/developer";
 
+const KEY = "tx.workas.collapsed";
+
+function StopButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="focus-ring rounded-full bg-white px-3 py-1 text-xs font-semibold text-orange-900 hover:bg-white/90 disabled:opacity-60"
+    >
+      {pending ? "Stopping…" : "Stop"}
+    </button>
+  );
+}
+
 /**
- * THE BAR THAT SAYS A DEVELOPER IS LOOKING THROUGH SOMEBODY ELSE'S EYES.
+ * WHO THE DEVELOPER IS LOOKING AS, WITHOUT TAKING A STRIP OF THE SCREEN.
  *
- * Shown only while "Work as" is on, fixed across the top of every page in a
- * colour and pattern nothing else in the application uses: from a distance,
- * on a page otherwise identical to the staff one, it must be impossible to
- * mistake the person looking for the person being looked as. Carries Stop.
+ * A small pill floating in the corner, only while "Work as" is on. It can be
+ * folded down to a round eye button — the Developer knows who they opened — and
+ * unfolds again with one press. It holds no layout space, so the page under it
+ * is exactly the page the person sees.
  *
- * "Sign out" ends the session. There is one sign-in page for everybody, and
- * the account decides what kind of session opens: the Developer never swaps
- * identity in place, which would be the silent change this feature rules out.
+ * Orange, a colour nothing else in the application uses, so a page that is
+ * otherwise identical to the staff one is still never mistaken for it.
+ * Everything under it is view-only, which is what makes folding it safe.
  */
 export function DeveloperBanner({
   workingAs,
 }: {
-  /** Set while the Developer is looking at the app as somebody else. */
-  workingAs?: { name: string; roleLabel: string } | null;
+  workingAs: { name: string; roleLabel: string };
 }) {
-  const t = useT();
+  const [collapsed, setCollapsed] = useState(false);
+
+  /* Remembered for the tab, so a reload does not unfold what was folded. */
+  useEffect(() => {
+    try {
+      setCollapsed(sessionStorage.getItem(KEY) === "1");
+    } catch {
+      /* private window: it simply starts unfolded */
+    }
+  }, []);
+  const fold = (on: boolean) => {
+    setCollapsed(on);
+    try {
+      sessionStorage.setItem(KEY, on ? "1" : "0");
+    } catch {
+      /* the fold still works for this page view */
+    }
+  };
+
   return (
     <div
       role="status"
-      className="fixed inset-x-0 top-0 z-[60] flex h-8 items-center justify-between gap-3 px-3 text-xs font-semibold text-white print:hidden"
-      style={{
-        /* Amber-violet while looking as someone, so the two states differ at a
-           glance: plain violet is "I am the Developer", this is "I am the
-           Developer, looking through somebody else's eyes". */
-        backgroundColor: workingAs ? "#9a3412" : "#5b21b6",
-        backgroundImage:
-          "repeating-linear-gradient(135deg, rgba(255,255,255,0.10) 0 10px, transparent 10px 20px)",
-      }}
+      className="fixed bottom-20 right-3 z-[60] print:hidden lg:bottom-4 lg:right-4"
     >
-      <span className="flex min-w-0 items-center gap-2 font-mono uppercase tracking-[0.12em]">
-        <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-        <span className="truncate">
-          {workingAs
-            ? `${t("DEVELOPER MODE")} · ${t("WORKING AS")} ${workingAs.name} (${t(workingAs.roleLabel)}) — ${t("view only, recorded as Developer")}`
-            : t("DEVELOPER MODE — All actions are audited.")}
-        </span>
-      </span>
-      <span className="flex shrink-0 items-center gap-3">
-        {workingAs ? (
+      {collapsed ? (
+        <button
+          type="button"
+          onClick={() => fold(false)}
+          aria-label={`Viewing as ${workingAs.name}. Show`}
+          title={`Viewing as ${workingAs.name}`}
+          className="focus-ring grid size-10 place-items-center rounded-full bg-orange-800 text-white shadow-lg hover:bg-orange-700"
+        >
+          <Eye className="size-4" />
+        </button>
+      ) : (
+        <div className="flex items-center gap-2 rounded-full bg-orange-800 py-1.5 pl-3.5 pr-1.5 text-sm text-white shadow-lg">
+          <Eye className="size-4 shrink-0" />
+          <span className="max-w-[12rem] truncate sm:max-w-none">
+            Viewing as <strong className="font-semibold">{workingAs.name}</strong>
+            <span className="hidden text-white/75 sm:inline"> · {workingAs.roleLabel} · view only</span>
+          </span>
           <form action={stopWorkingAs}>
-            <button
-              type="submit"
-              className="focus-ring flex items-center gap-1 rounded bg-white px-2 py-0.5 text-orange-900 hover:bg-white/90"
-            >
-              <Eye className="h-3 w-3" />
-              {t("Stop working as them")}
-            </button>
+            <StopButton />
           </form>
-        ) : (
-          <Link
-            href="/app/developer"
-            className="hidden underline-offset-2 hover:underline sm:inline"
-          >
-            {t("Developer dashboard")}
-          </Link>
-        )}
-        <form action={logoutAction}>
           <button
-            type="submit"
-            className="focus-ring flex items-center gap-1 rounded bg-white/15 px-2 py-0.5 hover:bg-white/25"
+            type="button"
+            onClick={() => fold(true)}
+            aria-label="Fold away"
+            className="focus-ring grid size-7 place-items-center rounded-full text-white/80 hover:bg-white/15 hover:text-white"
           >
-            <UserRound className="h-3 w-3" />
-            {t("Sign out")}
+            <X className="size-4" />
           </button>
-        </form>
-      </span>
+        </div>
+      )}
     </div>
   );
 }
