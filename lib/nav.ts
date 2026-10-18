@@ -1245,15 +1245,16 @@ const MANAGER_SECTIONS: NavSection[] = [
 ];
 
 /*
-  THE DEVELOPER'S MENU: THEIR OWN TOOLS, THEN A WINDOW ONTO EVERYTHING ELSE.
+  THE DEVELOPER'S MENU: FOUR PLACES, NOTHING ELSE.
 
-  Every row in the second group is read-only in effect: the permission set
-  (lib/rbac.ts) gives this account no way to write money, and a button that
-  tries is refused and recorded. They are links, not tools, so the account has
-  somewhere to look at what staff see without a screen built for it.
+  Home (health and charts), Audit (the diary), Access (people, and the one-press
+  "Work as"), Business (read-only tables). The permission set (lib/rbac.ts)
+  gives this account no way to write money, so even the staff screens it can
+  reach by address are looks, not tools.
 
   Deliberately NOT the staff "Staff" page: that one asks for no reason and no
-  confirmation, and the Developer's account tool asks for both.
+  confirmation, and the Access page asks for the reason on anything that
+  changes an account.
 */
 const DEVELOPER_SECTIONS: NavSection[] = [
   {
@@ -1261,64 +1262,28 @@ const DEVELOPER_SECTIONS: NavSection[] = [
     items: [
       {
         href: "/app/developer",
-        label: "Developer dashboard",
+        label: "Home",
         icon: "LayoutDashboard",
         exact: true,
         permission: "developer.access",
       },
       {
-        href: "/app/search",
-        label: "Search",
-        icon: "Package",
-        permission: "shipment.view",
+        href: "/app/developer/audit",
+        label: "Audit",
+        icon: "History",
+        permission: "developer.access",
       },
-    ],
-  },
-  {
-    title: "Developer tools",
-    group: { label: "Developer tools", icon: "ShieldCheck" },
-    items: [
       {
         href: "/app/developer/accounts",
-        label: "Accounts",
+        label: "Access",
         icon: "UserCog",
         permission: "developer.access",
       },
       {
-        href: "/app/developer/audit",
-        label: "Audit trail",
-        icon: "History",
+        href: "/app/developer/business",
+        label: "Business",
+        icon: "ChartNoAxesCombined",
         permission: "developer.access",
-      },
-    ],
-  },
-  {
-    title: "Browse",
-    group: { label: "Browse (read-only)", icon: "Globe" },
-    items: [
-      {
-        href: "/app/shipments",
-        label: "Flights",
-        icon: "PlaneTakeoff",
-        permission: "shipment.view",
-      },
-      {
-        href: "/app/customers",
-        label: "Customers",
-        icon: "Users",
-        permission: "customer.view",
-      },
-      {
-        href: "/app/finance",
-        label: "Finance",
-        icon: "Wallet",
-        permission: "accounting.view",
-      },
-      {
-        href: "/app/finance/storage",
-        label: "Storage",
-        icon: "Warehouse",
-        permission: "storage.view",
       },
     ],
   },

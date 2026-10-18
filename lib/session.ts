@@ -71,13 +71,13 @@ async function realViewer(): Promise<SessionUser | null> {
   const user = await liveUser(session.user.id);
 
   /*
-    THE DOOR MUST MATCH THE ACCOUNT, EVERY REQUEST.
+    THE SESSION MUST STILL MATCH THE ACCOUNT, EVERY REQUEST.
 
-    A session opened through Developer Login is the Developer account and
-    nothing else, and one opened through Staff Login is never a Developer.
-    Checked against the live row rather than trusted from the token, so that
-    the two can never drift into "signed in as staff, acting as developer" —
-    the silent identity change this whole feature promises cannot happen.
+    Sign-in decides the session's kind from the account row and stamps it on
+    the token. It is checked against the live row on every request rather than
+    trusted, so that a role changed underneath a live session can never leave
+    "signed in as staff, acting as developer" — the silent identity change this
+    feature promises cannot happen.
 
     And the Developer session has a hard stop. It is the account that can see
     everything, so it does not roll forward with use like a clerk's does.

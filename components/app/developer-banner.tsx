@@ -17,10 +17,9 @@ import { stopWorkingAs } from "@/lib/actions/developer";
  * page that is otherwise identical to a staff one — so it does not rely on a
  * label alone: the stripe is the part read at a distance.
  *
- * "Switch to staff login" signs out and returns to the login page rather than
- * swapping identities in place. The two accounts are separate people-in-the-
- * system with separate credentials, and a button that turned one into the
- * other would be the silent change this whole feature exists to rule out.
+ * "Sign out" ends the session. There is one sign-in page for everybody, and
+ * the account decides what kind of session opens: the Developer never swaps
+ * identity in place, which would be the silent change this feature rules out.
  */
 export function DeveloperBanner({
   workingAs,
@@ -75,7 +74,7 @@ export function DeveloperBanner({
             className="focus-ring flex items-center gap-1 rounded bg-white/15 px-2 py-0.5 hover:bg-white/25"
           >
             <UserRound className="h-3 w-3" />
-            {t("Switch to staff login")}
+            {t("Sign out")}
           </button>
         </form>
       </span>

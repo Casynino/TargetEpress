@@ -34,7 +34,8 @@ Next.js 15 App Router · React 19 (RSC + server actions) · Prisma 6 · Postgres
 
 A separate `Role.DEVELOPER` row with its own email and password — never a flag on a staff account. Same pattern as ORA (`/Users/Nino/Desktop/Clients /3-Devs/ORA`). Nothing in the app can create, promote, suspend or reset one: `scripts/create-developer.mjs` (needs the database) is the only way, and `--recover` resets the password.
 
-- **Sign-in** has two doors (Staff / Developer); the server refuses a mismatch. Developer door: throttled (5 per address / 20 anywhere / 15 min), whole attempt under an advisory lock, 8-hour absolute session.
+- **Sign-in** is ONE page for everybody; the account decides the session. A Developer row gets the guarded path: throttled (5 per address / 20 anywhere / 15 min), whole attempt under an advisory lock, 8-hour absolute session. Do not add a Staff/Developer toggle back.
+- **Developer console** (`/app/developer`, English only by design — one reader): Home (health ring, charts, tabs; data in `lib/developer/monitor.ts`), Audit, Access, Business (read-only tables). **Work as** is one press on the person's row; suspend / role / password still ask for a reason.
 - **Permissions** are an explicit allow-list in `lib/rbac.ts` (`DEVELOPER`), deliberately NOT part of `ALL`. It holds no money-writing permission; `scripts/check-developer-account.mts` fails if one is added. Refused developer actions are audited as failures from `authorize()`.
 - **Work as** (`lib/developer-workas.ts`) is VIEW-ONLY: `authorize()` refuses every action while it is on. Never make it writable — this system moves money.
 - **Audit**: every developer line carries `metadata.developer = true`; `scripts/neon-developer-account.sql` adds a trigger that makes those rows append-only. Run that file on Neon BEFORE creating the account.

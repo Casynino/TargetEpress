@@ -6,7 +6,9 @@ import {
   ShieldCheck,
   Banknote,
   Boxes,
+  ChartNoAxesCombined,
   Headset,
+  History,
   LayoutDashboard,
   Menu,
   MessageSquare,
@@ -14,6 +16,7 @@ import {
   PlaneTakeoff,
   ScanLine,
   Search,
+  UserCog,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -59,11 +62,12 @@ type Tab = {
 };
 
 const TABS: Record<Role, Tab[]> = {
-  /* The developer's own desk, and the search every role gets. Nothing else on
-     a phone: this account is for troubleshooting at a keyboard. */
+  /* The developer's four places, the same as their sidebar. */
   DEVELOPER: [
-    { href: "/app/developer", icon: LayoutDashboard, exact: true, label: "Developer" },
-    { href: "/app/search", icon: Search },
+    { href: "/app/developer", icon: LayoutDashboard, exact: true, label: "Home" },
+    { href: "/app/developer/audit", icon: History, label: "Audit" },
+    { href: "/app/developer/accounts", icon: UserCog, label: "Access" },
+    { href: "/app/developer/business", icon: ChartNoAxesCombined, label: "Business" },
   ],
   // The owner: what landed, and what it earned. The chase lists and the staff
   // pages are deliberately in the drawer — they are opened at a desk, on a

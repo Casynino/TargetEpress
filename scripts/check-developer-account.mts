@@ -140,17 +140,16 @@ const dev = await prisma.user.upsert({
   create: { name: "Guard Developer", email: DEV_EMAIL, passwordHash: await bcrypt.hash(DEV_PW, 4), role: "DEVELOPER", department: "MANAGEMENT" },
 });
 
-const attempt = (email: string, password: string, accountType: "staff" | "developer", n = 1) =>
-  verifyCredentials({ email, password, accountType, ip: ip(n), userAgent: "guard" });
+const attempt = (email: string, password: string, n = 1) =>
+  verifyCredentials({ email, password, ip: ip(n), userAgent: "guard" });
 
-const a1 = await attempt(STAFF_EMAIL, STAFF_PW, "staff");
-check("staff password on the staff door signs in as staff", a1?.accountType === "staff" && a1.role === "FINANCE");
-check("staff password on the DEVELOPER door is refused", (await attempt(STAFF_EMAIL, STAFF_PW, "developer")) === null);
-const a3 = await attempt(DEV_EMAIL, DEV_PW, "developer");
-check("developer password on the developer door signs in as developer", a3?.accountType === "developer" && a3.role === "DEVELOPER");
-check("developer password on the STAFF door is refused", (await attempt(DEV_EMAIL, DEV_PW, "staff")) === null);
-check("a wrong developer password is refused", (await attempt(DEV_EMAIL, "wrong-password", "developer")) === null);
-check("an unknown address is refused", (await attempt("nobody@test.invalid", "x", "developer")) === null);
+const a1 = await attempt(STAFF_EMAIL, STAFF_PW);
+check("one sign-in page: a staff account opens a staff session", a1?.accountType === "staff" && a1.role === "FINANCE");
+const a3 = await attempt(DEV_EMAIL, DEV_PW);
+check("one sign-in page: the Developer account opens a Developer session", a3?.accountType === "developer" && a3.role === "DEVELOPER");
+check("a wrong staff password is refused", (await attempt(STAFF_EMAIL, "wrong-password")) === null);
+check("a wrong developer password is refused", (await attempt(DEV_EMAIL, "wrong-password")) === null);
+check("an unknown address is refused", (await attempt("nobody@test.invalid", "x")) === null);
 
 const lastFailed = await prisma.auditLog.findFirst({
   where: { action: "developer.login.failed" },
@@ -166,11 +165,11 @@ const staffLogin = await prisma.auditLog.findFirst({ where: { action: "auth.logi
 check("a staff sign-in is recorded as before, not as a developer line", staffLogin?.actorRole === "FINANCE" && staffLogin.metadata === null);
 
 section("Sign-in: lockout");
-for (let i = 0; i < DEVELOPER_LOCKOUT.perAddress; i++) await attempt(DEV_EMAIL, "guess-" + i, "developer", 7);
-check("the right password from a locked address is refused", (await attempt(DEV_EMAIL, DEV_PW, "developer", 7)) === null);
-check("…but a different address is not locked out by a stranger", (await attempt(DEV_EMAIL, DEV_PW, "developer", 8))?.accountType === "developer");
+for (let i = 0; i < DEVELOPER_LOCKOUT.perAddress; i++) await attempt(DEV_EMAIL, "guess-" + i, 7);
+check("the right password from a locked address is refused", (await attempt(DEV_EMAIL, DEV_PW, 7)) === null);
+check("…but a different address is not locked out by a stranger", (await attempt(DEV_EMAIL, DEV_PW, 8))?.accountType === "developer");
 const suspended = await prisma.user.update({ where: { id: dev.id }, data: { active: false, status: "SUSPENDED" } });
-check("a suspended Developer cannot sign in", (await attempt(DEV_EMAIL, DEV_PW, "developer", 9)) === null && suspended.active === false);
+check("a suspended Developer cannot sign in", (await attempt(DEV_EMAIL, DEV_PW, 9)) === null && suspended.active === false);
 await prisma.user.update({ where: { id: dev.id }, data: { active: true, status: "ACTIVE" } });
 
 /* ---------- 5. database: audit ---------- */
@@ -255,6 +254,13 @@ check("a Developer cannot reactivate an account somebody else suspended", users.
 check("the role dropdowns leave Developer out", readFileSync("components/app/user-admin.tsx", "utf8").includes('o.value !== "DEVELOPER"'));
 check("the Developer cannot reach the staff screen that asks no reason", readFileSync("app/app/admin/users/page.tsx", "utf8").includes('redirect("/app/developer/accounts")'));
 check("work-as is view-only: authorize() refuses every action while it is on", readFileSync("lib/session.ts", "utf8").includes("if (user.impersonatedBy)"));
+
+section("One sign-in page, one-press Work as");
+check("the sign-in form has no Staff/Developer toggle", !/accountType|Developer login|Staff login/.test(readFileSync("components/login-form.tsx", "utf8")));
+check("the sign-in action does not take the account type from the form", !readFileSync("lib/actions/auth.ts", "utf8").includes("accountType"));
+check("Work as asks for no reason (view-only, always on the trail)", !readFileSync("lib/actions/developer.ts", "utf8").includes("developerReasonRefusal"));
+check("Work as still writes its audit line before it sets the cookie",
+  (() => { const f = readFileSync("lib/actions/developer.ts", "utf8"); return f.indexOf('"developer.workas.start"') < f.indexOf("setWorkAsCookie({"); })());
 
 /* Leave the staff account as it found it. The developer is kept on purpose. */
 await prisma.loginEvent.deleteMany({ where: { email: { in: [STAFF_EMAIL, DEV_EMAIL] } } });

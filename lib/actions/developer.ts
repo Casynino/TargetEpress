@@ -4,11 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { recordDeveloperAudit } from "@/lib/developer";
-import {
-  canWorkAs,
-  developerReasonRefusal,
-  WORK_AS_COOKIE,
-} from "@/lib/developer-shared";
+import { canWorkAs, WORK_AS_COOKIE } from "@/lib/developer-shared";
 import {
   clearWorkAsCookie,
   decodeWorkAs,
@@ -27,8 +23,9 @@ import { fail, toActionError, type ActionResult } from "@/lib/actions/types";
  * ends, and both write the line the cookie is later checked against.
  */
 
-/** Start. Refuses without a reason, and the line is written BEFORE the cookie:
-    no audit row means no work-as, never the other way round. */
+/** Start. One click: the reason is optional because the page is view-only and
+    every start is on the trail either way. The line is written BEFORE the
+    cookie: no audit row means no work-as, never the other way round. */
 export async function startWorkingAs(
   _prev: ActionResult | undefined,
   formData: FormData
@@ -42,14 +39,13 @@ export async function startWorkingAs(
   }
 
   const targetId = String(formData.get("userId") ?? "");
-  const reason = String(formData.get("reason") ?? "").trim();
-  const needsReason = developerReasonRefusal(developer.role, reason);
-  if (needsReason) return fail(t(locale, needsReason));
+  const typedReason = String(formData.get("reason") ?? "").trim();
 
   const target = await prisma.user.findUnique({
     where: { id: targetId },
     select: { id: true, name: true, role: true, active: true, status: true },
   });
+  const reason = typedReason || `Opened the app as ${target?.name ?? "an account"}.`;
   if (!target || !canWorkAs(target, developer.id)) {
     await recordDeveloperAudit({
       actor: developer,

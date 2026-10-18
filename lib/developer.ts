@@ -15,13 +15,9 @@ import type { SessionUser } from "@/lib/session";
 
 export type AccountType = "staff" | "developer";
 
-export const asAccountType = (value: unknown): AccountType =>
-  value === "developer" ? "developer" : "staff";
-
 type Attempt = {
   email: string;
   password: string;
-  accountType: AccountType;
   ip: string | null;
   userAgent: string | null;
 };
@@ -36,24 +32,17 @@ export type SignedInUser = {
 };
 
 /**
- * THE ONE PLACE A PASSWORD IS CHECKED, AND ONE QUESTION ASKED OF IT.
+ * THE ONE PLACE A PASSWORD IS CHECKED.
  *
- * "Is this password right?" has always been the whole of sign-in. With two
- * kinds of account behind one form it has to be two questions: is the password
- * right, AND is this the kind of account the person asked to open. A correct
- * staff password offered on the Developer form is refused, and a correct
- * Developer password offered on the Staff form is refused — otherwise "which
- * one am I signed in as" would depend on which button somebody happened to
- * press, and the audit trail would be answering a question the person never
- * asked.
+ * One sign-in page for everybody: the ACCOUNT decides what kind of session
+ * opens, never a button the person pressed. A Developer row gets the guarded
+ * path below (lockout, advisory lock, fail-closed, audited) and a Developer
+ * session; every other row signs in exactly as it always did — the same
+ * lookups, the same events, the same single audit line, no new failure modes.
  *
- * The refusal is the same single error whichever way it failed, so the form
- * cannot be used to learn which addresses exist or which kind they are. The
- * reason is kept on the record, where only the owner and the developer read.
- *
- * Staff sign-in behaves exactly as it did: the same lookups, the same events,
- * the same single audit line, no new failure modes. Only a Developer-mode
- * attempt, or an attempt on a Developer row, is throttled.
+ * Every refusal is the same single error, so the form cannot be used to learn
+ * which addresses exist or which kind they are. The reason is kept on the
+ * record, where only the owner and the developer read.
  */
 export async function verifyCredentials(
   attempt: Attempt
@@ -63,8 +52,7 @@ export async function verifyCredentials(
     where: { email },
     select: { role: true },
   });
-  const guarded =
-    attempt.accountType === "developer" || probe?.role === DEVELOPER;
+  const guarded = probe?.role === DEVELOPER;
 
   /* Staff sign-in is exactly what it was: no transaction, no lock, no extra
      failure mode. */
@@ -167,15 +155,6 @@ async function checkAttempt(
     return null;
   }
 
-  /* Right password, wrong kind of account. */
-  if (developerRow !== (attempt.accountType === "developer")) {
-    await record(false);
-    await failedDeveloperAttempt(db, email, attempt, "wrong-account-type", {
-      accountIs: developerRow ? "developer" : "staff",
-    });
-    return null;
-  }
-
   await record(true);
 
   const now = new Date();
@@ -239,14 +218,13 @@ async function failedDeveloperAttempt(
       summary:
         why === "locked"
           ? `Developer sign-in locked after repeated failures for ${email}`
-          : `Failed ${attempt.accountType} sign-in for ${email}`,
+          : `Failed Developer sign-in for ${email}`,
       metadata: {
         /* Flagged, so the database's append-only trigger protects it too. */
         developer: true,
         outcome: "failure",
         why,
         attemptedEmail: email,
-        requestedAccountType: attempt.accountType,
         ipAddress: attempt.ip,
         timezone: "Africa/Dar_es_Salaam",
         ...extra,
