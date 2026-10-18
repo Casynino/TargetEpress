@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { t } from "@/lib/i18n";
+import { NOT_REMOVED } from "@/lib/developer-shared";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
@@ -30,6 +31,7 @@ export default async function UsersPage() {
   if (actor.role === "DEVELOPER") redirect("/app/developer/accounts");
 
   const users = await prisma.user.findMany({
+    where: NOT_REMOVED,
     orderBy: [{ active: "desc" }, { name: "asc" }],
     select: {
       id: true,
@@ -50,7 +52,7 @@ export default async function UsersPage() {
         title={t(locale, "Staff")}
         description={t(
           locale,
-          "Create accounts, move people between departments, and switch access off the moment someone leaves."
+          "Create accounts, move people between departments, and switch access off the moment someone leaves.",
         )}
       />
 

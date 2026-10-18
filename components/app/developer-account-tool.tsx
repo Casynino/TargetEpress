@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
   changeUserRole,
+  deleteUser,
   resetUserPassword,
   setUserActive,
 } from "@/lib/actions/users";
@@ -26,7 +27,7 @@ type Person = {
   active: boolean;
 };
 
-type Choice = "role" | "active" | "password";
+type Choice = "role" | "active" | "password" | "delete";
 
 function WorkAsPress() {
   const t = useT();
@@ -57,30 +58,35 @@ function WorkAsPress() {
 export function DeveloperAccountTool({
   person,
   roles,
-  manage = true,
 }: {
   person: Person;
   roles: { value: string; label: string }[];
-  /** False for the owner's account: it can be looked as, and nothing else. */
-  manage?: boolean;
 }) {
+  /* The owner's account can be looked as, suspended and deleted — but its role
+     and password are the owner's own, so those two are not offered. */
+  const isOwner = person.roleKey === "ADMIN";
   const t = useT();
   const [choice, setChoice] = useState<Choice | null>(null);
   const [newRole, setNewRole] = useState(person.roleKey);
   const [password, setPassword] = useState("");
 
-  const [roleState, roleAction] = useActionState<ActionResult | undefined, FormData>(
-    changeUserRole,
-    undefined
-  );
-  const [activeState, activeAction] = useActionState<ActionResult | undefined, FormData>(
-    setUserActive,
-    undefined
-  );
+  const [roleState, roleAction] = useActionState<
+    ActionResult | undefined,
+    FormData
+  >(changeUserRole, undefined);
+  const [activeState, activeAction] = useActionState<
+    ActionResult | undefined,
+    FormData
+  >(setUserActive, undefined);
   const [passwordState, passwordAction] = useActionState<
     ActionResult | undefined,
     FormData
   >(resetUserPassword, undefined);
+  const [deleteState, deleteAction] = useActionState<
+    ActionResult | undefined,
+    FormData
+  >(deleteUser, undefined);
+  const [typed, setTyped] = useState("");
   const [workAsState, workAsAction] = useActionState<
     ActionResult | undefined,
     FormData
@@ -89,38 +95,58 @@ export function DeveloperAccountTool({
   const close = () => {
     setChoice(null);
     setPassword("");
+    setTyped("");
   };
 
-  const roleLabel = (key: string) => roles.find((r) => r.value === key)?.label ?? key;
+  const roleLabel = (key: string) =>
+    roles.find((r) => r.value === key)?.label ?? key;
 
   const action =
-    choice === "role" ? roleAction : choice === "active" ? activeAction : passwordAction;
+    choice === "role"
+      ? roleAction
+      : choice === "active"
+        ? activeAction
+        : choice === "delete"
+          ? deleteAction
+          : passwordAction;
   const state =
-    choice === "role" ? roleState : choice === "active" ? activeState : passwordState;
+    choice === "role"
+      ? roleState
+      : choice === "active"
+        ? activeState
+        : choice === "delete"
+          ? deleteState
+          : passwordState;
 
   const consequence =
     choice === "role"
-      ? t("Move {name} from {from} to {to}. What they can do changes the next time they load a page.")
+      ? t(
+          "Move {name} from {from} to {to}. What they can do changes the next time they load a page.",
+        )
           .replace("{name}", person.name)
           .replace("{from}", person.roleLabel)
           .replace("{to}", roleLabel(newRole))
       : choice === "active"
         ? person.active
-          ? t("Suspend {name}. They are signed out of everything on their next request and cannot sign in.").replace(
-              "{name}",
-              person.name
-            )
+          ? t(
+              "Suspend {name}. They are signed out of everything on their next request and cannot sign in.",
+            ).replace("{name}", person.name)
           : t("Reactivate {name}. They can sign in again immediately.").replace(
               "{name}",
-              person.name
+              person.name,
             )
-        : t("Set a new password for {name}. Their old one stops working immediately.").replace(
-            "{name}",
-            person.name
-          );
+        : t(
+            "Set a new password for {name}. Their old one stops working immediately.",
+          ).replace("{name}", person.name);
 
   const ready =
-    choice === "role" ? newRole !== person.roleKey : choice === "password" ? password.length >= 8 : true;
+    choice === "role"
+      ? newRole !== person.roleKey
+      : choice === "password"
+        ? password.length >= 8
+        : choice === "delete"
+          ? typed.trim().toLowerCase() === person.name.trim().toLowerCase()
+          : true;
 
   return (
     <div className="space-y-2">
@@ -131,21 +157,21 @@ export function DeveloperAccountTool({
             <WorkAsPress />
           </form>
         ) : null}
-        {manage ? (
-          <>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => setChoice(choice === "active" ? null : "active")}
-            >
-              {person.active ? t("Suspend") : t("Reactivate")}
-            </Button>
-            <details className="group relative">
-              <summary className="focus-ring inline-flex h-8 cursor-pointer list-none items-center rounded-md px-3 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground [&::-webkit-details-marker]:hidden">
-                {t("More")}
-              </summary>
-              <div className="absolute right-0 z-10 mt-1 w-44 rounded-lg border bg-popover p-1 shadow-soft">
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => setChoice(choice === "active" ? null : "active")}
+        >
+          {person.active ? t("Suspend") : t("Reactivate")}
+        </Button>
+        <details className="group relative">
+          <summary className="focus-ring inline-flex h-8 cursor-pointer list-none items-center rounded-md px-3 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground [&::-webkit-details-marker]:hidden">
+            {t("More")}
+          </summary>
+          <div className="absolute right-0 z-10 mt-1 w-48 rounded-lg border bg-popover p-1 shadow-soft">
+            {!isOwner ? (
+              <>
                 <button
                   type="button"
                   className="focus-ring block w-full rounded-md px-3 py-1.5 text-left text-sm hover:bg-accent"
@@ -166,21 +192,74 @@ export function DeveloperAccountTool({
                 >
                   {t("Reset password")}
                 </button>
-              </div>
-            </details>
-          </>
-        ) : null}
+              </>
+            ) : null}
+            <button
+              type="button"
+              className="focus-ring block w-full rounded-md px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10"
+              onClick={(e) => {
+                setChoice("delete");
+                e.currentTarget.closest("details")?.removeAttribute("open");
+              }}
+            >
+              Delete account
+            </button>
+          </div>
+        </details>
       </div>
       <FormError state={workAsState} />
 
-      {choice ? (
+      {choice === "delete" ? (
+        <form
+          action={deleteAction}
+          className="space-y-2.5 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-left"
+        >
+          <input type="hidden" name="userId" value={person.id} />
+          <p className="text-sm font-medium">
+            Delete {person.name}&apos;s account?
+          </p>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            They can no longer sign in, and the account disappears from every
+            list. Everything they recorded stays exactly as it is, still under
+            their name — only the account goes, not the data.
+          </p>
+          <label className="block space-y-1 text-xs font-medium">
+            <span>Type their name to confirm: {person.name}</span>
+            <Input
+              name="confirm"
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              autoComplete="off"
+              placeholder={person.name}
+            />
+          </label>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={close}>
+              {t("Cancel")}
+            </Button>
+            <SubmitButton
+              size="sm"
+              variant="destructive"
+              pendingLabel="Deleting…"
+              disabled={!ready}
+            >
+              Delete account
+            </SubmitButton>
+          </div>
+          <FormError state={deleteState} />
+        </form>
+      ) : choice ? (
         <form
           action={action}
           className="space-y-2.5 rounded-lg border bg-muted/40 p-3 text-left"
         >
           <input type="hidden" name="userId" value={person.id} />
           {choice === "active" ? (
-            <input type="hidden" name="active" value={person.active ? "false" : "true"} />
+            <input
+              type="hidden"
+              name="active"
+              value={person.active ? "false" : "true"}
+            />
           ) : null}
           {choice === "role" ? (
             <NativeSelect
@@ -217,20 +296,28 @@ export function DeveloperAccountTool({
               minLength={DEVELOPER_REASON_MIN}
               rows={2}
               className="focus-ring w-full rounded-md border bg-background p-2 text-sm"
-              placeholder={t("e.g. Hawa moved to the counter after the Dar restructure")}
+              placeholder={t(
+                "e.g. Hawa moved to the counter after the Dar restructure",
+              )}
             />
           </label>
           <div className="flex gap-2">
             <Button type="button" size="sm" variant="outline" onClick={close}>
               {t("Cancel")}
             </Button>
-            <SubmitButton size="sm" pendingLabel={t("Recording…")} disabled={!ready}>
+            <SubmitButton
+              size="sm"
+              pendingLabel={t("Recording…")}
+              disabled={!ready}
+            >
               {t("Confirm and record")}
             </SubmitButton>
           </div>
           <FormError state={state} />
           {state?.ok ? (
-            <p className="text-xs text-success">{t("Done — recorded in the audit trail.")}</p>
+            <p className="text-xs text-success">
+              {t("Done — recorded in the audit trail.")}
+            </p>
           ) : null}
         </form>
       ) : null}

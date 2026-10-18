@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 import type { Role } from "@prisma/client";
 
 import { recordAudit } from "@/lib/audit";
@@ -11,6 +12,8 @@ import {
   developerAssignmentRefusal,
   developerReasonRefusal,
   developerTargetRefusal,
+  isRemovedAccount,
+  removedEmail,
 } from "@/lib/developer-shared";
 import { developerMayReactivate } from "@/lib/developer";
 import type { TxClient } from "@/lib/prisma";
@@ -18,7 +21,12 @@ import { normalisePhone } from "@/lib/format";
 import { defaultLocaleForRole } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
-import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
+import {
+  fail,
+  ok,
+  toActionError,
+  type ActionResult,
+} from "@/lib/actions/types";
 import { t } from "@/lib/i18n";
 import { firstError, userSchema } from "@/lib/validation";
 import { viewerLocale } from "@/lib/viewer";
@@ -122,7 +130,7 @@ async function blockDeveloperTarget(
   actor: SessionUser,
   target: { id: string; name: string; role: Role },
   attempted: string,
-  tx: TxClient
+  tx: TxClient,
 ): Promise<string | null> {
   const refusal = developerTargetRefusal(target);
   if (!refusal) return null;
@@ -135,7 +143,7 @@ async function blockDeveloperTarget(
       summary: `Blocked an attempt to ${attempted} on ${target.name}, a Developer account`,
       metadata: { attempted, targetRole: target.role, outcome: "failure" },
     },
-    tx
+    tx,
   );
   return refusal;
 }
@@ -147,7 +155,7 @@ async function blockDeveloperRole(
   attempted: string,
   subject: string,
   entityId?: string | null,
-  tx?: TxClient
+  tx?: TxClient,
 ): Promise<string | null> {
   const refusal = developerAssignmentRefusal(role);
   if (!refusal) return null;
@@ -160,14 +168,14 @@ async function blockDeveloperRole(
       summary: `Blocked an attempt to ${attempted} ${subject} as Developer`,
       metadata: { attempted, requestedRole: role, outcome: "failure" },
     },
-    tx
+    tx,
   );
   return refusal;
 }
 
 export async function createUser(
   _prev: ActionResult | undefined,
-  formData: FormData
+  formData: FormData,
 ): Promise<ActionResult> {
   let actor: SessionUser;
   try {
@@ -177,7 +185,7 @@ export async function createUser(
   }
 
   const parsed = userSchema.safeParse(
-    Object.fromEntries(formData) as Record<string, string>
+    Object.fromEntries(formData) as Record<string, string>,
   );
   if (!parsed.success) return fail(firstError(parsed.error));
   const input = parsed.data;
@@ -195,7 +203,7 @@ export async function createUser(
       actor,
       input.role,
       "create",
-      input.name
+      input.name,
     );
     if (noDeveloper) return fail(t(await viewerLocale(), noDeveloper));
 
@@ -204,7 +212,11 @@ export async function createUser(
       exist yet, so there is no row whose role could change underneath the check
       — and the value tested is literally the one the create below writes.
     */
-    if (input.role === OWNER && actor.role !== OWNER && actor.role !== DEVELOPER) {
+    if (
+      input.role === OWNER &&
+      actor.role !== OWNER &&
+      actor.role !== DEVELOPER
+    ) {
       await recordAudit({
         actor,
         action: "user.escalationBlocked",
@@ -216,7 +228,10 @@ export async function createUser(
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) return fail(t(await viewerLocale(), "A staff account already uses that email."));
+    if (existing)
+      return fail(
+        t(await viewerLocale(), "A staff account already uses that email."),
+      );
 
     if (input.employeeId) {
       const clash = await prisma.user.findUnique({
@@ -232,7 +247,7 @@ export async function createUser(
         return fail(
           t(locale, "Employee ID {id} already belongs to {name}.")
             .replace("{id}", input.employeeId)
-            .replace("{name}", clash.name)
+            .replace("{name}", clash.name),
         );
       }
     }
@@ -250,7 +265,7 @@ export async function createUser(
         department: ROLE_DEFAULT_DEPARTMENT[input.role],
         employeeId: input.employeeId,
         // A rank on a Finance account would be a field nobody can act on.
-        rank: warehouse ? input.rank ?? "OPERATOR" : null,
+        rank: warehouse ? (input.rank ?? "OPERATOR") : null,
         // Guangzhou opens in Chinese; every Tanzanian desk opens in English.
         // A starting point only — whatever the person picks later overrides it.
         preferredLanguage: defaultLocaleForRole(input.role),
@@ -271,7 +286,11 @@ export async function createUser(
         rank: user.rank ?? "n/a",
         status: user.status,
         ...(actor.role === DEVELOPER
-          ? { reason, before: null, after: { role: user.role, email: user.email } }
+          ? {
+              reason,
+              before: null,
+              after: { role: user.role, email: user.email },
+            }
           : {}),
       },
     });
@@ -287,7 +306,7 @@ export async function createUser(
 
 export async function setUserActive(
   _prev: ActionResult | undefined,
-  formData: FormData
+  formData: FormData,
 ): Promise<ActionResult> {
   let actor: SessionUser;
   try {
@@ -300,7 +319,10 @@ export async function setUserActive(
   const active = String(formData.get("active") ?? "") === "true";
   if (!userId) return fail(t(await viewerLocale(), "Missing staff member."));
   // Locking yourself out would leave the company with no way back in.
-  if (userId === actor.id) return fail(t(await viewerLocale(), "You cannot deactivate your own account."));
+  if (userId === actor.id)
+    return fail(
+      t(await viewerLocale(), "You cannot deactivate your own account."),
+    );
 
   const { reason, refusal: needsReason } = developerReason(actor, formData);
   if (needsReason) return fail(t(await viewerLocale(), needsReason));
@@ -317,7 +339,7 @@ export async function setUserActive(
         actor,
         target,
         active ? "reactivate" : "deactivate",
-        tx
+        tx,
       );
       if (noDeveloper) return { error: noDeveloper };
 
@@ -336,7 +358,7 @@ export async function setUserActive(
             summary: `Blocked the Developer from reactivating ${target.name}, whose suspension was not the Developer's`,
             metadata: { attempted: "reactivate", outcome: "failure" },
           },
-          tx
+          tx,
         );
         return {
           error:
@@ -351,7 +373,11 @@ export async function setUserActive(
         and a manager reviving it is overruling that decision on the one account
         that answers to nobody.
       */
-      if (target.role === OWNER && actor.role !== OWNER) {
+      if (
+        target.role === OWNER &&
+        actor.role !== OWNER &&
+        actor.role !== DEVELOPER
+      ) {
         await recordAudit(
           {
             actor,
@@ -359,11 +385,25 @@ export async function setUserActive(
             entity: "User",
             entityId: target.id,
             summary: `Blocked an attempt to ${active ? "reactivate" : "deactivate"} ${target.name}, the ${ROLE_LABELS[OWNER]} account`,
-            metadata: { attempted: active ? "activate" : "deactivate", targetRole: target.role },
+            metadata: {
+              attempted: active ? "activate" : "deactivate",
+              targetRole: target.role,
+            },
           },
-          tx
+          tx,
         );
         return { error: OWNER_ONLY_CHANGE };
+      }
+
+      /* The company must always have an owner who can sign in: someone has to
+         approve what only the owner may approve. Switching the last one off —
+         by anybody, the Developer included — would lock that door from inside. */
+      if (
+        !active &&
+        target.role === OWNER &&
+        (await onlyActiveOwner(tx, target.id))
+      ) {
+        return { error: LAST_OWNER };
       }
 
       const claimed = await tx.user.updateMany({
@@ -377,7 +417,8 @@ export async function setUserActive(
       });
       if (claimed.count === 0) {
         return {
-          error: "That person's role changed a moment ago. Reload before changing their account.",
+          error:
+            "That person's role changed a moment ago. Reload before changing their account.",
         };
       }
 
@@ -398,7 +439,7 @@ export async function setUserActive(
               }
             : {}),
         },
-        tx
+        tx,
       );
       return { error: null };
     });
@@ -415,7 +456,7 @@ export async function setUserActive(
 
 export async function resetUserPassword(
   _prev: ActionResult | undefined,
-  formData: FormData
+  formData: FormData,
 ): Promise<ActionResult> {
   let actor: SessionUser;
   try {
@@ -427,7 +468,10 @@ export async function resetUserPassword(
   const userId = String(formData.get("userId") ?? "");
   const password = String(formData.get("password") ?? "");
   if (!userId) return fail(t(await viewerLocale(), "Missing staff member."));
-  if (password.length < 8) return fail(t(await viewerLocale(), "Password must be at least 8 characters."));
+  if (password.length < 8)
+    return fail(
+      t(await viewerLocale(), "Password must be at least 8 characters."),
+    );
 
   const { reason, refusal: needsReason } = developerReason(actor, formData);
   if (needsReason) return fail(t(await viewerLocale(), needsReason));
@@ -449,7 +493,7 @@ export async function resetUserPassword(
         actor,
         target,
         "reset the password",
-        tx
+        tx,
       );
       if (noDeveloper) return { error: noDeveloper };
 
@@ -468,7 +512,7 @@ export async function resetUserPassword(
             summary: `Blocked an attempt to reset the password of ${target.name}, the ${ROLE_LABELS[OWNER]} account`,
             metadata: { attempted: "resetPassword", targetRole: target.role },
           },
-          tx
+          tx,
         );
         return { error: OWNER_ONLY_CHANGE };
       }
@@ -479,7 +523,8 @@ export async function resetUserPassword(
       });
       if (claimed.count === 0) {
         return {
-          error: "That person's role changed a moment ago. Reload before resetting their password.",
+          error:
+            "That person's role changed a moment ago. Reload before resetting their password.",
         };
       }
 
@@ -502,7 +547,7 @@ export async function resetUserPassword(
               }
             : {}),
         },
-        tx
+        tx,
       );
       return { error: null };
     });
@@ -519,7 +564,7 @@ export async function resetUserPassword(
 
 export async function changeUserRole(
   _prev: ActionResult | undefined,
-  formData: FormData
+  formData: FormData,
 ): Promise<ActionResult> {
   let actor: SessionUser;
   try {
@@ -530,8 +575,10 @@ export async function changeUserRole(
 
   const userId = String(formData.get("userId") ?? "");
   const role = String(formData.get("role") ?? "") as keyof typeof ROLE_LABELS;
-  if (!userId || !ROLE_LABELS[role]) return fail(t(await viewerLocale(), "Choose a valid role."));
-  if (userId === actor.id) return fail(t(await viewerLocale(), "You cannot change your own role."));
+  if (!userId || !ROLE_LABELS[role])
+    return fail(t(await viewerLocale(), "Choose a valid role."));
+  if (userId === actor.id)
+    return fail(t(await viewerLocale(), "You cannot change your own role."));
 
   const { reason, refusal: needsReason } = developerReason(actor, formData);
   if (needsReason) return fail(t(await viewerLocale(), needsReason));
@@ -549,7 +596,7 @@ export async function changeUserRole(
         actor,
         target,
         "change the role",
-        tx
+        tx,
       );
       if (noDeveloperTarget) return { error: noDeveloperTarget };
       const noDeveloperRole = await blockDeveloperRole(
@@ -558,7 +605,7 @@ export async function changeUserRole(
         "move",
         target.name,
         target.id,
-        tx
+        tx,
       );
       if (noDeveloperRole) return { error: noDeveloperRole };
 
@@ -584,7 +631,7 @@ export async function changeUserRole(
             summary: `Blocked an attempt to move ${target.name} from ${ROLE_LABELS[target.role]} to ${ROLE_LABELS[role]}`,
             metadata: { attempted: "changeRole", from: target.role, to: role },
           },
-          tx
+          tx,
         );
         return { error: OWNER_ONLY_CHANGE };
       }
@@ -595,7 +642,8 @@ export async function changeUserRole(
       });
       if (claimed.count === 0) {
         return {
-          error: "Somebody changed that person's role a moment ago. Reload before changing it again.",
+          error:
+            "Somebody changed that person's role a moment ago. Reload before changing it again.",
         };
       }
 
@@ -622,7 +670,7 @@ export async function changeUserRole(
               : {}),
           },
         },
-        tx
+        tx,
       );
       return { error: null };
     });
@@ -631,6 +679,140 @@ export async function changeUserRole(
 
     revalidatePath("/app/admin/users");
     revalidatePath("/app/developer/accounts");
+    return ok();
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}
+
+const LAST_OWNER =
+  "That is the only active owner account. Without it nobody can approve what only the owner may approve. Add or reactivate another owner first.";
+
+/** True when this account is the only owner who can still sign in. */
+async function onlyActiveOwner(tx: TxClient, id: string): Promise<boolean> {
+  const others = await tx.user.count({
+    where: { role: OWNER, active: true, id: { not: id } },
+  });
+  return others === 0;
+}
+
+/**
+ * DELETE AN ACCOUNT — AND ONLY THE ACCOUNT.
+ *
+ * The person loses their way in (login, password, email) and disappears from
+ * every list. Nothing they recorded is touched: payments, cargo, ledger lines
+ * and audit lines still carry their name and their id. That is the difference
+ * between deleting an ACCOUNT and deleting DATA, and only the first is done.
+ *
+ * Only the Developer may do it, never to themselves or another Developer, never
+ * to the last owner, and only after typing the person's name — it cannot be
+ * undone from a screen. The original email goes into the audit line.
+ */
+export async function deleteUser(
+  _prev: ActionResult | undefined,
+  formData: FormData,
+): Promise<ActionResult> {
+  let actor: SessionUser;
+  try {
+    actor = await authorize("user.manage");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+  const locale = await viewerLocale();
+  if (actor.role !== DEVELOPER) {
+    return fail(t(locale, "Only the Developer can delete an account."));
+  }
+
+  const userId = String(formData.get("userId") ?? "");
+  const typed = String(formData.get("confirm") ?? "")
+    .trim()
+    .toLowerCase();
+  if (!userId) return fail(t(locale, "Missing staff member."));
+  if (userId === actor.id) {
+    return fail(t(locale, "You cannot delete your own account."));
+  }
+
+  try {
+    const outcome = await prisma.$transaction(async (tx): Promise<Guarded> => {
+      const target = await tx.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          status: true,
+          active: true,
+        },
+      });
+      if (!target || isRemovedAccount(target)) {
+        return { error: "That account no longer exists." };
+      }
+
+      const noDeveloper = await blockDeveloperTarget(
+        actor,
+        target,
+        "delete",
+        tx,
+      );
+      if (noDeveloper) return { error: noDeveloper };
+
+      if (typed !== target.name.trim().toLowerCase()) {
+        return {
+          error: `To delete this account, type their name exactly: ${target.name}`,
+        };
+      }
+      if (target.role === OWNER && (await onlyActiveOwner(tx, target.id))) {
+        return { error: LAST_OWNER };
+      }
+
+      /* Claimed on the row as it was read, so two presses cannot both succeed. */
+      const claimed = await tx.user.updateMany({
+        where: { id: target.id, email: target.email },
+        data: {
+          active: false,
+          status: "INACTIVE",
+          email: removedEmail(target.id),
+          // Unusable on purpose: nobody knows the string it was made from, so the
+          // old password cannot come back even if the account were reactivated.
+          passwordHash: await bcrypt.hash(randomBytes(24).toString("hex"), 4),
+        },
+      });
+      if (claimed.count === 0) {
+        return {
+          error:
+            "That account changed a moment ago. Reload before deleting it.",
+        };
+      }
+
+      await recordAudit(
+        {
+          actor,
+          action: "user.delete",
+          entity: "User",
+          entityId: target.id,
+          summary: `Deleted ${target.name}'s account (${ROLE_LABELS[target.role]}). Their records stay.`,
+          metadata: {
+            reason: "Account deleted by the Developer.",
+            before: {
+              email: target.email,
+              role: target.role,
+              status: target.status,
+            },
+            after: { removed: true },
+            recordsKept: true,
+          },
+        },
+        tx,
+      );
+      return { error: null };
+    });
+
+    if (outcome.error) return fail(t(locale, outcome.error));
+
+    revalidatePath("/app/admin/users");
+    revalidatePath("/app/developer/accounts");
+    revalidatePath("/app/developer");
     return ok();
   } catch (error) {
     return fail(toActionError(error));

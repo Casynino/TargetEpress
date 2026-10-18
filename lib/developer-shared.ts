@@ -119,7 +119,7 @@ export function developerTargetRefusal(target: {
  */
 export function developerReasonRefusal(
   actorRole: Role | string,
-  reason: string | null | undefined
+  reason: string | null | undefined,
 ): string | null {
   if (actorRole !== DEVELOPER) return null;
   return (reason ?? "").trim().length >= DEVELOPER_REASON_MIN
@@ -151,7 +151,9 @@ export type DeveloperAuditMeta = {
  */
 export function developerMetadata(
   existing: unknown,
-  extra: Partial<Pick<DeveloperAuditMeta, "outcome" | "reason" | "before" | "after" | "refs">> = {}
+  extra: Partial<
+    Pick<DeveloperAuditMeta, "outcome" | "reason" | "before" | "after" | "refs">
+  > = {},
 ): DeveloperAuditMeta {
   const base =
     existing && typeof existing === "object" && !Array.isArray(existing)
@@ -161,7 +163,7 @@ export function developerMetadata(
         : { detail: existing };
   /* An undefined field is "not given", not "erase what the action wrote". */
   const given = Object.fromEntries(
-    Object.entries(extra).filter(([, value]) => value !== undefined)
+    Object.entries(extra).filter(([, value]) => value !== undefined),
   );
   return {
     outcome: "success",
@@ -193,7 +195,7 @@ export const WORK_AS_HOURS = 4;
  */
 export function canWorkAs(
   target: { id: string; role: Role | string; active: boolean; status: string },
-  developerId: string
+  developerId: string,
 ): boolean {
   return (
     target.id !== developerId &&
@@ -205,3 +207,31 @@ export function canWorkAs(
 
 /** Who is REALLY behind a session that is looking as somebody else. */
 export type ImpersonatedBy = { id: string; name: string; email: string };
+
+/**
+ * A DELETED ACCOUNT IS GONE, NOT ERASED.
+ *
+ * "Delete" removes a person's way in — the login, the password, the email
+ * address — and takes them off every list. It does NOT touch what they did:
+ * every payment, cargo record and audit line they made still names them, which
+ * is the whole point of keeping the books honest. The row stays; its sign-in
+ * does not.
+ *
+ * The row is marked `INACTIVE` (the status that already means "has left") and
+ * its email is rewritten to an unusable address on this domain. That rewrite is
+ * the marker lists filter on, so no schema change is needed, and it frees the
+ * original address for a new account. The original is written into the audit
+ * line, so nothing is lost.
+ */
+export const REMOVED_EMAIL_DOMAIN = "removed.invalid";
+
+export const removedEmail = (id: string) =>
+  `removed-${id}@${REMOVED_EMAIL_DOMAIN}`;
+
+export const isRemovedAccount = (account: { email: string }) =>
+  account.email.endsWith(`@${REMOVED_EMAIL_DOMAIN}`);
+
+/** For any `where` that lists people: leaves out accounts that were deleted. */
+export const NOT_REMOVED = {
+  NOT: { email: { endsWith: `@${REMOVED_EMAIL_DOMAIN}` } },
+} as const;

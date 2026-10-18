@@ -270,6 +270,19 @@ check("no alert hint hands work to staff", !/\b(Ask|Tell) (the )?(Finance|Custom
 const panelSrc = readFileSync("components/developer/pulse-panel.tsx", "utf8");
 check("the awareness sections carry no to-do lists (oldest tickets, requests, bills, issues)", !/Oldest (open|website|bills)|Waiting for Finance|Expenses waiting|Requests waiting|Open tickets/.test(panelSrc));
 
+section("Deleting an account removes the account, never the data");
+const delSrc = readFileSync("lib/actions/users.ts", "utf8");
+const delBody = delSrc.slice(delSrc.indexOf("export async function deleteUser"));
+check("only the Developer may delete an account", /actor\.role !== DEVELOPER/.test(delBody));
+check("never yourself, never a Developer account", /userId === actor\.id/.test(delBody) && /blockDeveloperTarget\(\s*actor,\s*target,\s*"delete"/.test(delBody));
+check("never the last owner", /onlyActiveOwner\(tx, target\.id\)/.test(delBody));
+check("the person's name must be typed first", /typed !== target\.name/.test(delBody));
+check("the row is KEPT: no user.delete call, so every record still names them", !/tx\.user\.delete|prisma\.user\.delete/.test(delBody) && /status: "INACTIVE"/.test(delBody));
+check("login, password and address are all taken away", /active: false/.test(delBody) && /passwordHash:/.test(delBody) && /email: removedEmail/.test(delBody));
+check("the old email is written into the audit line", /before:\s*\{\s*email:\s*target\.email/.test(delBody));
+check("deleted accounts are left out of the lists people read", ["app/app/developer/accounts/page.tsx", "app/app/admin/users/page.tsx"].every((f) => readFileSync(f, "utf8").includes("NOT_REMOVED")));
+check("suspending the last owner is refused", /onlyActiveOwner\(tx, target\.id\)\)\) \{\s*return \{ error: LAST_OWNER/.test(delSrc));
+
 section("The system watches itself: errors, jobs, checks");
 const vercelCrons = (JSON.parse(readFileSync("vercel.json", "utf8")).crons ?? []) as { path: string }[];
 check("every scheduled job in vercel.json is watched on the Home", vercelCrons.every((c) => JOBS.some((j) => j.path === c.path)), vercelCrons.map((c) => c.path).join(", "));
@@ -304,7 +317,7 @@ await prisma.auditLog.deleteMany({ where: { action: "job.run", entityId: "storag
 
 section("The Developer opens accounts — owner included — and nobody else gains that");
 const usersSrc = readFileSync("lib/actions/users.ts", "utf8");
-check("only the owner or the Developer may create an owner (a manager still may not)", /input\.role === OWNER && actor\.role !== OWNER && actor\.role !== DEVELOPER/.test(usersSrc));
+check("only the owner or the Developer may create an owner (a manager still may not)", /input\.role === OWNER\s*&&\s*actor\.role !== OWNER\s*&&\s*actor\.role !== DEVELOPER/.test(usersSrc));
 check("creating a Developer account from a screen is still refused", usersSrc.includes("blockDeveloperRole(\n      actor,\n      input.role,\n      \"create\""));
 check("changing an existing account still insists on a reason from the Developer", (usersSrc.match(/developerReason\(actor, formData\)/g)?.length ?? 0) >= 3);
 

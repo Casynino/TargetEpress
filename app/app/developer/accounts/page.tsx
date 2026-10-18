@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ROLE_LABELS } from "@/lib/constants";
 import { timeAgo, eat } from "@/lib/developer/format";
 import { workAsPeople } from "@/lib/developer/people";
+import { NOT_REMOVED } from "@/lib/developer-shared";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 
@@ -38,6 +39,7 @@ const ORDER = [
 export default async function DeveloperAccessPage() {
   const actor = await requirePermission("developer.access");
   const users = await prisma.user.findMany({
+    where: NOT_REMOVED,
     orderBy: [{ active: "desc" }, { name: "asc" }],
     select: {
       id: true,
@@ -144,7 +146,6 @@ export default async function DeveloperAccessPage() {
                         </p>
                       ) : (
                         <DeveloperAccountTool
-                          manage={person.role !== "ADMIN"}
                           person={{
                             id: person.id,
                             name: person.name,

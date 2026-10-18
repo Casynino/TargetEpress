@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 
 import { BUILD_ID } from "@/lib/build-id";
 import { prisma } from "@/lib/prisma";
+import { NOT_REMOVED } from "@/lib/developer-shared";
 import { guard } from "@/lib/developer/safe";
 
 /**
@@ -406,7 +407,12 @@ export async function getMonitor(
     safe(
       () =>
         prisma.user.count({
-          where: { OR: [{ active: false }, { status: "SUSPENDED" }] },
+          where: {
+            AND: [
+              NOT_REMOVED,
+              { OR: [{ active: false }, { status: "SUSPENDED" }] },
+            ],
+          },
         }),
       0,
     ),
@@ -498,7 +504,11 @@ export async function getMonitor(
     ),
     safe(
       () =>
-        prisma.user.groupBy({ by: ["role", "active"], _count: { _all: true } }),
+        prisma.user.groupBy({
+          by: ["role", "active"],
+          where: NOT_REMOVED,
+          _count: { _all: true },
+        }),
       [] as { role: string; active: boolean; _count: { _all: number } }[],
     ),
     safe(

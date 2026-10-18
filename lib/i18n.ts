@@ -4998,6 +4998,8 @@ const ZH: Record<string, string> = {
   "STORAGE OUTSTANDING — DO NOT RELEASE": "仓储费未结清 — 不得放货",
   "Combined carton": "合并纸箱",
   "More": "更多",
+  "Only the Developer can delete an account.": "只有开发者可以删除账号。",
+  "You cannot delete your own account.": "您不能删除自己的账号。",
   "Show password": "显示密码",
   "Hide password": "隐藏密码",
   "Ended by the Developer.": "由开发者结束。",
