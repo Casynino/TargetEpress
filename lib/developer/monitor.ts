@@ -509,7 +509,7 @@ export async function getMonitor(
             ],
           },
           orderBy: { createdAt: "desc" },
-          take: 8,
+          take: 6,
           select: { id: true, createdAt: true, summary: true, metadata: true },
         }),
       [],

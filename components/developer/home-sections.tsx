@@ -24,6 +24,7 @@ import {
 import type { Monitor, Level } from "@/lib/developer/monitor";
 import type { Pulse } from "@/lib/developer/pulse";
 import { Card, CardContent } from "@/components/ui/card";
+import { Masonry } from "@/components/developer/section";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -159,7 +160,7 @@ export const ROLE_INFO: Record<
   },
   DEVELOPER: {
     label: "Developer (you)",
-    text: "Technical account. Can look, cannot move money.",
+    text: "Technical account. Keeps the system working; can work as anyone.",
     icon: UserCog,
   },
 };
@@ -468,7 +469,7 @@ export function ActivityPanel({
         />
       </div>
 
-      <section className="grid gap-4 lg:grid-cols-2">
+      <Masonry>
         <Card>
           <CardContent className="p-5">
             <h2 className="text-sm font-semibold">Sign-ins per day</h2>
@@ -507,10 +508,8 @@ export function ActivityPanel({
             <Legend series={ACTIVITY_SERIES} className="mt-4" />
           </CardContent>
         </Card>
-      </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card>
           <CardContent className="p-5">
             <h2 className="text-sm font-semibold">Busiest hours of the day</h2>
             <p className="mb-3 text-xs text-muted-foreground">
@@ -554,10 +553,8 @@ export function ActivityPanel({
             />
           </CardContent>
         </Card>
-      </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card>
           <CardContent className="p-0">
             <div className="border-b border-border px-5 py-3.5">
               <h2 className="text-sm font-semibold">Recent sign-ins</h2>
@@ -625,104 +622,102 @@ export function ActivityPanel({
           </CardContent>
         </Card>
 
-        <div className="space-y-4">
-          <Card>
-            <CardContent className="p-5">
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <h2 className="text-sm font-semibold">Online right now</h2>
-                <Badge variant={online.length ? "success" : "muted"}>
-                  {online.length}
-                </Badge>
-              </div>
-              <p className="mb-3 text-xs text-muted-foreground">
-                Active in the last 10 minutes.
+        <Card>
+          <CardContent className="p-5">
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold">Online right now</h2>
+              <Badge variant={online.length ? "success" : "muted"}>
+                {online.length}
+              </Badge>
+            </div>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Active in the last 10 minutes.
+            </p>
+            {online.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nobody at the moment.
               </p>
-              {online.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Nobody at the moment.
-                </p>
-              ) : (
-                <ul className="space-y-2.5 text-sm">
-                  {online.map((u) => (
-                    <li
-                      key={u.id}
-                      className="flex items-center justify-between gap-2"
-                    >
-                      <span className="min-w-0 truncate">
-                        {u.name}{" "}
-                        <span className="text-xs text-muted-foreground">
-                          · {ROLE_LABELS[u.role]}
-                        </span>
+            ) : (
+              <ul className="space-y-2.5 text-sm">
+                {online.map((u) => (
+                  <li
+                    key={u.id}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="min-w-0 truncate">
+                      {u.name}{" "}
+                      <span className="text-xs text-muted-foreground">
+                        · {ROLE_LABELS[u.role]}
                       </span>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {u.lastActiveAt ? timeAgo(u.lastActiveAt) : ""}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5">
-              <h2 className="text-sm font-semibold">Most active people</h2>
-              <p className="mb-4 text-xs text-muted-foreground">
-                Actions saved in the last 7 days.
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {u.lastActiveAt ? timeAgo(u.lastActiveAt) : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <h2 className="text-sm font-semibold">Most active people</h2>
+            <p className="mb-4 text-xs text-muted-foreground">
+              Actions saved in the last 7 days.
+            </p>
+            <HBars
+              items={m.topActors.map((x) => ({ label: x.name, value: x.n }))}
+              color="hsl(var(--chart-2))"
+            />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <h2 className="text-sm font-semibold">Not using the system</h2>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Active accounts that never signed in, or not for 30+ days.
+            </p>
+            {m.neverSignedIn.length + m.inactive.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Everyone has signed in recently.
               </p>
-              <HBars
-                items={m.topActors.map((x) => ({ label: x.name, value: x.n }))}
-                color="hsl(var(--chart-2))"
-              />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5">
-              <h2 className="text-sm font-semibold">Not using the system</h2>
-              <p className="mb-3 text-xs text-muted-foreground">
-                Active accounts that never signed in, or not for 30+ days.
-              </p>
-              {m.neverSignedIn.length + m.inactive.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Everyone has signed in recently.
-                </p>
-              ) : (
-                <ul className="space-y-2 text-sm">
-                  {m.neverSignedIn.map((u) => (
-                    <li
-                      key={u.id}
-                      className="flex items-center justify-between gap-2"
-                    >
-                      <span className="min-w-0 truncate">
-                        {u.name}{" "}
-                        <span className="text-xs text-muted-foreground">
-                          · {ROLE_LABELS[u.role]}
-                        </span>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {m.neverSignedIn.map((u) => (
+                  <li
+                    key={u.id}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="min-w-0 truncate">
+                      {u.name}{" "}
+                      <span className="text-xs text-muted-foreground">
+                        · {ROLE_LABELS[u.role]}
                       </span>
-                      <Badge variant="warning">Never</Badge>
-                    </li>
-                  ))}
-                  {m.inactive.map((u) => (
-                    <li
-                      key={u.id}
-                      className="flex items-center justify-between gap-2"
-                    >
-                      <span className="min-w-0 truncate">
-                        {u.name}{" "}
-                        <span className="text-xs text-muted-foreground">
-                          · {ROLE_LABELS[u.role]}
-                        </span>
+                    </span>
+                    <Badge variant="warning">Never</Badge>
+                  </li>
+                ))}
+                {m.inactive.map((u) => (
+                  <li
+                    key={u.id}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="min-w-0 truncate">
+                      {u.name}{" "}
+                      <span className="text-xs text-muted-foreground">
+                        · {ROLE_LABELS[u.role]}
                       </span>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {u.lastLoginAt ? timeAgo(u.lastLoginAt) : ""}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {u.lastLoginAt ? timeAgo(u.lastLoginAt) : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </Masonry>
     </div>
   );
 }
@@ -733,7 +728,7 @@ export function SpeedPanel({ m }: { m: Monitor }) {
   const notSet = m.env.filter((e) => !e.set).length;
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 lg:grid-cols-3">
+      <Masonry>
         <Card>
           <CardContent className="p-5">
             <div className="mb-1 flex items-center justify-between gap-2">
@@ -825,7 +820,41 @@ export function SpeedPanel({ m }: { m: Monitor }) {
             </ul>
           </CardContent>
         </Card>
-      </div>
+        <Card>
+          <CardContent className="p-5">
+            <h2 className="text-sm font-semibold">This deployment</h2>
+            <p className="mb-3 text-xs text-muted-foreground">
+              What is running right now.
+            </p>
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">Build</dt>
+                <dd className="font-mono">{m.build.slice(0, 8)}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">Environment</dt>
+                <dd>{m.nodeEnv}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">Node</dt>
+                <dd className="font-mono">{m.node}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">Database link</dt>
+                <dd>{m.pooled ? "Pooled" : "Direct"}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">Your session</dt>
+                <dd className="text-right">Ends after 8 hours</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">Working as someone</dt>
+                <dd className="text-right">Ends after 4 hours</dd>
+              </div>
+            </dl>
+          </CardContent>
+        </Card>
+      </Masonry>
     </div>
   );
 }
@@ -836,8 +865,8 @@ export function SecurityPanel({ m }: { m: Monitor }) {
   const s = m.security;
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+      <Masonry>
+        <Card>
           <CardContent className="p-5">
             <h2 className="text-sm font-semibold">
               Failed sign-ins and refused Developer actions per day
@@ -901,8 +930,6 @@ export function SecurityPanel({ m }: { m: Monitor }) {
             )}
           </CardContent>
         </Card>
-      </div>
-      <div className="grid gap-3 md:grid-cols-2">
         <InfoCallout
           icon={KeyRound}
           tone={s.devLocked24 > 0 ? "warn" : "good"}
@@ -916,7 +943,7 @@ export function SecurityPanel({ m }: { m: Monitor }) {
           The app does not keep its own crash log. If someone says a page broke,
           open the project in Vercel → Logs and search the page address.
         </InfoCallout>
-      </div>
+      </Masonry>
     </div>
   );
 }
@@ -1006,51 +1033,80 @@ export function PeoplePanel({ m }: { m: Monitor }) {
   const totalUsers = [...byRole.values()].reduce((s, r) => s + r.total, 0);
   const roles = ROLE_ORDER.filter((r) => byRole.has(r));
   return (
-    <div className="space-y-6">
-      <section>
-        <SectionTitle
-          title={`${formatNumber(totalUsers)} accounts`}
-          text="Who has an account, grouped by what they do. Open Access to work as any of them."
-        />
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {roles.map((role) => {
-            const info = ROLE_INFO[role];
-            const c = byRole.get(role)!;
-            const Icon = info.icon;
-            return (
-              <Card key={role}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary">
-                        <Icon className="size-4" />
-                      </span>
-                      <p className="text-sm font-semibold">{info.label}</p>
-                    </div>
-                    <span className="font-display text-2xl font-semibold tabular-nums">
-                      {c.total}
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="p-0">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3.5">
+            <div>
+              <h3 className="text-sm font-semibold">
+                {formatNumber(totalUsers)} accounts
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Grouped by what they do. Open Access to work as any of them.
+              </p>
+            </div>
+            <Link
+              href="/app/developer/accounts"
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              Open Access
+            </Link>
+          </div>
+          <ul className="grid md:grid-cols-2">
+            {roles.map((role) => {
+              const info = ROLE_INFO[role];
+              const c = byRole.get(role)!;
+              const Icon = info.icon;
+              return (
+                <li
+                  key={role}
+                  className="flex items-center gap-3 border-b border-border px-5 py-3 md:odd:border-r"
+                >
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                    <Icon className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold">
+                      {info.label}
                     </span>
-                  </div>
-                  <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
-                    {info.text}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    <Badge variant="success">{c.active} active</Badge>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {info.text}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
                     {c.suspended > 0 && (
                       <Badge variant="destructive">
                         {c.suspended} suspended
                       </Badge>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </section>
+                    <Badge variant="success">{c.active} active</Badge>
+                    <span className="w-6 text-right font-display text-xl font-semibold tabular-nums">
+                      {c.total}
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
+            {roles.length % 2 === 1 && (
+              <li className="flex items-center gap-3 border-b border-border px-5 py-3 text-sm text-muted-foreground">
+                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted">
+                  <Users className="size-4" />
+                </span>
+                <span>
+                  {formatNumber(totalUsers)} accounts in all,{" "}
+                  {formatNumber(
+                    [...byRole.values()].reduce((n, r) => n + r.active, 0),
+                  )}{" "}
+                  active.
+                </span>
+              </li>
+            )}
+          </ul>
+        </CardContent>
+      </Card>
 
-      <section className="grid gap-4 lg:grid-cols-5">
-        <Card className="lg:col-span-3">
+      <Masonry>
+        <Card>
           <CardContent className="p-0">
             <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
               <div>
@@ -1103,34 +1159,25 @@ export function PeoplePanel({ m }: { m: Monitor }) {
             )}
           </CardContent>
         </Card>
-
-        <div className="space-y-3 lg:col-span-2">
-          <InfoCallout
-            icon={ShieldCheck}
-            tone="good"
-            title="Everything you do is on record"
-          >
-            Your name is attached to every action, including when you work as
-            someone else. The records cannot be edited or deleted — not even by
-            you.
-          </InfoCallout>
-          <InfoCallout
-            icon={KeyRound}
-            tone="warn"
-            title="What you cannot do while working as someone"
-          >
-            Open accounts, change roles, reset or change passwords, suspend
-            people. Everything else you may do as them, and it is all recorded
-            as you. This stops Work as from being used to take over an account.
-          </InfoCallout>
-          <InfoCallout title="Good to know">
-            Your session ends after 8 hours. Working as someone ends by itself
-            after 4 hours. Build{" "}
-            <span className="font-mono">{m.build.slice(0, 8)}</span> · Node{" "}
-            {m.node} · {m.nodeEnv}.
-          </InfoCallout>
-        </div>
-      </section>
+        <InfoCallout
+          icon={ShieldCheck}
+          tone="good"
+          title="Everything you do is on record"
+        >
+          Your name is attached to every action, including when you work as
+          someone else. The records cannot be edited or deleted — not even by
+          you.
+        </InfoCallout>
+        <InfoCallout
+          icon={KeyRound}
+          tone="warn"
+          title="What you cannot do while working as someone"
+        >
+          Open accounts, change roles, reset or change passwords, suspend
+          people. Everything else you may do as them, and it is all recorded as
+          you. This stops Work as from being used to take over an account.
+        </InfoCallout>
+      </Masonry>
     </div>
   );
 }

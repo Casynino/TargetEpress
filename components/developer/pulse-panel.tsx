@@ -14,6 +14,7 @@ import {
 
 import { HBars, StackedBars, type Series } from "@/components/developer/charts";
 import { HealthCard } from "@/components/developer/info";
+import { Masonry } from "@/components/developer/section";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -140,8 +141,8 @@ export function CargoPanel({ p, o }: { p: Pulse; o: Ops }) {
         />
       </div>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+      <Masonry>
+        <Card>
           <CardContent className="p-5">
             <h2 className="text-sm font-semibold">Cargo added per day</h2>
             <p className="mb-3 text-xs text-muted-foreground">
@@ -173,9 +174,7 @@ export function CargoPanel({ p, o }: { p: Pulse; o: Ops }) {
             />
           </CardContent>
         </Card>
-      </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
         <ListCard
           title="Latest flights"
           text={
@@ -219,9 +218,7 @@ export function CargoPanel({ p, o }: { p: Pulse; o: Ops }) {
             </TableBody>
           </Table>
         </ListCard>
-      </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardContent className="p-5">
             <h2 className="text-sm font-semibold">Busiest customers</h2>
@@ -251,7 +248,7 @@ export function CargoPanel({ p, o }: { p: Pulse; o: Ops }) {
             />
           </CardContent>
         </Card>
-      </section>
+      </Masonry>
     </div>
   );
 }
@@ -302,7 +299,7 @@ export function MoneyPanel({ p, o }: { p: Pulse; o: Ops }) {
         />
       </div>
 
-      <section className="grid gap-4 lg:grid-cols-2">
+      <Masonry>
         <Card>
           <CardContent className="p-5">
             <h2 className="text-sm font-semibold">Payments recorded per day</h2>
@@ -340,9 +337,7 @@ export function MoneyPanel({ p, o }: { p: Pulse; o: Ops }) {
             />
           </CardContent>
         </Card>
-      </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardContent className="p-5">
             <h2 className="text-sm font-semibold">Bills by status</h2>
@@ -431,7 +426,7 @@ export function MoneyPanel({ p, o }: { p: Pulse; o: Ops }) {
             </p>
           </CardContent>
         </Card>
-      </section>
+      </Masonry>
     </div>
   );
 }
@@ -483,8 +478,8 @@ export function MessagesPanel({ o }: { o: Ops }) {
         />
       </div>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+      <Masonry>
+        <Card>
           <CardContent className="p-5">
             <h2 className="text-sm font-semibold">
               Messages to customers per day
@@ -520,9 +515,7 @@ export function MessagesPanel({ o }: { o: Ops }) {
             />
           </CardContent>
         </Card>
-      </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardContent className="p-5">
             <h2 className="text-sm font-semibold">Tickets by status</h2>
@@ -557,7 +550,7 @@ export function MessagesPanel({ o }: { o: Ops }) {
             />
           </CardContent>
         </Card>
-      </section>
+      </Masonry>
     </div>
   );
 }
