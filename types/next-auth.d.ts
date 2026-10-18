@@ -8,11 +8,15 @@ declare module "next-auth" {
       role: Role;
       department: Department;
     } & DefaultSession["user"];
+    /** Which door the person signed in through, and when — see session.ts. */
+    accountType: "staff" | "developer";
+    signedInAt: number | null;
   }
 
   interface User {
     role: Role;
     department: Department;
+    accountType?: "staff" | "developer";
   }
 }
 
@@ -21,5 +25,7 @@ declare module "next-auth/jwt" {
     id: string;
     role: Role;
     department: Department;
+    accountType?: "staff" | "developer";
+    signedInAt?: number;
   }
 }

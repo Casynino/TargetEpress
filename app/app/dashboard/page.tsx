@@ -257,6 +257,9 @@ export default async function DashboardPage() {
      dashboard would be the spec's first complaint made real — it is organised
      around administering the system, and their day is running the business. */
   if (user.role === "MANAGER") redirect("/app/manager");
+  /* The Developer's own desk — never the owner's dashboard, which is organised
+     around running the company and would show them money they cannot touch. */
+  if (user.role === "DEVELOPER") redirect("/app/developer");
 
   // Read the name from the record, not the session. The session token carries
   // whatever the name was at sign-in, so someone who renames themselves would

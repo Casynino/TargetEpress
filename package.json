@@ -28,7 +28,8 @@
     "finance:check": "tsx --conditions=react-server scripts/finance-check.mts",
     "check:pooling": "tsx --conditions=react-server scripts/check-minimum-pooling.mts",
     "check:invoice-status": "tsx scripts/check-invoice-status.mts",
-    "check:rate-switch": "tsx --conditions=react-server scripts/check-rate-switch.mts"
+    "check:rate-switch": "tsx --conditions=react-server scripts/check-rate-switch.mts",
+    "check:developer": "tsx --conditions=react-server scripts/check-developer-account.mts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

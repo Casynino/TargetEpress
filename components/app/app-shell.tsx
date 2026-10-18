@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 
 import { LanguageSwitch } from "@/components/app/language-switch";
+import { DeveloperBanner } from "@/components/app/developer-banner";
 import { LocaleProvider, useLocale } from "@/components/app/locale-provider";
 import { MobileBack } from "@/components/app/mobile-back";
 import { NavTrail } from "@/components/app/nav-trail";
@@ -136,15 +137,24 @@ export function AppShell({
   sections,
   user,
   unreadNotifications = 0,
+  developerMode = null,
   children,
 }: {
   sections: NavSection[];
   user: ShellUser;
+  /**
+   * Set for a Developer session, and while a Developer is looking as somebody
+   * else. Passed in rather than read off `user.role`: looking as Hawa makes the
+   * role Hawa's, and the bar that says who is REALLY here must not disappear
+   * at the one moment it matters most.
+   */
+  developerMode?: { workingAs: { name: string; roleLabel: string } | null } | null;
   /** Drives the count on the bell, and the dot on your own name. */
   unreadNotifications?: number;
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const developer = developerMode !== null;
 
   return (
     // Publishes the reader's language to every client component below. Server
@@ -175,9 +185,22 @@ export function AppShell({
       "1 / 2" with the second page blank, which on a 4x6 thermal roll is a
       wasted sticker every single time, not a wasted corner of A4.
     */}
-    <div className="min-h-screen bg-muted/30 print:min-h-0">
+    <div
+      className="min-h-screen bg-muted/30 pt-[var(--dev-bar,0px)] print:min-h-0"
+      /* The strip the Developer banner occupies, published once so the three
+         things pinned to the top of the viewport can sit beneath it. Zero for
+         everyone else, so no other account's layout moves by a pixel. */
+      style={
+        developer
+          ? ({ "--dev-bar": "2rem" } as React.CSSProperties)
+          : undefined
+      }
+    >
+      {developerMode ? (
+        <DeveloperBanner workingAs={developerMode.workingAs} />
+      ) : null}
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r bg-background lg:flex">
+      <aside className="fixed bottom-0 left-0 top-[var(--dev-bar,0px)] z-30 hidden w-64 flex-col border-r bg-background lg:flex">
         <div className="flex h-16 items-center border-b px-5">
           <Link href="/app/dashboard">
             <BrandLockup />
@@ -201,7 +224,7 @@ export function AppShell({
         top of the sheet; on a 100x70mm label page it is 3.7mm of a 70mm page,
         which pushes the label off its own sticker.
       */}
-      <div className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b bg-background px-4 lg:hidden print:hidden">
+      <div className="sticky top-[var(--dev-bar,0px)] z-30 flex h-14 items-center justify-between gap-3 border-b bg-background px-4 lg:hidden print:hidden">
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
             {/* 44x44, not 36x36. This is the control every warehouse phone
@@ -276,7 +299,7 @@ export function AppShell({
         {/* A thin bar for the bell and the way out to the public site. Nothing
             else belongs up here — anything more would compete with the page's
             own heading. */}
-        <div className="sticky top-0 z-20 hidden h-14 items-center justify-end gap-1 border-b bg-background/80 px-8 backdrop-blur lg:flex">
+        <div className="sticky top-[var(--dev-bar,0px)] z-20 hidden h-14 items-center justify-end gap-1 border-b bg-background/80 px-8 backdrop-blur lg:flex">
           <MainSiteLink />
           <NotificationBell unread={unreadNotifications} />
         </div>

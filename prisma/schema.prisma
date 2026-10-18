@@ -27,6 +27,14 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 enum Role {
+  /// THE DEVELOPER'S OWN ACCOUNT — a separate identity, never a flag on a staff one.
+  ///
+  /// Its own row, email and password, so signing in as the developer can never
+  /// be mistaken for, or silently become, a member of staff. Created and
+  /// recovered only by scripts/create-developer.mts, which needs the database
+  /// itself: no screen in the application can mint, promote, suspend or reset
+  /// one, and the role dropdowns never offer it. See lib/developer.ts.
+  DEVELOPER
   ADMIN // CEO / owner — full visibility, no daily operational duties
   /// Runs the business day to day on the owner's behalf.
   ///

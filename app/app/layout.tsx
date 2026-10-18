@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { AppShell } from "@/components/app/app-shell";
+import { ROLE_LABELS } from "@/lib/constants";
 import { localeOf } from "@/lib/locale";
 import { navForRole } from "@/lib/nav";
 import { prisma } from "@/lib/prisma";
@@ -34,11 +35,15 @@ export default async function AppLayout({
   // The heartbeat behind "online now". There is no socket; every authenticated
   // page load is the signal, which is exactly as accurate as it needs to be for
   // "is anyone on the floor right now".
-  void prisma.user
-    .update({ where: { id: user.id }, data: { lastActiveAt: new Date() } })
-    .catch(() => {
-      // A failed heartbeat must never take a page down with it.
-    });
+  // Not while the Developer is looking as somebody: the heartbeat would mark
+  // THAT person online, and Hawa would appear to be at her desk when she is not.
+  if (!user.impersonatedBy) {
+    void prisma.user
+      .update({ where: { id: user.id }, data: { lastActiveAt: new Date() } })
+      .catch(() => {
+        // A failed heartbeat must never take a page down with it.
+      });
+  }
 
   return (
     <AppShell
@@ -51,6 +56,18 @@ export default async function AppLayout({
         locale: localeOf(me?.preferredLanguage),
       }}
       unreadNotifications={unread}
+      developerMode={
+        user.impersonatedBy
+          ? {
+              workingAs: {
+                name: user.name,
+                roleLabel: ROLE_LABELS[user.role],
+              },
+            }
+          : user.role === "DEVELOPER"
+            ? { workingAs: null }
+            : null
+      }
     >
       {children}
     </AppShell>

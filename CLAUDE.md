@@ -30,6 +30,15 @@ Next.js 15 App Router · React 19 (RSC + server actions) · Prisma 6 · Postgres
 
 **Deleted cargo appears nowhere** but the delete history — including PDFs, labels and QR scans.
 
+## Developer account
+
+A separate `Role.DEVELOPER` row with its own email and password — never a flag on a staff account. Same pattern as ORA (`/Users/Nino/Desktop/Clients /3-Devs/ORA`). Nothing in the app can create, promote, suspend or reset one: `scripts/create-developer.mjs` (needs the database) is the only way, and `--recover` resets the password.
+
+- **Sign-in** has two doors (Staff / Developer); the server refuses a mismatch. Developer door: throttled (5 per address / 20 anywhere / 15 min), whole attempt under an advisory lock, 8-hour absolute session.
+- **Permissions** are an explicit allow-list in `lib/rbac.ts` (`DEVELOPER`), deliberately NOT part of `ALL`. It holds no money-writing permission; `scripts/check-developer-account.mts` fails if one is added. Refused developer actions are audited as failures from `authorize()`.
+- **Work as** (`lib/developer-workas.ts`) is VIEW-ONLY: `authorize()` refuses every action while it is on. Never make it writable — this system moves money.
+- **Audit**: every developer line carries `metadata.developer = true`; `scripts/neon-developer-account.sql` adds a trigger that makes those rows append-only. Run that file on Neon BEFORE creating the account.
+
 ## Language
 
 Every user-facing string goes through i18n: `t(locale, "English")` on the server, `useT()` in client components. English is the key; Chinese is the translation. Run `node scripts/check-i18n.mjs` — it must report zero missing. The China warehouse uses the app in Chinese, so test with `china@` to see what they see.

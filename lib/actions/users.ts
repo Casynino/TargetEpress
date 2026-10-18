@@ -6,6 +6,14 @@ import type { Role } from "@prisma/client";
 
 import { recordAudit } from "@/lib/audit";
 import { ROLE_DEFAULT_DEPARTMENT, ROLE_LABELS } from "@/lib/constants";
+import {
+  DEVELOPER,
+  developerAssignmentRefusal,
+  developerReasonRefusal,
+  developerTargetRefusal,
+} from "@/lib/developer-shared";
+import { developerMayReactivate } from "@/lib/developer";
+import type { TxClient } from "@/lib/prisma";
 import { normalisePhone } from "@/lib/format";
 import { defaultLocaleForRole } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
@@ -90,6 +98,69 @@ const OWNER_ONLY_CHANGE = "Only the owner can change the owner's account.";
 */
 type Guarded = { error: string | null };
 
+/*
+  THE DEVELOPER'S TWO EXTRA RAILS, SHARED BY ALL FOUR DOORS.
+
+  The owner rails above are about WHO may touch the owner. These are about the
+  one account no screen may touch at all, and the one actor that must explain
+  itself. Written once so the four actions cannot drift apart on either: a
+  password reset that forgot the Developer rail would be a way to sign in as it.
+*/
+
+/** The reason a Developer gave, or the sentence refusing for want of one. */
+function developerReason(actor: SessionUser, formData: FormData) {
+  const reason = String(formData.get("reason") ?? "").trim();
+  return { reason, refusal: developerReasonRefusal(actor.role, reason) };
+}
+
+/** Refuses — and records the attempt — when the account acted on is the Developer's. */
+async function blockDeveloperTarget(
+  actor: SessionUser,
+  target: { id: string; name: string; role: Role },
+  attempted: string,
+  tx: TxClient
+): Promise<string | null> {
+  const refusal = developerTargetRefusal(target);
+  if (!refusal) return null;
+  await recordAudit(
+    {
+      actor,
+      action: "user.escalationBlocked",
+      entity: "User",
+      entityId: target.id,
+      summary: `Blocked an attempt to ${attempted} on ${target.name}, a Developer account`,
+      metadata: { attempted, targetRole: target.role, outcome: "failure" },
+    },
+    tx
+  );
+  return refusal;
+}
+
+/** Refuses — and records the attempt — when the role asked for is Developer. */
+async function blockDeveloperRole(
+  actor: SessionUser,
+  role: Role | string,
+  attempted: string,
+  subject: string,
+  entityId?: string | null,
+  tx?: TxClient
+): Promise<string | null> {
+  const refusal = developerAssignmentRefusal(role);
+  if (!refusal) return null;
+  await recordAudit(
+    {
+      actor,
+      action: "user.escalationBlocked",
+      entity: "User",
+      entityId: entityId ?? null,
+      summary: `Blocked an attempt to ${attempted} ${subject} as Developer`,
+      metadata: { attempted, requestedRole: role, outcome: "failure" },
+    },
+    tx
+  );
+  return refusal;
+}
+
 export async function createUser(
   _prev: ActionResult | undefined,
   formData: FormData
@@ -108,7 +179,18 @@ export async function createUser(
   const input = parsed.data;
   const email = input.email.toLowerCase();
 
+  const { reason, refusal: needsReason } = developerReason(actor, formData);
+  if (needsReason) return fail(t(await viewerLocale(), needsReason));
+
   try {
+    const noDeveloper = await blockDeveloperRole(
+      actor,
+      input.role,
+      "create",
+      input.name
+    );
+    if (noDeveloper) return fail(t(await viewerLocale(), noDeveloper));
+
     /*
       The first rail. No transaction here and none needed: this account does not
       exist yet, so there is no row whose role could change underneath the check
@@ -180,6 +262,9 @@ export async function createUser(
         employeeId: user.employeeId ?? "not set",
         rank: user.rank ?? "n/a",
         status: user.status,
+        ...(actor.role === DEVELOPER
+          ? { reason, before: null, after: { role: user.role, email: user.email } }
+          : {}),
       },
     });
 
@@ -207,13 +292,47 @@ export async function setUserActive(
   // Locking yourself out would leave the company with no way back in.
   if (userId === actor.id) return fail(t(await viewerLocale(), "You cannot deactivate your own account."));
 
+  const { reason, refusal: needsReason } = developerReason(actor, formData);
+  if (needsReason) return fail(t(await viewerLocale(), needsReason));
+
   try {
     const outcome = await prisma.$transaction(async (tx): Promise<Guarded> => {
       const target = await tx.user.findUnique({
         where: { id: userId },
-        select: { id: true, name: true, role: true },
+        select: { id: true, name: true, role: true, updatedAt: true },
       });
       if (!target) return { error: "That staff member no longer exists." };
+
+      const noDeveloper = await blockDeveloperTarget(
+        actor,
+        target,
+        active ? "reactivate" : "deactivate",
+        tx
+      );
+      if (noDeveloper) return { error: noDeveloper };
+
+      /* The Developer undoes only their own suspensions — see the function. */
+      if (
+        active &&
+        actor.role === DEVELOPER &&
+        !(await developerMayReactivate(tx, target))
+      ) {
+        await recordAudit(
+          {
+            actor,
+            action: "user.escalationBlocked",
+            entity: "User",
+            entityId: target.id,
+            summary: `Blocked the Developer from reactivating ${target.name}, whose suspension was not the Developer's`,
+            metadata: { attempted: "reactivate", outcome: "failure" },
+          },
+          tx
+        );
+        return {
+          error:
+            "That account was suspended by the owner or the manager. Bringing it back is their decision, not the Developer's.",
+        };
+      }
 
       /*
         Barred in both directions, deliberately. Switching the owner off is the
@@ -259,6 +378,15 @@ export async function setUserActive(
           entity: "User",
           entityId: target.id,
           summary: `${active ? "Reactivated" : "Deactivated"} ${target.name}`,
+          ...(actor.role === DEVELOPER
+            ? {
+                metadata: {
+                  reason,
+                  before: { active: !active },
+                  after: { active },
+                },
+              }
+            : {}),
         },
         tx
       );
@@ -290,6 +418,9 @@ export async function resetUserPassword(
   if (!userId) return fail(t(await viewerLocale(), "Missing staff member."));
   if (password.length < 8) return fail(t(await viewerLocale(), "Password must be at least 8 characters."));
 
+  const { reason, refusal: needsReason } = developerReason(actor, formData);
+  if (needsReason) return fail(t(await viewerLocale(), needsReason));
+
   try {
     // Hashed before the transaction opens. bcrypt at cost 12 is deliberately
     // ~100ms of CPU, and spending it holding a row lock on a staff account is
@@ -302,6 +433,14 @@ export async function resetUserPassword(
         select: { id: true, name: true, role: true },
       });
       if (!target) return { error: "That staff member no longer exists." };
+
+      const noDeveloper = await blockDeveloperTarget(
+        actor,
+        target,
+        "reset the password",
+        tx
+      );
+      if (noDeveloper) return { error: noDeveloper };
 
       /*
         Handing somebody a password is handing them the account. Left open, this
@@ -340,6 +479,17 @@ export async function resetUserPassword(
           entity: "User",
           entityId: target.id,
           summary: `Reset the password for ${target.name}`,
+          /* Never the password itself, nor its hash: the line says THAT it
+             changed, which is all anybody reading it later needs. */
+          ...(actor.role === DEVELOPER
+            ? {
+                metadata: {
+                  reason,
+                  before: { passwordSet: true },
+                  after: { passwordChanged: true },
+                },
+              }
+            : {}),
         },
         tx
       );
@@ -371,6 +521,9 @@ export async function changeUserRole(
   if (!userId || !ROLE_LABELS[role]) return fail(t(await viewerLocale(), "Choose a valid role."));
   if (userId === actor.id) return fail(t(await viewerLocale(), "You cannot change your own role."));
 
+  const { reason, refusal: needsReason } = developerReason(actor, formData);
+  if (needsReason) return fail(t(await viewerLocale(), needsReason));
+
   try {
     const outcome = await prisma.$transaction(async (tx): Promise<Guarded> => {
       const target = await tx.user.findUnique({
@@ -378,6 +531,24 @@ export async function changeUserRole(
         select: { id: true, name: true, role: true },
       });
       if (!target) return { error: "That staff member no longer exists." };
+
+      /* Out of a Developer account, and into one: both refused, for everybody. */
+      const noDeveloperTarget = await blockDeveloperTarget(
+        actor,
+        target,
+        "change the role",
+        tx
+      );
+      if (noDeveloperTarget) return { error: noDeveloperTarget };
+      const noDeveloperRole = await blockDeveloperRole(
+        actor,
+        role,
+        "move",
+        target.name,
+        target.id,
+        tx
+      );
+      if (noDeveloperRole) return { error: noDeveloperRole };
 
       /*
         Both halves of the same rule, and the second is the one that is easy to
@@ -427,7 +598,17 @@ export async function changeUserRole(
              of this line months later. The blocked path directly above already
              records both. */
           summary: `Moved ${target.name} from ${ROLE_LABELS[target.role]} to ${ROLE_LABELS[role]}`,
-          metadata: { from: target.role, to: role },
+          metadata: {
+            from: target.role,
+            to: role,
+            ...(actor.role === DEVELOPER
+              ? {
+                  reason,
+                  before: { role: target.role },
+                  after: { role },
+                }
+              : {}),
+          },
         },
         tx
       );

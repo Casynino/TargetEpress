@@ -1,5 +1,6 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma, Role } from "@prisma/client";
 
+import { DEVELOPER, developerMetadata } from "@/lib/developer-shared";
 import { prisma, type TxClient } from "@/lib/prisma";
 import type { SessionUser } from "@/lib/session";
 
@@ -41,16 +42,56 @@ export async function recordAudit(
   tx?: TxClient
 ) {
   const client = tx ?? prisma;
-  await client.auditLog.create({
+  /*
+    A SESSION LOOKING AS SOMEBODY ELSE IS STILL THE DEVELOPER.
+
+    Work-as is view-only and authorize() refuses every action while it is on,
+    so nothing should reach here carrying the borrowed identity. If something
+    ever does — a page that records a view, a path nobody thought of — the line
+    must name the person who was really there, never the one they were looking
+    as. The borrowed identity goes in the metadata, as a fact about the act.
+  */
+  const real = input.actor?.impersonatedBy ?? null;
+  const author = real
+    ? { id: real.id, email: real.email, role: DEVELOPER as Role }
+    : input.actor
+      ? { id: input.actor.id, email: input.actor.email, role: input.actor.role }
+      : null;
+  /*
+    EVERY LINE THE DEVELOPER WRITES SAYS SO, WHATEVER WROTE IT.
+
+    Two hundred call sites record audit lines and none of them knows there is a
+    Developer account. So the stamp is applied here, once, on the one thing all
+    of them share — who the actor is. A developer's act carries developer:true,
+    an outcome and the zone it is read in, merged UNDER whatever the action
+    already put in metadata, never replacing it. Any other actor's line is
+    stored exactly as it always was.
+  */
+  const metadata =
+    author?.role === DEVELOPER
+      ? (developerMetadata(
+          real
+            ? {
+                ...(input.metadata && typeof input.metadata === "object" && !Array.isArray(input.metadata)
+                  ? input.metadata
+                  : {}),
+                workingAs: { id: input.actor!.id, name: input.actor!.name },
+              }
+            : input.metadata
+        ) as unknown as Prisma.InputJsonValue)
+      : input.metadata;
+  const row = await client.auditLog.create({
+    select: { id: true },
     data: {
-      actorId: input.actor?.id ?? null,
-      actorEmail: input.actor?.email ?? null,
-      actorRole: input.actor?.role ?? null,
+      actorId: author?.id ?? null,
+      actorEmail: author?.email ?? null,
+      actorRole: author?.role ?? null,
       action: input.action,
       entity: input.entity,
       entityId: input.entityId ?? null,
       summary: input.summary,
-      metadata: input.metadata,
+      metadata,
     },
   });
+  return row.id;
 }

@@ -22,7 +22,7 @@ const DIR = "lib/actions";
    write to user.id, refusing when there is no session. That is the right guard
    for "change my own password"; asking for a permission would be the wrong
    question. */
-const GUARDS = /\b(authorize|requirePermission|requireUser|currentUser)\s*\(/;
+const GUARDS = /\b(authorize|authorizeRealDeveloper|requirePermission|requireUser|currentUser)\s*\(/;
 
 /** Functions that legitimately need no guard, each with the reason. */
 const EXEMPT = new Map([

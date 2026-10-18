@@ -59,6 +59,12 @@ type Tab = {
 };
 
 const TABS: Record<Role, Tab[]> = {
+  /* The developer's own desk, and the search every role gets. Nothing else on
+     a phone: this account is for troubleshooting at a keyboard. */
+  DEVELOPER: [
+    { href: "/app/developer", icon: LayoutDashboard, exact: true, label: "Developer" },
+    { href: "/app/search", icon: Search },
+  ],
   // The owner: what landed, and what it earned. The chase lists and the staff
   // pages are deliberately in the drawer — they are opened at a desk, on a
   // week's evidence, not one-handed between meetings.

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/app/page-header";
 import { NewUserForm, UserRow } from "@/components/app/user-admin";
@@ -22,6 +23,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function UsersPage() {
   const actor = await requirePermission("user.manage");
   const locale = await viewerLocale();
+  /* The developer manages accounts from their own desk, where every change asks
+     for a reason and a confirmation. These forms do neither, and the server
+     would refuse them for want of a reason — so the door is closed here
+     rather than left to fail halfway through a form. */
+  if (actor.role === "DEVELOPER") redirect("/app/developer/accounts");
 
   const users = await prisma.user.findMany({
     orderBy: [{ active: "desc" }, { name: "asc" }],

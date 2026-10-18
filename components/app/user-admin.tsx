@@ -24,6 +24,16 @@ import type { ActionResult } from "@/lib/actions/types";
 import { ROLE_LABELS, enumOptions } from "@/lib/constants";
 import { formatRelative } from "@/lib/format";
 
+/**
+ * THE ROLES A SCREEN MAY GIVE — EVERY ONE EXCEPT DEVELOPER.
+ *
+ * The server refuses to assign it (lib/developer-shared.ts), so this is not
+ * the control; it is courtesy. A dropdown that offers a choice which is then
+ * refused teaches people the screen is broken.
+ */
+const assignableRoles = (locale: Parameters<typeof enumOptions>[1]) =>
+  enumOptions(ROLE_LABELS, locale).filter((o) => o.value !== "DEVELOPER");
+
 type StaffUser = {
   id: string;
   name: string;
@@ -87,7 +97,7 @@ export function UserRow({
         </TableCell>
 
         <TableCell className="hidden md:table-cell">
-          {isSelf ? (
+          {isSelf || user.role === "DEVELOPER" ? (
             <Badge variant="brand">{t(ROLE_LABELS[user.role])}</Badge>
           ) : (
             <form action={roleAction} className="flex items-center gap-2">
@@ -97,7 +107,7 @@ export function UserRow({
                 defaultValue={user.role}
                 className="h-9 w-44 text-xs"
               >
-                {enumOptions(ROLE_LABELS, locale).map((o) => (
+                {assignableRoles(locale).map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
@@ -117,6 +127,13 @@ export function UserRow({
         </TableCell>
 
         <TableCell className="text-right">
+          {user.role === "DEVELOPER" ? (
+            /* Nothing on this screen can act on a Developer account, so it
+               offers nothing — and says why, rather than leaving a blank. */
+            <span className="text-xs text-muted-foreground">
+              {t("Secure setup only")}
+            </span>
+          ) : (
           <div className="flex items-center justify-end gap-2">
             <Button
               type="button"
@@ -145,10 +162,11 @@ export function UserRow({
               </form>
             )}
           </div>
+          )}
         </TableCell>
       </TableRow>
 
-      {showReset ? (
+      {showReset && user.role !== "DEVELOPER" ? (
         <TableRow>
           <TableCell colSpan={4} className="bg-muted/40">
             <form action={resetAction} className="flex flex-wrap items-end gap-2">
@@ -236,7 +254,7 @@ export function NewUserForm() {
             {t("Role")}
           </Label>
           <NativeSelect id="role" name="role" defaultValue="CHINA_WAREHOUSE">
-            {enumOptions(ROLE_LABELS, locale).map((o) => (
+            {assignableRoles(locale).map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>

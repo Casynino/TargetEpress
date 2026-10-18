@@ -600,6 +600,7 @@ export function storageNotice(): {
 // ---------------------------------------------------------------------------
 
 export const ROLE_LABELS: Record<Role, string> = {
+  DEVELOPER: "Developer",
   ADMIN: "CEO / Admin",
   MANAGER: "Manager",
   CHINA_WAREHOUSE: "China Warehouse",
@@ -618,6 +619,9 @@ export const DEPARTMENT_LABELS: Record<Department, string> = {
 
 /** The department a role belongs to by default when an admin creates a user. */
 export const ROLE_DEFAULT_DEPARTMENT: Record<Role, Department> = {
+  /* Management: the developer belongs to no operating department, and a
+     departmental home would put their activity in somebody else's numbers. */
+  DEVELOPER: "MANAGEMENT",
   ADMIN: "MANAGEMENT",
   /* Management, like the owner: the manager runs the business rather than one
      department of it, so a departmental home would be a fiction. */

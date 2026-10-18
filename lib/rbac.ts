@@ -156,6 +156,9 @@ export type Permission =
   | "invoice.discount"
   | "invoice.rate"
   | "invoice.storage.waive"
+  /* THE DEVELOPER'S DESK — held by one role and by nothing that is derived from
+     the others. See DEVELOPER below for why it is not in ALL. */
+  | "developer.access"
   /* READING THE STORAGE LIST — every desk the cargo passes through.
      Separate from accounting.view because it is not one of the company's own
      books: it is a list of boxes standing on our floor, which the warehouse
@@ -930,7 +933,73 @@ const MANAGER: Permission[] = ALL.filter(
     ].includes(permission)
 );
 
+/*
+  THE DEVELOPER, BY EXPLICIT ALLOW-LIST — NEVER BY SUBTRACTION.
+
+  Every other broad role here is "everything, minus a few", which is right for
+  people who run the business and wrong for this one: a permission added next
+  year would be granted to the developer the day it was written, with nobody
+  deciding it. This list names what is held, and anything new is held by nobody
+  until somebody adds it here on purpose.
+
+  WHAT IT HOLDS. Read access across every department, because troubleshooting
+  means looking at everything; the audit trail; user and role management, with
+  the rails in lib/developer.ts around it; system settings; and the cargo
+  corrections the existing screens already write a history for.
+
+  WHAT IT DOES NOT. Nothing that moves money or approves it: no payment,
+  invoice, price, rate, discount, credit, loan, payroll, ledger, account or
+  pickup-note permission, and nothing that purges or merges a record. A
+  correction to a figure is made by the desk that owns it, through the
+  correction, reversal and adjustment records the system already keeps —
+  which is the point: a developer able to rewrite a balance would make every
+  balance in the building a statement nobody could stand behind. An attempt is
+  not silently ignored either: authorize() records every refused action by this
+  role as a failure in the audit trail.
+
+  NOT IN `ALL`, so the owner and the manager do not inherit developer.access.
+  The developer's tools are unavailable to normal staff by construction, not
+  by a check somebody might forget to write.
+*/
+const DEVELOPER: Permission[] = [
+  "developer.access",
+  /* Read, everywhere. */
+  "shipment.view",
+  "shipment.viewInternal",
+  "shipment.scan",
+  "batch.view",
+  "customer.view",
+  "exception.view",
+  "inventory.view",
+  "delivery.history",
+  "warehouse.reports",
+  "report.view",
+  "finance.view",
+  "accounting.view",
+  "ledger.view",
+  "account.view",
+  "loan.view",
+  "expense.view",
+  "credit.view",
+  "profit.view",
+  "pricing.view",
+  "pickupNote.view",
+  "storage.view",
+  "collections.view",
+  "records.viewDeleted",
+  "audit.view",
+  /* The system itself. */
+  "user.manage",
+  "settings.manage",
+  /* Cargo corrections — each already writes a field-by-field history. */
+  "shipment.edit",
+  "shipment.amendOutbound",
+  "shipment.amendLanded",
+  "customer.manage",
+];
+
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
+  DEVELOPER,
   ADMIN: ALL,
   MANAGER,
   CHINA_WAREHOUSE: CHINA,

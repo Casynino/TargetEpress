@@ -38,6 +38,13 @@ export const authConfig = {
         token.role = (user as { role?: string }).role;
         token.department = (user as { department?: string }).department;
         token.name = user.name;
+        /* Written once, at sign-in, and never again: a rolling token must not
+           roll THIS forward, or "four hours" would mean "four hours since you
+           last clicked". */
+        token.accountType =
+          (user as { accountType?: "staff" | "developer" }).accountType ??
+          "staff";
+        token.signedInAt = Date.now();
       }
       return token;
     },
@@ -48,6 +55,14 @@ export const authConfig = {
         session.user.department =
           token.department as typeof session.user.department;
       }
+      /* A token issued before there were two doors has neither field, and is a
+         staff session: absent means staff, so nobody is signed out by this. */
+      const carried = token as {
+        accountType?: "staff" | "developer";
+        signedInAt?: number;
+      };
+      session.accountType = carried.accountType ?? "staff";
+      session.signedInAt = carried.signedInAt ?? null;
       return session;
     },
   },

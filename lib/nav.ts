@@ -1244,7 +1244,88 @@ const MANAGER_SECTIONS: NavSection[] = [
   },
 ];
 
+/*
+  THE DEVELOPER'S MENU: THEIR OWN TOOLS, THEN A WINDOW ONTO EVERYTHING ELSE.
+
+  Every row in the second group is read-only in effect: the permission set
+  (lib/rbac.ts) gives this account no way to write money, and a button that
+  tries is refused and recorded. They are links, not tools, so the account has
+  somewhere to look at what staff see without a screen built for it.
+
+  Deliberately NOT the staff "Staff" page: that one asks for no reason and no
+  confirmation, and the Developer's account tool asks for both.
+*/
+const DEVELOPER_SECTIONS: NavSection[] = [
+  {
+    title: "Top",
+    items: [
+      {
+        href: "/app/developer",
+        label: "Developer dashboard",
+        icon: "LayoutDashboard",
+        exact: true,
+        permission: "developer.access",
+      },
+      {
+        href: "/app/search",
+        label: "Search",
+        icon: "Package",
+        permission: "shipment.view",
+      },
+    ],
+  },
+  {
+    title: "Developer tools",
+    group: { label: "Developer tools", icon: "ShieldCheck" },
+    items: [
+      {
+        href: "/app/developer/accounts",
+        label: "Accounts",
+        icon: "UserCog",
+        permission: "developer.access",
+      },
+      {
+        href: "/app/developer/audit",
+        label: "Audit trail",
+        icon: "History",
+        permission: "developer.access",
+      },
+    ],
+  },
+  {
+    title: "Browse",
+    group: { label: "Browse (read-only)", icon: "Globe" },
+    items: [
+      {
+        href: "/app/shipments",
+        label: "Flights",
+        icon: "PlaneTakeoff",
+        permission: "shipment.view",
+      },
+      {
+        href: "/app/customers",
+        label: "Customers",
+        icon: "Users",
+        permission: "customer.view",
+      },
+      {
+        href: "/app/finance",
+        label: "Finance",
+        icon: "Wallet",
+        permission: "accounting.view",
+      },
+      {
+        href: "/app/finance/storage",
+        label: "Storage",
+        icon: "Warehouse",
+        permission: "storage.view",
+      },
+    ],
+  },
+];
+
 const ROLE_SECTIONS: Partial<Record<Role, NavSection[]>> = {
+  DEVELOPER: DEVELOPER_SECTIONS,
   ADMIN: ADMIN_SECTIONS,
   MANAGER: MANAGER_SECTIONS,
   CHINA_WAREHOUSE: CHINA_SECTIONS,

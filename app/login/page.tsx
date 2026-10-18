@@ -36,9 +36,9 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string; revoked?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; revoked?: string; dev?: string }>;
 }) {
-  const { callbackUrl, revoked } = await searchParams;
+  const { callbackUrl, revoked, dev } = await searchParams;
   const locale = await viewerLocale();
 
   return (
@@ -147,10 +147,15 @@ export default async function LoginPage({
                     again" and "the system is broken". */}
                 {revoked === "1" ? (
                   <p className="mt-6 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-xs leading-relaxed text-amber-100">
-                    {t(
-                      locale,
-                      "Your access has changed since you signed in. Please sign in again."
-                    )}
+                    {dev === "1"
+                      ? t(
+                          locale,
+                          "Developer sessions end after 8 hours. Please sign in again."
+                        )
+                      : t(
+                          locale,
+                          "Your access has changed since you signed in. Please sign in again."
+                        )}
                   </p>
                 ) : null}
 
