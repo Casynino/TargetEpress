@@ -276,12 +276,16 @@ const delBody = delSrc.slice(delSrc.indexOf("export async function deleteUser"))
 check("only the Developer may delete an account", /actor\.role !== DEVELOPER/.test(delBody));
 check("never yourself, never a Developer account", /userId === actor\.id/.test(delBody) && /blockDeveloperTarget\(\s*actor,\s*target,\s*"delete"/.test(delBody));
 check("never the last owner", /onlyActiveOwner\(tx, target\.id\)/.test(delBody));
-check("the person's name must be typed first", /typed !== target\.name/.test(delBody));
+check("no typing: one popup and one Confirm", !/typed|confirm/.test(delBody.slice(0, delBody.indexOf("prisma.$transaction"))));
 check("the row is KEPT: no user.delete call, so every record still names them", !/tx\.user\.delete|prisma\.user\.delete/.test(delBody) && /status: "INACTIVE"/.test(delBody));
 check("login, password and address are all taken away", /active: false/.test(delBody) && /passwordHash:/.test(delBody) && /email: removedEmail/.test(delBody));
 check("the old email is written into the audit line", /before:\s*\{\s*email:\s*target\.email/.test(delBody));
 check("deleted accounts are left out of the lists people read", ["app/app/developer/accounts/page.tsx", "app/app/admin/users/page.tsx"].every((f) => readFileSync(f, "utf8").includes("NOT_REMOVED")));
 check("suspending the last owner is refused", /onlyActiveOwner\(tx, target\.id\)\)\) \{\s*return \{ error: LAST_OWNER/.test(delSrc));
+
+section("Account actions sit on the row, like ORA");
+const toolSrc = readFileSync("components/app/developer-account-tool.tsx", "utf8");
+check("every action is a visible button on the row: no More menu", !/t\("More"\)|<summary/.test(toolSrc) && ["Work as", "Reset password", "Suspend", "Delete"].every((w) => toolSrc.includes(w)));
 
 section("The system watches itself: errors, jobs, checks");
 const vercelCrons = (JSON.parse(readFileSync("vercel.json", "utf8")).crons ?? []) as { path: string }[];
@@ -319,7 +323,7 @@ section("The Developer opens accounts — owner included — and nobody else gai
 const usersSrc = readFileSync("lib/actions/users.ts", "utf8");
 check("only the owner or the Developer may create an owner (a manager still may not)", /input\.role === OWNER\s*&&\s*actor\.role !== OWNER\s*&&\s*actor\.role !== DEVELOPER/.test(usersSrc));
 check("creating a Developer account from a screen is still refused", usersSrc.includes("blockDeveloperRole(\n      actor,\n      input.role,\n      \"create\""));
-check("changing an existing account still insists on a reason from the Developer", (usersSrc.match(/developerReason\(actor, formData\)/g)?.length ?? 0) >= 3);
+check("changing a role or a password still insists on a reason from the Developer", (usersSrc.match(/developerReason\(actor, formData\)/g)?.length ?? 0) >= 2);
 
 section("One sign-in page, one-press Work as");
 check("the sign-in form has no Staff/Developer toggle", !/accountType|Developer login|Staff login/.test(readFileSync("components/login-form.tsx", "utf8")));

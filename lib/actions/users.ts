@@ -324,8 +324,14 @@ export async function setUserActive(
       t(await viewerLocale(), "You cannot deactivate your own account."),
     );
 
-  const { reason, refusal: needsReason } = developerReason(actor, formData);
-  if (needsReason) return fail(t(await viewerLocale(), needsReason));
+  /* Suspending is reversible and one press, like opening an account: the reason
+     is optional and filled in when left blank. Changing a role or a password
+     still insists on one — those change what somebody can do. */
+  const reason =
+    String(formData.get("reason") ?? "").trim() ||
+    (active
+      ? "Account reactivated by the Developer."
+      : "Account suspended by the Developer.");
 
   try {
     const outcome = await prisma.$transaction(async (tx): Promise<Guarded> => {
@@ -705,8 +711,9 @@ async function onlyActiveOwner(tx: TxClient, id: string): Promise<boolean> {
  * between deleting an ACCOUNT and deleting DATA, and only the first is done.
  *
  * Only the Developer may do it, never to themselves or another Developer, never
- * to the last owner, and only after typing the person's name — it cannot be
- * undone from a screen. The original email goes into the audit line.
+ * to the last owner. One popup, one Confirm — nothing to type; the account row
+ * stays, so nothing is lost that a new account with the same email cannot
+ * restore. The original email goes into the audit line.
  */
 export async function deleteUser(
   _prev: ActionResult | undefined,
@@ -724,9 +731,6 @@ export async function deleteUser(
   }
 
   const userId = String(formData.get("userId") ?? "");
-  const typed = String(formData.get("confirm") ?? "")
-    .trim()
-    .toLowerCase();
   if (!userId) return fail(t(locale, "Missing staff member."));
   if (userId === actor.id) {
     return fail(t(locale, "You cannot delete your own account."));
@@ -757,11 +761,6 @@ export async function deleteUser(
       );
       if (noDeveloper) return { error: noDeveloper };
 
-      if (typed !== target.name.trim().toLowerCase()) {
-        return {
-          error: `To delete this account, type their name exactly: ${target.name}`,
-        };
-      }
       if (target.role === OWNER && (await onlyActiveOwner(tx, target.id))) {
         return { error: LAST_OWNER };
       }

@@ -1,12 +1,27 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { Eye, Loader2 } from "lucide-react";
+import { useActionState, useEffect, useState } from "react";
+import {
+  KeyRound,
+  Loader2,
+  LogIn,
+  Trash2,
+  UserCheck,
+  UserCog,
+  UserX,
+} from "lucide-react";
 import { useFormStatus } from "react-dom";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
@@ -27,17 +42,20 @@ type Person = {
   active: boolean;
 };
 
-type Choice = "role" | "active" | "password" | "delete";
+/** Role and password change what somebody can do, so they keep a reason. */
+type Choice = "role" | "password";
+/** Suspend and delete are one popup and one Confirm. */
+type Popup = "active" | "delete";
 
 function WorkAsPress() {
   const t = useT();
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" size="sm" variant="outline" disabled={pending}>
+    <Button type="submit" size="sm" className="rounded-full" disabled={pending}>
       {pending ? (
-        <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
       ) : (
-        <Eye className="mr-1 h-3.5 w-3.5" />
+        <LogIn className="mr-1.5 h-3.5 w-3.5" />
       )}
       {t("Work as")}
     </Button>
@@ -47,13 +65,13 @@ function WorkAsPress() {
 /**
  * One person's row on the Access page.
  *
- * WORK AS IS ONE PRESS. Every start is on the audit trail
- * under the Developer's name, so it asks nothing before it opens — a form in
- * front of a read-only look is friction with nothing behind it.
+ * Work as, Suspend and Delete are each ONE press and, for the last two, one
+ * Confirm in a small popup — nothing to type, no reason to write. Every one is
+ * on the audit trail under the Developer's name whether or not a reason is
+ * given, and Delete removes the account, never the records.
  *
- * Suspend, role and password DO change the account, so each is a short inline
- * form with the reason the server insists on. One step: the sentence above the
- * reason field says what will happen, so there is no separate review screen.
+ * Changing a role or a password still asks for a short reason in a form, because
+ * those change what somebody can DO.
  */
 export function DeveloperAccountTool({
   person,
@@ -67,6 +85,7 @@ export function DeveloperAccountTool({
   const isOwner = person.roleKey === "ADMIN";
   const t = useT();
   const [choice, setChoice] = useState<Choice | null>(null);
+  const [popup, setPopup] = useState<Popup | null>(null);
   const [newRole, setNewRole] = useState(person.roleKey);
   const [password, setPassword] = useState("");
 
@@ -86,38 +105,26 @@ export function DeveloperAccountTool({
     ActionResult | undefined,
     FormData
   >(deleteUser, undefined);
-  const [typed, setTyped] = useState("");
   const [workAsState, workAsAction] = useActionState<
     ActionResult | undefined,
     FormData
   >(startWorkingAs, undefined);
 
+  /* A finished suspend or delete closes its popup; the list behind it refreshes. */
+  useEffect(() => {
+    if (activeState?.ok || deleteState?.ok) setPopup(null);
+  }, [activeState, deleteState]);
+
   const close = () => {
     setChoice(null);
     setPassword("");
-    setTyped("");
   };
 
   const roleLabel = (key: string) =>
     roles.find((r) => r.value === key)?.label ?? key;
 
-  const action =
-    choice === "role"
-      ? roleAction
-      : choice === "active"
-        ? activeAction
-        : choice === "delete"
-          ? deleteAction
-          : passwordAction;
-  const state =
-    choice === "role"
-      ? roleState
-      : choice === "active"
-        ? activeState
-        : choice === "delete"
-          ? deleteState
-          : passwordState;
-
+  const action = choice === "role" ? roleAction : passwordAction;
+  const state = choice === "role" ? roleState : passwordState;
   const consequence =
     choice === "role"
       ? t(
@@ -126,141 +133,146 @@ export function DeveloperAccountTool({
           .replace("{name}", person.name)
           .replace("{from}", person.roleLabel)
           .replace("{to}", roleLabel(newRole))
-      : choice === "active"
-        ? person.active
-          ? t(
-              "Suspend {name}. They are signed out of everything on their next request and cannot sign in.",
-            ).replace("{name}", person.name)
-          : t("Reactivate {name}. They can sign in again immediately.").replace(
-              "{name}",
-              person.name,
-            )
-        : t(
-            "Set a new password for {name}. Their old one stops working immediately.",
-          ).replace("{name}", person.name);
-
+      : t(
+          "Set a new password for {name}. Their old one stops working immediately.",
+        ).replace("{name}", person.name);
   const ready =
     choice === "role"
       ? newRole !== person.roleKey
       : choice === "password"
         ? password.length >= 8
-        : choice === "delete"
-          ? typed.trim().toLowerCase() === person.name.trim().toLowerCase()
-          : true;
+        : true;
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap items-center justify-end gap-1.5">
+      <div className="flex flex-wrap items-center justify-end gap-x-1 gap-y-1.5">
         {person.active ? (
-          <form action={workAsAction}>
+          <form action={workAsAction} className="mr-1">
             <input type="hidden" name="userId" value={person.id} />
             <WorkAsPress />
           </form>
+        ) : null}
+        {!isOwner ? (
+          <>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => setChoice("role")}
+            >
+              <UserCog className="mr-1.5 h-3.5 w-3.5" />
+              {t("Change role")}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => setChoice("password")}
+            >
+              <KeyRound className="mr-1.5 h-3.5 w-3.5" />
+              {t("Reset password")}
+            </Button>
+          </>
         ) : null}
         <Button
           type="button"
           size="sm"
           variant="ghost"
-          onClick={() => setChoice(choice === "active" ? null : "active")}
+          onClick={() => setPopup("active")}
         >
+          {person.active ? (
+            <UserX className="mr-1.5 h-3.5 w-3.5" />
+          ) : (
+            <UserCheck className="mr-1.5 h-3.5 w-3.5" />
+          )}
           {person.active ? t("Suspend") : t("Reactivate")}
         </Button>
-        <details className="group relative">
-          <summary className="focus-ring inline-flex h-8 cursor-pointer list-none items-center rounded-md px-3 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground [&::-webkit-details-marker]:hidden">
-            {t("More")}
-          </summary>
-          <div className="absolute right-0 z-10 mt-1 w-48 rounded-lg border bg-popover p-1 shadow-soft">
-            {!isOwner ? (
-              <>
-                <button
-                  type="button"
-                  className="focus-ring block w-full rounded-md px-3 py-1.5 text-left text-sm hover:bg-accent"
-                  onClick={(e) => {
-                    setChoice("role");
-                    e.currentTarget.closest("details")?.removeAttribute("open");
-                  }}
-                >
-                  {t("Change role")}
-                </button>
-                <button
-                  type="button"
-                  className="focus-ring block w-full rounded-md px-3 py-1.5 text-left text-sm hover:bg-accent"
-                  onClick={(e) => {
-                    setChoice("password");
-                    e.currentTarget.closest("details")?.removeAttribute("open");
-                  }}
-                >
-                  {t("Reset password")}
-                </button>
-              </>
-            ) : null}
-            <button
-              type="button"
-              className="focus-ring block w-full rounded-md px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10"
-              onClick={(e) => {
-                setChoice("delete");
-                e.currentTarget.closest("details")?.removeAttribute("open");
-              }}
-            >
-              Delete account
-            </button>
-          </div>
-        </details>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+          onClick={() => setPopup("delete")}
+        >
+          <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+          Delete
+        </Button>
       </div>
       <FormError state={workAsState} />
 
-      {choice === "delete" ? (
-        <form
-          action={deleteAction}
-          className="space-y-2.5 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-left"
-        >
-          <input type="hidden" name="userId" value={person.id} />
-          <p className="text-sm font-medium">
-            Delete {person.name}&apos;s account?
-          </p>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            They can no longer sign in, and the account disappears from every
-            list. Everything they recorded stays exactly as it is, still under
-            their name — only the account goes, not the data.
-          </p>
-          <label className="block space-y-1 text-xs font-medium">
-            <span>Type their name to confirm: {person.name}</span>
-            <Input
-              name="confirm"
-              value={typed}
-              onChange={(e) => setTyped(e.target.value)}
-              autoComplete="off"
-              placeholder={person.name}
-            />
-          </label>
-          <div className="flex gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={close}>
-              {t("Cancel")}
-            </Button>
-            <SubmitButton
-              size="sm"
-              variant="destructive"
-              pendingLabel="Deleting…"
-              disabled={!ready}
-            >
-              Delete account
-            </SubmitButton>
-          </div>
-          <FormError state={deleteState} />
-        </form>
-      ) : choice ? (
+      {/* Suspend / Reactivate / Delete: one popup, one Confirm. */}
+      <Dialog open={popup !== null} onOpenChange={(o) => !o && setPopup(null)}>
+        <DialogContent className="max-w-sm">
+          {popup === "delete" ? (
+            <form action={deleteAction} className="space-y-4">
+              <input type="hidden" name="userId" value={person.id} />
+              <DialogHeader>
+                <DialogTitle>Delete {person.name}&apos;s account?</DialogTitle>
+                <DialogDescription>
+                  They can no longer sign in and the account leaves every list.
+                  Everything they recorded stays, still under their name.
+                </DialogDescription>
+              </DialogHeader>
+              <FormError state={deleteState} />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPopup(null)}
+                >
+                  Cancel
+                </Button>
+                <SubmitButton
+                  variant="destructive"
+                  className="flex-1"
+                  pendingLabel="Deleting…"
+                >
+                  Confirm
+                </SubmitButton>
+              </div>
+            </form>
+          ) : popup === "active" ? (
+            <form action={activeAction} className="space-y-4">
+              <input type="hidden" name="userId" value={person.id} />
+              <input
+                type="hidden"
+                name="active"
+                value={person.active ? "false" : "true"}
+              />
+              <DialogHeader>
+                <DialogTitle>
+                  {person.active ? "Suspend" : "Reactivate"} {person.name}?
+                </DialogTitle>
+                <DialogDescription>
+                  {person.active
+                    ? "They are signed out straight away and cannot sign in until you reactivate them."
+                    : "They can sign in again straight away."}
+                </DialogDescription>
+              </DialogHeader>
+              <FormError state={activeState} />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPopup(null)}
+                >
+                  Cancel
+                </Button>
+                <SubmitButton className="flex-1" pendingLabel="Working…">
+                  Confirm
+                </SubmitButton>
+              </div>
+            </form>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {choice ? (
         <form
           action={action}
           className="space-y-2.5 rounded-lg border bg-muted/40 p-3 text-left"
         >
           <input type="hidden" name="userId" value={person.id} />
-          {choice === "active" ? (
-            <input
-              type="hidden"
-              name="active"
-              value={person.active ? "false" : "true"}
-            />
-          ) : null}
           {choice === "role" ? (
             <NativeSelect
               name="role"
