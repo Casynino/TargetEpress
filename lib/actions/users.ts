@@ -278,6 +278,7 @@ export async function createUser(
 
     revalidatePath("/app/admin/users");
     revalidatePath("/app/developer/accounts");
+    revalidatePath("/app/developer");
     return ok();
   } catch (error) {
     return fail(toActionError(error));

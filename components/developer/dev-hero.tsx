@@ -7,15 +7,21 @@ export function DevHero({
   eyebrow,
   title,
   subtitle,
+  action,
 }: {
   eyebrow: string;
   title: string;
   subtitle: string;
+  /** What to press from here, kept at the right of the banner. */
+  action?: React.ReactNode;
 }) {
   return (
     <div
       className="relative overflow-hidden rounded-2xl px-5 py-6 text-white sm:px-8 sm:py-8"
-      style={{ backgroundImage: "linear-gradient(135deg, #2e1065 0%, #5b21b6 55%, #7c3aed 100%)" }}
+      style={{
+        backgroundImage:
+          "linear-gradient(135deg, #2e1065 0%, #5b21b6 55%, #7c3aed 100%)",
+      }}
     >
       <div
         aria-hidden
@@ -26,15 +32,22 @@ export function DevHero({
           backgroundSize: "36px 36px",
         }}
       />
-      <div className="relative">
-        <div className="flex flex-wrap items-center gap-2.5 text-xs font-medium text-white/80">
-          <span>{eyebrow}</span>
-          <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white">
-            Developer
-          </span>
+      <div className="relative flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2.5 text-xs font-medium text-white/80">
+            <span>{eyebrow}</span>
+            <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white">
+              Developer
+            </span>
+          </div>
+          <h1 className="mt-2 font-display text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
+            {title}
+          </h1>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-white/80">
+            {subtitle}
+          </p>
         </div>
-        <h1 className="mt-2 font-display text-2xl font-bold leading-tight tracking-tight sm:text-3xl">{title}</h1>
-        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-white/80">{subtitle}</p>
+        {action}
       </div>
     </div>
   );

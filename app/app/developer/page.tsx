@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { BarChart3, LogIn, ScrollText } from "lucide-react";
 
+import { DeveloperAddPerson } from "@/components/app/developer-add-person";
 import { DevHero } from "@/components/developer/dev-hero";
 import {
   ActivityPanel,
@@ -13,6 +14,7 @@ import {
 } from "@/components/developer/home-sections";
 import { HomeTabs, type HomeTab } from "@/components/developer/home-tabs";
 import { QuickLink } from "@/components/developer/info";
+import { ROLE_LABELS } from "@/lib/constants";
 import { getMonitor } from "@/lib/developer/monitor";
 import { requirePermission } from "@/lib/session";
 
@@ -28,6 +30,11 @@ export const metadata: Metadata = { title: "Developer home" };
 export default async function DeveloperHomePage() {
   const me = await requirePermission("developer.access");
   const m = await getMonitor();
+
+  /* Every role but Developer: that one is never given from a screen. */
+  const roles = Object.entries(ROLE_LABELS)
+    .filter(([value]) => value !== "DEVELOPER")
+    .map(([value, label]) => ({ value, label }));
 
   const firstName = me.name.split(" ")[0] || "Developer";
   const eatHour = Number(
@@ -68,6 +75,7 @@ export default async function DeveloperHomePage() {
         eyebrow={dateLabel}
         title={`${greeting}, ${firstName}.`}
         subtitle="Your control room for Target Express — health, people and everything done, in one place."
+        action={<DeveloperAddPerson onHero roles={roles} />}
       />
 
       <StatusStrip m={m} />

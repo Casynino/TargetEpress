@@ -43,8 +43,11 @@ function makePassword() {
  */
 export function DeveloperAddPerson({
   roles,
+  onHero = false,
 }: {
   roles: { value: string; label: string }[];
+  /** On the violet Home banner: a white button and white confirmation text. */
+  onHero?: boolean;
 }) {
   const ordered = ROLE_ORDER.map((v) => roles.find((r) => r.value === v)).filter(
     (r): r is { value: string; label: string } => Boolean(r)
@@ -81,10 +84,12 @@ export function DeveloperAddPerson({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      {created ? <p className="text-sm text-success">Created {created}.</p> : null}
+      {created ? (
+        <p className={cn("text-sm", onHero ? "font-medium text-white" : "text-success")}>Created {created}.</p>
+      ) : null}
       <Button
         type="button"
-        className="rounded-full"
+        className={cn("rounded-full", onHero && "bg-white text-violet-900 hover:bg-white/90")}
         onClick={() => {
           setCreated(null);
           setPassword(makePassword());
