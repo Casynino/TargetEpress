@@ -6061,8 +6061,8 @@ const ZH: Record<string, string> = {
   "Employee ID {id} already belongs to {name}.":
     "员工编号 {id} 已经属于 {name}。",
   "Full name": "姓名",
-  "Give it to them in person and change it after their first sign-in.":
-    "请当面交给本人，首次登录后立即更换。",
+  "They can sign in with this straight away, and change it whenever they wish.":
+    "他们可以直接用此密码登录，也可以随时自行更换。",
   "Missing staff member.": "没有指定员工。",
   "New password for {name}": "{name} 的新密码",
   "Rank applies to warehouse staff only.": "职级只对仓库员工有效。",
@@ -6070,7 +6070,6 @@ const ZH: Record<string, string> = {
   "Reset password": "重置密码",
   "Set password": "设置密码",
   "Staff account created.": "员工账号已创建。",
-  "Temporary password": "临时密码",
   "The ID cannot be changed later.": "编号一旦创建就不能再改。",
   "Their dashboard is chosen by their role.":
     "登录后进入哪个工作台，由角色决定。",

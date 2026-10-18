@@ -302,7 +302,7 @@ export function NewUserForm() {
 
         <div className="space-y-1.5">
           <Label htmlFor="password" className="text-xs">
-            {t("Temporary password")}
+            {t("Password")}
           </Label>
           <Input
             id="password"
@@ -314,7 +314,7 @@ export function NewUserForm() {
           />
           <p className="text-xs text-muted-foreground">
             {t(
-              "Give it to them in person and change it after their first sign-in."
+              "They can sign in with this straight away, and change it whenever they wish."
             )}
           </p>
         </div>

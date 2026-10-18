@@ -209,7 +209,7 @@ export function DeveloperAddPerson({
 
             <div className="space-y-1.5">
               <Label htmlFor="add-password" className="text-xs">
-                Temporary password
+                Password
               </Label>
               <div className="flex gap-2">
                 <Input
@@ -249,7 +249,7 @@ export function DeveloperAddPerson({
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Made for you. They should change it after their first sign-in.
+                Made for you. They can sign in with it straight away and change it whenever they wish.
               </p>
             </div>
 
