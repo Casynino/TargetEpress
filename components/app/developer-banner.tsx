@@ -14,7 +14,7 @@ function StopButton() {
     <button
       type="submit"
       disabled={pending}
-      className="focus-ring rounded-full bg-white px-3 py-1 text-xs font-semibold text-orange-900 hover:bg-white/90 disabled:opacity-60"
+      className="focus-ring rounded-full bg-white px-3 py-1 text-xs font-semibold text-violet-900 hover:bg-white/90 disabled:opacity-60"
     >
       {pending ? "Stopping…" : "Stop"}
     </button>
@@ -29,8 +29,9 @@ function StopButton() {
  * unfolds again with one press. It holds no layout space, so the page under it
  * is exactly the page the person sees.
  *
- * Orange, a colour nothing else in the application uses, so a page that is
- * otherwise identical to the staff one is still never mistaken for it.
+ * Violet, the Developer's own colour and one nothing else in the application
+ * uses, so a page that is otherwise identical to the staff one is still never
+ * mistaken for it.
  * Everything under it is view-only, which is what makes folding it safe.
  */
 export function DeveloperBanner({
@@ -66,18 +67,17 @@ export function DeveloperBanner({
         <button
           type="button"
           onClick={() => fold(false)}
-          aria-label={`Viewing as ${workingAs.name}. Show`}
-          title={`Viewing as ${workingAs.name}`}
-          className="focus-ring grid size-10 place-items-center rounded-full bg-orange-800 text-white shadow-lg hover:bg-orange-700"
+          aria-label={`Working as ${workingAs.name}. Show`}
+          title={`Working as ${workingAs.name}`}
+          className="focus-ring grid size-10 place-items-center rounded-full bg-violet-700 text-white shadow-lg hover:bg-violet-600"
         >
           <Eye className="size-4" />
         </button>
       ) : (
-        <div className="flex items-center gap-2 rounded-full bg-orange-800 py-1.5 pl-3.5 pr-1.5 text-sm text-white shadow-lg">
+        <div className="flex items-center gap-2 rounded-full bg-violet-700 py-1.5 pl-3.5 pr-1.5 text-sm text-white shadow-lg">
           <Eye className="size-4 shrink-0" />
-          <span className="max-w-[12rem] truncate sm:max-w-none">
-            Viewing as <strong className="font-semibold">{workingAs.name}</strong>
-            <span className="hidden text-white/75 sm:inline"> · {workingAs.roleLabel} · view only</span>
+          <span className="max-w-[12rem] truncate font-medium sm:max-w-none" title={`${workingAs.roleLabel} · view only`}>
+            Working as {workingAs.name}
           </span>
           <form action={stopWorkingAs}>
             <StopButton />
