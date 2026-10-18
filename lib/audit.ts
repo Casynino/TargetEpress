@@ -45,11 +45,11 @@ export async function recordAudit(
   /*
     A SESSION LOOKING AS SOMEBODY ELSE IS STILL THE DEVELOPER.
 
-    Work-as is view-only and authorize() refuses every action while it is on,
-    so nothing should reach here carrying the borrowed identity. If something
-    ever does — a page that records a view, a path nobody thought of — the line
-    must name the person who was really there, never the one they were looking
-    as. The borrowed identity goes in the metadata, as a fact about the act.
+    While working as somebody the Developer does what that person could do, so
+    their acts DO reach here carrying the borrowed identity. The line must name
+    the person who was really there, never the one they were acting as — that is
+    the whole promise of the trail. The borrowed identity goes in the metadata
+    (`workingAs`), as a fact about the act.
   */
   const real = input.actor?.impersonatedBy ?? null;
   const author = real

@@ -253,7 +253,11 @@ check("create, role change and target actions all run the Developer rails",
 check("a Developer cannot reactivate an account somebody else suspended", users.includes("developerMayReactivate"));
 check("the role dropdowns leave Developer out", readFileSync("components/app/user-admin.tsx", "utf8").includes('o.value !== "DEVELOPER"'));
 check("the Developer cannot reach the staff screen that asks no reason", readFileSync("app/app/admin/users/page.tsx", "utf8").includes('redirect("/app/developer/accounts")'));
-check("work-as is view-only: authorize() refuses every action while it is on", readFileSync("lib/session.ts", "utf8").includes("if (user.impersonatedBy)"));
+const sessionSrc = readFileSync("lib/session.ts", "utf8");
+check("work-as keeps the account-takeover door shut: user.manage is refused while it is on", /WORK_AS_NEVER: Permission\[\] = \["user\.manage"\]/.test(sessionSrc) && sessionSrc.includes("user.impersonatedBy && WORK_AS_NEVER.includes(permission)"));
+check("…and so is the person's own password change", /changeMyPassword[\s\S]*?if \(user\.impersonatedBy\)/.test(readFileSync("lib/actions/profile.ts", "utf8")));
+check("work-as is NOT blocked for every action any more (the owner chose Everything, recorded)", !sessionSrc.includes("which is view-only"));
+check("work-as writes are attributed to the Developer in the trail", readFileSync("lib/audit.ts", "utf8").includes("workingAs: { id: input.actor!.id, name: input.actor!.name }"));
 
 section("The Developer opens accounts — owner included — and nobody else gains that");
 const usersSrc = readFileSync("lib/actions/users.ts", "utf8");
@@ -264,7 +268,7 @@ check("changing an existing account still insists on a reason from the Developer
 section("One sign-in page, one-press Work as");
 check("the sign-in form has no Staff/Developer toggle", !/accountType|Developer login|Staff login/.test(readFileSync("components/login-form.tsx", "utf8")));
 check("the sign-in action does not take the account type from the form", !readFileSync("lib/actions/auth.ts", "utf8").includes("accountType"));
-check("Work as asks for no reason (view-only, always on the trail)", !readFileSync("lib/actions/developer.ts", "utf8").includes("developerReasonRefusal"));
+check("Work as asks for no reason (always on the trail)", !readFileSync("lib/actions/developer.ts", "utf8").includes("developerReasonRefusal"));
 check("Work as still writes its audit line before it sets the cookie",
   (() => { const f = readFileSync("lib/actions/developer.ts", "utf8"); return f.indexOf('"developer.workas.start"') < f.indexOf("setWorkAsCookie({"); })());
 

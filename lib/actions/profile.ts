@@ -125,6 +125,14 @@ export async function changeMyPassword(
   const user = await currentUser();
   if (!user) return fail("Your session has expired. Sign in again.");
 
+  /* The one change "work as" may never make: a password set while working as
+     someone is a key to their account that outlives the session. */
+  if (user.impersonatedBy) {
+    return fail(
+      "You cannot change a password while working as someone else. Stop working as them first."
+    );
+  }
+
   const parsed = passwordSchema.safeParse({
     current: formData.get("current")?.toString() ?? "",
     next: formData.get("next")?.toString() ?? "",

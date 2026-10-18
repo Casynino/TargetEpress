@@ -58,7 +58,7 @@ function PersonRow({ person }: { person: WorkAsPerson }) {
  *
  * A button that opens a short list of everyone who can be looked as — name and
  * role, nothing else — and one press on a name opens the app as them. It posts
- * to the same action as the buttons on Access, so it is the same view-only
+ * to the same action as the buttons on Access, so it is the same
  * session, on the same audit trail, ended by the same Stop.
  */
 export function DeveloperWorkAs({
@@ -94,7 +94,7 @@ export function DeveloperWorkAs({
         <ActionTile
           icon={Eye}
           title="Work as"
-          text="See the app as any person sees it."
+          text="Use the app as any person, as you."
           onClick={openIt}
         />
       ) : (
@@ -114,8 +114,8 @@ export function DeveloperWorkAs({
           <DialogHeader>
             <DialogTitle>Work as</DialogTitle>
             <DialogDescription>
-              Pick a person to see the app exactly as they see it. View only —
-              nothing can be changed.
+              Pick a person to use the app exactly as they do. Everything you do
+              is recorded as you.
             </DialogDescription>
           </DialogHeader>
 

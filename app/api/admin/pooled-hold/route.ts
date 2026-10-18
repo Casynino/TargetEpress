@@ -35,10 +35,6 @@ export async function GET(request: Request) {
   if (!user || !can(user.role, "invoice.edit")) {
     return NextResponse.json({ error: "Not authorised" }, { status: 403 });
   }
-  /* Looking as somebody is view-only, and this route writes on a plain request. */
-  if (user.impersonatedBy) {
-    return NextResponse.json({ error: "View-only while working as someone" }, { status: 403 });
-  }
 
   const dry = new URL(request.url).searchParams.get("dry") === "1";
 

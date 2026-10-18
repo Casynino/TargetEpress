@@ -186,22 +186,30 @@ export async function requirePermission(
  * For server actions. Throws instead of redirecting so the caller can return a
  * typed error to the form rather than a mystery navigation.
  */
+/** Permissions that stay closed while working as somebody — see authorize(). */
+const WORK_AS_NEVER: Permission[] = ["user.manage"];
+
 export async function authorize(permission: Permission): Promise<SessionUser> {
   const user = await viewer();
   if (!user) throw new Error("Not signed in.");
   /*
-    WORKING AS SOMEBODY IS LOOK-DON'T-TOUCH.
+    WORKING AS SOMEBODY: EVERYTHING THEY CAN DO, NOTHING THAT TAKES THEM OVER.
 
-    Every action is refused while it is on, whatever the person being looked
-    as is allowed to do. This business moves money: a developer pressing
-    Record Payment as Finance would be recording it with Finance's authority,
-    and no audit line could undo the fact that they did. The refusal is
-    recorded under the DEVELOPER, as a failure, so an attempt is on the trail.
+    The Developer may do whatever the person they are working as may do — that
+    is how they help, and how they test. Every line it writes is recorded under
+    the DEVELOPER, with the borrowed identity in the metadata (lib/audit.ts), so
+    the trail always says who really did it and as whom.
+
+    What stays refused is whatever would let "work as" become a way to keep an
+    account: opening accounts, changing roles, resetting passwords, suspending
+    or reactivating people. That is the one power that outlives the session, so
+    it is closed here, once, for every action behind `user.manage` — and the
+    person's own password change is closed in lib/actions/profile.ts.
   */
-  if (user.impersonatedBy) {
+  if (user.impersonatedBy && WORK_AS_NEVER.includes(permission)) {
     await recordWorkAsRefusal(user, permission);
     throw new Error(
-      "You are looking at the app as someone else, which is view-only. Stop working as them to make changes."
+      "You cannot do that while working as someone else: accounts, roles and passwords are closed to Work as. Stop working as them first."
     );
   }
   if (!can(user.role, permission)) {

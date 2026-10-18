@@ -46,7 +46,7 @@ function WorkAsPress() {
 /**
  * One person's row on the Access page.
  *
- * WORK AS IS ONE PRESS. It is view-only and every start is on the audit trail
+ * WORK AS IS ONE PRESS. Every start is on the audit trail
  * under the Developer's name, so it asks nothing before it opens — a form in
  * front of a read-only look is friction with nothing behind it.
  *

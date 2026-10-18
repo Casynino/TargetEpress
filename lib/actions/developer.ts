@@ -23,8 +23,8 @@ import { fail, toActionError, type ActionResult } from "@/lib/actions/types";
  * ends, and both write the line the cookie is later checked against.
  */
 
-/** Start. One click: the reason is optional because the page is view-only and
-    every start is on the trail either way. The line is written BEFORE the
+/** Start. One click: the reason is optional because every start is on the
+    trail either way. The line is written BEFORE the
     cookie: no audit row means no work-as, never the other way round. */
 export async function startWorkingAs(
   _prev: ActionResult | undefined,
@@ -64,7 +64,7 @@ export async function startWorkingAs(
     action: "developer.workas.start",
     entity: "User",
     entityId: target.id,
-    summary: `Started working as ${target.name} (view only)`,
+    summary: `Started working as ${target.name}`,
     reason,
     before: { workingAs: null },
     after: { workingAs: { id: target.id, name: target.name, role: target.role } },

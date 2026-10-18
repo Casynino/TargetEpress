@@ -32,7 +32,7 @@ function StopButton() {
  * Violet, the Developer's own colour and one nothing else in the application
  * uses, so a page that is otherwise identical to the staff one is still never
  * mistaken for it.
- * Everything under it is view-only, which is what makes folding it safe.
+ * Everything done under it is recorded as the Developer, folded or not.
  */
 export function DeveloperBanner({
   workingAs,
@@ -76,7 +76,10 @@ export function DeveloperBanner({
       ) : (
         <div className="flex items-center gap-2 rounded-full bg-violet-700 py-1.5 pl-3.5 pr-1.5 text-sm text-white shadow-lg">
           <Eye className="size-4 shrink-0" />
-          <span className="max-w-[12rem] truncate font-medium sm:max-w-none" title={`${workingAs.roleLabel} · view only`}>
+          <span
+            className="max-w-[12rem] truncate font-medium sm:max-w-none"
+            title={`${workingAs.roleLabel} · everything you do is recorded as you`}
+          >
             Working as {workingAs.name}
           </span>
           <form action={stopWorkingAs}>

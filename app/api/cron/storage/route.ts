@@ -33,10 +33,6 @@ async function run(request: Request) {
     if (!user || !can(user.role, "invoice.edit")) {
       return NextResponse.json({ error: "Not authorised" }, { status: 403 });
     }
-    /* Looking as somebody is view-only, and this route writes on a plain request. */
-    if (user.impersonatedBy) {
-      return NextResponse.json({ error: "View-only while working as someone" }, { status: 403 });
-    }
     /* ?dry=1 works out the whole sweep and writes nothing — what the first
        real run would put on the books, before it puts it there. */
     const dryRun = new URL(request.url).searchParams.get("dry") === "1";

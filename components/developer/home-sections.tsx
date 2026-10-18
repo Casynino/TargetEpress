@@ -1134,8 +1134,9 @@ export function PeoplePanel({ m }: { m: Monitor }) {
             tone="warn"
             title="What you cannot do while working as someone"
           >
-            Work as is view only: every action is refused and recorded. This
-            stops it from being used to move money or take over an account.
+            Open accounts, change roles, reset or change passwords, suspend
+            people. Everything else you may do as them, and it is all recorded
+            as you. This stops Work as from being used to take over an account.
           </InfoCallout>
           <InfoCallout title="Good to know">
             Your session ends after 8 hours. Working as someone ends by itself

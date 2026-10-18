@@ -31,7 +31,7 @@ const ORDER = [
  * EVERY ACCOUNT, GROUPED BY WHAT THEY DO, WITH THE ONE BUTTON THAT MATTERS.
  *
  * "Work as" is on the person's row and opens the app as them in one press:
- * it is view-only and always on the trail, so it asks nothing first.
+ * it is always on the trail, so it asks nothing first.
  * Suspend / role / password change the account, so each is a short inline
  * form with the reason the server insists on.
  */
@@ -73,11 +73,11 @@ export default async function DeveloperAccessPage() {
       </div>
 
       <InfoCallout icon={Eye} title="What “Work as” does">
-        You see the app as they see it, so you can help them or find why
-        something looks different. It is view only: buttons that would change
-        anything are refused and recorded, so money cannot move while you look.
-        It ends by itself after 4 hours, or press Stop on the small pill in the
-        corner.
+        You use the app as them, with exactly their access, so you can help
+        them, test something or find why a screen looks different. Everything
+        you do is recorded as you, working as them. Accounts, roles and
+        passwords stay closed while you work as someone. It ends by itself after
+        4 hours, or press Stop on the small pill in the corner.
       </InfoCallout>
 
       {ORDER.map((role) => {
