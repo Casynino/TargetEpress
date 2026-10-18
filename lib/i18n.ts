@@ -4998,6 +4998,8 @@ const ZH: Record<string, string> = {
   "STORAGE OUTSTANDING — DO NOT RELEASE": "仓储费未结清 — 不得放货",
   "Combined carton": "合并纸箱",
   "More": "更多",
+  "Show password": "显示密码",
+  "Hide password": "隐藏密码",
   "Ended by the Developer.": "由开发者结束。",
   "Refused an attempt to look as an account that cannot be looked as": "已拒绝以不可查看的账户身份进行查看的尝试",
   "Stopped working as another account": "已停止以其他账户身份查看",

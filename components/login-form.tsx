@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ function SubmitButton() {
 
 export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
   const t = useT();
+  const [showPassword, setShowPassword] = useState(false);
   const [state, formAction] = useActionState<LoginState, FormData>(
     loginAction,
     {}
@@ -52,14 +53,26 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
 
       <div className="space-y-2">
         <Label htmlFor="password">{t("Password")}</Label>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          placeholder="••••••••"
-          required
-        />
+        <div className="relative">
+          <Input
+            id="password"
+            name="password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            placeholder="••••••••"
+            required
+            className="pr-11"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? t("Hide password") : t("Show password")}
+            aria-pressed={showPassword}
+            className="focus-ring absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
 
       {state.error ? (
