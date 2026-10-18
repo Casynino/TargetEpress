@@ -362,7 +362,7 @@ export async function runChecks() {
       continue;
     }
     const p = r.check.make(r.n);
-    if (p) problems.push(p);
+    if (p) problems.push({ ...p, group: r.check.group });
     checks.push({
       label: r.check.label,
       group: r.check.group,
@@ -373,7 +373,7 @@ export async function runChecks() {
 
   try {
     const billProblem = await billStatusCheck();
-    if (billProblem) problems.push(billProblem);
+    if (billProblem) problems.push({ ...billProblem, group: "Billing" });
     checks.push({
       label: "Every bill's status agrees with its figures",
       group: "Billing",
@@ -410,6 +410,7 @@ export async function runChecks() {
       !last || last.createdAt.getTime() < Date.now() - 3 * 86_400_000;
     if (n > 0 && stale)
       problems.push({
+        group: "Billing",
         level: "warning",
         title: "Storage does not seem to be charging",
         detail: `${s(n, "piece")} of cargo has been in Dar for over 10 days (past the free week), yet no storage charge has been written ${

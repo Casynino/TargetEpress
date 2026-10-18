@@ -27,6 +27,8 @@ export type Problem = {
   href?: string;
   /** The specific things found, when there are only a few worth naming. */
   items?: string[];
+  /** The chip it sits under in the attention list. */
+  group?: string;
 };
 
 /**
