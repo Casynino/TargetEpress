@@ -23,9 +23,9 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function UsersPage() {
   const actor = await requirePermission("user.manage");
   const locale = await viewerLocale();
-  /* The developer manages accounts from their own desk, where every change asks
-     for a reason and a confirmation. These forms do neither, and the server
-     would refuse them for want of a reason — so the door is closed here
+  /* The developer manages accounts from their own desk (Access), where
+     changing an existing account asks for a reason. These row forms do not, and
+     the server would refuse them for want of one — so the door is closed here
      rather than left to fail halfway through a form. */
   if (actor.role === "DEVELOPER") redirect("/app/developer/accounts");
 

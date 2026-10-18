@@ -39,7 +39,11 @@ import { viewerLocale } from "@/lib/viewer";
  *
  * So ADMIN stays the owner's, and only an ADMIN writes it. Four places, one rule:
  *
- *   createUser         nobody but the owner creates an owner.
+ *   createUser         nobody but the owner creates an owner — except the
+ *                      Developer, who is the one that sets every account up,
+ *                      the owner's included. It asks no reason there: the line
+ *                      it writes names the Developer, the role and the email,
+ *                      and the database will not let that line be rewritten.
  *   changeUserRole     nobody but the owner moves somebody INTO the owner's
  *                      role — and nobody but the owner moves somebody OUT of
  *                      it, or a manager demotes the owner first and then does
@@ -179,8 +183,12 @@ export async function createUser(
   const input = parsed.data;
   const email = input.email.toLowerCase();
 
-  const { reason, refusal: needsReason } = developerReason(actor, formData);
-  if (needsReason) return fail(t(await viewerLocale(), needsReason));
+  /* Opening an account is the Developer's everyday job, so the reason is
+     optional here and filled in when left blank — the other three doors still
+     insist on one, because they change somebody who already exists. */
+  const reason =
+    String(formData.get("reason") ?? "").trim() ||
+    "Account opened by the Developer.";
 
   try {
     const noDeveloper = await blockDeveloperRole(
@@ -196,7 +204,7 @@ export async function createUser(
       exist yet, so there is no row whose role could change underneath the check
       — and the value tested is literally the one the create below writes.
     */
-    if (input.role === OWNER && actor.role !== OWNER) {
+    if (input.role === OWNER && actor.role !== OWNER && actor.role !== DEVELOPER) {
       await recordAudit({
         actor,
         action: "user.escalationBlocked",
@@ -269,6 +277,7 @@ export async function createUser(
     });
 
     revalidatePath("/app/admin/users");
+    revalidatePath("/app/developer/accounts");
     return ok();
   } catch (error) {
     return fail(toActionError(error));
@@ -396,6 +405,7 @@ export async function setUserActive(
     if (outcome.error) return fail(t(await viewerLocale(), outcome.error));
 
     revalidatePath("/app/admin/users");
+    revalidatePath("/app/developer/accounts");
     return ok();
   } catch (error) {
     return fail(toActionError(error));
@@ -499,6 +509,7 @@ export async function resetUserPassword(
     if (outcome.error) return fail(t(await viewerLocale(), outcome.error));
 
     revalidatePath("/app/admin/users");
+    revalidatePath("/app/developer/accounts");
     return ok();
   } catch (error) {
     return fail(toActionError(error));
@@ -618,6 +629,7 @@ export async function changeUserRole(
     if (outcome.error) return fail(t(await viewerLocale(), outcome.error));
 
     revalidatePath("/app/admin/users");
+    revalidatePath("/app/developer/accounts");
     return ok();
   } catch (error) {
     return fail(toActionError(error));

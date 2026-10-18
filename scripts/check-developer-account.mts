@@ -255,6 +255,12 @@ check("the role dropdowns leave Developer out", readFileSync("components/app/use
 check("the Developer cannot reach the staff screen that asks no reason", readFileSync("app/app/admin/users/page.tsx", "utf8").includes('redirect("/app/developer/accounts")'));
 check("work-as is view-only: authorize() refuses every action while it is on", readFileSync("lib/session.ts", "utf8").includes("if (user.impersonatedBy)"));
 
+section("The Developer opens accounts — owner included — and nobody else gains that");
+const usersSrc = readFileSync("lib/actions/users.ts", "utf8");
+check("only the owner or the Developer may create an owner (a manager still may not)", /input\.role === OWNER && actor\.role !== OWNER && actor\.role !== DEVELOPER/.test(usersSrc));
+check("creating a Developer account from a screen is still refused", usersSrc.includes("blockDeveloperRole(\n      actor,\n      input.role,\n      \"create\""));
+check("changing an existing account still insists on a reason from the Developer", (usersSrc.match(/developerReason\(actor, formData\)/g)?.length ?? 0) >= 3);
+
 section("One sign-in page, one-press Work as");
 check("the sign-in form has no Staff/Developer toggle", !/accountType|Developer login|Staff login/.test(readFileSync("components/login-form.tsx", "utf8")));
 check("the sign-in action does not take the account type from the form", !readFileSync("lib/actions/auth.ts", "utf8").includes("accountType"));
