@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { BarChart3, LogIn, ScrollText } from "lucide-react";
 
 import { DeveloperAddPerson } from "@/components/app/developer-add-person";
+import { DeveloperWorkAs } from "@/components/app/developer-work-as";
 import { DevHero } from "@/components/developer/dev-hero";
 import {
   ActivityPanel,
@@ -16,6 +17,7 @@ import { HomeTabs, type HomeTab } from "@/components/developer/home-tabs";
 import { QuickLink } from "@/components/developer/info";
 import { ROLE_LABELS } from "@/lib/constants";
 import { getMonitor } from "@/lib/developer/monitor";
+import { workAsPeople } from "@/lib/developer/people";
 import { requirePermission } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +32,7 @@ export const metadata: Metadata = { title: "Developer home" };
 export default async function DeveloperHomePage() {
   const me = await requirePermission("developer.access");
   const m = await getMonitor();
+  const people = await workAsPeople();
 
   /* Every role but Developer: that one is never given from a screen. */
   const roles = Object.entries(ROLE_LABELS)
@@ -38,9 +41,18 @@ export default async function DeveloperHomePage() {
 
   const firstName = me.name.split(" ")[0] || "Developer";
   const eatHour = Number(
-    new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Dar_es_Salaam", hour: "2-digit", hour12: false }).format(new Date())
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Africa/Dar_es_Salaam",
+      hour: "2-digit",
+      hour12: false,
+    }).format(new Date()),
   );
-  const greeting = eatHour >= 5 && eatHour < 12 ? "Good morning" : eatHour >= 12 && eatHour < 17 ? "Good afternoon" : "Good evening";
+  const greeting =
+    eatHour >= 5 && eatHour < 12
+      ? "Good morning"
+      : eatHour >= 12 && eatHour < 17
+        ? "Good afternoon"
+        : "Good evening";
   const dateLabel = new Intl.DateTimeFormat("en-US", {
     timeZone: "Africa/Dar_es_Salaam",
     weekday: "long",
@@ -65,7 +77,12 @@ export default async function DeveloperHomePage() {
       badge: securityBadge > 0 ? String(securityBadge) : null,
       tone: m.security.failed24 >= 10 ? "bad" : "warn",
     },
-    { id: "settings", label: "Settings", badge: missing > 0 ? String(missing) : null, tone: "bad" },
+    {
+      id: "settings",
+      label: "Settings",
+      badge: missing > 0 ? String(missing) : null,
+      tone: "bad",
+    },
     { id: "people", label: "People & my actions" },
   ];
 
@@ -75,7 +92,12 @@ export default async function DeveloperHomePage() {
         eyebrow={dateLabel}
         title={`${greeting}, ${firstName}.`}
         subtitle="Your control room for Target Express — health, people and everything done, in one place."
-        action={<DeveloperAddPerson onHero roles={roles} />}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <DeveloperWorkAs onHero people={people} />
+            <DeveloperAddPerson onHero roles={roles} />
+          </div>
+        }
       />
 
       <StatusStrip m={m} />

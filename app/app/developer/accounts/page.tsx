@@ -3,19 +3,29 @@ import { Eye } from "lucide-react";
 
 import { DeveloperAccountTool } from "@/components/app/developer-account-tool";
 import { DeveloperAddPerson } from "@/components/app/developer-add-person";
+import { DeveloperWorkAs } from "@/components/app/developer-work-as";
 import { InfoCallout } from "@/components/developer/info";
 import { Initials, ROLE_INFO } from "@/components/developer/home-sections";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ROLE_LABELS } from "@/lib/constants";
 import { timeAgo, eat } from "@/lib/developer/format";
+import { workAsPeople } from "@/lib/developer/people";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Access" };
 export const dynamic = "force-dynamic";
 
-const ORDER = ["ADMIN", "MANAGER", "FINANCE", "CUSTOMER_CARE", "CHINA_WAREHOUSE", "DAR_WAREHOUSE", "DEVELOPER"] as const;
+const ORDER = [
+  "ADMIN",
+  "MANAGER",
+  "FINANCE",
+  "CUSTOMER_CARE",
+  "CHINA_WAREHOUSE",
+  "DAR_WAREHOUSE",
+  "DEVELOPER",
+] as const;
 
 /**
  * EVERY ACCOUNT, GROUPED BY WHAT THEY DO, WITH THE ONE BUTTON THAT MATTERS.
@@ -29,7 +39,14 @@ export default async function DeveloperAccessPage() {
   const actor = await requirePermission("developer.access");
   const users = await prisma.user.findMany({
     orderBy: [{ active: "desc" }, { name: "asc" }],
-    select: { id: true, name: true, email: true, role: true, active: true, lastLoginAt: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      active: true,
+      lastLoginAt: true,
+    },
   });
   /* Every role but Developer: that one is never given from a screen. */
   const roles = Object.entries(ROLE_LABELS)
@@ -40,19 +57,27 @@ export default async function DeveloperAccessPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight">Access</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight">
+            Access
+          </h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Everyone with an account. Press <strong className="text-foreground">Work as</strong> to open the app
+            Everyone with an account. Press{" "}
+            <strong className="text-foreground">Work as</strong> to open the app
             exactly as that person sees it.
           </p>
         </div>
-        <DeveloperAddPerson roles={roles} />
+        <div className="flex flex-wrap items-center gap-2">
+          <DeveloperWorkAs people={await workAsPeople()} />
+          <DeveloperAddPerson roles={roles} />
+        </div>
       </div>
 
       <InfoCallout icon={Eye} title="What “Work as” does">
-        You see the app as they see it, so you can help them or find why something looks different. It is view only:
-        buttons that would change anything are refused and recorded, so money cannot move while you look. It ends by
-        itself after 4 hours, or press Stop on the small pill in the corner.
+        You see the app as they see it, so you can help them or find why
+        something looks different. It is view only: buttons that would change
+        anything are refused and recorded, so money cannot move while you look.
+        It ends by itself after 4 hours, or press Stop on the small pill in the
+        corner.
       </InfoCallout>
 
       {ORDER.map((role) => {
@@ -73,31 +98,50 @@ export default async function DeveloperAccessPage() {
                     <p className="text-xs text-muted-foreground">{info.text}</p>
                   </div>
                 </div>
-                <span className="font-display text-xl font-semibold tabular-nums">{group.length}</span>
+                <span className="font-display text-xl font-semibold tabular-nums">
+                  {group.length}
+                </span>
               </div>
               <ul className="divide-y divide-border">
                 {group.map((person) => (
-                  <li key={person.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3.5">
+                  <li
+                    key={person.id}
+                    className="flex flex-wrap items-start justify-between gap-3 px-5 py-3.5"
+                  >
                     <div className="flex min-w-0 items-center gap-3">
                       <Initials name={person.name} className="size-9" />
                       <div className="min-w-0">
                         <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
                           {person.name}
-                          {person.id === actor.id ? <Badge variant="brand">You</Badge> : null}
-                          {!person.active ? <Badge variant="destructive">Suspended</Badge> : null}
+                          {person.id === actor.id ? (
+                            <Badge variant="brand">You</Badge>
+                          ) : null}
+                          {!person.active ? (
+                            <Badge variant="destructive">Suspended</Badge>
+                          ) : null}
                         </p>
-                        <p className="truncate text-xs text-muted-foreground">{person.email}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {person.email}
+                        </p>
                         <p
                           className="mt-0.5 text-xs text-muted-foreground"
-                          title={person.lastLoginAt ? eat(person.lastLoginAt) : undefined}
+                          title={
+                            person.lastLoginAt
+                              ? eat(person.lastLoginAt)
+                              : undefined
+                          }
                         >
-                          {person.lastLoginAt ? `Last signed in ${timeAgo(person.lastLoginAt)}` : "Never signed in"}
+                          {person.lastLoginAt
+                            ? `Last signed in ${timeAgo(person.lastLoginAt)}`
+                            : "Never signed in"}
                         </p>
                       </div>
                     </div>
                     <div className="w-full sm:w-auto sm:min-w-[20rem]">
                       {person.role === "DEVELOPER" || person.id === actor.id ? (
-                        <p className="text-right text-xs text-muted-foreground">Secure setup only</p>
+                        <p className="text-right text-xs text-muted-foreground">
+                          Secure setup only
+                        </p>
                       ) : (
                         <DeveloperAccountTool
                           manage={person.role !== "ADMIN"}
