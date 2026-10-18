@@ -64,9 +64,7 @@ export default async function AppLayout({
                 roleLabel: ROLE_LABELS[user.role],
               },
             }
-          : user.role === "DEVELOPER"
-            ? { workingAs: null }
-            : null
+          : null
       }
     >
       {children}

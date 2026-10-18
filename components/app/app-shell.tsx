@@ -143,10 +143,11 @@ export function AppShell({
   sections: NavSection[];
   user: ShellUser;
   /**
-   * Set for a Developer session, and while a Developer is looking as somebody
-   * else. Passed in rather than read off `user.role`: looking as Hawa makes the
-   * role Hawa's, and the bar that says who is REALLY here must not disappear
-   * at the one moment it matters most.
+   * Set only while a Developer is looking as somebody else. Passed in rather
+   * than read off `user.role`: looking as Hawa makes the role Hawa's, and the
+   * bar that says who is REALLY here (and carries Stop) must not disappear at
+   * the one moment it matters most. The Developer on their own desk gets no
+   * bar — their console says what it is.
    */
   developerMode?: { workingAs: { name: string; roleLabel: string } | null } | null;
   /** Drives the count on the bell, and the dot on your own name. */

@@ -8,14 +8,12 @@ import { logoutAction } from "@/lib/actions/auth";
 import { stopWorkingAs } from "@/lib/actions/developer";
 
 /**
- * THE ONE THING ON SCREEN THAT CANNOT BE MISTAKEN FOR THE STAFF APP.
+ * THE BAR THAT SAYS A DEVELOPER IS LOOKING THROUGH SOMEBODY ELSE'S EYES.
  *
- * Fixed across the very top of every page while the session is the Developer's,
- * in a colour and a pattern nothing else in the application uses. The owner's
- * requirement is that it must be impossible to take Developer Mode for the
- * ordinary account at a glance — including from across a desk, including on a
- * page that is otherwise identical to a staff one — so it does not rely on a
- * label alone: the stripe is the part read at a distance.
+ * Shown only while "Work as" is on, fixed across the top of every page in a
+ * colour and pattern nothing else in the application uses: from a distance,
+ * on a page otherwise identical to the staff one, it must be impossible to
+ * mistake the person looking for the person being looked as. Carries Stop.
  *
  * "Sign out" ends the session. There is one sign-in page for everybody, and
  * the account decides what kind of session opens: the Developer never swaps
