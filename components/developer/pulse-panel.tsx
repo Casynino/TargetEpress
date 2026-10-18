@@ -58,10 +58,6 @@ const dayOf = (d: Date | null) =>
 const plural = (n: number, one: string, many = `${one}s`) =>
   `${formatNumber(n)} ${n === 1 ? one : many}`;
 
-function Lead({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-muted-foreground">{children}</p>;
-}
-
 function Empty({ children }: { children: React.ReactNode }) {
   return (
     <p className="px-5 py-8 text-center text-sm text-muted-foreground">
@@ -108,11 +104,6 @@ export function CargoPanel({ p, o }: { p: Pulse; o: Ops }) {
     p.batchesByStatus.find((b) => b.name === "IN_TRANSIT")?.n ?? 0;
   return (
     <div className="space-y-6">
-      <Lead>
-        The cargo itself: what is in the system, where it is, what is wrong with
-        it and who sends the most. Read only. Deleted cargo is never counted.
-      </Lead>
-
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <HealthCard
           label="Cargo in the system"
@@ -315,13 +306,6 @@ export function MoneyPanel({ p, o }: { p: Pulse; o: Ops }) {
     : "Nothing outstanding";
   return (
     <div className="space-y-6">
-      <Lead>
-        Bills, payments and the money book. Worked out from the records as they
-        stand — nothing here is stored or typed in. Each currency is added up on
-        its own and never mixed; payments are counted rather than added up,
-        because a payment and its bill can be in different currencies.
-      </Lead>
-
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <HealthCard
           label="Bills waiting for money"
@@ -545,12 +529,6 @@ export function MessagesPanel({ o }: { o: Ops }) {
   const messages14 = o.messageSeries.reduce((s, d) => s + d.n, 0);
   return (
     <div className="space-y-6">
-      <Lead>
-        The people-facing side: what customers are asking for, what the team has
-        said back, and how long things have been waiting. These are queues —
-        what matters is how old the oldest one is.
-      </Lead>
-
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <HealthCard
           label="Open tickets"

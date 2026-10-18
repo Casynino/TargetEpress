@@ -13,7 +13,7 @@ import {
   SpeedPanel,
   StatusStrip,
 } from "@/components/developer/home-sections";
-import { HomeTabs, type HomeTab } from "@/components/developer/home-tabs";
+import { Band, Section } from "@/components/developer/section";
 import {
   CargoPanel,
   MessagesPanel,
@@ -91,35 +91,6 @@ export default async function DeveloperHomePage() {
     day: "numeric",
   }).format(new Date());
 
-  const missing = m.env.filter((e) => !e.set && e.required).length;
-  const securityBadge = m.security.failed24 + m.security.devRefused24;
-
-  const tabs: HomeTab[] = [
-    { id: "activity", label: "Activity" },
-    { id: "cargo", label: "Cargo" },
-    { id: "money", label: "Money" },
-    { id: "messages", label: "Messages & requests" },
-    {
-      id: "speed",
-      label: "Speed & size",
-      badge: `${m.avgMs} ms`,
-      tone: m.avgMs >= 400 ? "bad" : m.avgMs >= 150 ? "warn" : "neutral",
-    },
-    {
-      id: "security",
-      label: "Sign-ins & security",
-      badge: securityBadge > 0 ? String(securityBadge) : null,
-      tone: m.security.failed24 >= 10 ? "bad" : "warn",
-    },
-    {
-      id: "settings",
-      label: "Settings",
-      badge: missing > 0 ? String(missing) : null,
-      tone: "bad",
-    },
-    { id: "people", label: "People & my actions" },
-  ];
-
   return (
     <div className="space-y-6">
       <DevHero
@@ -149,20 +120,73 @@ export default async function DeveloperHomePage() {
       <StatusStrip m={m} />
       <Attention m={m} />
 
-      <HomeTabs
-        tabs={tabs}
-        initial="activity"
-        panels={{
-          activity: <ActivityPanel m={m} online={pulse.onlineNow} />,
-          cargo: <CargoPanel p={pulse} o={ops} />,
-          money: <MoneyPanel p={pulse} o={ops} />,
-          messages: <MessagesPanel o={ops} />,
-          speed: <SpeedPanel m={m} />,
-          security: <SecurityPanel m={m} />,
-          settings: <SettingsPanel m={m} />,
-          people: <PeoplePanel m={m} />,
-        }}
-      />
+      <Band>The system</Band>
+
+      <Section
+        id="speed"
+        title="Speed &amp; size"
+        text="Real queries timed now, and how big the database has grown."
+      >
+        <SpeedPanel m={m} />
+      </Section>
+
+      <Section
+        id="security"
+        title="Sign-ins &amp; security"
+        text="Refused sign-ins, and anything your own account was stopped from doing."
+      >
+        <SecurityPanel m={m} />
+      </Section>
+
+      <Section
+        id="settings"
+        title="Settings"
+        text="What the site is configured with."
+      >
+        <SettingsPanel m={m} />
+      </Section>
+
+      <Band>The business, for awareness</Band>
+
+      <Section
+        id="activity"
+        title="Activity"
+        text="Who is signing in and what the team is doing."
+      >
+        <ActivityPanel m={m} online={pulse.onlineNow} />
+      </Section>
+
+      <Section
+        id="cargo"
+        title="Cargo"
+        text="What is in the system and where it is. The business's work, not yours."
+      >
+        <CargoPanel p={pulse} o={ops} />
+      </Section>
+
+      <Section
+        id="money"
+        title="Money"
+        text="Bills, payments and the money book. Finance's work, not yours."
+      >
+        <MoneyPanel p={pulse} o={ops} />
+      </Section>
+
+      <Section
+        id="messages"
+        title="Messages &amp; requests"
+        text="What customers ask for. Customer Care's work, not yours."
+      >
+        <MessagesPanel o={ops} />
+      </Section>
+
+      <Section
+        id="people"
+        title="People &amp; my actions"
+        text="Who has an account, and what you have done."
+      >
+        <PeoplePanel m={m} />
+      </Section>
     </div>
   );
 }

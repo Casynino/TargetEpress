@@ -25,6 +25,8 @@ export type Problem = {
   hint: string;
   /** Where to look at it, when there is a screen for it. */
   href?: string;
+  /** The specific things found, when there are only a few worth naming. */
+  items?: string[];
 };
 
 /**

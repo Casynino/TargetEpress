@@ -339,6 +339,13 @@ function ProblemCard({ p }: { p: Monitor["problems"][number] }) {
           <span className="font-semibold">What to do: </span>
           {p.hint}
         </p>
+        {p.items?.length ? (
+          <ul className="space-y-0.5 rounded-lg bg-background/50 px-3 py-2 font-mono text-xs text-muted-foreground">
+            {p.items.map((it) => (
+              <li key={it}>{it}</li>
+            ))}
+          </ul>
+        ) : null}
         {p.href ? (
           <Link
             href={p.href}
@@ -726,10 +733,6 @@ export function SpeedPanel({ m }: { m: Monitor }) {
   const notSet = m.env.filter((e) => !e.set).length;
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Real queries timed right now against the live database, and how big the
-        database has grown.
-      </p>
       <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardContent className="p-5">
@@ -833,11 +836,6 @@ export function SecurityPanel({ m }: { m: Monitor }) {
   const s = m.security;
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Sign-ins that were refused, and anything your own account was stopped
-        from doing. This is how you hear about someone guessing passwords before
-        anybody complains.
-      </p>
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardContent className="p-5">
@@ -927,79 +925,66 @@ export function SecurityPanel({ m }: { m: Monitor }) {
 
 export function SettingsPanel({ m }: { m: Monitor }) {
   const missingRequired = m.env.filter((e) => e.required && !e.set);
-  const missingOptional = m.env.filter((e) => !e.required && !e.set);
+  const setCount = m.env.filter((e) => e.set).length;
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">
-        {missingRequired.length
-          ? "Some required settings are missing — fix those first. Only whether a setting exists is shown, never its secret value."
-          : "All required settings are in place. Only whether a setting exists is shown, never its secret value."}
-      </p>
-      <div className="grid gap-3 md:grid-cols-2">
-        {m.env.map((e) => {
-          const tone: Tone = e.set ? "good" : e.required ? "bad" : "warn";
-          return (
-            <Card key={e.name}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <span
-                      className={cn(
-                        "mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg",
-                        tone === "good" && "bg-success/15 text-success",
-                        tone === "bad" && "bg-destructive/15 text-destructive",
-                        tone === "warn" && "bg-warning/15 text-warning",
-                      )}
-                    >
-                      <KeyRound className="size-4" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold">{e.title}</p>
-                      <p className="font-mono text-[11px] text-muted-foreground">
-                        {e.name}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge
-                    variant={
-                      e.set ? "success" : e.required ? "destructive" : "warning"
-                    }
-                  >
-                    {e.set ? "Set" : e.required ? "Missing" : "Not set"}
-                  </Badge>
-                </div>
-                <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                  {e.purpose}
-                </p>
-                {!e.set && (
-                  <p
-                    className={cn(
-                      "mt-2.5 rounded-lg px-3 py-2 text-xs leading-relaxed",
-                      e.required
-                        ? "bg-destructive/10 text-destructive"
-                        : "bg-warning/10 text-warning",
-                    )}
-                  >
-                    <span className="font-semibold">
-                      Because it is missing:{" "}
-                    </span>
-                    {e.ifMissing}
+    <Card>
+      <CardContent className="p-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3.5">
+          <div>
+            <h3 className="text-sm font-semibold">Settings</h3>
+            <p className="text-xs text-muted-foreground">
+              {missingRequired.length
+                ? "Some required settings are missing — fix those first."
+                : "All required settings are in place."}{" "}
+              Only whether a setting exists is shown, never its value.
+            </p>
+          </div>
+          <Badge variant={missingRequired.length ? "destructive" : "success"}>
+            {setCount} of {m.env.length} set
+          </Badge>
+        </div>
+        <ul className="divide-y divide-border md:grid md:grid-cols-2 md:divide-y-0">
+          {m.env.map((e) => (
+            <li
+              key={e.name}
+              className="border-border px-5 py-3 md:border-b md:odd:border-r"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{e.title}</p>
+                  <p className="font-mono text-[11px] text-muted-foreground">
+                    {e.name}
                   </p>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-      {missingOptional.length > 0 && missingRequired.length === 0 && (
-        <p className="text-xs text-muted-foreground">
-          {missingOptional.length} optional setting
-          {missingOptional.length > 1 ? "s are" : " is"} not set. The site works
-          without {missingOptional.length > 1 ? "them" : "it"}; the note on each
-          card explains what you lose.
-        </p>
-      )}
-    </div>
+                </div>
+                <Badge
+                  variant={
+                    e.set ? "success" : e.required ? "destructive" : "warning"
+                  }
+                >
+                  {e.set ? "Set" : e.required ? "Missing" : "Not set"}
+                </Badge>
+              </div>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                {e.purpose}
+              </p>
+              {!e.set && (
+                <p
+                  className={cn(
+                    "mt-2 rounded-lg px-3 py-2 text-xs leading-relaxed",
+                    e.required
+                      ? "bg-destructive/10 text-destructive"
+                      : "bg-warning/10 text-warning",
+                  )}
+                >
+                  <span className="font-semibold">Because it is missing: </span>
+                  {e.ifMissing}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
   );
 }
 

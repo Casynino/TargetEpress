@@ -2,7 +2,9 @@ import "server-only";
 
 import { Prisma } from "@prisma/client";
 
+import { invoiceStatusFor } from "@/lib/invoice-status";
 import type { Problem } from "@/lib/developer/monitor";
+import { humanize } from "@/lib/developer/format";
 import { describe } from "@/lib/developer/safe";
 import { prisma } from "@/lib/prisma";
 
@@ -107,26 +109,6 @@ const CHECKS: Check[] = [
           }
         : null,
   },
-  {
-    label: "Bill status that disagrees with its payments",
-    sql: Prisma.sql`
-      SELECT count(*)::bigint AS n FROM "Invoice"
-      WHERE (status::text = 'PAID' AND "total" > 0 AND "amountPaid" < "total")
-         OR (status::text IN ('UNPAID', 'PARTIALLY_PAID') AND "total" > 0 AND "amountPaid" >= "total")
-         OR (status::text = 'PARTIALLY_PAID' AND "amountPaid" <= 0)
-         OR (status::text = 'UNPAID' AND "amountPaid" > 0)`,
-    make: (n) =>
-      n > 0
-        ? {
-            level: "warning",
-            title: `${s(n, "bill")} whose status disagrees with the money paid`,
-            detail:
-              "For example a bill marked Paid with less paid than the total, or Unpaid with money against it. Staff may be releasing cargo on a wrong status.",
-            hint: "Open Business → Bills and compare Status, Total and Paid. Do not change the bill; tell me the numbers and I will find which path left it that way.",
-            href: "/app/developer/business?tab=bills",
-          }
-        : null,
-  },
 
   /* ─── Billing: things the system should make impossible ─── */
   {
@@ -148,27 +130,56 @@ const CHECKS: Check[] = [
           }
         : null,
   },
-
-  /* ─── Who can do everything ─── */
-  {
-    label: "Owner accounts",
-    sql: Prisma.sql`SELECT count(*)::bigint AS n FROM "User" WHERE role::text = 'ADMIN' AND active = true`,
-    make: (n) =>
-      n > 1
-        ? {
-            level: "info",
-            title: `${n} accounts hold the owner role`,
-            detail:
-              "The owner role can see and do everything, money included. It is worth knowing exactly who has it.",
-            hint: "Open Access and check the Owner (Admin) group. Suspend any you do not recognise.",
-            href: "/app/developer/accounts",
-          }
-        : null,
-  },
 ];
 
 /** Postgres/Prisma codes that mean "the database does not have what the code expects". */
 const MISSING = /P2021|P2022|42703|42P01|does not exist/i;
+
+/**
+ * A bill whose stored status is not what the system itself would work out.
+ *
+ * Asked of `invoiceStatusFor`, the ONE place that decides a status, and not of
+ * a hand-written rule here: the real rule counts what Finance cleared without
+ * money arriving (a write-off, a waiver, a discount), so a bill can honestly be
+ * PAID with less paid than the total. A first version of this check ignored
+ * that and raised 26 false alarms on the live books — a check that cries wolf
+ * is worse than none, so it now defers to the function that writes the status.
+ */
+async function billStatusCheck(): Promise<Problem | null> {
+  const bills = await prisma.invoice.findMany({
+    where: { status: { in: ["UNPAID", "PARTIALLY_PAID", "PAID"] } },
+    select: {
+      invoiceNumber: true,
+      status: true,
+      total: true,
+      amountPaid: true,
+      amountAdjusted: true,
+    },
+  });
+  const wrong = bills.flatMap((b) => {
+    const expected = invoiceStatusFor(
+      b.status,
+      Number(b.amountPaid),
+      Number(b.total),
+      Number(b.amountAdjusted),
+    );
+    return expected && expected !== b.status
+      ? [
+          `${b.invoiceNumber}: stored ${humanize(b.status)}, the figures say ${humanize(expected)}`,
+        ]
+      : [];
+  });
+  if (wrong.length === 0) return null;
+  return {
+    level: "warning",
+    title: `${s(wrong.length, "bill")} whose status disagrees with its figures`,
+    detail:
+      "The status stored on these bills is not what the system's own rule works out from the total, the money paid and what was cleared. Cargo is released on that status, so it may be wrong.",
+    hint: "Open Business → Bills and compare Status, Total and Paid for the ones listed. Do not change a bill; tell me the numbers and I will find which path left it that way.",
+    href: "/app/developer/business?tab=bills",
+    items: wrong.slice(0, 8),
+  };
+}
 
 /**
  * The checks themselves. Independent of every other read on the Home, so the
@@ -201,6 +212,13 @@ export async function runChecks() {
     }
     const p = r.check.make(r.n);
     if (p) problems.push(p);
+  }
+
+  try {
+    const billProblem = await billStatusCheck();
+    if (billProblem) problems.push(billProblem);
+  } catch (error) {
+    couldNot.push(`Bill status — ${describe(error)}`);
   }
 
   /* Storage that should be charging and is not: needs two facts, so it is asked

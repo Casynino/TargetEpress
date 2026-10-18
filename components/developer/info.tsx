@@ -37,8 +37,12 @@ export function SectionTitle({
 }) {
   return (
     <div className={cn("mb-3", className)}>
-      <h2 className="font-display text-base font-semibold tracking-tight">{title}</h2>
-      {text && <p className="mt-0.5 max-w-3xl text-sm text-muted-foreground">{text}</p>}
+      <h2 className="font-display text-base font-semibold tracking-tight">
+        {title}
+      </h2>
+      {text && (
+        <p className="mt-0.5 max-w-3xl text-sm text-muted-foreground">{text}</p>
+      )}
     </div>
   );
 }
@@ -58,19 +62,36 @@ export function InfoCallout({
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-start gap-3 rounded-xl border p-4", tint[tone], className)}>
-      <span className={cn("mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg", chip[tone])}>
+    <div
+      className={cn(
+        "flex items-start gap-3 rounded-xl border p-4",
+        tint[tone],
+        className,
+      )}
+    >
+      <span
+        className={cn(
+          "mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg",
+          chip[tone],
+        )}
+      >
         <Icon className="size-4" />
       </span>
       <div className="min-w-0 text-sm leading-relaxed">
         {title && <p className="font-semibold text-foreground">{title}</p>}
-        <div className={cn("text-muted-foreground", title && "mt-0.5")}>{children}</div>
+        <div className={cn("text-muted-foreground", title && "mt-0.5")}>
+          {children}
+        </div>
       </div>
     </div>
   );
 }
 
-/** A health number with a status chip and a "what this means" explanation. */
+/**
+ * A number with a status chip. Compact, because the Home is one long page and
+ * a dozen of these must not become a wall: the plain-language "what this means"
+ * lives in the tooltip (hover or long-press) instead of a second box.
+ */
 export function HealthCard({
   label,
   value,
@@ -86,31 +107,44 @@ export function HealthCard({
   tone: Tone;
   statusText: string;
   icon: LucideIcon;
-  meaning: React.ReactNode;
+  meaning: string;
 }) {
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card shadow-soft">
-      <div className="flex items-start justify-between gap-3 p-5 pb-4">
+    <div
+      title={meaning}
+      className="flex flex-col justify-between gap-3 rounded-xl border border-border bg-card p-4 shadow-soft"
+    >
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-muted-foreground">{label}</p>
-          <p className="mt-2 font-display text-3xl font-semibold tracking-tight tabular-nums">{value}</p>
-          {detail && <p className="mt-1 text-xs text-muted-foreground">{detail}</p>}
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {label}
+          </p>
+          <p className="mt-1.5 font-display text-2xl font-semibold tracking-tight tabular-nums">
+            {value}
+          </p>
+          {detail && (
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {detail}
+            </p>
+          )}
         </div>
-        <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", chip[tone])}>
-          <Icon className="size-5" />
-        </span>
-      </div>
-      <div className="mt-auto space-y-2 border-t border-border bg-muted/20 px-5 py-3.5">
         <span
           className={cn(
-            "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
+            "grid size-9 shrink-0 place-items-center rounded-lg",
             chip[tone],
           )}
         >
-          {statusText}
+          <Icon className="size-4" />
         </span>
-        <p className="text-xs leading-relaxed text-muted-foreground">{meaning}</p>
       </div>
+      <span
+        className={cn(
+          "inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+          chip[tone],
+        )}
+      >
+        {statusText}
+      </span>
     </div>
   );
 }
@@ -140,7 +174,9 @@ export function QuickLink({
           {title}
           <ArrowRight className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
         </span>
-        <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{text}</span>
+        <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+          {text}
+        </span>
       </span>
     </Link>
   );
