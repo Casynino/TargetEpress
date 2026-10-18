@@ -14,7 +14,6 @@ import {
 
 import { HBars, StackedBars, type Series } from "@/components/developer/charts";
 import { HealthCard } from "@/components/developer/info";
-import { Masonry } from "@/components/developer/section";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -71,7 +70,9 @@ function ListCard({
   empty,
   isEmpty,
   children,
+  className,
 }: {
+  className?: string;
   title: string;
   text: React.ReactNode;
   empty: string;
@@ -79,7 +80,7 @@ function ListCard({
   children: React.ReactNode;
 }) {
   return (
-    <Card>
+    <Card className={className}>
       <CardContent className="p-0">
         <div className="border-b border-border px-5 py-3.5">
           <h2 className="text-sm font-semibold">{title}</h2>
@@ -141,105 +142,108 @@ export function CargoPanel({ p, o }: { p: Pulse; o: Ops }) {
         />
       </div>
 
-      <Masonry>
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">Cargo added per day</h2>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Last 14 days, Tanzania time.
-            </p>
-            <StackedBars
-              data={p.cargoSeries.map((d) => ({
-                label: d.day,
-                values: { n: d.n },
-              }))}
-              series={CARGO}
-              labelEvery={2}
-              formatLabel={shortDay}
-              emptyText="No cargo added in 14 days."
-            />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">Cargo by stage</h2>
-            <p className="mb-4 text-xs text-muted-foreground">
-              Where every piece is right now.
-            </p>
-            <HBars
-              items={p.cargoByStatus.map((x) => ({
-                label: humanize(x.name),
-                value: x.n,
-              }))}
-            />
-          </CardContent>
-        </Card>
-
-        <ListCard
-          title="Latest flights"
-          text={
-            p.batchesByStatus
-              .map((b) => `${b.n} ${humanize(b.name).toLowerCase()}`)
-              .join(" · ") || "No flights yet."
-          }
-          empty="No flights recorded yet."
-          isEmpty={p.batches.length === 0}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Flight</TableHead>
-                <TableHead>Stage</TableHead>
-                <TableHead className="text-right">Cargo</TableHead>
-                <TableHead className="text-right">Left</TableHead>
-                <TableHead className="text-right">Landed</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {p.batches.map((b) => (
-                <TableRow key={b.number}>
-                  <TableCell className="whitespace-nowrap font-mono text-xs">
-                    {b.number}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{humanize(b.status)}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {b.cargo}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap text-right text-sm text-muted-foreground">
-                    {dayOf(b.departedAt)}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap text-right text-sm text-muted-foreground">
-                    {dayOf(b.arrivedAt)}
-                  </TableCell>
+      <div className="space-y-4">
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold">Cargo added per day</h2>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Last 14 days, Tanzania time.
+              </p>
+              <StackedBars
+                data={p.cargoSeries.map((d) => ({
+                  label: d.day,
+                  values: { n: d.n },
+                }))}
+                series={CARGO}
+                labelEvery={2}
+                formatLabel={shortDay}
+                emptyText="No cargo added in 14 days."
+              />
+            </CardContent>
+          </Card>
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold">Busiest customers</h2>
+              <p className="mb-4 text-xs text-muted-foreground">
+                Most cargo registered, last 30 days.
+              </p>
+              <HBars
+                items={p.busiest.map((x) => ({ label: x.name, value: x.n }))}
+                color="hsl(var(--chart-6))"
+                emptyText="No cargo in 30 days."
+              />
+            </CardContent>
+          </Card>
+        </div>
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold">Cargo by stage</h2>
+              <p className="mb-4 text-xs text-muted-foreground">
+                Where every piece is right now.
+              </p>
+              <HBars
+                items={p.cargoByStatus.map((x) => ({
+                  label: humanize(x.name),
+                  value: x.n,
+                }))}
+              />
+            </CardContent>
+          </Card>
+          <ListCard
+            className="h-full"
+            title="Latest flights"
+            text={
+              p.batchesByStatus
+                .map((b) => `${b.n} ${humanize(b.name).toLowerCase()}`)
+                .join(" · ") || "No flights yet."
+            }
+            empty="No flights recorded yet."
+            isEmpty={p.batches.length === 0}
+          >
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Flight</TableHead>
+                  <TableHead>Stage</TableHead>
+                  <TableHead className="text-right">Cargo</TableHead>
+                  <TableHead className="text-right">Left</TableHead>
+                  <TableHead className="text-right">Landed</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </ListCard>
-
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">Busiest customers</h2>
-            <p className="mb-4 text-xs text-muted-foreground">
-              Most cargo registered, last 30 days.
-            </p>
-            <HBars
-              items={p.busiest.map((x) => ({ label: x.name, value: x.n }))}
-              color="hsl(var(--chart-6))"
-              emptyText="No cargo in 30 days."
-            />
-          </CardContent>
-        </Card>
-        <Card>
+              </TableHeader>
+              <TableBody>
+                {p.batches.map((b) => (
+                  <TableRow key={b.number}>
+                    <TableCell className="whitespace-nowrap font-mono text-xs">
+                      {b.number}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{humanize(b.status)}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {b.cargo}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-right text-sm text-muted-foreground">
+                      {dayOf(b.departedAt)}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-right text-sm text-muted-foreground">
+                      {dayOf(b.arrivedAt)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ListCard>
+        </div>
+        <Card className="h-full">
           <CardContent className="p-5">
             <h2 className="text-sm font-semibold">Cargo issues by status</h2>
             <p className="mb-4 text-xs text-muted-foreground">
               Every issue ever raised, by where it stands.
             </p>
             <HBars
-              items={o.issuesByStatus.map((x) => ({
+              items={o.issuesByStatus.slice(0, 6).map((x) => ({
                 label: humanize(x.name),
                 value: x.n,
               }))}
@@ -248,7 +252,7 @@ export function CargoPanel({ p, o }: { p: Pulse; o: Ops }) {
             />
           </CardContent>
         </Card>
-      </Masonry>
+      </div>
     </div>
   );
 }
@@ -299,61 +303,125 @@ export function MoneyPanel({ p, o }: { p: Pulse; o: Ops }) {
         />
       </div>
 
-      <Masonry>
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">Payments recorded per day</h2>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Last 14 days, by the day the money was received.
-            </p>
-            <StackedBars
-              data={p.paymentSeries.map((d) => ({
-                label: d.day,
-                values: { n: d.n },
-              }))}
-              series={PAYMENTS}
-              labelEvery={2}
-              formatLabel={shortDay}
-              emptyText="No payments in 14 days."
-            />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">Money-book lines per day</h2>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Every line in the ledger, last 14 days. Lines are never edited — a
-              mistake is answered by a new line.
-            </p>
-            <StackedBars
-              data={o.ledgerSeries.map((d) => ({
-                label: d.day,
-                values: { n: d.n },
-              }))}
-              series={LEDGER}
-              labelEvery={2}
-              formatLabel={shortDay}
-              emptyText="No ledger lines in 14 days."
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">Bills by status</h2>
-            <p className="mb-4 text-xs text-muted-foreground">
-              How many bills are in each state.
-            </p>
-            <HBars
-              items={p.billsByStatus.map((x) => ({
-                label: humanize(x.name),
-                value: x.n,
-              }))}
-              color="hsl(var(--chart-2))"
-            />
-          </CardContent>
-        </Card>
-        <Card>
+      <div className="space-y-4">
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold">
+                Payments recorded per day
+              </h2>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Last 14 days, by the day the money was received.
+              </p>
+              <StackedBars
+                data={p.paymentSeries.map((d) => ({
+                  label: d.day,
+                  values: { n: d.n },
+                }))}
+                series={PAYMENTS}
+                labelEvery={2}
+                formatLabel={shortDay}
+                emptyText="No payments in 14 days."
+              />
+            </CardContent>
+          </Card>
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold">
+                Money-book lines per day
+              </h2>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Every line in the ledger, last 14 days. Lines are never edited —
+                a mistake is answered by a new line.
+              </p>
+              <StackedBars
+                data={o.ledgerSeries.map((d) => ({
+                  label: d.day,
+                  values: { n: d.n },
+                }))}
+                series={LEDGER}
+                labelEvery={2}
+                formatLabel={shortDay}
+                emptyText="No ledger lines in 14 days."
+              />
+            </CardContent>
+          </Card>
+        </div>
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold">Bills by status</h2>
+              <p className="mb-4 text-xs text-muted-foreground">
+                How many bills are in each state.
+              </p>
+              <HBars
+                items={p.billsByStatus.map((x) => ({
+                  label: humanize(x.name),
+                  value: x.n,
+                }))}
+                color="hsl(var(--chart-2))"
+              />
+            </CardContent>
+          </Card>
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold">The money book</h2>
+                <Clock className="size-4 text-muted-foreground" />
+              </div>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Ledger activity and storage charging.
+              </p>
+              <dl className="space-y-2 text-sm">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Last ledger line</dt>
+                  <dd
+                    className="text-right"
+                    title={o.lastLedger ? eat(o.lastLedger) : undefined}
+                  >
+                    {o.lastLedger ? timeAgo(o.lastLedger) : "None yet"}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Lines in 30 days</dt>
+                  <dd className="tabular-nums">
+                    {formatNumber(o.ledgerLines30)}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">
+                    Corrections in 30 days
+                  </dt>
+                  <dd className="tabular-nums">
+                    {formatNumber(o.corrections30)}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Last storage charge</dt>
+                  <dd
+                    className="text-right"
+                    title={p.lastCharge ? eat(p.lastCharge) : undefined}
+                  >
+                    {p.lastCharge ? timeAgo(p.lastCharge) : "None yet"}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">
+                    Storage charges in 7 days
+                  </dt>
+                  <dd className="tabular-nums">{formatNumber(p.charged7)}</dd>
+                </div>
+              </dl>
+              <p className="mt-3 text-xs text-muted-foreground">
+                A correction is a line that reverses an earlier one. A few is
+                normal. Storage charges itself every night and at every
+                warehouse scan; if cargo has sat past its free days for a week
+                and the last charge is old, the nightly job is not running.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+        <Card className="h-full">
           <CardContent className="p-5">
             <h2 className="text-sm font-semibold">How people pay</h2>
             <p className="mb-4 text-xs text-muted-foreground">
@@ -369,64 +437,7 @@ export function MoneyPanel({ p, o }: { p: Pulse; o: Ops }) {
             />
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-5">
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold">The money book</h2>
-              <Clock className="size-4 text-muted-foreground" />
-            </div>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Ledger activity and storage charging.
-            </p>
-            <dl className="space-y-2 text-sm">
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Last ledger line</dt>
-                <dd
-                  className="text-right"
-                  title={o.lastLedger ? eat(o.lastLedger) : undefined}
-                >
-                  {o.lastLedger ? timeAgo(o.lastLedger) : "None yet"}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Lines in 30 days</dt>
-                <dd className="tabular-nums">
-                  {formatNumber(o.ledgerLines30)}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">
-                  Corrections in 30 days
-                </dt>
-                <dd className="tabular-nums">
-                  {formatNumber(o.corrections30)}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Last storage charge</dt>
-                <dd
-                  className="text-right"
-                  title={p.lastCharge ? eat(p.lastCharge) : undefined}
-                >
-                  {p.lastCharge ? timeAgo(p.lastCharge) : "None yet"}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">
-                  Storage charges in 7 days
-                </dt>
-                <dd className="tabular-nums">{formatNumber(p.charged7)}</dd>
-              </div>
-            </dl>
-            <p className="mt-3 text-xs text-muted-foreground">
-              A correction is a line that reverses an earlier one. A few is
-              normal. Storage charges itself every night and at every warehouse
-              scan; if cargo has sat past its free days for a week and the last
-              charge is old, the nightly job is not running.
-            </p>
-          </CardContent>
-        </Card>
-      </Masonry>
+      </div>
     </div>
   );
 }
@@ -478,79 +489,82 @@ export function MessagesPanel({ o }: { o: Ops }) {
         />
       </div>
 
-      <Masonry>
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">
-              Messages to customers per day
-            </h2>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Last 14 days, Tanzania time.
-            </p>
-            <StackedBars
-              data={o.messageSeries.map((d) => ({
-                label: d.day,
-                values: { n: d.n },
-              }))}
-              series={MESSAGES}
-              labelEvery={2}
-              formatLabel={shortDay}
-              emptyText="No messages sent in 14 days."
-            />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">What the messages were</h2>
-            <p className="mb-4 text-xs text-muted-foreground">
-              By kind, last 30 days.
-            </p>
-            <HBars
-              items={o.messagesByKind.map((x) => ({
-                label: humanize(x.name),
-                value: x.n,
-              }))}
-              color="hsl(var(--chart-6))"
-              emptyText="No messages in 30 days."
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">Tickets by status</h2>
-            <p className="mb-4 text-xs text-muted-foreground">
-              Every ticket ever opened.
-            </p>
-            <HBars
-              items={o.ticketsByStatus.map((x) => ({
-                label: humanize(x.name),
-                value: x.n,
-              }))}
-              color="hsl(var(--chart-4))"
-              emptyText="No tickets yet."
-            />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">
-              Sourcing requests by status
-            </h2>
-            <p className="mb-4 text-xs text-muted-foreground">
-              Customers asking the team to find or buy a product.
-            </p>
-            <HBars
-              items={o.sourcingByStatus.map((x) => ({
-                label: humanize(x.name),
-                value: x.n,
-              }))}
-              color="hsl(var(--chart-2))"
-              emptyText="No sourcing requests yet."
-            />
-          </CardContent>
-        </Card>
-      </Masonry>
+      <div className="space-y-4">
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold">
+                Messages to customers per day
+              </h2>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Last 14 days, Tanzania time.
+              </p>
+              <StackedBars
+                data={o.messageSeries.map((d) => ({
+                  label: d.day,
+                  values: { n: d.n },
+                }))}
+                series={MESSAGES}
+                labelEvery={2}
+                formatLabel={shortDay}
+                emptyText="No messages sent in 14 days."
+              />
+            </CardContent>
+          </Card>
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold">What the messages were</h2>
+              <p className="mb-4 text-xs text-muted-foreground">
+                By kind, last 30 days.
+              </p>
+              <HBars
+                items={o.messagesByKind.slice(0, 6).map((x) => ({
+                  label: humanize(x.name),
+                  value: x.n,
+                }))}
+                color="hsl(var(--chart-6))"
+                emptyText="No messages in 30 days."
+              />
+            </CardContent>
+          </Card>
+        </div>
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold">Tickets by status</h2>
+              <p className="mb-4 text-xs text-muted-foreground">
+                Every ticket ever opened.
+              </p>
+              <HBars
+                items={o.ticketsByStatus.map((x) => ({
+                  label: humanize(x.name),
+                  value: x.n,
+                }))}
+                color="hsl(var(--chart-4))"
+                emptyText="No tickets yet."
+              />
+            </CardContent>
+          </Card>
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold">
+                Sourcing requests by status
+              </h2>
+              <p className="mb-4 text-xs text-muted-foreground">
+                Customers asking the team to find or buy a product.
+              </p>
+              <HBars
+                items={o.sourcingByStatus.map((x) => ({
+                  label: humanize(x.name),
+                  value: x.n,
+                }))}
+                color="hsl(var(--chart-2))"
+                emptyText="No sourcing requests yet."
+              />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

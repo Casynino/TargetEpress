@@ -24,7 +24,6 @@ import {
 import type { Monitor, Level } from "@/lib/developer/monitor";
 import type { Pulse } from "@/lib/developer/pulse";
 import { Card, CardContent } from "@/components/ui/card";
-import { Masonry } from "@/components/developer/section";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -469,255 +468,267 @@ export function ActivityPanel({
         />
       </div>
 
-      <Masonry>
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">Sign-ins per day</h2>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Last 14 days, coloured by who signed in. Hover a bar for exact
-              numbers.
-            </p>
-            <StackedBars
-              data={m.loginSeries.map((d) => ({
-                label: d.day,
-                values: d as unknown as Record<string, number>,
-              }))}
-              series={ROLE_SERIES}
-              labelEvery={2}
-              formatLabel={shortDay}
-            />
-            <Legend series={ROLE_SERIES} className="mt-4" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">Actions per day</h2>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Everything saved in the audit trail, split between the team and
-              you.
-            </p>
-            <StackedBars
-              data={m.activitySeries.map((d) => ({
-                label: d.day,
-                values: { staff: d.staff, dev: d.dev },
-              }))}
-              series={ACTIVITY_SERIES}
-              labelEvery={2}
-              formatLabel={shortDay}
-            />
-            <Legend series={ACTIVITY_SERIES} className="mt-4" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">Busiest hours of the day</h2>
-            <p className="mb-3 text-xs text-muted-foreground">
-              When the team works (Tanzania time, last 14 days).
-              {peakHour.n > 0 && (
-                <>
-                  {" "}
-                  Peak is around{" "}
-                  <strong className="text-foreground">
-                    {hourLabel(peakHour.hour)}
-                  </strong>
-                  .
-                </>
-              )}
-            </p>
-            <StackedBars
-              data={m.hourSeries.map((h) => ({
-                label: String(h.hour),
-                values: { n: h.n },
-              }))}
-              series={[
-                { key: "n", label: "Actions", color: "hsl(var(--chart-1))" },
-              ]}
-              height={170}
-              labelEvery={3}
-              formatLabel={(h) => `${h}h`}
-            />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">Where the work happens</h2>
-            <p className="mb-4 text-xs text-muted-foreground">
-              Actions by area, last 7 days.
-            </p>
-            <HBars
-              items={m.modules.map((x) => ({
-                label: humanize(x.name),
-                value: x.n,
-              }))}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-0">
-            <div className="border-b border-border px-5 py-3.5">
-              <h2 className="text-sm font-semibold">Recent sign-ins</h2>
-              <p className="text-xs text-muted-foreground">
-                The last 12 successful sign-ins: who, on what device, from
-                where.
+      <div className="space-y-4">
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold">Sign-ins per day</h2>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Last 14 days, coloured by who signed in. Hover a bar for exact
+                numbers.
               </p>
-            </div>
-            {m.recentLogins.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm text-muted-foreground">
-                No sign-ins recorded yet.
+              <StackedBars
+                data={m.loginSeries.map((d) => ({
+                  label: d.day,
+                  values: d as unknown as Record<string, number>,
+                }))}
+                series={ROLE_SERIES}
+                labelEvery={2}
+                formatLabel={shortDay}
+              />
+              <Legend series={ROLE_SERIES} className="mt-4" />
+            </CardContent>
+          </Card>
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold">Actions per day</h2>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Everything saved in the audit trail, split between the team and
+                you.
               </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Person</TableHead>
-                      <TableHead>Device</TableHead>
-                      <TableHead>From</TableHead>
-                      <TableHead className="text-right">When</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {m.recentLogins.map((l) => (
-                      <TableRow key={l.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2.5">
-                            <Initials name={l.user?.name ?? "?"} />
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">
-                                {l.user?.name ?? "Unknown"}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {l.user ? ROLE_LABELS[l.user.role] : ""}
-                              </p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-sm">
-                          <span className="inline-flex items-center gap-1.5">
-                            {l.agent.mobile ? (
-                              <Smartphone className="size-3.5 text-muted-foreground" />
-                            ) : (
-                              <Desktop className="size-3.5 text-muted-foreground" />
-                            )}
-                            {l.agent.browser} · {l.agent.os}
+              <StackedBars
+                data={m.activitySeries.map((d) => ({
+                  label: d.day,
+                  values: { staff: d.staff, dev: d.dev },
+                }))}
+                series={ACTIVITY_SERIES}
+                labelEvery={2}
+                formatLabel={shortDay}
+              />
+              <Legend series={ACTIVITY_SERIES} className="mt-4" />
+            </CardContent>
+          </Card>
+        </div>
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold">
+                Busiest hours of the day
+              </h2>
+              <p className="mb-3 text-xs text-muted-foreground">
+                When the team works (Tanzania time, last 14 days).
+                {peakHour.n > 0 && (
+                  <>
+                    {" "}
+                    Peak is around{" "}
+                    <strong className="text-foreground">
+                      {hourLabel(peakHour.hour)}
+                    </strong>
+                    .
+                  </>
+                )}
+              </p>
+              <StackedBars
+                data={m.hourSeries.map((h) => ({
+                  label: String(h.hour),
+                  values: { n: h.n },
+                }))}
+                series={[
+                  { key: "n", label: "Actions", color: "hsl(var(--chart-1))" },
+                ]}
+                height={170}
+                labelEvery={3}
+                formatLabel={(h) => `${h}h`}
+              />
+            </CardContent>
+          </Card>
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold">Where the work happens</h2>
+              <p className="mb-4 text-xs text-muted-foreground">
+                Actions by area, last 7 days.
+              </p>
+              <HBars
+                items={m.modules.map((x) => ({
+                  label: humanize(x.name),
+                  value: x.n,
+                }))}
+              />
+            </CardContent>
+          </Card>
+        </div>
+        <div className="grid items-stretch gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2 [&>*]:h-full">
+            <Card className="h-full">
+              <CardContent className="p-0">
+                <div className="border-b border-border px-5 py-3.5">
+                  <h2 className="text-sm font-semibold">Recent sign-ins</h2>
+                  <p className="text-xs text-muted-foreground">
+                    The last 10 successful sign-ins: who, on what device, from
+                    where.
+                  </p>
+                </div>
+                {m.recentLogins.length === 0 ? (
+                  <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+                    No sign-ins recorded yet.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Person</TableHead>
+                          <TableHead>Device</TableHead>
+                          <TableHead>From</TableHead>
+                          <TableHead className="text-right">When</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {m.recentLogins.map((l) => (
+                          <TableRow key={l.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-2.5">
+                                <Initials name={l.user?.name ?? "?"} />
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-medium">
+                                    {l.user?.name ?? "Unknown"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {l.user ? ROLE_LABELS[l.user.role] : ""}
+                                  </p>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-sm">
+                              <span className="inline-flex items-center gap-1.5">
+                                {l.agent.mobile ? (
+                                  <Smartphone className="size-3.5 text-muted-foreground" />
+                                ) : (
+                                  <Desktop className="size-3.5 text-muted-foreground" />
+                                )}
+                                {l.agent.browser} · {l.agent.os}
+                              </span>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                              {l.ipAddress ?? "—"}
+                            </TableCell>
+                            <TableCell
+                              className="whitespace-nowrap text-right text-sm text-muted-foreground"
+                              title={eat(l.createdAt)}
+                            >
+                              {timeAgo(l.createdAt)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+          <div className="flex flex-col gap-4 [&>*]:flex-1">
+            <Card className="h-full">
+              <CardContent className="p-5">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold">Online right now</h2>
+                  <Badge variant={online.length ? "success" : "muted"}>
+                    {online.length}
+                  </Badge>
+                </div>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Active in the last 10 minutes.
+                </p>
+                {online.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Nobody at the moment.
+                  </p>
+                ) : (
+                  <ul className="space-y-2.5 text-sm">
+                    {online.map((u) => (
+                      <li
+                        key={u.id}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <span className="min-w-0 truncate">
+                          {u.name}{" "}
+                          <span className="text-xs text-muted-foreground">
+                            · {ROLE_LABELS[u.role]}
                           </span>
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground">
-                          {l.ipAddress ?? "—"}
-                        </TableCell>
-                        <TableCell
-                          className="whitespace-nowrap text-right text-sm text-muted-foreground"
-                          title={eat(l.createdAt)}
-                        >
-                          {timeAgo(l.createdAt)}
-                        </TableCell>
-                      </TableRow>
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {u.lastActiveAt ? timeAgo(u.lastActiveAt) : ""}
+                        </span>
+                      </li>
                     ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold">Online right now</h2>
-              <Badge variant={online.length ? "success" : "muted"}>
-                {online.length}
-              </Badge>
-            </div>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Active in the last 10 minutes.
-            </p>
-            {online.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Nobody at the moment.
-              </p>
-            ) : (
-              <ul className="space-y-2.5 text-sm">
-                {online.map((u) => (
-                  <li
-                    key={u.id}
-                    className="flex items-center justify-between gap-2"
-                  >
-                    <span className="min-w-0 truncate">
-                      {u.name}{" "}
-                      <span className="text-xs text-muted-foreground">
-                        · {ROLE_LABELS[u.role]}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {u.lastActiveAt ? timeAgo(u.lastActiveAt) : ""}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">Most active people</h2>
-            <p className="mb-4 text-xs text-muted-foreground">
-              Actions saved in the last 7 days.
-            </p>
-            <HBars
-              items={m.topActors.map((x) => ({ label: x.name, value: x.n }))}
-              color="hsl(var(--chart-2))"
-            />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">Not using the system</h2>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Active accounts that never signed in, or not for 30+ days.
-            </p>
-            {m.neverSignedIn.length + m.inactive.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Everyone has signed in recently.
-              </p>
-            ) : (
-              <ul className="space-y-2 text-sm">
-                {m.neverSignedIn.map((u) => (
-                  <li
-                    key={u.id}
-                    className="flex items-center justify-between gap-2"
-                  >
-                    <span className="min-w-0 truncate">
-                      {u.name}{" "}
-                      <span className="text-xs text-muted-foreground">
-                        · {ROLE_LABELS[u.role]}
-                      </span>
-                    </span>
-                    <Badge variant="warning">Never</Badge>
-                  </li>
-                ))}
-                {m.inactive.map((u) => (
-                  <li
-                    key={u.id}
-                    className="flex items-center justify-between gap-2"
-                  >
-                    <span className="min-w-0 truncate">
-                      {u.name}{" "}
-                      <span className="text-xs text-muted-foreground">
-                        · {ROLE_LABELS[u.role]}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {u.lastLoginAt ? timeAgo(u.lastLoginAt) : ""}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      </Masonry>
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+            <Card className="h-full">
+              <CardContent className="p-5">
+                <h2 className="text-sm font-semibold">Most active people</h2>
+                <p className="mb-4 text-xs text-muted-foreground">
+                  Actions saved in the last 7 days.
+                </p>
+                <HBars
+                  items={m.topActors.map((x) => ({
+                    label: x.name,
+                    value: x.n,
+                  }))}
+                  color="hsl(var(--chart-2))"
+                />
+              </CardContent>
+            </Card>
+            <Card className="h-full">
+              <CardContent className="p-5">
+                <h2 className="text-sm font-semibold">Not using the system</h2>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Active accounts that never signed in, or not for 30+ days.
+                </p>
+                {m.neverSignedIn.length + m.inactive.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Everyone has signed in recently.
+                  </p>
+                ) : (
+                  <ul className="space-y-2 text-sm">
+                    {m.neverSignedIn.map((u) => (
+                      <li
+                        key={u.id}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <span className="min-w-0 truncate">
+                          {u.name}{" "}
+                          <span className="text-xs text-muted-foreground">
+                            · {ROLE_LABELS[u.role]}
+                          </span>
+                        </span>
+                        <Badge variant="warning">Never</Badge>
+                      </li>
+                    ))}
+                    {m.inactive.map((u) => (
+                      <li
+                        key={u.id}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <span className="min-w-0 truncate">
+                          {u.name}{" "}
+                          <span className="text-xs text-muted-foreground">
+                            · {ROLE_LABELS[u.role]}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {u.lastLoginAt ? timeAgo(u.lastLoginAt) : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -728,8 +739,8 @@ export function SpeedPanel({ m }: { m: Monitor }) {
   const notSet = m.env.filter((e) => !e.set).length;
   return (
     <div className="space-y-4">
-      <Masonry>
-        <Card>
+      <div className="grid items-stretch gap-4 lg:grid-cols-3">
+        <Card className="h-full">
           <CardContent className="p-5">
             <div className="mb-1 flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold">Database speed</h2>
@@ -751,7 +762,7 @@ export function SpeedPanel({ m }: { m: Monitor }) {
             <SpeedBars probes={m.probes} />
           </CardContent>
         </Card>
-        <Card>
+        <Card className="h-full">
           <CardContent className="p-5">
             <div className="mb-1 flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold">Database size</h2>
@@ -772,89 +783,95 @@ export function SpeedPanel({ m }: { m: Monitor }) {
             />
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">Data checks</h2>
-            <p className="mb-4 text-xs text-muted-foreground">
-              Rules that must always be true. If one fails, numbers on screen
-              may be wrong.
-            </p>
-            <ul className="space-y-3">
-              {m.checks.map((c) => (
-                <li key={c.label} className="flex items-start gap-2.5 text-sm">
-                  {c.bad === null ? (
-                    <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                  ) : c.bad === 0 ? (
-                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
-                  ) : (
-                    <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
-                  )}
-                  <span className="min-w-0">
-                    {c.label}
-                    <span
-                      className={cn(
-                        "ml-1.5 text-xs",
-                        c.bad === null
-                          ? "text-muted-foreground"
+        <div className="flex flex-col gap-4 [&>*]:flex-1">
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold">Data checks</h2>
+              <p className="mb-4 text-xs text-muted-foreground">
+                Rules that must always be true. If one fails, numbers on screen
+                may be wrong.
+              </p>
+              <ul className="space-y-3">
+                {m.checks.map((c) => (
+                  <li
+                    key={c.label}
+                    className="flex items-start gap-2.5 text-sm"
+                  >
+                    {c.bad === null ? (
+                      <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    ) : c.bad === 0 ? (
+                      <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
+                    ) : (
+                      <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+                    )}
+                    <span className="min-w-0">
+                      {c.label}
+                      <span
+                        className={cn(
+                          "ml-1.5 text-xs",
+                          c.bad === null
+                            ? "text-muted-foreground"
+                            : c.bad === 0
+                              ? "text-success"
+                              : "font-semibold text-destructive",
+                        )}
+                      >
+                        {c.bad === null
+                          ? "could not check"
                           : c.bad === 0
-                            ? "text-success"
-                            : "font-semibold text-destructive",
-                      )}
-                    >
-                      {c.bad === null
-                        ? "could not check"
-                        : c.bad === 0
-                          ? "OK"
-                          : `${c.bad} found`}
+                            ? "OK"
+                            : `${c.bad} found`}
+                      </span>
                     </span>
+                  </li>
+                ))}
+                <li className="flex items-start gap-2.5 text-sm">
+                  <Database className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                  <span className="text-muted-foreground">
+                    {m.suspended} suspended account
+                    {m.suspended === 1 ? "" : "s"} · {notSet} setting
+                    {notSet === 1 ? "" : "s"} not set
                   </span>
                 </li>
-              ))}
-              <li className="flex items-start gap-2.5 text-sm">
-                <Database className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                <span className="text-muted-foreground">
-                  {m.suspended} suspended account{m.suspended === 1 ? "" : "s"}{" "}
-                  · {notSet} setting{notSet === 1 ? "" : "s"} not set
-                </span>
-              </li>
-            </ul>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">This deployment</h2>
-            <p className="mb-3 text-xs text-muted-foreground">
-              What is running right now.
-            </p>
-            <dl className="space-y-2 text-sm">
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Build</dt>
-                <dd className="font-mono">{m.build.slice(0, 8)}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Environment</dt>
-                <dd>{m.nodeEnv}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Node</dt>
-                <dd className="font-mono">{m.node}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Database link</dt>
-                <dd>{m.pooled ? "Pooled" : "Direct"}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Your session</dt>
-                <dd className="text-right">Ends after 8 hours</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Working as someone</dt>
-                <dd className="text-right">Ends after 4 hours</dd>
-              </div>
-            </dl>
-          </CardContent>
-        </Card>
-      </Masonry>
+              </ul>
+            </CardContent>
+          </Card>
+          <Card className="h-full">
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold">This deployment</h2>
+              <p className="mb-3 text-xs text-muted-foreground">
+                What is running right now.
+              </p>
+              <dl className="space-y-2 text-sm">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Build</dt>
+                  <dd className="font-mono">{m.build.slice(0, 8)}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Environment</dt>
+                  <dd>{m.nodeEnv}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Node</dt>
+                  <dd className="font-mono">{m.node}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Database link</dt>
+                  <dd>{m.pooled ? "Pooled" : "Direct"}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Your session</dt>
+                  <dd className="text-right">Ends after 8 hours</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Working as someone</dt>
+                  <dd className="text-right">Ends after 4 hours</dd>
+                </div>
+              </dl>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
@@ -865,85 +882,93 @@ export function SecurityPanel({ m }: { m: Monitor }) {
   const s = m.security;
   return (
     <div className="space-y-4">
-      <Masonry>
-        <Card>
-          <CardContent className="p-5">
-            <h2 className="text-sm font-semibold">
-              Failed sign-ins and refused Developer actions per day
-            </h2>
-            <p className="mb-3 text-xs text-muted-foreground">
-              {s.failed24 === 0
-                ? "No failed sign-ins in the last 24 hours."
-                : `${s.failed24} failed sign-in${s.failed24 === 1 ? "" : "s"} in the last 24 hours.`}
-              {s.devRefused24 > 0 &&
-                ` ${s.devRefused24} Developer action${s.devRefused24 === 1 ? " was" : "s were"} refused.`}
-            </p>
-            <StackedBars
-              data={m.securitySeries.map((d) => ({
-                label: d.day,
-                values: { failed: d.failed, refused: d.refused },
-              }))}
-              series={SECURITY_SERIES}
-              labelEvery={2}
-              formatLabel={shortDay}
-              height={160}
-              emptyText="No failed sign-ins or refused actions in 14 days. Good."
-            />
-            <Legend series={SECURITY_SERIES} className="mt-4" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-0">
-            <div className="border-b border-border px-5 py-3.5">
-              <h2 className="text-sm font-semibold">Failed sign-ins</h2>
-              <p className="text-xs text-muted-foreground">
-                Latest refused attempts. Passwords are never stored. Repeats
-                within a minute are merged (×N).
-              </p>
-            </div>
-            {s.recentFailed.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm text-muted-foreground">
-                None recorded.
-              </p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {s.recentFailed.map((f) => (
-                  <li key={f.id} className="px-5 py-2.5 text-sm">
-                    <p className="break-all leading-snug">
-                      {f.email}
-                      {f.count > 1 && (
-                        <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold tabular-nums">
-                          ×{f.count}
-                        </span>
-                      )}
-                    </p>
-                    <p
-                      className="mt-0.5 text-xs text-muted-foreground"
-                      title={eat(f.createdAt)}
-                    >
-                      {timeAgo(f.createdAt)}
-                      {f.ip ? ` · ${f.ip}` : ""}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-        <InfoCallout
-          icon={KeyRound}
-          tone={s.devLocked24 > 0 ? "warn" : "good"}
-          title="Your Developer sign-in"
-        >
-          {s.devFailed24 === 0
-            ? "No wrong-password tries on your account in the last 24 hours. After 5 wrong tries from one place it locks for 15 minutes."
-            : `${s.devFailed24} wrong-password tr${s.devFailed24 === 1 ? "y" : "ies"} in the last 24 hours${s.devLocked24 > 0 ? ", and it locked itself" : ""}. If these were not you, change your password.`}
-        </InfoCallout>
-        <InfoCallout icon={Info} title="Page crashes">
-          The app does not keep its own crash log. If someone says a page broke,
-          open the project in Vercel → Logs and search the page address.
-        </InfoCallout>
-      </Masonry>
+      <div className="space-y-4">
+        <div className="grid items-stretch gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2 [&>*]:h-full">
+            <Card className="h-full">
+              <CardContent className="p-5">
+                <h2 className="text-sm font-semibold">
+                  Failed sign-ins and refused Developer actions per day
+                </h2>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  {s.failed24 === 0
+                    ? "No failed sign-ins in the last 24 hours."
+                    : `${s.failed24} failed sign-in${s.failed24 === 1 ? "" : "s"} in the last 24 hours.`}
+                  {s.devRefused24 > 0 &&
+                    ` ${s.devRefused24} Developer action${s.devRefused24 === 1 ? " was" : "s were"} refused.`}
+                </p>
+                <StackedBars
+                  data={m.securitySeries.map((d) => ({
+                    label: d.day,
+                    values: { failed: d.failed, refused: d.refused },
+                  }))}
+                  series={SECURITY_SERIES}
+                  labelEvery={2}
+                  formatLabel={shortDay}
+                  height={250}
+                  emptyText="No failed sign-ins or refused actions in 14 days. Good."
+                />
+                <Legend series={SECURITY_SERIES} className="mt-4" />
+              </CardContent>
+            </Card>
+          </div>
+          <Card className="h-full">
+            <CardContent className="p-0">
+              <div className="border-b border-border px-5 py-3.5">
+                <h2 className="text-sm font-semibold">Failed sign-ins</h2>
+                <p className="text-xs text-muted-foreground">
+                  Latest refused attempts. Passwords are never stored. Repeats
+                  within a minute are merged (×N).
+                </p>
+              </div>
+              {s.recentFailed.length === 0 ? (
+                <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+                  None recorded.
+                </p>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {s.recentFailed.map((f) => (
+                    <li key={f.id} className="px-5 py-2.5 text-sm">
+                      <p className="break-all leading-snug">
+                        {f.email}
+                        {f.count > 1 && (
+                          <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold tabular-nums">
+                            ×{f.count}
+                          </span>
+                        )}
+                      </p>
+                      <p
+                        className="mt-0.5 text-xs text-muted-foreground"
+                        title={eat(f.createdAt)}
+                      >
+                        {timeAgo(f.createdAt)}
+                        {f.ip ? ` · ${f.ip}` : ""}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+          <InfoCallout
+            className="h-full"
+            icon={KeyRound}
+            tone={s.devLocked24 > 0 ? "warn" : "good"}
+            title="Your Developer sign-in"
+          >
+            {s.devFailed24 === 0
+              ? "No wrong-password tries on your account in the last 24 hours. After 5 wrong tries from one place it locks for 15 minutes."
+              : `${s.devFailed24} wrong-password tr${s.devFailed24 === 1 ? "y" : "ies"} in the last 24 hours${s.devLocked24 > 0 ? ", and it locked itself" : ""}. If these were not you, change your password.`}
+          </InfoCallout>
+          <InfoCallout className="h-full" icon={Info} title="Page crashes">
+            The app does not keep its own crash log. If someone says a page
+            broke, open the project in Vercel → Logs and search the page
+            address.
+          </InfoCallout>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1105,8 +1130,8 @@ export function PeoplePanel({ m }: { m: Monitor }) {
         </CardContent>
       </Card>
 
-      <Masonry>
-        <Card>
+      <div className="grid items-stretch gap-4 lg:grid-cols-2">
+        <Card className="h-full">
           <CardContent className="p-0">
             <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
               <div>
@@ -1159,25 +1184,29 @@ export function PeoplePanel({ m }: { m: Monitor }) {
             )}
           </CardContent>
         </Card>
-        <InfoCallout
-          icon={ShieldCheck}
-          tone="good"
-          title="Everything you do is on record"
-        >
-          Your name is attached to every action, including when you work as
-          someone else. The records cannot be edited or deleted — not even by
-          you.
-        </InfoCallout>
-        <InfoCallout
-          icon={KeyRound}
-          tone="warn"
-          title="What you cannot do while working as someone"
-        >
-          Open accounts, change roles, reset or change passwords, suspend
-          people. Everything else you may do as them, and it is all recorded as
-          you. This stops Work as from being used to take over an account.
-        </InfoCallout>
-      </Masonry>
+        <div className="flex flex-col gap-4 [&>*]:flex-1">
+          <InfoCallout
+            className="h-full"
+            icon={ShieldCheck}
+            tone="good"
+            title="Everything you do is on record"
+          >
+            Your name is attached to every action, including when you work as
+            someone else. The records cannot be edited or deleted — not even by
+            you.
+          </InfoCallout>
+          <InfoCallout
+            className="h-full"
+            icon={KeyRound}
+            tone="warn"
+            title="What you cannot do while working as someone"
+          >
+            Open accounts, change roles, reset or change passwords, suspend
+            people. Everything else you may do as them, and it is all recorded
+            as you. This stops Work as from being used to take over an account.
+          </InfoCallout>
+        </div>
+      </div>
     </div>
   );
 }

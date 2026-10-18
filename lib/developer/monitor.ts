@@ -290,7 +290,7 @@ export async function getMonitor(
           FROM "AuditLog" a LEFT JOIN "User" u ON u.id = a."actorId"
           WHERE a."createdAt" >= ${since7} AND a.action NOT LIKE 'auth.%'
             AND NOT (a.action LIKE 'developer.%' OR coalesce(a."metadata" ->> 'developer', '') = 'true')
-          GROUP BY 1 ORDER BY n DESC LIMIT 8`,
+          GROUP BY 1 ORDER BY n DESC LIMIT 5`,
       [],
     ),
     safe(
@@ -299,7 +299,7 @@ export async function getMonitor(
           SELECT entity AS name, count(*)::int AS n
           FROM "AuditLog"
           WHERE "createdAt" >= ${since7} AND action NOT LIKE 'auth.%' AND NOT ${DEV_LINE_SQL}
-          GROUP BY 1 ORDER BY n DESC LIMIT 8`,
+          GROUP BY 1 ORDER BY n DESC LIMIT 6`,
       [],
     ),
     safe(
@@ -307,7 +307,7 @@ export async function getMonitor(
         prisma.loginEvent.findMany({
           where: { ok: true },
           orderBy: { createdAt: "desc" },
-          take: 12,
+          take: 10,
           select: {
             id: true,
             ipAddress: true,
@@ -452,7 +452,7 @@ export async function getMonitor(
           SELECT max(id) AS id, email, "ipAddress" AS ip, max("createdAt") AS "createdAt", count(*)::int AS count
           FROM "LoginEvent" WHERE "ok" = false AND "createdAt" >= ${since7}
           GROUP BY email, "ipAddress", date_trunc('minute', "createdAt")
-          ORDER BY max("createdAt") DESC LIMIT 8`,
+          ORDER BY max("createdAt") DESC LIMIT 5`,
       [],
     ),
     safe(

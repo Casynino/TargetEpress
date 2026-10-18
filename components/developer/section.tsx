@@ -1,32 +1,3 @@
-import { cn } from "@/lib/utils";
-
-/**
- * A group of cards that pack into columns without holes.
- *
- * Cards of different heights in a grid leave dead space under the shorter ones —
- * a chart beside a long list, a lone card at the end of a row. Columns let each
- * card take the next free space instead, so the page has no gaps. Each child
- * stays whole (never split across two columns).
- */
-export function Masonry({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={cn(
-        "columns-1 gap-4 lg:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-
 /**
  * A section of the one-page Home: a title, one short line saying what it is
  * for, and a rule under them. The page is read top to bottom, so every block

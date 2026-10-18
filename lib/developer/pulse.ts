@@ -124,7 +124,7 @@ export async function getPulse() {
           SELECT c."name" AS name, count(*)::int AS n
           FROM "Shipment" s JOIN "Customer" c ON c.id = s."customerId"
           WHERE s."deletedAt" IS NULL AND s."createdAt" >= ${since30}
-          GROUP BY c.id, c."name" ORDER BY n DESC LIMIT 8`,
+          GROUP BY c.id, c."name" ORDER BY n DESC LIMIT 6`,
       [],
     ),
     safe(() => prisma.customer.count(), 0),
