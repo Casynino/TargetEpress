@@ -30,7 +30,7 @@ export function HomeTabs({ tabs, panels, initial }: { tabs: HomeTab[]; panels: R
 
   return (
     <div>
-      <div role="tablist" aria-label="Home sections" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+      <div role="tablist" aria-label="Home sections" className="flex flex-wrap gap-1.5">
         {tabs.map((t) => {
           const on = t.id === active;
           return (

@@ -14,12 +14,16 @@ import {
   StatusStrip,
 } from "@/components/developer/home-sections";
 import { HomeTabs, type HomeTab } from "@/components/developer/home-tabs";
-import { PulsePanel } from "@/components/developer/pulse-panel";
+import {
+  CargoPanel,
+  MessagesPanel,
+  MoneyPanel,
+} from "@/components/developer/pulse-panel";
 import { QuickLink } from "@/components/developer/info";
 import { ROLE_LABELS } from "@/lib/constants";
 import { getMonitor } from "@/lib/developer/monitor";
 import { workAsPeople } from "@/lib/developer/people";
-import { getPulse } from "@/lib/developer/pulse";
+import { getOps, getPulse } from "@/lib/developer/pulse";
 import { requirePermission } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +38,11 @@ export const metadata: Metadata = { title: "Developer home" };
 export default async function DeveloperHomePage() {
   const me = await requirePermission("developer.access");
   const m = await getMonitor();
-  const [people, pulse] = await Promise.all([workAsPeople(), getPulse()]);
+  const [people, pulse, ops] = await Promise.all([
+    workAsPeople(),
+    getPulse(),
+    getOps(),
+  ]);
 
   /* Every role but Developer: that one is never given from a screen. */
   const roles = Object.entries(ROLE_LABELS)
@@ -66,8 +74,28 @@ export default async function DeveloperHomePage() {
   const securityBadge = m.security.failed24 + m.security.devRefused24;
 
   const tabs: HomeTab[] = [
-    { id: "pulse", label: "Cargo & money" },
     { id: "activity", label: "Activity" },
+    {
+      id: "cargo",
+      label: "Cargo",
+      badge: ops.openIssues > 0 ? String(ops.openIssues) : null,
+      tone: "warn",
+    },
+    {
+      id: "money",
+      label: "Money",
+      badge: ops.pendingSubmissions > 0 ? String(ops.pendingSubmissions) : null,
+      tone: "warn",
+    },
+    {
+      id: "messages",
+      label: "Messages & requests",
+      badge:
+        ops.openTickets + ops.pendingBookings + ops.pendingPickups > 0
+          ? String(ops.openTickets + ops.pendingBookings + ops.pendingPickups)
+          : null,
+      tone: "warn",
+    },
     {
       id: "speed",
       label: "Speed & size",
@@ -120,10 +148,12 @@ export default async function DeveloperHomePage() {
 
       <HomeTabs
         tabs={tabs}
-        initial="pulse"
+        initial="activity"
         panels={{
-          pulse: <PulsePanel p={pulse} />,
-          activity: <ActivityPanel m={m} />,
+          activity: <ActivityPanel m={m} online={pulse.onlineNow} />,
+          cargo: <CargoPanel p={pulse} o={ops} />,
+          money: <MoneyPanel p={pulse} o={ops} />,
+          messages: <MessagesPanel o={ops} />,
           speed: <SpeedPanel m={m} />,
           security: <SecurityPanel m={m} />,
           settings: <SettingsPanel m={m} />,

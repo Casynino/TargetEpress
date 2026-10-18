@@ -251,3 +251,222 @@ export async function getPulse() {
     onlineNow,
   };
 }
+
+export type Ops = Awaited<ReturnType<typeof getOps>>;
+
+/**
+ * THE PEOPLE-FACING SIDE: issues on cargo, customers asking for things, tickets,
+ * messages sent, and the money waiting on someone's decision. Counted and aged,
+ * never added up — these are queues, and the question is how long they wait.
+ */
+export async function getOps() {
+  const days = lastDays(DAYS);
+  const since = new Date(Date.now() - DAYS * 86_400_000);
+  const since30 = new Date(Date.now() - 30 * 86_400_000);
+
+  const [
+    issuesByStatus,
+    oldestIssues,
+    pendingBookings,
+    pendingPickups,
+    oldestRequests,
+    ticketsByStatus,
+    oldestTickets,
+    sourcingByStatus,
+    messagesByDay,
+    messagesByKind,
+    unreadAlerts,
+    pendingSubmissions,
+    oldestSubmission,
+    pendingExpenses,
+    ledgerByDay,
+    corrections30,
+    lastLedger,
+    ledgerLines30,
+  ] = await Promise.all([
+    safe(
+      () =>
+        prisma.shipmentException.groupBy({
+          by: ["status"],
+          _count: { _all: true },
+        }),
+      [],
+    ),
+    safe(
+      () =>
+        prisma.$queryRaw<
+          { type: string; status: string; tracking: string; raisedAt: Date }[]
+        >`
+          SELECT e.type::text AS type, e.status::text AS status, s."trackingNumber" AS tracking, e."raisedAt"
+          FROM "ShipmentException" e JOIN "Shipment" s ON s.id = e."shipmentId"
+          WHERE e.status::text IN ('OPEN','UNDER_INVESTIGATION','WAITING_CUSTOMER','COMPENSATION_APPROVED','REPLACEMENT_APPROVED')
+            AND s."deletedAt" IS NULL
+          ORDER BY e."raisedAt" ASC LIMIT 6`,
+      [],
+    ),
+    safe(
+      () => prisma.bookingRequest.count({ where: { status: "PENDING" } }),
+      0,
+    ),
+    safe(() => prisma.pickupRequest.count({ where: { status: "PENDING" } }), 0),
+    safe(
+      () =>
+        prisma.$queryRaw<
+          { kind: string; reference: string; who: string; createdAt: Date }[]
+        >`
+          SELECT 'Booking' AS kind, reference, "customerName" AS who, "createdAt" FROM "BookingRequest" WHERE status::text = 'PENDING'
+          UNION ALL
+          SELECT 'Pickup', reference, "customerName", "createdAt" FROM "PickupRequest" WHERE status::text = 'PENDING'
+          ORDER BY 4 ASC LIMIT 6`,
+      [],
+    ),
+    safe(
+      () =>
+        prisma.supportTicket.groupBy({
+          by: ["status"],
+          _count: { _all: true },
+        }),
+      [],
+    ),
+    safe(
+      () =>
+        prisma.$queryRaw<
+          {
+            number: string;
+            subject: string;
+            priority: string;
+            status: string;
+            createdAt: Date;
+          }[]
+        >`
+          SELECT "ticketNumber" AS number, subject, priority::text AS priority, status::text AS status, "createdAt"
+          FROM "SupportTicket" WHERE status::text IN ('OPEN','IN_PROGRESS','WAITING_CUSTOMER')
+          ORDER BY "createdAt" ASC LIMIT 6`,
+      [],
+    ),
+    safe(
+      () =>
+        prisma.sourcingRequest.groupBy({
+          by: ["status"],
+          _count: { _all: true },
+        }),
+      [],
+    ),
+    safe(
+      () =>
+        prisma.$queryRaw<{ day: string; n: number }[]>`
+          SELECT to_char((("sentAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Dar_es_Salaam')::date, 'YYYY-MM-DD') AS day, count(*)::int AS n
+          FROM "CustomerMessage" WHERE "sentAt" >= ${since} GROUP BY 1`,
+      [],
+    ),
+    safe(
+      () =>
+        prisma.customerMessage.groupBy({
+          by: ["kind"],
+          where: { sentAt: { gte: since30 } },
+          _count: { _all: true },
+        }),
+      [],
+    ),
+    safe(() => prisma.notification.count({ where: { readAt: null } }), 0),
+    safe(
+      () => prisma.paymentSubmission.count({ where: { status: "PENDING" } }),
+      0,
+    ),
+    safe(
+      () =>
+        prisma.paymentSubmission.findFirst({
+          where: { status: "PENDING" },
+          orderBy: { submittedAt: "asc" },
+          select: { submittedAt: true },
+        }),
+      null,
+    ),
+    safe(() => prisma.expense.count({ where: { status: "PENDING" } }), 0),
+    safe(
+      () =>
+        prisma.$queryRaw<{ day: string; n: number }[]>`
+          SELECT to_char((("occurredAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Dar_es_Salaam')::date, 'YYYY-MM-DD') AS day, count(*)::int AS n
+          FROM "LedgerEntry" WHERE "occurredAt" >= ${since} GROUP BY 1`,
+      [],
+    ),
+    safe(
+      () =>
+        prisma.ledgerEntry.count({
+          where: { reversesId: { not: null }, occurredAt: { gte: since30 } },
+        }),
+      0,
+    ),
+    safe(
+      () =>
+        prisma.ledgerEntry.findFirst({
+          orderBy: { occurredAt: "desc" },
+          select: { occurredAt: true },
+        }),
+      null,
+    ),
+    safe(
+      () =>
+        prisma.ledgerEntry.count({ where: { occurredAt: { gte: since30 } } }),
+      0,
+    ),
+  ]);
+
+  const openIssues = issuesByStatus
+    .filter((r) =>
+      [
+        "OPEN",
+        "UNDER_INVESTIGATION",
+        "WAITING_CUSTOMER",
+        "COMPENSATION_APPROVED",
+        "REPLACEMENT_APPROVED",
+      ].includes(r.status),
+    )
+    .reduce((s, r) => s + r._count._all, 0);
+  const openTickets = ticketsByStatus
+    .filter((r) =>
+      ["OPEN", "IN_PROGRESS", "WAITING_CUSTOMER"].includes(r.status),
+    )
+    .reduce((s, r) => s + r._count._all, 0);
+
+  return {
+    openIssues,
+    issuesByStatus: issuesByStatus.map((r) => ({
+      name: r.status,
+      n: r._count._all,
+    })),
+    oldestIssues,
+    pendingBookings,
+    pendingPickups,
+    oldestRequests,
+    openTickets,
+    ticketsByStatus: ticketsByStatus.map((r) => ({
+      name: r.status,
+      n: r._count._all,
+    })),
+    oldestTickets,
+    sourcingByStatus: sourcingByStatus.map((r) => ({
+      name: r.status,
+      n: r._count._all,
+    })),
+    messageSeries: days.map((day) => ({
+      day,
+      n: messagesByDay.find((x) => x.day === day)?.n ?? 0,
+    })),
+    messagesByKind: messagesByKind.map((r) => ({
+      name: r.kind,
+      n: r._count._all,
+    })),
+    unreadAlerts,
+    pendingSubmissions,
+    oldestSubmission: oldestSubmission?.submittedAt ?? null,
+    pendingExpenses,
+    ledgerSeries: days.map((day) => ({
+      day,
+      n: ledgerByDay.find((x) => x.day === day)?.n ?? 0,
+    })),
+    corrections30,
+    lastLedger: lastLedger?.occurredAt ?? null,
+    ledgerLines30,
+  };
+}
