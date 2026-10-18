@@ -4580,6 +4580,9 @@ const ZH: Record<string, string> = {
   "Sealed, ready to fly": "已封批，待发运",
   "Sealing and dispatching…": "封批发运中…",
   "Search": "搜索",
+  "Search by name, email or role": "按姓名、邮箱或角色搜索",
+  "Search accounts": "搜索账号",
+  "No account matches that search.": "没有符合该搜索的账号。",
   "Search by name, shipping mark, phone or customer ID":
     "按姓名、唛头、电话或客户编号搜索",
   "Search cargo": "查询货物",

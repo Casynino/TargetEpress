@@ -1,16 +1,13 @@
 import type { Metadata } from "next";
-import { Eye } from "lucide-react";
 
 import { DeveloperAccountTool } from "@/components/app/developer-account-tool";
 import { DeveloperAddPerson } from "@/components/app/developer-add-person";
-import { DeveloperWorkAs } from "@/components/app/developer-work-as";
-import { InfoCallout } from "@/components/developer/info";
+import { AccessSearch } from "@/components/developer/access-search";
 import { Initials, ROLE_INFO } from "@/components/developer/home-sections";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ROLE_LABELS } from "@/lib/constants";
 import { timeAgo, eat } from "@/lib/developer/format";
-import { workAsPeople } from "@/lib/developer/people";
 import { NOT_REMOVED } from "@/lib/developer-shared";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
@@ -55,32 +52,30 @@ export default async function DeveloperAccessPage() {
     .filter(([value]) => value !== "DEVELOPER")
     .map(([value, label]) => ({ value, label }));
 
+  const total = users.length;
+  const suspendedCount = users.filter((u) => !u.active).length;
+
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            Developer console
+          </p>
+          <h1 className="mt-2 font-display text-3xl font-bold tracking-tight">
             Access
           </h1>
-          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Everyone with an account. Press{" "}
-            <strong className="text-foreground">Work as</strong> to open the app
-            exactly as that person sees it.
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            {total} accounts
+            {suspendedCount > 0 ? ` (${suspendedCount} suspended)` : ""}. Pick a
+            person and press Work as to open their screens exactly as they see
+            them. Everything you do is recorded under your name.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <DeveloperWorkAs people={await workAsPeople()} />
-          <DeveloperAddPerson roles={roles} />
-        </div>
+        <DeveloperAddPerson roles={roles} />
       </div>
 
-      <InfoCallout icon={Eye} title="What “Work as” does">
-        You use the app as them, with exactly their access, so you can help
-        them, test something or find why a screen looks different. Everything
-        you do is recorded as you, working as them. Accounts, roles and
-        passwords stay closed while you work as someone. It ends by itself after
-        4 hours, or press Stop on the small pill in the corner.
-      </InfoCallout>
+      <AccessSearch />
 
       {ORDER.map((role) => {
         const group = users.filter((u) => u.role === role);
@@ -88,80 +83,95 @@ export default async function DeveloperAccessPage() {
         const info = ROLE_INFO[role];
         const Icon = info.icon;
         return (
-          <Card key={role}>
-            <CardContent className="p-0">
-              <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
-                <div className="flex items-center gap-3">
-                  <span className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary">
-                    <Icon className="size-4" />
+          <section key={role} data-group className="space-y-3">
+            <div className="flex items-center gap-3.5 px-1">
+              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                <Icon className="size-5" />
+              </span>
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold leading-tight">
+                  {info.label}{" "}
+                  <span className="font-normal text-muted-foreground">
+                    · {group.length}
                   </span>
-                  <div>
-                    <h2 className="text-sm font-semibold">{info.label}</h2>
-                    <p className="text-xs text-muted-foreground">{info.text}</p>
-                  </div>
-                </div>
-                <span className="font-display text-xl font-semibold tabular-nums">
-                  {group.length}
-                </span>
+                </h2>
+                <p className="text-sm text-muted-foreground">{info.text}</p>
               </div>
-              <ul className="divide-y divide-border">
-                {group.map((person) => (
-                  <li
-                    key={person.id}
-                    className="flex flex-wrap items-start justify-between gap-3 px-5 py-3.5"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <Initials name={person.name} className="size-9" />
-                      <div className="min-w-0">
-                        <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                          {person.name}
-                          {person.id === actor.id ? (
-                            <Badge variant="brand">You</Badge>
-                          ) : null}
-                          {!person.active ? (
-                            <Badge variant="destructive">Suspended</Badge>
-                          ) : null}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {person.email}
-                        </p>
-                        <p
-                          className="mt-0.5 text-xs text-muted-foreground"
-                          title={
-                            person.lastLoginAt
-                              ? eat(person.lastLoginAt)
-                              : undefined
-                          }
-                        >
-                          {person.lastLoginAt
-                            ? `Last signed in ${timeAgo(person.lastLoginAt)}`
-                            : "Never signed in"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="w-full sm:w-auto sm:min-w-[20rem]">
-                      {person.role === "DEVELOPER" || person.id === actor.id ? (
-                        <p className="text-right text-xs text-muted-foreground">
-                          Secure setup only
-                        </p>
-                      ) : (
-                        <DeveloperAccountTool
-                          person={{
-                            id: person.id,
-                            name: person.name,
-                            roleKey: person.role,
-                            roleLabel: ROLE_LABELS[person.role],
-                            active: person.active,
-                          }}
-                          roles={roles}
+            </div>
+            <Card>
+              <CardContent className="p-0">
+                <ul className="divide-y divide-border">
+                  {group.map((person) => (
+                    <li
+                      key={person.id}
+                      data-person={`${person.name} ${person.email} ${ROLE_LABELS[person.role]}`.toLowerCase()}
+                      className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
+                    >
+                      <div className="flex min-w-0 items-center gap-4">
+                        <Initials
+                          name={person.name}
+                          className="size-12 text-sm"
                         />
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+                        <div className="min-w-0">
+                          <p className="flex flex-wrap items-center gap-2">
+                            <span className="text-base font-semibold">
+                              {person.name}
+                            </span>
+                            {person.id === actor.id ? (
+                              <Badge variant="brand">You</Badge>
+                            ) : person.active ? (
+                              <span className="text-xs font-medium text-success">
+                                Active
+                              </span>
+                            ) : (
+                              <Badge variant="destructive">Suspended</Badge>
+                            )}
+                            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                              {ROLE_LABELS[person.role]}
+                            </span>
+                          </p>
+                          <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                            {person.email}
+                          </p>
+                          <p
+                            className="text-xs text-muted-foreground"
+                            title={
+                              person.lastLoginAt
+                                ? eat(person.lastLoginAt)
+                                : undefined
+                            }
+                          >
+                            {person.lastLoginAt
+                              ? `Last signed in ${timeAgo(person.lastLoginAt)}`
+                              : "Never signed in"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="w-full sm:w-auto">
+                        {person.role === "DEVELOPER" ||
+                        person.id === actor.id ? (
+                          <p className="text-right text-xs text-muted-foreground">
+                            Secure setup only
+                          </p>
+                        ) : (
+                          <DeveloperAccountTool
+                            person={{
+                              id: person.id,
+                              name: person.name,
+                              roleKey: person.role,
+                              roleLabel: ROLE_LABELS[person.role],
+                              active: person.active,
+                            }}
+                            roles={roles}
+                          />
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          </section>
         );
       })}
     </div>
