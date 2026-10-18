@@ -14,10 +14,12 @@ import {
   StatusStrip,
 } from "@/components/developer/home-sections";
 import { HomeTabs, type HomeTab } from "@/components/developer/home-tabs";
+import { PulsePanel } from "@/components/developer/pulse-panel";
 import { QuickLink } from "@/components/developer/info";
 import { ROLE_LABELS } from "@/lib/constants";
 import { getMonitor } from "@/lib/developer/monitor";
 import { workAsPeople } from "@/lib/developer/people";
+import { getPulse } from "@/lib/developer/pulse";
 import { requirePermission } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +34,7 @@ export const metadata: Metadata = { title: "Developer home" };
 export default async function DeveloperHomePage() {
   const me = await requirePermission("developer.access");
   const m = await getMonitor();
-  const people = await workAsPeople();
+  const [people, pulse] = await Promise.all([workAsPeople(), getPulse()]);
 
   /* Every role but Developer: that one is never given from a screen. */
   const roles = Object.entries(ROLE_LABELS)
@@ -64,6 +66,7 @@ export default async function DeveloperHomePage() {
   const securityBadge = m.security.failed24 + m.security.devRefused24;
 
   const tabs: HomeTab[] = [
+    { id: "pulse", label: "Cargo & money" },
     { id: "activity", label: "Activity" },
     {
       id: "speed",
@@ -117,8 +120,9 @@ export default async function DeveloperHomePage() {
 
       <HomeTabs
         tabs={tabs}
-        initial="activity"
+        initial="pulse"
         panels={{
+          pulse: <PulsePanel p={pulse} />,
           activity: <ActivityPanel m={m} />,
           speed: <SpeedPanel m={m} />,
           security: <SecurityPanel m={m} />,
