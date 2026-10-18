@@ -149,7 +149,9 @@ export function AppShell({
    * the one moment it matters most. The Developer on their own desk gets no
    * bar — their console says what it is.
    */
-  developerMode?: { workingAs: { name: string; roleLabel: string } | null } | null;
+  developerMode?: {
+    workingAs: { name: string; roleLabel: string } | null;
+  } | null;
   /** Drives the count on the bell, and the dot on your own name. */
   unreadNotifications?: number;
   children: React.ReactNode;
@@ -161,21 +163,21 @@ export function AppShell({
     // components resolve it themselves; a client component has no session to
     // read it from, so the shell hands it down once per request.
     <LocaleProvider locale={user.locale}>
-    {/*
+      {/*
       Records where the reader has been, so every back control in the app knows
       the workflow rather than the record's relationships. Mounted once, here,
       because wiring it into each of the ~180 links into detail pages would
       leave whichever one was missed still teleporting people to a batch.
       See lib/nav-trail.ts.
     */}
-    <Suspense fallback={null}>
-      <NavTrail />
-    </Suspense>
+      <Suspense fallback={null}>
+        <NavTrail />
+      </Suspense>
 
-    {/* Offered, never forced: a clerk half-way through a consignment must not
+      {/* Offered, never forced: a clerk half-way through a consignment must not
         have the form pulled out from under them. See the component. */}
-    <NewVersionNotice build={BUILD_ID} />
-    {/*
+      <NewVersionNotice build={BUILD_ID} />
+      {/*
       `print:min-h-0` is a label saved, not a detail.
 
       On screen this floor is always at least a full viewport tall. On paper
@@ -185,27 +187,27 @@ export function AppShell({
       "1 / 2" with the second page blank, which on a 4x6 thermal roll is a
       wasted sticker every single time, not a wasted corner of A4.
     */}
-    <div className="min-h-screen bg-muted/30 print:min-h-0">
-      {developerMode?.workingAs ? (
-        <DeveloperBanner workingAs={developerMode.workingAs} />
-      ) : null}
-      {/* Desktop sidebar */}
-      <aside className="fixed bottom-0 left-0 top-0 z-30 hidden w-64 flex-col border-r bg-background lg:flex">
-        <div className="flex h-16 items-center border-b px-5">
-          <Link href="/app/dashboard">
-            <BrandLockup />
-          </Link>
-        </div>
-        <NavList
-          sections={sections}
-          locale={user.locale}
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3"
-        />
-        <UserPanel user={user} unread={unreadNotifications} />
-      </aside>
+      <div className="min-h-screen bg-muted/30 print:min-h-0">
+        {developerMode?.workingAs ? (
+          <DeveloperBanner workingAs={developerMode.workingAs} />
+        ) : null}
+        {/* Desktop sidebar */}
+        <aside className="fixed bottom-0 left-0 top-0 z-30 hidden w-64 flex-col border-r bg-background lg:flex">
+          <div className="flex h-16 items-center border-b px-5">
+            <Link href="/app/dashboard">
+              <BrandLockup />
+            </Link>
+          </div>
+          <NavList
+            sections={sections}
+            locale={user.locale}
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3"
+          />
+          <UserPanel user={user} unread={unreadNotifications} />
+        </aside>
 
-      {/* Mobile top bar */}
-      {/*
+        {/* Mobile top bar */}
+        {/*
         Hidden on paper as well as on a desktop.
 
         `lg:hidden` reads as "phones only", but a print page is about 794px
@@ -214,18 +216,20 @@ export function AppShell({
         top of the sheet; on a 100x70mm label page it is 3.7mm of a 70mm page,
         which pushes the label off its own sticker.
       */}
-      <div className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b bg-background px-4 lg:hidden print:hidden">
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetTrigger asChild>
-            {/* 44x44, not 36x36. This is the control every warehouse phone
+        <div className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b bg-background px-4 lg:hidden print:hidden">
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              {/* 44x44, not 36x36. This is the control every warehouse phone
                 presses first, and 36 is below the size a thumb hits reliably
                 while the other hand is holding a box. */}
-            <Button variant="ghost" size="icon" className="h-11 w-11">
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">{t(user.locale, "Open navigation")}</span>
-            </Button>
-          </SheetTrigger>
-          {/*
+              <Button variant="ghost" size="icon" className="h-11 w-11">
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">
+                  {t(user.locale, "Open navigation")}
+                </span>
+              </Button>
+            </SheetTrigger>
+            {/*
             A column, the same way the desktop sidebar is one.
 
             This was three blocks stacked in a plain div: a header, the whole
@@ -239,30 +243,32 @@ export function AppShell({
             sheet sized to it puts its last 60-odd pixels underneath the
             browser chrome. The dynamic unit tracks what is actually on screen.
           */}
-          <SheetContent
-            side="left"
-            className="flex h-[100dvh] w-[280px] max-w-[85vw] flex-col p-0"
-          >
-            <SheetTitle className="sr-only">{t(user.locale, "Navigation")}</SheetTitle>
-            <div className="flex h-16 shrink-0 items-center border-b px-5">
-              <BrandLockup />
-            </div>
-            {/*
+            <SheetContent
+              side="left"
+              className="flex h-[100dvh] w-[280px] max-w-[85vw] flex-col p-0"
+            >
+              <SheetTitle className="sr-only">
+                {t(user.locale, "Navigation")}
+              </SheetTitle>
+              <div className="flex h-16 shrink-0 items-center border-b px-5">
+                <BrandLockup />
+              </div>
+              {/*
               `overscroll-contain` so reaching the end of the menu does not
               start scrolling the page behind the sheet — which on a phone
               reads as the whole app sliding around under your thumb.
             */}
-            <NavList
-              sections={sections}
-              locale={user.locale}
-              className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3"
-              onNavigate={() => setMobileOpen(false)}
-            />
-            <UserPanel user={user} unread={unreadNotifications} />
-          </SheetContent>
-        </Sheet>
+              <NavList
+                sections={sections}
+                locale={user.locale}
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3"
+                onNavigate={() => setMobileOpen(false)}
+              />
+              <UserPanel user={user} unread={unreadNotifications} />
+            </SheetContent>
+          </Sheet>
 
-        {/*
+          {/*
           THE WAY BACK, and it takes the middle of the bar when there is one.
 
           The Guangzhou desk opens this inside WeChat's browser, which has no
@@ -274,26 +280,26 @@ export function AppShell({
           The logo keeps its place when there is nowhere to go back to, because
           on a portal root the brand IS the right thing in the middle.
         */}
-        <div className="flex min-w-0 flex-1 items-center justify-center px-1">
-          <MobileBack />
+          <div className="flex min-w-0 flex-1 items-center justify-center px-1">
+            <MobileBack />
+          </div>
+
+          <div className="flex items-center gap-1">
+            <MainSiteLink compact />
+            <NotificationBell unread={unreadNotifications} />
+            <ThemeToggle className="h-11 w-11" />
+          </div>
         </div>
 
-        <div className="flex items-center gap-1">
-          <MainSiteLink compact />
-          <NotificationBell unread={unreadNotifications} />
-          <ThemeToggle className="h-11 w-11" />
-        </div>
-      </div>
-
-      <div className="lg:pl-64">
-        {/* A thin bar for the bell and the way out to the public site. Nothing
+        <div className="lg:pl-64">
+          {/* A thin bar for the bell and the way out to the public site. Nothing
             else belongs up here — anything more would compete with the page's
             own heading. */}
-        <div className="sticky top-0 z-20 hidden h-14 items-center justify-end gap-1 border-b bg-background/80 px-8 backdrop-blur lg:flex">
-          <MainSiteLink />
-          <NotificationBell unread={unreadNotifications} />
-        </div>
-        {/*
+          <div className="sticky top-0 z-20 hidden h-14 items-center justify-end gap-1 border-b bg-background/80 px-8 backdrop-blur lg:flex">
+            <MainSiteLink />
+            <NotificationBell unread={unreadNotifications} />
+          </div>
+          {/*
           The reading container, and nothing to do with paper.
 
           Its max-width and padding are for a screen. Left on for print they
@@ -302,10 +308,20 @@ export function AppShell({
           four with half the adhesive stock blank. The page decides its own
           margins through @page; this must get out of the way.
         */}
-        <div className="mx-auto max-w-[1400px] p-4 sm:p-6 lg:p-8 print:max-w-none print:p-0">
-          {children}
-        </div>
-        {/*
+          {/* The Developer's pages fill the screen, like the other projects'
+            consoles: charts and tables are the point there, and a centred
+            column leaves a dead band down both sides of a wide monitor. Every
+            other account — and the Developer while working AS another account,
+            whose role is then theirs — keeps the readable column. */}
+          <div
+            className={cn(
+              "mx-auto p-4 sm:p-6 lg:p-8 print:max-w-none print:p-0",
+              user.role === "DEVELOPER" ? "max-w-none" : "max-w-[1400px]",
+            )}
+          >
+            {children}
+          </div>
+          {/*
           The room the bottom bar stands in.
 
           A spacer element rather than bottom padding on the container above it:
@@ -321,13 +337,13 @@ export function AppShell({
           to scroll to reveal it. Height matches the bar exactly: 3.5rem of tabs
           plus whatever the phone's home indicator claims.
         */}
-        <div
-          aria-hidden
-          className="h-[calc(3.5rem_+_env(safe-area-inset-bottom))] lg:hidden print:hidden"
-        />
-      </div>
+          <div
+            aria-hidden
+            className="h-[calc(3.5rem_+_env(safe-area-inset-bottom))] lg:hidden print:hidden"
+          />
+        </div>
 
-      {/*
+        {/*
         The four screens this desk lives in, plus the way into everything else.
 
         Mounted here rather than inside the content column because it is
@@ -335,12 +351,12 @@ export function AppShell({
         underneath it. `onMore` opens the Sheet declared above: one drawer,
         two handles.
       */}
-      <MobileTabbar
-        sections={sections}
-        role={user.role}
-        onMore={() => setMobileOpen(true)}
-      />
-    </div>
+        <MobileTabbar
+          sections={sections}
+          role={user.role}
+          onMore={() => setMobileOpen(true)}
+        />
+      </div>
     </LocaleProvider>
   );
 }
@@ -368,12 +384,16 @@ function MainSiteLink({ compact = false }: { compact?: boolean }) {
       size={compact ? "icon" : "sm"}
       className={cn(
         "text-muted-foreground hover:text-foreground",
-        compact ? "h-11 w-11" : "gap-2 px-2.5"
+        compact ? "h-11 w-11" : "gap-2 px-2.5",
       )}
     >
       <Link href="/" title="Open the public website — you stay signed in">
         <Globe className="h-4 w-4" />
-        {compact ? <span className="sr-only">{t(locale, "Main site")}</span> : t(locale, "Main site")}
+        {compact ? (
+          <span className="sr-only">{t(locale, "Main site")}</span>
+        ) : (
+          t(locale, "Main site")
+        )}
       </Link>
     </Button>
   );
@@ -406,7 +426,7 @@ function NavList({
       return paths.some((path) =>
         item.exact
           ? pathname === path
-          : pathname === path || pathname.startsWith(`${path}/`)
+          : pathname === path || pathname.startsWith(`${path}/`),
       );
     })
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
@@ -414,79 +434,75 @@ function NavList({
   return (
     <nav className={className}>
       {sections.map((section) => {
-        const GroupIcon = section.group ? ICONS[section.group.icon] ?? Package : null;
+        const GroupIcon = section.group
+          ? (ICONS[section.group.icon] ?? Package)
+          : null;
         // A named group holds the row lit inside it, so the heading tells you
         // where you are even when its children are scrolled past.
         const inGroup = section.items.some((item) => item.href === activeHref);
 
         return (
-        <div
-          key={section.title}
-          // Spacing is the separator for an ungrouped run. Groups this short do
-          // not need to be named — "OVERVIEW" above two links told nobody
-          // anything — so the heading is opt-in, for menus long enough that a
-          // flat column becomes a wall.
-          className={cn(section.group ? "mb-4 last:mb-0" : "mb-6 last:mb-0")}
-        >
-          {section.group && GroupIcon ? (
-            <p
+          <div
+            key={section.title}
+            // Spacing is the separator for an ungrouped run. Groups this short do
+            // not need to be named — "OVERVIEW" above two links told nobody
+            // anything — so the heading is opt-in, for menus long enough that a
+            // flat column becomes a wall.
+            className={cn(section.group ? "mb-4 last:mb-0" : "mb-6 last:mb-0")}
+          >
+            {section.group && GroupIcon ? (
+              <p
+                className={cn(
+                  "flex items-center gap-2 px-3 pb-1.5 pt-1 text-xs font-semibold uppercase tracking-[0.12em] transition-colors",
+                  inGroup ? "text-foreground" : "text-muted-foreground/70",
+                )}
+              >
+                <GroupIcon className="h-3.5 w-3.5 shrink-0" />
+                {t(locale, section.group.label)}
+              </p>
+            ) : null}
+            <ul
               className={cn(
-                "flex items-center gap-2 px-3 pb-1.5 pt-1 text-xs font-semibold uppercase tracking-[0.12em] transition-colors",
-                inGroup ? "text-foreground" : "text-muted-foreground/70"
+                "space-y-0.5",
+                // Indented against a hairline: the children read as belonging to
+                // the heading rather than as more top-level rows that happen to
+                // sit under it.
+                section.group && "ml-[1.4rem] border-l border-border/60 pl-2",
               )}
             >
-              <GroupIcon className="h-3.5 w-3.5 shrink-0" />
-              {t(locale, section.group.label)}
-            </p>
-          ) : null}
-          <ul
-            className={cn(
-              "space-y-0.5",
-              // Indented against a hairline: the children read as belonging to
-              // the heading rather than as more top-level rows that happen to
-              // sit under it.
-              section.group && "ml-[1.4rem] border-l border-border/60 pl-2"
-            )}
-          >
-            {section.items.map((item) => {
-              const Icon = ICONS[item.icon] ?? Package;
-              const active = item.href === activeHref;
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    onClick={onNavigate}
-                    className={cn(
-                      // min-h-11 on a phone: 36px rows are a miss-tap away
-                      // from each other, and this menu is used one-handed on a
-                      // warehouse floor. Desktop keeps the tighter rhythm.
-                      "flex min-h-11 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors lg:min-h-0",
-                      active
-                        ? "bg-brand/10 font-medium text-brand"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    {t(locale, item.label)}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+              {section.items.map((item) => {
+                const Icon = ICONS[item.icon] ?? Package;
+                const active = item.href === activeHref;
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={onNavigate}
+                      className={cn(
+                        // min-h-11 on a phone: 36px rows are a miss-tap away
+                        // from each other, and this menu is used one-handed on a
+                        // warehouse floor. Desktop keeps the tighter rhythm.
+                        "flex min-h-11 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors lg:min-h-0",
+                        active
+                          ? "bg-brand/10 font-medium text-brand"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      {t(locale, item.label)}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         );
       })}
     </nav>
   );
 }
 
-function UserPanel({
-  user,
-  unread = 0,
-}: {
-  user: ShellUser;
-  unread?: number;
-}) {
+function UserPanel({ user, unread = 0 }: { user: ShellUser; unread?: number }) {
   return (
     /*
       Never scrolls away, and never sits under a phone's home indicator.

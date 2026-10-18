@@ -259,6 +259,14 @@ check("…and so is the person's own password change", /changeMyPassword[\s\S]*?
 check("work-as is NOT blocked for every action any more (the owner chose Everything, recorded)", !sessionSrc.includes("which is view-only"));
 check("work-as writes are attributed to the Developer in the trail", readFileSync("lib/audit.ts", "utf8").includes("workingAs: { id: input.actor!.id, name: input.actor!.name }"));
 
+section("The Developer Home shows system problems, never operations to-dos");
+const diagnoseSrc = readFileSync("lib/developer/diagnose.ts", "utf8");
+const monitorSrc = readFileSync("lib/developer/monitor.ts", "utf8");
+check("no alert reads the business's queues (tickets, requests, submissions, issues, flights)", !/SupportTicket|BookingRequest|PickupRequest|PaymentSubmission|ShipmentException|"Batch"/.test(diagnoseSrc + monitorSrc.split("export async function getMonitor")[1]));
+check("no alert hint hands work to staff", !/\b(Ask|Tell) (the )?(Finance|Customer Care|Dar warehouse|China warehouse|warehouse|Support)\b/i.test(diagnoseSrc + monitorSrc));
+const panelSrc = readFileSync("components/developer/pulse-panel.tsx", "utf8");
+check("the awareness sections carry no to-do lists (oldest tickets, requests, bills, issues)", !/Oldest (open|website|bills)|Waiting for Finance|Expenses waiting|Requests waiting|Open tickets/.test(panelSrc));
+
 section("The Developer opens accounts — owner included — and nobody else gains that");
 const usersSrc = readFileSync("lib/actions/users.ts", "utf8");
 check("only the owner or the Developer may create an owner (a manager still may not)", /input\.role === OWNER && actor\.role !== OWNER && actor\.role !== DEVELOPER/.test(usersSrc));

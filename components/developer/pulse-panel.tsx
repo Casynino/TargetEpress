@@ -1,5 +1,4 @@
 import {
-  AlertTriangle,
   Banknote,
   BellRing,
   Boxes,
@@ -10,6 +9,7 @@ import {
   Plane,
   ReceiptText,
   Truck,
+  Users,
 } from "lucide-react";
 
 import { HBars, StackedBars, type Series } from "@/components/developer/charts";
@@ -32,7 +32,6 @@ import {
   timeAgo,
 } from "@/lib/developer/format";
 import type { Ops, Pulse } from "@/lib/developer/pulse";
-import { formatMoney } from "@/lib/format";
 
 const CARGO: Series[] = [
   { key: "n", label: "Cargo added", color: "hsl(var(--chart-1))" },
@@ -47,8 +46,6 @@ const MESSAGES: Series[] = [
   { key: "n", label: "Messages sent", color: "hsl(var(--chart-6))" },
 ];
 
-const ageDays = (d: Date) =>
-  Math.max(0, Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000));
 const dayOf = (d: Date | null) =>
   d
     ? eat(d)
@@ -117,7 +114,7 @@ export function CargoPanel({ p, o }: { p: Pulse; o: Ops }) {
         <HealthCard
           label="Cargo added (7 days)"
           value={formatNumber(p.cargoAdded7)}
-          detail={`${plural(p.newCustomers, "new customer")} in 30 days`}
+          detail="registered by the warehouses"
           tone="info"
           statusText="Intake"
           icon={Plane}
@@ -133,13 +130,13 @@ export function CargoPanel({ p, o }: { p: Pulse; o: Ops }) {
           meaning="Flights marked as departed that have not been marked as landed in Dar yet."
         />
         <HealthCard
-          label="Open cargo issues"
-          value={formatNumber(o.openIssues)}
-          detail="damaged, missing or short-landed"
+          label="Customers"
+          value={formatNumber(p.customers)}
+          detail={`${plural(p.newCustomers, "new customer")} in 30 days`}
           tone="info"
-          statusText="For awareness"
-          icon={AlertTriangle}
-          meaning="Problems raised on cargo that nobody has closed yet. The oldest ones are listed below."
+          statusText="On the books"
+          icon={Users}
+          meaning="Everyone registered as a customer, and how many joined in the last 30 days."
         />
       </div>
 
@@ -222,45 +219,6 @@ export function CargoPanel({ p, o }: { p: Pulse; o: Ops }) {
             </TableBody>
           </Table>
         </ListCard>
-
-        <ListCard
-          title="Oldest open cargo issues"
-          text="Raised on a piece of cargo and not closed yet, oldest first."
-          empty="No open cargo issues."
-          isEmpty={o.oldestIssues.length === 0}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cargo</TableHead>
-                <TableHead>What</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Waiting</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {o.oldestIssues.map((i) => (
-                <TableRow
-                  key={`${i.tracking}-${i.type}-${i.raisedAt.toString()}`}
-                >
-                  <TableCell className="whitespace-nowrap font-mono text-xs">
-                    {i.tracking}
-                  </TableCell>
-                  <TableCell className="text-sm">{humanize(i.type)}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{humanize(i.status)}</Badge>
-                  </TableCell>
-                  <TableCell
-                    className="whitespace-nowrap text-right text-sm text-muted-foreground"
-                    title={eat(i.raisedAt)}
-                  >
-                    {ageDays(i.raisedAt)} days
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </ListCard>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
@@ -301,20 +259,19 @@ export function CargoPanel({ p, o }: { p: Pulse; o: Ops }) {
 /* ───────────────────────── tab: Money ───────────────────────── */
 
 export function MoneyPanel({ p, o }: { p: Pulse; o: Ops }) {
-  const owedLine = p.owed.length
-    ? p.owed.map((x) => formatMoney(x.owed, x.currency)).join(" + ")
-    : "Nothing outstanding";
+  const billTotal = p.billsByStatus.reduce((n, b) => n + b.n, 0);
+  const billsPaid = p.billsByStatus.find((b) => b.name === "PAID")?.n ?? 0;
   return (
     <div className="space-y-6">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <HealthCard
-          label="Bills waiting for money"
-          value={formatNumber(p.unpaidBills)}
-          detail={owedLine}
+          label="Bills issued"
+          value={formatNumber(billTotal)}
+          detail={`${formatNumber(billsPaid)} paid in full`}
           tone="info"
-          statusText="For awareness"
+          statusText="All time"
           icon={ReceiptText}
-          meaning="Unpaid and part-paid bills, worked out as total minus paid."
+          meaning="Every bill on the books, and how many are settled."
         />
         <HealthCard
           label="Payments (7 days)"
@@ -326,26 +283,22 @@ export function MoneyPanel({ p, o }: { p: Pulse; o: Ops }) {
           meaning="How many payments were recorded in the last 7 days."
         />
         <HealthCard
-          label="Waiting for Finance to check"
-          value={formatNumber(o.pendingSubmissions)}
-          detail={
-            o.oldestSubmission
-              ? `oldest ${ageDays(o.oldestSubmission)} days`
-              : "nothing waiting"
-          }
+          label="Money-book lines (30 days)"
+          value={formatNumber(o.ledgerLines30)}
+          detail="every movement of money"
           tone="info"
-          statusText="For awareness"
-          icon={HandCoins}
-          meaning="Payments handed up by Support that Finance has not verified yet. They are not money in the books until checked."
+          statusText="Ledger"
+          icon={Clock}
+          meaning="Lines written to the ledger in 30 days. Lines are never edited; a mistake is answered by a new line."
         />
         <HealthCard
-          label="Expenses waiting approval"
-          value={formatNumber(o.pendingExpenses)}
-          detail="not yet approved or paid"
+          label="Corrections (30 days)"
+          value={formatNumber(o.corrections30)}
+          detail="lines that reverse an earlier one"
           tone="info"
-          statusText="For awareness"
-          icon={Clock}
-          meaning="Costs that have been entered and are still waiting for a decision."
+          statusText="Ledger"
+          icon={HandCoins}
+          meaning="A correction is a line that reverses an earlier one. A few is normal; a sudden jump is worth a look at the cause."
         />
       </div>
 
@@ -479,45 +432,6 @@ export function MoneyPanel({ p, o }: { p: Pulse; o: Ops }) {
           </CardContent>
         </Card>
       </section>
-
-      <ListCard
-        title="Oldest bills still waiting"
-        text="Unpaid or part-paid, oldest first. The amount is what is still owed."
-        empty="No bills are waiting for money."
-        isEmpty={p.oldestUnpaid.length === 0}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Bill</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead className="text-right">Owed</TableHead>
-              <TableHead className="text-right">Age</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {p.oldestUnpaid.map((b) => (
-              <TableRow key={b.number}>
-                <TableCell className="whitespace-nowrap font-mono text-xs">
-                  {b.number}
-                </TableCell>
-                <TableCell className="max-w-[16rem] truncate text-sm">
-                  {b.customer}
-                </TableCell>
-                <TableCell className="whitespace-nowrap text-right text-sm tabular-nums">
-                  {formatMoney(b.owed, b.currency)}
-                </TableCell>
-                <TableCell
-                  className="whitespace-nowrap text-right text-sm text-muted-foreground"
-                  title={eat(b.issued)}
-                >
-                  {ageDays(b.issued)} days
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </ListCard>
     </div>
   );
 }
@@ -525,29 +439,12 @@ export function MoneyPanel({ p, o }: { p: Pulse; o: Ops }) {
 /* ───────────────────── tab: Messages & requests ───────────────────── */
 
 export function MessagesPanel({ o }: { o: Ops }) {
-  const requests = o.pendingBookings + o.pendingPickups;
+  const ticketTotal = o.ticketsByStatus.reduce((n, t) => n + t.n, 0);
+  const sourcingTotal = o.sourcingByStatus.reduce((n, t) => n + t.n, 0);
   const messages14 = o.messageSeries.reduce((s, d) => s + d.n, 0);
   return (
     <div className="space-y-6">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <HealthCard
-          label="Open tickets"
-          value={formatNumber(o.openTickets)}
-          detail="Customer Care"
-          tone="info"
-          statusText="For awareness"
-          icon={LifeBuoy}
-          meaning="Tickets that are open, in progress or waiting for the customer."
-        />
-        <HealthCard
-          label="Requests waiting"
-          value={formatNumber(requests)}
-          detail={`${plural(o.pendingBookings, "booking")} · ${plural(o.pendingPickups, "pickup")}`}
-          tone="info"
-          statusText="For awareness"
-          icon={Truck}
-          meaning="Booking and pickup requests from the public website that nobody has contacted yet."
-        />
         <HealthCard
           label="Messages sent (14 days)"
           value={formatNumber(messages14)}
@@ -565,6 +462,24 @@ export function MessagesPanel({ o }: { o: Ops }) {
           statusText="Inbox"
           icon={BellRing}
           meaning="Notifications sitting unread in staff bells. A very large number means people are not looking at them."
+        />
+        <HealthCard
+          label="Tickets opened"
+          value={formatNumber(ticketTotal)}
+          detail="Customer Care, all time"
+          tone="info"
+          statusText="All time"
+          icon={LifeBuoy}
+          meaning="Every support ticket ever opened."
+        />
+        <HealthCard
+          label="Sourcing requests"
+          value={formatNumber(sourcingTotal)}
+          detail="all time"
+          tone="info"
+          statusText="All time"
+          icon={Truck}
+          meaning="Customers who asked the team to find or buy a product."
         />
       </div>
 
@@ -605,85 +520,6 @@ export function MessagesPanel({ o }: { o: Ops }) {
             />
           </CardContent>
         </Card>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-2">
-        <ListCard
-          title="Oldest open tickets"
-          text="Waiting on Customer Care, oldest first."
-          empty="No open tickets."
-          isEmpty={o.oldestTickets.length === 0}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Ticket</TableHead>
-                <TableHead>About</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead className="text-right">Waiting</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {o.oldestTickets.map((t) => (
-                <TableRow key={t.number}>
-                  <TableCell className="whitespace-nowrap font-mono text-xs">
-                    {t.number}
-                  </TableCell>
-                  <TableCell className="max-w-[14rem] truncate text-sm">
-                    {t.subject}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{humanize(t.priority)}</Badge>
-                  </TableCell>
-                  <TableCell
-                    className="whitespace-nowrap text-right text-sm text-muted-foreground"
-                    title={eat(t.createdAt)}
-                  >
-                    {ageDays(t.createdAt)} days
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </ListCard>
-
-        <ListCard
-          title="Oldest website requests"
-          text="Booking and pickup requests nobody has contacted yet."
-          empty="Every request has been answered."
-          isEmpty={o.oldestRequests.length === 0}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Request</TableHead>
-                <TableHead>From</TableHead>
-                <TableHead className="text-right">Waiting</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {o.oldestRequests.map((r) => (
-                <TableRow key={r.reference}>
-                  <TableCell className="whitespace-nowrap text-sm">
-                    <Badge variant="outline" className="mr-2">
-                      {r.kind}
-                    </Badge>
-                    <span className="font-mono text-xs">{r.reference}</span>
-                  </TableCell>
-                  <TableCell className="max-w-[12rem] truncate text-sm">
-                    {r.who}
-                  </TableCell>
-                  <TableCell
-                    className="whitespace-nowrap text-right text-sm text-muted-foreground"
-                    title={eat(r.createdAt)}
-                  >
-                    {ageDays(r.createdAt)} days
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </ListCard>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">

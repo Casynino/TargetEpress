@@ -120,6 +120,14 @@ export default async function DeveloperHomePage() {
       <StatusStrip m={m} />
       <Attention m={m} />
 
+      <Section
+        id="activity"
+        title="Activity"
+        text="Who is signing in and what the team is doing."
+      >
+        <ActivityPanel m={m} online={pulse.onlineNow} />
+      </Section>
+
       <Band>The system</Band>
 
       <Section
@@ -147,14 +155,6 @@ export default async function DeveloperHomePage() {
       </Section>
 
       <Band>The business, for awareness</Band>
-
-      <Section
-        id="activity"
-        title="Activity"
-        text="Who is signing in and what the team is doing."
-      >
-        <ActivityPanel m={m} online={pulse.onlineNow} />
-      </Section>
 
       <Section
         id="cargo"
