@@ -5,6 +5,7 @@ import { Eye, Loader2, Search } from "lucide-react";
 import { useFormStatus } from "react-dom";
 
 import { FormError } from "@/components/app/form-feedback";
+import { ActionTile } from "@/components/developer/action-tile";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -62,11 +63,11 @@ function PersonRow({ person }: { person: WorkAsPerson }) {
  */
 export function DeveloperWorkAs({
   people,
-  onHero = false,
+  tile = false,
 }: {
   people: WorkAsPerson[];
-  /** On the violet Home banner: an outlined white button. */
-  onHero?: boolean;
+  /** On the Home page it is a tile among the others; elsewhere a button. */
+  tile?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -74,6 +75,11 @@ export function DeveloperWorkAs({
     startWorkingAs,
     undefined,
   );
+
+  const openIt = () => {
+    setQ("");
+    setOpen(true);
+  };
 
   const needle = q.trim().toLowerCase();
   const shown = needle
@@ -84,27 +90,29 @@ export function DeveloperWorkAs({
 
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        className={cn(
-          "rounded-full",
-          onHero &&
-            "border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white",
-        )}
-        onClick={() => {
-          setQ("");
-          setOpen(true);
-        }}
-      >
-        <Eye className="mr-1.5 size-4" />
-        Work as someone
-      </Button>
+      {tile ? (
+        <ActionTile
+          icon={Eye}
+          title="Work as"
+          text="See the app as any person sees it."
+          onClick={openIt}
+        />
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          className="rounded-full"
+          onClick={openIt}
+        >
+          <Eye className="mr-1.5 size-4" />
+          Work as
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Work as someone</DialogTitle>
+            <DialogTitle>Work as</DialogTitle>
             <DialogDescription>
               Pick a person to see the app exactly as they see it. View only —
               nothing can be changed.

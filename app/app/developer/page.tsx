@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { BarChart3, LogIn, ScrollText } from "lucide-react";
+import { BarChart3, ScrollText } from "lucide-react";
 
 import { DeveloperAddPerson } from "@/components/app/developer-add-person";
 import { DeveloperWorkAs } from "@/components/app/developer-work-as";
@@ -87,42 +87,33 @@ export default async function DeveloperHomePage() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <DevHero
         eyebrow={dateLabel}
         title={`${greeting}, ${firstName}.`}
         subtitle="Your control room for Target Express — health, people and everything done, in one place."
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <DeveloperWorkAs onHero people={people} />
-            <DeveloperAddPerson onHero roles={roles} />
-          </div>
-        }
       />
 
-      <StatusStrip m={m} />
-      <Attention m={m} />
-
-      <section className="grid gap-3 md:grid-cols-3">
-        <QuickLink
-          href="/app/developer/accounts"
-          icon={LogIn}
-          title="Open Access (work as someone)"
-          text="Open the app as the owner, Finance or a warehouse clerk to see exactly what they see. One click. View only, and every start is recorded under your name."
-        />
+      {/* What you press, in one row: the two things that act, then the two that look. */}
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <DeveloperWorkAs tile people={people} />
+        <DeveloperAddPerson tile roles={roles} />
         <QuickLink
           href="/app/developer/audit"
           icon={ScrollText}
-          title="Open Audit"
-          text="The permanent diary of everything done in the system — by staff and by you. Developer lines can never be edited or deleted."
+          title="Audit"
+          text="Everything done in the system, by staff and by you."
         />
         <QuickLink
           href="/app/developer/business"
           icon={BarChart3}
-          title="Open Business"
-          text="See cargo, bills, payments and customers in read-only tables. Good for checking a number without risking a change."
+          title="Business"
+          text="Cargo, bills, payments and customers. Read only."
         />
       </section>
+
+      <StatusStrip m={m} />
+      <Attention m={m} />
 
       <HomeTabs
         tabs={tabs}

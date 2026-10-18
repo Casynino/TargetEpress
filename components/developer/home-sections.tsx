@@ -188,24 +188,26 @@ export function Attention({ m }: { m: Monitor }) {
   const know = m.problems.filter((p) => p.level === "info");
   return (
     <section className="space-y-4">
-      <div>
-        <SectionTitle
-          title={act.length ? `Needs your attention · ${act.length}` : "Needs your attention"}
-          text="Checked just now. Tap a card to see what it means and what to do."
-          className="mb-3"
-        />
-        {act.length === 0 ? (
-          <InfoCallout icon={CheckCircle2} tone="good" title="Nothing needs your attention">
-            Nothing is broken and nothing is waiting too long.
-          </InfoCallout>
-        ) : (
+      {act.length === 0 ? (
+        <div className="flex items-center gap-2.5 rounded-xl border border-success/25 bg-success/10 px-4 py-2.5 text-sm">
+          <CheckCircle2 className="size-4 shrink-0 text-success" />
+          <span className="font-medium">Nothing needs your attention</span>
+          <span className="hidden text-muted-foreground sm:inline">— nothing is broken or waiting too long.</span>
+        </div>
+      ) : (
+        <div>
+          <SectionTitle
+            title={`Needs your attention · ${act.length}`}
+            text="Checked just now. Tap a card to see what it means and what to do."
+            className="mb-3"
+          />
           <div className="grid items-start gap-3 md:grid-cols-2">
             {act.map((p) => (
               <ProblemCard key={p.title} p={p} />
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
       {know.length > 0 && (
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Good to know · {know.length}</p>

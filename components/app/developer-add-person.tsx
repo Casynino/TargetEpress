@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { Eye, EyeOff, RefreshCw, UserPlus } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { ActionTile } from "@/components/developer/action-tile";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,13 +23,25 @@ import type { ActionResult } from "@/lib/actions/types";
 const WAREHOUSE = new Set(["CHINA_WAREHOUSE", "DAR_WAREHOUSE"]);
 
 /** The order people think of them in: the floor first, the owner last. */
-const ROLE_ORDER = ["CHINA_WAREHOUSE", "DAR_WAREHOUSE", "FINANCE", "CUSTOMER_CARE", "MANAGER", "ADMIN"];
+const ROLE_ORDER = [
+  "CHINA_WAREHOUSE",
+  "DAR_WAREHOUSE",
+  "FINANCE",
+  "CUSTOMER_CARE",
+  "MANAGER",
+  "ADMIN",
+];
 
 /** No look-alikes (0/O, 1/l/I), so a password read out over the phone survives. */
-const PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+const PASSWORD_CHARS =
+  "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
 function makePassword() {
   const bytes = crypto.getRandomValues(new Uint32Array(10));
-  return Array.from(bytes, (n) => PASSWORD_CHARS[n % PASSWORD_CHARS.length]).join("") + "7";
+  return (
+    Array.from(bytes, (n) => PASSWORD_CHARS[n % PASSWORD_CHARS.length]).join(
+      "",
+    ) + "7"
+  );
 }
 
 /**
@@ -43,25 +56,31 @@ function makePassword() {
  */
 export function DeveloperAddPerson({
   roles,
-  onHero = false,
+  tile = false,
 }: {
   roles: { value: string; label: string }[];
-  /** On the violet Home banner: a white button and white confirmation text. */
-  onHero?: boolean;
+  /** On the Home page it is a tile among the others; elsewhere a button. */
+  tile?: boolean;
 }) {
-  const ordered = ROLE_ORDER.map((v) => roles.find((r) => r.value === v)).filter(
-    (r): r is { value: string; label: string } => Boolean(r)
-  );
+  const ordered = ROLE_ORDER.map((v) =>
+    roles.find((r) => r.value === v),
+  ).filter((r): r is { value: string; label: string } => Boolean(r));
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(true);
   const [formKey, setFormKey] = useState(0);
   const [created, setCreated] = useState<string | null>(null);
-  const [state, action, pending] = useActionState<ActionResult | undefined, FormData>(
-    createUser,
-    undefined
-  );
+  const [state, action, pending] = useActionState<
+    ActionResult | undefined,
+    FormData
+  >(createUser, undefined);
+  const openIt = () => {
+    setCreated(null);
+    setPassword(makePassword());
+    setShowPassword(true);
+    setOpen(true);
+  };
   const nameRef = useRef("");
   const wasPending = useRef(false);
 
@@ -83,30 +102,34 @@ export function DeveloperAddPerson({
   }, [pending, state]);
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      {created ? (
-        <p className={cn("text-sm", onHero ? "font-medium text-white" : "text-success")}>Created {created}.</p>
-      ) : null}
-      <Button
-        type="button"
-        className={cn("rounded-full", onHero && "bg-white text-violet-900 hover:bg-white/90")}
-        onClick={() => {
-          setCreated(null);
-          setPassword(makePassword());
-          setShowPassword(true);
-          setOpen(true);
-        }}
-      >
-        <UserPlus className="mr-1.5 size-4" />
-        Add an account
-      </Button>
+    <>
+      {tile ? (
+        <ActionTile
+          icon={UserPlus}
+          title="Add an account"
+          text={created ? `Created ${created}.` : "Staff, manager or owner."}
+          tone={created ? "success" : "default"}
+          onClick={openIt}
+        />
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          {created ? (
+            <p className="text-sm text-success">Created {created}.</p>
+          ) : null}
+          <Button type="button" className="rounded-full" onClick={openIt}>
+            <UserPlus className="mr-1.5 size-4" />
+            Add an account
+          </Button>
+        </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Add an account</DialogTitle>
             <DialogDescription className="sr-only">
-              They sign in with this email and password. Their screens are chosen by their role.
+              They sign in with this email and password. Their screens are
+              chosen by their role.
             </DialogDescription>
           </DialogHeader>
 
@@ -114,21 +137,46 @@ export function DeveloperAddPerson({
             key={formKey}
             action={action}
             onSubmit={(e) => {
-              nameRef.current = String(new FormData(e.currentTarget).get("name") ?? "");
+              nameRef.current = String(
+                new FormData(e.currentTarget).get("name") ?? "",
+              );
             }}
             className="space-y-4"
           >
             <div className="space-y-1.5">
-              <Label htmlFor="add-name" className="text-xs">Full name</Label>
-              <Input id="add-name" name="name" required autoFocus placeholder="e.g. Asha Juma" />
+              <Label htmlFor="add-name" className="text-xs">
+                Full name
+              </Label>
+              <Input
+                id="add-name"
+                name="name"
+                required
+                autoFocus
+                placeholder="e.g. Asha Juma"
+              />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="add-email" className="text-xs">Email</Label>
-              <Input id="add-email" name="email" type="email" required placeholder="name@company.com" />
+              <Label htmlFor="add-email" className="text-xs">
+                Email
+              </Label>
+              <Input
+                id="add-email"
+                name="email"
+                type="email"
+                required
+                placeholder="name@company.com"
+              />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="add-phone" className="text-xs">Phone (optional)</Label>
-              <Input id="add-phone" name="phone" inputMode="tel" placeholder="+255…" />
+              <Label htmlFor="add-phone" className="text-xs">
+                Phone (optional)
+              </Label>
+              <Input
+                id="add-phone"
+                name="phone"
+                inputMode="tel"
+                placeholder="+255…"
+              />
             </div>
 
             <fieldset className="space-y-1.5">
@@ -141,7 +189,7 @@ export function DeveloperAddPerson({
                       "cursor-pointer rounded-full border px-3.5 py-1.5 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
                       role === r.value
                         ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border text-foreground hover:bg-accent"
+                        : "border-border text-foreground hover:bg-accent",
                     )}
                   >
                     <input
@@ -160,7 +208,9 @@ export function DeveloperAddPerson({
             </fieldset>
 
             <div className="space-y-1.5">
-              <Label htmlFor="add-password" className="text-xs">Temporary password</Label>
+              <Label htmlFor="add-password" className="text-xs">
+                Temporary password
+              </Label>
               <div className="flex gap-2">
                 <Input
                   id="add-password"
@@ -181,7 +231,11 @@ export function DeveloperAddPerson({
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   onClick={() => setShowPassword((v) => !v)}
                 >
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  {showPassword ? (
+                    <EyeOff className="size-4" />
+                  ) : (
+                    <Eye className="size-4" />
+                  )}
                 </Button>
                 <Button
                   type="button"
@@ -205,14 +259,29 @@ export function DeveloperAddPerson({
               </summary>
               <div className="mt-3 grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="add-eid" className="text-xs">Employee ID</Label>
-                  <Input id="add-eid" name="employeeId" placeholder="TX-014" maxLength={24} />
-                  <p className="text-xs text-muted-foreground">Cannot be changed later.</p>
+                  <Label htmlFor="add-eid" className="text-xs">
+                    Employee ID
+                  </Label>
+                  <Input
+                    id="add-eid"
+                    name="employeeId"
+                    placeholder="TX-014"
+                    maxLength={24}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Cannot be changed later.
+                  </p>
                 </div>
                 {WAREHOUSE.has(role) ? (
                   <div className="space-y-1.5">
-                    <Label htmlFor="add-rank" className="text-xs">Warehouse rank</Label>
-                    <NativeSelect id="add-rank" name="rank" defaultValue="OPERATOR">
+                    <Label htmlFor="add-rank" className="text-xs">
+                      Warehouse rank
+                    </Label>
+                    <NativeSelect
+                      id="add-rank"
+                      name="rank"
+                      defaultValue="OPERATOR"
+                    >
                       <option value="OPERATOR">Warehouse Operator</option>
                       <option value="MANAGER">Warehouse Manager</option>
                     </NativeSelect>
@@ -224,7 +293,11 @@ export function DeveloperAddPerson({
             <FormError state={state} />
 
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setOpen(false)}
+              >
                 Cancel
               </Button>
               <SubmitButton className="flex-1" pendingLabel="Creating…">
@@ -234,6 +307,6 @@ export function DeveloperAddPerson({
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
