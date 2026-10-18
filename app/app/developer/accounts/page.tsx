@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Eye, UserPlus } from "lucide-react";
+import { Eye } from "lucide-react";
 
 import { DeveloperAccountTool } from "@/components/app/developer-account-tool";
-import { NewUserForm } from "@/components/app/user-admin";
+import { DeveloperAddPerson } from "@/components/app/developer-add-person";
 import { InfoCallout } from "@/components/developer/info";
 import { Initials, ROLE_INFO } from "@/components/developer/home-sections";
 import { Badge } from "@/components/ui/badge";
@@ -46,27 +46,8 @@ export default async function DeveloperAccessPage() {
             exactly as that person sees it.
           </p>
         </div>
+        <DeveloperAddPerson roles={roles} />
       </div>
-
-      {/* Same form the owner uses, and the same rules — plus the one the owner
-          has and the manager does not: the Developer may open an owner account. */}
-      <details className="group rounded-xl border bg-card shadow-soft open:pb-1">
-        <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-3.5 [&::-webkit-details-marker]:hidden">
-          <span className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary">
-            <UserPlus className="size-4" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold">Add a person</span>
-            <span className="block text-xs text-muted-foreground">
-              Create an account for anyone — staff, manager or owner. They sign in with the email and password you set.
-            </span>
-          </span>
-          <span className="rounded-full border px-3 py-1 text-xs font-medium group-open:hidden">Open</span>
-        </summary>
-        <div className="max-w-xl px-3 pb-3 [&>section]:border-0 [&>section]:shadow-none">
-          <NewUserForm />
-        </div>
-      </details>
 
       <InfoCallout icon={Eye} title="What “Work as” does">
         You see the app as they see it, so you can help them or find why something looks different. It is view only:
