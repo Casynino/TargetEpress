@@ -257,8 +257,10 @@ check("a Developer cannot reactivate an account somebody else suspended", users.
 check("the role dropdowns leave Developer out", readFileSync("components/app/user-admin.tsx", "utf8").includes('o.value !== "DEVELOPER"'));
 check("the Developer cannot reach the staff screen that asks no reason", readFileSync("app/app/admin/users/page.tsx", "utf8").includes('redirect("/app/developer/accounts")'));
 const sessionSrc = readFileSync("lib/session.ts", "utf8");
-check("work-as keeps the account-takeover door shut: user.manage is refused while it is on", /WORK_AS_NEVER: Permission\[\] = \["user\.manage"\]/.test(sessionSrc) && sessionSrc.includes("user.impersonatedBy && WORK_AS_NEVER.includes(permission)"));
-check("…and so is the person's own password change", /changeMyPassword[\s\S]*?if \(user\.impersonatedBy\)/.test(readFileSync("lib/actions/profile.ts", "utf8")));
+check("work-as refuses nothing: no list of closed permissions, no check that reads impersonatedBy", !/WORK_AS_NEVER/.test(sessionSrc) && !/impersonatedBy\s*&&/.test(sessionSrc.slice(sessionSrc.indexOf("export async function authorize"), sessionSrc.indexOf("export async function currentUser"))));
+check("…and the person's own password change is open too", !/impersonatedBy/.test(readFileSync("lib/actions/profile.ts", "utf8")));
+check("the Developer's own powers (delete an account or a customer, suspend a customer) stay open while working as someone", /actor\.role !== DEVELOPER && !actor\.impersonatedBy/.test(users) && (readFileSync("lib/actions/customers.ts", "utf8").match(/user\.role !== "DEVELOPER" && !user\.impersonatedBy/g)?.length ?? 0) === 2);
+check("a Developer account is still never touched from the app, even while working as someone", (users.match(/blockDeveloperTarget\(/g)?.length ?? 0) >= 4);
 check("work-as is NOT blocked for every action any more (the owner chose Everything, recorded)", !sessionSrc.includes("which is view-only"));
 check("work-as writes are attributed to the Developer in the trail", readFileSync("lib/audit.ts", "utf8").includes("workingAs: { id: input.actor!.id, name: input.actor!.name }"));
 

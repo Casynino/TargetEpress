@@ -29,7 +29,7 @@ let minuteCount = 0;
 
 /** Business refusals that are thrown as errors on purpose — not bugs. */
 const EXPECTED =
-  /^(NEXT_REDIRECT|NEXT_NOT_FOUND|You do not have permission|Not signed in|You cannot do that while working as someone|Your session has expired)/i;
+  /^(NEXT_REDIRECT|NEXT_NOT_FOUND|You do not have permission|Not signed in|Your session has expired)/i;
 
 export function cleanMessage(raw: unknown): string {
   const first =

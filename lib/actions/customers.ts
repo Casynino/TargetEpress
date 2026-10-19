@@ -896,7 +896,7 @@ export async function setCustomerSuspended(
     return fail(toActionError(error));
   }
   const locale = await viewerLocale();
-  if (user.role !== "DEVELOPER") {
+  if (user.role !== "DEVELOPER" && !user.impersonatedBy) {
     return fail(t(locale, "Only the Developer can suspend a customer."));
   }
 
@@ -984,7 +984,7 @@ export async function removeCustomer(
     return fail(toActionError(error));
   }
   const locale = await viewerLocale();
-  if (user.role !== "DEVELOPER") {
+  if (user.role !== "DEVELOPER" && !user.impersonatedBy) {
     return fail(t(locale, "Only the Developer can delete a customer."));
   }
 

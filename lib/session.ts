@@ -186,32 +186,20 @@ export async function requirePermission(
  * For server actions. Throws instead of redirecting so the caller can return a
  * typed error to the form rather than a mystery navigation.
  */
-/** Permissions that stay closed while working as somebody — see authorize(). */
-const WORK_AS_NEVER: Permission[] = ["user.manage"];
-
 export async function authorize(permission: Permission): Promise<SessionUser> {
   const user = await viewer();
   if (!user) throw new Error("Not signed in.");
   /*
-    WORKING AS SOMEBODY: EVERYTHING THEY CAN DO, NOTHING THAT TAKES THEM OVER.
+    WORKING AS SOMEBODY IS FULL ACCESS AS THEM — NOTHING IS CLOSED.
 
-    The Developer may do whatever the person they are working as may do — that
-    is how they help, and how they test. Every line it writes is recorded under
-    the DEVELOPER, with the borrowed identity in the metadata (lib/audit.ts), so
-    the trail always says who really did it and as whom.
-
-    What stays refused is whatever would let "work as" become a way to keep an
-    account: opening accounts, changing roles, resetting passwords, suspending
-    or reactivating people. That is the one power that outlives the session, so
-    it is closed here, once, for every action behind `user.manage` — and the
-    person's own password change is closed in lib/actions/profile.ts.
+    The Developer may do whatever the person they are working as may do:
+    accounts, roles, passwords, money, all of it. The owner chose this
+    knowingly and more than once, so there is no list of refusals here. The
+    check below is simply that person's own permission, and every line a
+    Developer writes is recorded under the DEVELOPER with the borrowed identity
+    in the metadata (lib/audit.ts), so the trail always says who really did it
+    and as whom.
   */
-  if (user.impersonatedBy && WORK_AS_NEVER.includes(permission)) {
-    await recordWorkAsRefusal(user, permission);
-    throw new Error(
-      "You cannot do that while working as someone else: accounts, roles and passwords are closed to Work as. Stop working as them first."
-    );
-  }
   if (!can(user.role, permission)) {
     /* A refused action by the Developer goes on the audit trail as a failure.
        Awaited — and never throws — so the record exists by the time the
@@ -242,19 +230,4 @@ export async function authorizeRealDeveloper(): Promise<SessionUser> {
     throw new Error("You do not have permission to do that.");
   }
   return real;
-}
-
-async function recordWorkAsRefusal(looking: SessionUser, permission: string) {
-  const real = looking.impersonatedBy;
-  if (!real) return;
-  await recordDeniedAttempt(
-    {
-      id: real.id,
-      name: real.name,
-      email: real.email,
-      role: DEVELOPER,
-      department: "MANAGEMENT",
-    },
-    `${permission} (while looking as ${looking.name})`
-  );
 }

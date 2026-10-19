@@ -726,7 +726,7 @@ export async function deleteUser(
     return fail(toActionError(error));
   }
   const locale = await viewerLocale();
-  if (actor.role !== DEVELOPER) {
+  if (actor.role !== DEVELOPER && !actor.impersonatedBy) {
     return fail(t(locale, "Only the Developer can delete an account."));
   }
 

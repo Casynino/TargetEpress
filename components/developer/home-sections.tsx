@@ -1163,11 +1163,11 @@ export function PeoplePanel({ m }: { m: Monitor }) {
             className="h-full"
             icon={KeyRound}
             tone="warn"
-            title="What you cannot do while working as someone"
+            title="Working as someone is full access"
           >
-            Open accounts, change roles, reset or change passwords, suspend
-            people. Everything else you may do as them, and it is all recorded
-            as you. This stops Work as from being used to take over an account.
+            You can do everything they can do: add, change and remove, accounts
+            and passwords included. Nothing is closed, and all of it is
+            recorded under your name.
           </InfoCallout>
         </div>
       </div>
