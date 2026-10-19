@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 
 import { BUILD_ID } from "@/lib/build-id";
 import { prisma } from "@/lib/prisma";
-import { NOT_REMOVED } from "@/lib/developer-shared";
+import { DEVELOPER_ONLY_ACTIONS, NOT_REMOVED } from "@/lib/developer-shared";
 import { guard } from "@/lib/developer/safe";
 
 /**
@@ -273,7 +273,7 @@ export async function getMonitor(
                  count(*) FILTER (WHERE NOT ${DEV_LINE_SQL})::int AS staff,
                  count(*) FILTER (WHERE ${DEV_LINE_SQL})::int AS dev
           FROM "AuditLog"
-          WHERE "createdAt" >= ${since} AND action NOT LIKE 'auth.%' AND action NOT LIKE 'system.%' AND action NOT LIKE 'job.%'
+          WHERE "createdAt" >= ${since} AND action NOT LIKE 'auth.%' AND action NOT LIKE 'system.%' AND action NOT LIKE 'job.%' AND action NOT IN ('developer.denied', 'developer.login.failed', 'developer.workas.start', 'developer.workas.stop', 'developer.workas.refused')
           GROUP BY 1`,
       [],
     ),
@@ -282,7 +282,7 @@ export async function getMonitor(
         prisma.$queryRaw<{ h: number; n: number }[]>`
           SELECT extract(hour FROM (("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Dar_es_Salaam'))::int AS h, count(*)::int AS n
           FROM "AuditLog"
-          WHERE "createdAt" >= ${since} AND action NOT LIKE 'auth.%' AND action NOT LIKE 'system.%' AND action NOT LIKE 'job.%' AND NOT ${DEV_LINE_SQL}
+          WHERE "createdAt" >= ${since} AND action NOT LIKE 'auth.%' AND action NOT LIKE 'system.%' AND action NOT LIKE 'job.%' AND action NOT IN ('developer.denied', 'developer.login.failed', 'developer.workas.start', 'developer.workas.stop', 'developer.workas.refused') AND NOT ${DEV_LINE_SQL}
           GROUP BY 1`,
       [],
     ),
@@ -291,7 +291,7 @@ export async function getMonitor(
         prisma.$queryRaw<{ name: string; n: number }[]>`
           SELECT coalesce(u."name", a."actorEmail", 'System') AS name, count(*)::int AS n
           FROM "AuditLog" a LEFT JOIN "User" u ON u.id = a."actorId"
-          WHERE a."createdAt" >= ${since7} AND a.action NOT LIKE 'auth.%' AND a.action NOT LIKE 'system.%' AND a.action NOT LIKE 'job.%'
+          WHERE a."createdAt" >= ${since7} AND a.action NOT LIKE 'auth.%' AND a.action NOT LIKE 'system.%' AND a.action NOT LIKE 'job.%' AND a.action NOT IN ('developer.denied', 'developer.login.failed', 'developer.workas.start', 'developer.workas.stop', 'developer.workas.refused')
             AND NOT (a.action LIKE 'developer.%' OR coalesce(a."metadata" ->> 'developer', '') = 'true')
           GROUP BY 1 ORDER BY n DESC LIMIT 5`,
       [],
@@ -301,7 +301,7 @@ export async function getMonitor(
         prisma.$queryRaw<{ name: string; n: number }[]>`
           SELECT entity AS name, count(*)::int AS n
           FROM "AuditLog"
-          WHERE "createdAt" >= ${since7} AND action NOT LIKE 'auth.%' AND action NOT LIKE 'system.%' AND action NOT LIKE 'job.%' AND NOT ${DEV_LINE_SQL}
+          WHERE "createdAt" >= ${since7} AND action NOT LIKE 'auth.%' AND action NOT LIKE 'system.%' AND action NOT LIKE 'job.%' AND action NOT IN ('developer.denied', 'developer.login.failed', 'developer.workas.start', 'developer.workas.stop', 'developer.workas.refused') AND NOT ${DEV_LINE_SQL}
           GROUP BY 1 ORDER BY n DESC LIMIT 6`,
       [],
     ),
@@ -535,6 +535,7 @@ export async function getMonitor(
               { action: { startsWith: "auth." } },
               { action: { startsWith: "system." } },
               { action: { startsWith: "job." } },
+              { action: { in: [...DEVELOPER_ONLY_ACTIONS] } },
             ],
           },
         }),

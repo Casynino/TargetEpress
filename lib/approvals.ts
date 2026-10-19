@@ -12,6 +12,7 @@ import { roundMoney, toNumber } from "@/lib/format";
 import { currentRateValue } from "@/lib/fx";
 import { BASE_CURRENCY } from "@/lib/money";
 import { pendingPayrollApproval } from "@/lib/payroll";
+import { NOT_DEVELOPER_TRAIL } from "@/lib/developer-shared";
 import { prisma } from "@/lib/prisma";
 import { statementSummary, submittedStatements } from "@/lib/statements";
 
@@ -481,7 +482,7 @@ export async function decisionHistory(take = 30): Promise<Decision[]> {
   const [approved, rejected] = await Promise.all(
     (["approved", "rejected"] as const).map((outcome) =>
       prisma.auditLog.findMany({
-        where: { action: { in: actionsFor(outcome) } },
+        where: { AND: [NOT_DEVELOPER_TRAIL, { action: { in: actionsFor(outcome) } }] },
         orderBy: { createdAt: "desc" },
         take,
         select,

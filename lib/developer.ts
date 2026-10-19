@@ -163,24 +163,22 @@ async function checkAttempt(
     data: { lastLoginAt: now, lastActiveAt: now },
   });
 
-  await db.auditLog.create({
-    data: {
-      actorId: user.id,
-      actorEmail: user.email,
-      actorRole: user.role,
-      action: "auth.login",
-      entity: "User",
-      entityId: user.id,
-      summary: developerRow
-        ? `${user.name} signed in as Developer`
-        : `${user.name} signed in`,
-      metadata: developerRow
-        ? (developerMetadata(undefined, {
-            outcome: "success",
-          }) as unknown as Prisma.InputJsonValue)
-        : undefined,
-    },
-  });
+  /* The Developer's own sign-in leaves no line: only a change does. The sign-in
+     is still counted (LoginEvent), which is what the throttle and the Sign-ins
+     panel read. Staff sign-ins are recorded as before. */
+  if (!developerRow) {
+    await db.auditLog.create({
+      data: {
+        actorId: user.id,
+        actorEmail: user.email,
+        actorRole: user.role,
+        action: "auth.login",
+        entity: "User",
+        entityId: user.id,
+        summary: `${user.name} signed in`,
+      },
+    });
+  }
 
   return {
     id: user.id,
@@ -277,40 +275,6 @@ export async function recordDeveloperAudit(input: DeveloperAction): Promise<stri
       refs: input.refs,
     }) as unknown as Prisma.InputJsonValue,
   });
-}
-
-/**
- * A REFUSED ACTION BY THE DEVELOPER IS A FACT, NOT A SILENCE.
- *
- * "Developer attempted to modify a payment" is the line the owner asked to be
- * able to read. authorize() calls this whenever the Developer is refused, so
- * every server action — all of which authorize first — contributes to it with
- * no change to any of them.
- *
- * It never throws: a log that failed to write must not turn a clean refusal
- * into a crash, nor — worse — into a different answer. The refusal happens
- * either way; the failure to record it goes to the server log.
- */
-export async function recordDeniedAttempt(
-  actor: SessionUser,
-  permission: string
-) {
-  if (actor.role !== DEVELOPER) return;
-  try {
-    await recordDeveloperAudit({
-      actor,
-      action: "developer.denied",
-      entity: "Permission",
-      entityId: permission,
-      summary: `Developer attempted "${permission}" — refused, the Developer role does not hold it`,
-      outcome: "failure",
-    });
-  } catch (error) {
-    console.error("Could not record a refused developer action", {
-      permission,
-      error,
-    });
-  }
 }
 
 /**

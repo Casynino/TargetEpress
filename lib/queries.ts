@@ -21,6 +21,7 @@ import type { Locale } from "@/lib/locale";
 import { REJECTED_NEEDING_A_CALL } from "@/lib/collections";
 import { sequenceFromBatchNumber } from "@/lib/cargo";
 import { COMPANY } from "@/lib/constants";
+import { NOT_DEVELOPER_TRAIL } from "@/lib/developer-shared";
 import { currentRateValue } from "@/lib/fx";
 import { MONEY_OUT_KINDS } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
@@ -1587,7 +1588,7 @@ const SEVERE_EXCEPTION: Record<ExceptionType, boolean> = {
  */
 export async function recentActivity(limit = 12, actorId?: string) {
   return prisma.auditLog.findMany({
-    where: actorId ? { actorId } : {},
+    where: { AND: [NOT_DEVELOPER_TRAIL, actorId ? { actorId } : {}] },
     orderBy: { createdAt: "desc" },
     take: limit,
     select: {

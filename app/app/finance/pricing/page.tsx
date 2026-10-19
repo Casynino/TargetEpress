@@ -26,6 +26,7 @@ import { CATEGORY_LABELS } from "@/lib/cargo";
 import { formatDateTime, formatRelative, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
+import { NOT_DEVELOPER_TRAIL } from "@/lib/developer-shared";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -95,16 +96,21 @@ export default async function PricingConfigurationPage() {
     // the change nobody knows to question.
     prisma.auditLog.findMany({
       where: {
-        action: {
-          in: [
-            "fx.setRate",
-            "pricing.publishRule",
-            "pricing.withdrawRule",
-            "pricing.createProduct",
-            "pricing.archiveProduct",
-            "pricing.restoreProduct",
-          ],
-        },
+        AND: [
+          NOT_DEVELOPER_TRAIL,
+          {
+            action: {
+              in: [
+                "fx.setRate",
+                "pricing.publishRule",
+                "pricing.withdrawRule",
+                "pricing.createProduct",
+                "pricing.archiveProduct",
+                "pricing.restoreProduct",
+              ],
+            },
+          },
+        ],
       },
       orderBy: { createdAt: "desc" },
       take: 12,

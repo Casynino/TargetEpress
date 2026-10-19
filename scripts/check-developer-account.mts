@@ -25,11 +25,11 @@ import {
   developerAssignmentRefusal,
   developerMetadata,
   developerReasonRefusal,
+  NOT_DEVELOPER_TRAIL,
   developerTargetRefusal,
   formatTanzania,
 } from "@/lib/developer-shared";
 import {
-  recordDeniedAttempt,
   recordDeveloperAudit,
   verifyCredentials,
 } from "@/lib/developer";
@@ -154,16 +154,16 @@ check("a wrong staff password is refused", (await attempt(STAFF_EMAIL, "wrong-pa
 check("a wrong developer password is refused", (await attempt(DEV_EMAIL, "wrong-password")) === null);
 check("an unknown address is refused", (await attempt("nobody@test.invalid", "x")) === null);
 
+const signedInSince = new Date(Date.now() - 60_000);
 const lastFailed = await prisma.auditLog.findFirst({
   where: { action: "developer.login.failed" },
   orderBy: { createdAt: "desc" },
 });
 check("a failed developer sign-in is attributed to NOBODY", lastFailed !== null && lastFailed.actorId === null && lastFailed.actorRole === null);
 const login = await prisma.auditLog.findFirst({
-  where: { action: "auth.login", actorId: dev.id },
-  orderBy: { createdAt: "desc" },
+  where: { action: "auth.login", actorId: dev.id, createdAt: { gte: signedInSince } },
 });
-check("a developer sign-in is recorded under the Developer", login?.actorRole === "DEVELOPER" && (login.metadata as { developer?: boolean })?.developer === true);
+check("a developer sign-in leaves NO audit line: only a change does", login === null);
 const staffLogin = await prisma.auditLog.findFirst({ where: { action: "auth.login", actorId: staff.id }, orderBy: { createdAt: "desc" } });
 check("a staff sign-in is recorded as before, not as a developer line", staffLogin?.actorRole === "FINANCE" && staffLogin.metadata === null);
 
@@ -214,14 +214,7 @@ const staffLine = await recordAudit({ actor: staffActor, action: "guard.staff", 
 const sl = await prisma.auditLog.findUnique({ where: { id: staffLine } });
 check("a staff member's line is stored exactly as before", sl?.actorRole === "FINANCE" && JSON.stringify(sl.metadata) === '{"a":1}');
 
-const before = await prisma.auditLog.count({ where: { action: "developer.denied" } });
-await recordDeniedAttempt(staffActor, "payment.record");
-check("a refused STAFF action writes nothing extra", (await prisma.auditLog.count({ where: { action: "developer.denied" } })) === before);
-await recordDeniedAttempt(devActor, "payment.record");
-const denied = await prisma.auditLog.findFirst({ where: { action: "developer.denied", actorId: dev.id }, orderBy: { createdAt: "desc" } });
-check("a refused DEVELOPER action is recorded as a failure under the Developer",
-  (await prisma.auditLog.count({ where: { action: "developer.denied" } })) === before + 1 &&
-  (denied?.metadata as { outcome?: string })?.outcome === "failure" && denied?.entityId === "payment.record");
+check("a refused developer action leaves no audit line (authorize never writes one)", !/recordDeniedAttempt/.test(readFileSync("lib/session.ts", "utf8")) && !/recordDeniedAttempt/.test(readFileSync("lib/developer.ts", "utf8")));
 
 /* ---------- 6. database: the audit trail cannot be rewritten ---------- */
 section("Audit trail is append-only");
@@ -284,6 +277,21 @@ check("login, password and address are all taken away", /active: false/.test(del
 check("the old email is written into the audit line", /before:\s*\{\s*email:\s*target\.email/.test(delBody));
 check("deleted accounts are left out of the lists people read", ["app/app/developer/accounts/page.tsx", "app/app/admin/users/page.tsx"].every((f) => readFileSync(f, "utf8").includes("NOT_REMOVED")));
 check("suspending the last owner is refused", /onlyActiveOwner\(tx, target\.id\)\)\) \{\s*return \{ error: LAST_OWNER/.test(delSrc));
+
+section("The Developer's track belongs to the Developer");
+const staffScreens = ["app/app/admin/audit/page.tsx", "app/app/finance/audit/page.tsx", "app/app/activity/page.tsx", "app/app/finance/pricing/page.tsx", "lib/queries.ts", "lib/approvals.ts"];
+check("every staff screen that reads the audit trail leaves the Developer's lines out", staffScreens.every((f) => readFileSync(f, "utf8").includes("NOT_DEVELOPER_TRAIL")), staffScreens.filter((f) => !readFileSync(f, "utf8").includes("NOT_DEVELOPER_TRAIL")).join(", "));
+const visibleToStaff = await prisma.auditLog.findMany({ where: { AND: [NOT_DEVELOPER_TRAIL, { id: { in: [id, viaRecordAudit, borrowed, staffLine, ...(lastFailed ? [lastFailed.id] : [])] } }] }, select: { id: true } });
+const visibleIds = new Set(visibleToStaff.map((r) => r.id));
+check("a line the Developer wrote is hidden from staff", !visibleIds.has(id) && !visibleIds.has(viaRecordAudit));
+check("a change the Developer made while working as staff is hidden from staff too", !visibleIds.has(borrowed));
+check("a stranger's failed guess at the Developer password is hidden from staff", lastFailed !== null && !visibleIds.has(lastFailed.id));
+check("a staff member's own line is still shown", visibleIds.has(staffLine));
+const noActor = await recordAudit({ actor: null as never, action: "guard.noactor", entity: "X", summary: "system line" });
+check("a line with no actor at all is still shown (NULL must not hide it)", (await prisma.auditLog.count({ where: { AND: [NOT_DEVELOPER_TRAIL, { id: noActor }] } })) === 1);
+check("a Developer account has no staff profile page for anyone else", readFileSync("app/app/admin/users/[id]/page.tsx", "utf8").includes('person.role === "DEVELOPER"'));
+check("the Developer's own sign-in is not written as a line", /if \(!developerRow\)/.test(readFileSync("lib/developer.ts", "utf8")));
+check("a refused Work as writes no line either", !/developer\.workas\.refused/.test(readFileSync("lib/actions/developer.ts", "utf8")));
 
 section("Suspending or deleting a customer: only the Developer, never the money");
 const custSrc = readFileSync("lib/actions/customers.ts", "utf8");

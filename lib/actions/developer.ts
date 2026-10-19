@@ -47,15 +47,6 @@ export async function startWorkingAs(
   });
   const reason = typedReason || `Opened the app as ${target?.name ?? "an account"}.`;
   if (!target || !canWorkAs(target, developer.id)) {
-    await recordDeveloperAudit({
-      actor: developer,
-      action: "developer.workas.refused",
-      entity: "User",
-      entityId: targetId || null,
-      summary: "Refused an attempt to look as an account that cannot be looked as",
-      outcome: "failure",
-      reason,
-    });
     return fail(t(locale, "You cannot work as that account."));
   }
 

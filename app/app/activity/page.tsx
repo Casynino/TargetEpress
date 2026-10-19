@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/app/page-header";
 import { formatDate } from "@/lib/format";
+import { NOT_DEVELOPER_TRAIL } from "@/lib/developer-shared";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 
@@ -38,7 +39,7 @@ export default async function ActivityPage() {
   await requireUser();
 
   const rows = await prisma.auditLog.findMany({
-    where: { action: { in: OPERATIONAL } },
+    where: { AND: [NOT_DEVELOPER_TRAIL, { action: { in: OPERATIONAL } }] },
     orderBy: { createdAt: "desc" },
     take: 120,
     select: {

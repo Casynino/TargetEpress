@@ -68,7 +68,8 @@ export default async function EmployeeProfilePage({
       createdBy: { select: { name: true } },
     },
   });
-  if (!person) notFound();
+  /* A Developer account is not a staff profile: its track is the Developer's own. */
+  if (!person || person.role === "DEVELOPER") notFound();
 
   const [stats, activity, batches, daily, logins, edits, deletions] =
     await Promise.all([

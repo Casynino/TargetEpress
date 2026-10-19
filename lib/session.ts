@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import type { Department, Role } from "@prisma/client";
 
 import { auth } from "@/auth";
-import { recordDeniedAttempt } from "@/lib/developer";
 import {
   DEVELOPER,
   DEVELOPER_SESSION_HOURS,
@@ -200,11 +199,8 @@ export async function authorize(permission: Permission): Promise<SessionUser> {
     in the metadata (lib/audit.ts), so the trail always says who really did it
     and as whom.
   */
+  /* A refusal leaves no line, the Developer's included: only a change does. */
   if (!can(user.role, permission)) {
-    /* A refused action by the Developer goes on the audit trail as a failure.
-       Awaited — and never throws — so the record exists by the time the
-       refusal reaches the person, and a log that failed cannot change it. */
-    await recordDeniedAttempt(user, permission);
     throw new Error("You do not have permission to do that.");
   }
   return user;
@@ -226,7 +222,6 @@ export async function authorizeRealDeveloper(): Promise<SessionUser> {
   const real = await realViewer();
   if (!real) throw new Error("Not signed in.");
   if (real.role !== DEVELOPER || !can(real.role, "developer.access")) {
-    await recordDeniedAttempt(real, "developer.access");
     throw new Error("You do not have permission to do that.");
   }
   return real;

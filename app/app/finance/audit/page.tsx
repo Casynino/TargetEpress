@@ -10,6 +10,7 @@ import { auditSentence } from "@/lib/audit-humanise";
 import { formatDateTime } from "@/lib/format";
 import { auditActionLabel } from "@/lib/audit-humanise";
 import { t } from "@/lib/i18n";
+import { NOT_DEVELOPER_TRAIL } from "@/lib/developer-shared";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
@@ -114,10 +115,15 @@ export default async function FinanceAuditPage({
   const undoneOnly = params.view === "undone";
 
   const where: Prisma.AuditLogWhereInput = {
-    entity: params.entity && MONEY_ENTITIES.includes(params.entity)
-      ? params.entity
-      : { in: MONEY_ENTITIES },
-    ...(undoneOnly ? { action: { in: UNDONE_ACTIONS } } : {}),
+    AND: [
+      NOT_DEVELOPER_TRAIL,
+      {
+        entity: params.entity && MONEY_ENTITIES.includes(params.entity)
+          ? params.entity
+          : { in: MONEY_ENTITIES },
+        ...(undoneOnly ? { action: { in: UNDONE_ACTIONS } } : {}),
+      },
+    ],
   };
 
   const [entries, total] = await Promise.all([

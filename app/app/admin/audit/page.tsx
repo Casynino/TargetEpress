@@ -11,6 +11,7 @@ import { auditActionLabel, auditSentence } from "@/lib/audit-humanise";
 import { ROLE_LABELS } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
 import { t } from "@/lib/i18n";
+import { NOT_DEVELOPER_TRAIL } from "@/lib/developer-shared";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
@@ -34,16 +35,21 @@ export default async function AuditPage({
   const currentPage = Math.max(1, Number(page ?? "1") || 1);
 
   const where: Prisma.AuditLogWhereInput = {
-    ...(entity ? { entity } : {}),
-    ...(q
-      ? {
-          OR: [
-            { summary: { contains: q.trim(), mode: "insensitive" } },
-            { action: { contains: q.trim(), mode: "insensitive" } },
-            { actorEmail: { contains: q.trim(), mode: "insensitive" } },
-          ],
-        }
-      : {}),
+    AND: [
+      NOT_DEVELOPER_TRAIL,
+      {
+        ...(entity ? { entity } : {}),
+        ...(q
+          ? {
+              OR: [
+                { summary: { contains: q.trim(), mode: "insensitive" } },
+                { action: { contains: q.trim(), mode: "insensitive" } },
+                { actorEmail: { contains: q.trim(), mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      },
+    ],
   };
 
   const [entries, total] = await Promise.all([

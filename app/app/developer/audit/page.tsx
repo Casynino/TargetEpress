@@ -10,12 +10,23 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ROLE_LABELS } from "@/lib/constants";
 import { eat, formatNumber, humanize } from "@/lib/developer/format";
+import { DEVELOPER_ONLY_ACTIONS } from "@/lib/developer-shared";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Audit" };
 export const dynamic = "force-dynamic";
+
+/* Lines that are not somebody changing something: the system's own, the
+   Developer's sign-ins (kept from before they stopped being written), and the
+   Work as bookkeeping the session reads. They have a pill of their own. */
+const NOT_A_CHANGE: Prisma.AuditLogWhereInput[] = [
+  { action: { startsWith: "system." } },
+  { action: { startsWith: "job." } },
+  { action: { in: [...DEVELOPER_ONLY_ACTIONS] } },
+  { action: "auth.login", actorRole: "DEVELOPER" },
+];
 
 const PAGE_SIZE = 50;
 const SCOPES = [
@@ -75,19 +86,9 @@ export default async function DeveloperAuditPage({
   /* The system's own lines (server errors, job runs) are not "who did what", so
      they stay out of Everything and have a pill of their own. */
   if (scope === "system")
-    and.push({
-      OR: [
-        { action: { startsWith: "system." } },
-        { action: { startsWith: "job." } },
-      ],
-    });
+    and.push({ OR: NOT_A_CHANGE });
   else
-    and.push({
-      NOT: [
-        { action: { startsWith: "system." } },
-        { action: { startsWith: "job." } },
-      ],
-    });
+    and.push({ NOT: NOT_A_CHANGE });
   if (scope === "failures")
     and.push({ metadata: { path: ["outcome"], equals: "failure" } });
   if (q)

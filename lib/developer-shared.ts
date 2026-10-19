@@ -1,4 +1,4 @@
-import type { Role } from "@prisma/client";
+import type { Prisma, Role } from "@prisma/client";
 
 /**
  * THE DEVELOPER ACCOUNT — THE PARTS THAT ARE JUST RULES.
@@ -8,6 +8,35 @@ import type { Role } from "@prisma/client";
  * hold the rules up to the light without standing up a server. The parts that
  * touch the database live in lib/developer.ts.
  */
+
+/**
+ * Lines the Developer's account leaves that are NOT a change: starting and
+ * stopping Work as (the session reads them), and a stranger's failed guesses at
+ * the Developer password. Neither belongs in anybody's list of who changed what.
+ */
+export const DEVELOPER_ONLY_ACTIONS = [
+  "developer.login.failed",
+  "developer.workas.start",
+  "developer.workas.stop",
+  "developer.workas.refused",
+  "developer.denied",
+] as const;
+
+/**
+ * WHAT EVERYONE BUT THE DEVELOPER MAY READ OF THE AUDIT TRAIL.
+ *
+ * The Developer's track belongs to the Developer: nothing they did, changed
+ * or tried appears on any staff screen, the owner's and the manager's
+ * included. `actorRole` is nullable (a stranger's failed sign-in has none), so
+ * the first clause is written to keep those rows rather than let SQL's
+ * "NULL is not equal to anything" silently drop them.
+ */
+export const NOT_DEVELOPER_TRAIL: Prisma.AuditLogWhereInput = {
+  AND: [
+    { OR: [{ actorRole: null }, { actorRole: { not: "DEVELOPER" } }] },
+    { action: { notIn: [...DEVELOPER_ONLY_ACTIONS] } },
+  ],
+};
 
 /** The only role value this file is about. Named so a typo is a type error. */
 export const DEVELOPER: Role = "DEVELOPER";
