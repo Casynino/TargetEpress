@@ -24,6 +24,7 @@ export async function GET(request: Request) {
 
   const customers = await prisma.customer.findMany({
     where: {
+      removedAt: null,
       OR: [
         { name: { contains: query, mode: "insensitive" } },
         { code: { contains: query, mode: "insensitive" } },
@@ -44,6 +45,7 @@ export async function GET(request: Request) {
       name: true,
       phone: true,
       city: true,
+      suspendedAt: true,
       _count: { select: { shipments: { where: { deletedAt: null } } } },
     },
   });
@@ -56,6 +58,7 @@ export async function GET(request: Request) {
       phone: customer.phone,
       city: customer.city,
       shipments: customer._count.shipments,
+      suspended: customer.suspendedAt !== null,
     })),
   });
 }

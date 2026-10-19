@@ -1115,7 +1115,7 @@ export const executiveStats = cache(async function executiveStats() {
     }),
     prisma.shipmentException.count({ where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } } }),
     prisma.user.count({ where: { active: true } }),
-    prisma.customer.count(),
+    prisma.customer.count({ where: { removedAt: null } }),
     /* Both collected figures in one statement, on the discipline every money
        total reads: COALESCE(creditedAmount, amount) — a USD payment recorded
        before the credited column existed is its own USD value, not zero.

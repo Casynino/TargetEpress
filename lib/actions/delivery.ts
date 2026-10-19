@@ -317,6 +317,7 @@ export async function releaseShipment(
               trackingNumber: true,
               status: true,
               packageType: true,
+              customer: { select: { name: true, code: true, suspendedAt: true } },
               /* So a refusal can say WHAT is owed, rather than "not cleared".
                  The counter cannot settle it and must not try; naming the
                  figure is what sends the customer to Finance instead of into
@@ -377,6 +378,14 @@ export async function releaseShipment(
       if (note.status === "CANCELLED") {
         throw new Error(
           `${note.noteNumber} ${t(locale, "was cancelled by Finance.")}`
+        );
+      }
+
+      /* A suspended customer's goods stay on the shelf. Checked before anything
+         about the bill, because settling it does not lift a suspension. */
+      if (note.shipment.customer.suspendedAt) {
+        throw new Error(
+          `${note.shipment.customer.name} (${note.shipment.customer.code}) ${t(locale, "is suspended. Do not release this cargo. Ask the owner.")}`
         );
       }
 

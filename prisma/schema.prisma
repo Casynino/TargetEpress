@@ -568,6 +568,16 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Set by the Developer. Nothing else about the customer changes: bills,
+  /// payments and balances stay exactly as they are. What it stops is NEW work —
+  /// registering cargo for them and handing their goods over — until it is lifted.
+  suspendedAt DateTime?
+  /// Set by the Developer to take a customer out of the system. The row is KEPT,
+  /// because every cargo record, bill and payment still names them; it leaves
+  /// the customer list, the search and the pickers. Their numbers are freed so
+  /// the same number can register as a new customer. Never undone from the app.
+  removedAt   DateTime?
+
   /**
    * The credit facility, if this customer has one.
    * Null limit means no credit: the answer to "can they take cargo without

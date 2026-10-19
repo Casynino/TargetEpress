@@ -50,7 +50,7 @@ export default async function DeveloperBusinessPage({
     prisma.shipment.count({ where: { deletedAt: null } }),
     prisma.invoice.count(),
     prisma.payment.count(),
-    prisma.customer.count(),
+    prisma.customer.count({ where: { removedAt: null } }),
   ]);
   const totals: Record<Tab, number> = { cargo: nCargo, bills: nBills, payments: nPayments, customers: nCustomers };
 
@@ -161,8 +161,8 @@ export default async function DeveloperBusinessPage({
     );
   } else {
     const where: Prisma.CustomerWhereInput = like
-      ? { OR: [{ name: like }, { code: like }, { phone: like }] }
-      : {};
+      ? { removedAt: null, OR: [{ name: like }, { code: like }, { phone: like }] }
+      : { removedAt: null };
     const rows = await prisma.customer.findMany({
       where,
       orderBy: { createdAt: "desc" },

@@ -229,7 +229,7 @@ export default async function CustomerProfilePage({
           customer.createdAt
             ? ` · ${t(locale, "customer since")} ${formatDate(customer.createdAt, locale)}`
             : ""
-        }`}
+        }${customer.suspendedAt ? ` · ${t(locale, "SUSPENDED: no new cargo, no handover")}` : ""}`}
         actions={
           customer.phone ? (
             <>

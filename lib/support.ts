@@ -1148,7 +1148,7 @@ export async function supportOverview() {
       where: { status: { in: ["NEW", "IN_PROGRESS", "WAITING_CUSTOMER"] } },
     }),
     prisma.sourcingRequest.count({ where: { createdAt: { gte: startOfToday } } }),
-    prisma.customer.count(),
+    prisma.customer.count({ where: { removedAt: null } }),
     prisma.shipment.count({
       where: {
         status: { in: ["READY_TO_DEPART", "IN_TRANSIT", "RECEIVED_AT_DAR", "READY_FOR_PICKUP"] },

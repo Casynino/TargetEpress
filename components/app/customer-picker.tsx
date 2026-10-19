@@ -18,6 +18,8 @@ export type PickedCustomer = {
   phone: string | null;
   city: string | null;
   shipments: number;
+  /** The Developer has suspended them: new cargo is refused, so say so up front. */
+  suspended?: boolean;
 };
 
 /**
@@ -303,7 +305,14 @@ export function CustomerPicker({
                     className="flex w-full items-center justify-between gap-3 p-3 text-left transition-colors hover:bg-accent"
                   >
                     <div className="min-w-0">
-                      <p className="font-medium">{customer.name}</p>
+                      <p className="font-medium">
+                        {customer.name}
+                        {customer.suspended ? (
+                          <span className="ml-2 text-xs font-semibold text-destructive">
+                            {t(locale, "Suspended")}
+                          </span>
+                        ) : null}
+                      </p>
                       <p className="font-mono text-xs text-muted-foreground">
                         {customer.code}
                         {customer.phone

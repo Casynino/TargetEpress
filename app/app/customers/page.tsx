@@ -80,6 +80,9 @@ export default async function CustomersPage({
         ],
       }
     : {};
+  /* A customer the Developer removed has left the list; their cargo, bills and
+     payments still name them. */
+  where.removedAt = null;
 
   /*
     Counted first so the page number can be clamped to a page that exists.

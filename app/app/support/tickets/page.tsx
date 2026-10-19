@@ -183,6 +183,7 @@ export default async function TicketsPage({
       _count: true,
     }),
     prisma.customer.findMany({
+      where: { removedAt: null },
       orderBy: { name: "asc" },
       take: 500,
       select: { id: true, name: true, phone: true },

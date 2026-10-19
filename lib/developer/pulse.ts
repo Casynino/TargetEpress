@@ -127,9 +127,9 @@ export async function getPulse() {
           GROUP BY c.id, c."name" ORDER BY n DESC LIMIT 6`,
       [],
     ),
-    safe(() => prisma.customer.count(), 0),
+    safe(() => prisma.customer.count({ where: { removedAt: null } }), 0),
     safe(
-      () => prisma.customer.count({ where: { createdAt: { gte: since30 } } }),
+      () => prisma.customer.count({ where: { removedAt: null, createdAt: { gte: since30 } } }),
       0,
     ),
     safe(

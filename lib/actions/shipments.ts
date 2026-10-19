@@ -97,7 +97,7 @@ async function resolveCustomer(
 
   if (input.customerId) {
     const picked = await tx.customer.findUnique({ where: { id: input.customerId } });
-    if (!picked) throw new Error("That customer no longer exists.");
+    if (!picked || picked.removedAt) throw new Error("That customer no longer exists.");
 
     /*
       The number is now collected on every consignment, and the customer the
@@ -247,6 +247,13 @@ export async function createShipment(
   try {
     const result = await prisma.$transaction(async (tx) => {
       const customer = await resolveCustomer(tx, input, user.id, locale);
+      /* A suspension stops new cargo, by whichever way the customer was found:
+         picked from the list, or matched by a number the clerk typed. */
+      if (customer.suspendedAt) {
+        throw new Error(
+          `${customer.name} (${customer.code}) ${t(locale, "is suspended, so no new cargo can be registered for them. Ask the owner.")}`
+        );
+      }
 
       /*
         TWO WAYS A CARGO RECORD IS BORN, AND ONE PLACE THAT WRITES IT.

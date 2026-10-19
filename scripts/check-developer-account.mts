@@ -283,6 +283,30 @@ check("the old email is written into the audit line", /before:\s*\{\s*email:\s*t
 check("deleted accounts are left out of the lists people read", ["app/app/developer/accounts/page.tsx", "app/app/admin/users/page.tsx"].every((f) => readFileSync(f, "utf8").includes("NOT_REMOVED")));
 check("suspending the last owner is refused", /onlyActiveOwner\(tx, target\.id\)\)\) \{\s*return \{ error: LAST_OWNER/.test(delSrc));
 
+section("Suspending or deleting a customer: only the Developer, never the money");
+const custSrc = readFileSync("lib/actions/customers.ts", "utf8");
+const susBody = custSrc.slice(custSrc.indexOf("export async function setCustomerSuspended"), custSrc.indexOf("export async function removeCustomer"));
+const rmBody = custSrc.slice(custSrc.indexOf("export async function removeCustomer"));
+check("only the Developer may suspend or delete a customer", /authorize\("user\.manage"\)/.test(susBody) && /user\.role !== "DEVELOPER"/.test(susBody) && /authorize\("user\.manage"\)/.test(rmBody) && /user\.role !== "DEVELOPER"/.test(rmBody));
+check("both claim the row as it was read, so two presses cannot both win", /updateMany\(/.test(susBody) && /claimed\.count === 0/.test(susBody) && /updateMany\(/.test(rmBody) && /claimed\.count === 0/.test(rmBody));
+check("deleting a customer KEEPS the row: no customer.delete call, so cargo, bills and payments still name them", !/tx\.customer\.delete\(|prisma\.customer\.delete\(/.test(rmBody) && /removedAt: new Date\(\)/.test(rmBody));
+check("their numbers are freed and written to the audit line", /customerPhone\.deleteMany/.test(rmBody) && /phones: customer\.phones\.map/.test(rmBody) && /phone: null/.test(rmBody));
+check("no typing to delete: one popup, one Confirm", !/typed|confirmText/.test(rmBody));
+check("a suspended customer cannot have cargo registered", /customer\.suspendedAt/.test(readFileSync("lib/actions/shipments.ts", "utf8")));
+check("a suspended customer's goods are not handed over", /customer\.suspendedAt/.test(readFileSync("lib/actions/delivery.ts", "utf8")));
+const MONEY_SCREENS = ["lib/credit-queries.ts", "lib/invoice-status.ts", "app/app/finance/payments/new/page.tsx", "app/app/collections"];
+const moneyHits: string[] = [];
+const scanMoney = (path: string) => {
+  let st;
+  try { st = statSync(path); } catch { return; }
+  if (st.isDirectory()) { for (const name of readdirSync(path)) scanMoney(join(path, name)); return; }
+  if (/\.(ts|tsx)$/.test(path) && /removedAt/.test(readFileSync(path, "utf8"))) moneyHits.push(path);
+};
+MONEY_SCREENS.forEach(scanMoney);
+check("no screen that tracks money hides a removed customer, so a debt never disappears", moneyHits.length === 0, moneyHits.join(", "));
+check("removed customers are left out of the search, the list and the pickers", ["app/api/customers/search/route.ts", "app/app/customers/page.tsx", "app/app/support/tickets/page.tsx", "app/app/support/sourcing/page.tsx", "app/api/developer/customers/route.ts"].every((f) => readFileSync(f, "utf8").includes("removedAt: null") || /removedAt = null/.test(readFileSync(f, "utf8"))));
+check("customer lookup is Developer-only", /developer\.access/.test(readFileSync("app/api/developer/customers/route.ts", "utf8")));
+
 section("Account actions sit on the row, like ORA");
 const toolSrc = readFileSync("components/app/developer-account-tool.tsx", "utf8");
 check("every action is a visible button on the row: no More menu", !/t\("More"\)|<summary/.test(toolSrc) && ["Work as", "Reset password", "Suspend", "Delete"].every((w) => toolSrc.includes(w)));

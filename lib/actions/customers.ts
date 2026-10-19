@@ -876,3 +876,183 @@ export async function deleteCustomer(
   revalidatePath("/app/customers");
   redirect("/app/customers");
 }
+
+/**
+ * SUSPEND OR REACTIVATE A CUSTOMER — the Developer's call, nobody else's.
+ *
+ * Nothing about the money moves: bills, payments and balances stay exactly as
+ * they are. What a suspension stops is NEW work for them — registering cargo
+ * and handing goods over (see `refuseIfSuspended`). A customer has no login, so
+ * this is the only thing "suspend" can mean.
+ */
+export async function setCustomerSuspended(
+  _prev: ActionResult<undefined> | undefined,
+  formData: FormData,
+): Promise<ActionResult<undefined>> {
+  let user: SessionUser;
+  try {
+    user = await authorize("user.manage");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+  const locale = await viewerLocale();
+  if (user.role !== "DEVELOPER") {
+    return fail(t(locale, "Only the Developer can suspend a customer."));
+  }
+
+  const customerId = String(formData.get("customerId") ?? "");
+  const suspend = String(formData.get("suspend") ?? "") === "1";
+  if (!customerId) return fail(t(locale, "That customer no longer exists."));
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const customer = await tx.customer.findUnique({
+        where: { id: customerId },
+        select: { id: true, code: true, name: true, removedAt: true },
+      });
+      if (!customer || customer.removedAt) {
+        throw new Error(t(locale, "That customer no longer exists."));
+      }
+
+      /* Claimed on the state that was read, so two presses cannot both succeed. */
+      const claimed = await tx.customer.updateMany({
+        where: {
+          id: customer.id,
+          removedAt: null,
+          suspendedAt: suspend ? null : { not: null },
+        },
+        data: { suspendedAt: suspend ? new Date() : null },
+      });
+      if (claimed.count === 0) {
+        throw new Error(
+          t(
+            locale,
+            "That customer changed a moment ago. Reload and try again.",
+          ),
+        );
+      }
+
+      await recordAudit(
+        {
+          actor: user,
+          action: suspend ? "customer.suspend" : "customer.reactivate",
+          entity: "Customer",
+          entityId: customer.id,
+          summary: suspend
+            ? `Suspended ${customer.name} (${customer.code}). Their records are untouched.`
+            : `Reactivated ${customer.name} (${customer.code}).`,
+          metadata: { code: customer.code, name: customer.name },
+        },
+        tx,
+      );
+    });
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+
+  revalidatePath("/app/developer/accounts");
+  revalidatePath("/app/customers");
+  revalidatePath(`/app/customers/${customerId}`);
+  return ok(undefined);
+}
+
+/**
+ * REMOVE A CUSTOMER FROM THE SYSTEM, KEEPING EVERYTHING THEY LEFT BEHIND.
+ *
+ * `deleteCustomer` above refuses anyone with history, because a hard delete
+ * would take money and a paper trail with it. This is the Developer's answer
+ * for a customer WITH history: the row stays so every cargo record, bill and
+ * payment still names them, and `removedAt` takes them out of the customer
+ * list, the search and the pickers.
+ *
+ * Their numbers are freed on purpose. A phone number is unique across the
+ * book, so keeping it on a removed customer would make the next registration
+ * from that number land on a person who no longer exists. What they held is
+ * written to the audit line so nothing is lost.
+ *
+ * Money is NOT hidden by this: a bill they still owe stays in Finance under
+ * their name, because no screen that tracks money filters on `removedAt`.
+ */
+export async function removeCustomer(
+  _prev: ActionResult<undefined> | undefined,
+  formData: FormData,
+): Promise<ActionResult<undefined>> {
+  let user: SessionUser;
+  try {
+    user = await authorize("user.manage");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+  const locale = await viewerLocale();
+  if (user.role !== "DEVELOPER") {
+    return fail(t(locale, "Only the Developer can delete a customer."));
+  }
+
+  const customerId = String(formData.get("customerId") ?? "");
+  if (!customerId) return fail(t(locale, "That customer no longer exists."));
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const customer = await tx.customer.findUnique({
+        where: { id: customerId },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          phone: true,
+          altPhone: true,
+          email: true,
+          city: true,
+          address: true,
+          removedAt: true,
+          phones: { select: { phone: true } },
+        },
+      });
+      if (!customer || customer.removedAt) {
+        throw new Error(t(locale, "That customer no longer exists."));
+      }
+
+      const claimed = await tx.customer.updateMany({
+        where: { id: customer.id, removedAt: null },
+        data: { removedAt: new Date(), phone: null, altPhone: null },
+      });
+      if (claimed.count === 0) {
+        throw new Error(
+          t(
+            locale,
+            "That customer changed a moment ago. Reload and try again.",
+          ),
+        );
+      }
+      await tx.customerPhone.deleteMany({ where: { customerId: customer.id } });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "customer.remove",
+          entity: "Customer",
+          entityId: customer.id,
+          summary: `Removed ${customer.name} (${customer.code}) from the system. Their records stay.`,
+          metadata: {
+            code: customer.code,
+            name: customer.name,
+            phone: customer.phone,
+            phones: customer.phones.map((p) => p.phone),
+            altPhone: customer.altPhone,
+            email: customer.email,
+            city: customer.city,
+            address: customer.address,
+            recordsKept: true,
+          },
+        },
+        tx,
+      );
+    });
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+
+  revalidatePath("/app/developer/accounts");
+  revalidatePath("/app/customers");
+  return ok(undefined);
+}

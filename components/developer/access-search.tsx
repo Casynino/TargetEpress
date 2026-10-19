@@ -1,20 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
+import { CustomerResults } from "@/components/developer/customer-finder";
 import { Input } from "@/components/ui/input";
 
 /**
- * A search box for the Access page. The list is drawn once on the server; this
- * only hides the rows that do not match (by name, email or role) and any group
- * left with none. Nothing is fetched, so it answers as you type.
+ * The Access page's one search box. Staff are drawn once on the server; this
+ * hides the rows that do not match (by name, email or role) and any group left
+ * with none. Customers are far too many to draw, so they are fetched as you
+ * type — by name, phone number or code — and listed right under the box.
  */
 export function AccessSearch() {
   const t = useT();
   const [q, setQ] = useState("");
   const [shown, setShown] = useState(-1);
+  const [customers, setCustomers] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const needle = q.trim().toLowerCase();
@@ -40,12 +44,16 @@ export function AccessSearch() {
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder={t("Search by name, email or role")}
+          placeholder={t("Search by name, email, phone number or role")}
           aria-label={t("Search accounts")}
           className="h-11 pl-10"
         />
+        {loading ? (
+          <Loader2 className="absolute right-3.5 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+        ) : null}
       </div>
-      {shown === 0 && (
+      <CustomerResults q={q} onCount={setCustomers} onLoading={setLoading} />
+      {shown === 0 && !customers && (
         <p className="px-1 text-sm text-muted-foreground">
           {t("No account matches that search.")}
         </p>
