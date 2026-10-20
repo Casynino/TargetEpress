@@ -4475,6 +4475,8 @@ const ZH: Record<string, string> = {
   "These bills now ask for": "这些账单现在应收",
   "Correcting…": "正在更正…",
   "Correct it": "更正",
+  "A price was set by hand on these bills": "这些账单的价格是手动设定的",
+  "The shared minimum wins. Replace the hand-set price with it. The old figure is written down in the record so it can be put back by hand.": "以共享最低收费为准，用它替换手动设定的价格。旧金额已记录在案，可手动恢复。",
   "This is what will change": "以下内容将被更改",
   "The customer goes from": "客户应付金额由",
   "Nothing else moves: the weights, the tracking numbers, the flight and any pickup notes stay exactly as they are, and no cargo record is deleted. A bill that goes to nothing is marked settled so its cargo can still be released. It is recorded against your name.":

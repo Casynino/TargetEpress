@@ -7,7 +7,7 @@ import { recordAudit } from "@/lib/audit";
 import { toNumber } from "@/lib/format";
 import { LOCAL_CURRENCY, toLocal } from "@/lib/fx";
 import { invoiceStatusFor } from "@/lib/invoice-status";
-import { poolShareFor } from "@/lib/minimum-pool";
+import { handSetFreight, poolShareFor } from "@/lib/minimum-pool";
 import { prisma } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -43,6 +43,9 @@ export async function applyPooledMinimum(
 
   const invoiceId = String(formData.get("invoiceId") ?? "");
   if (!invoiceId) return fail("Missing the bill.");
+  /* Finance's decision that the shared minimum wins over a price set by hand —
+     ticked on the screen, never assumed. */
+  const replaceAgreed = String(formData.get("replaceAgreed") ?? "") === "1";
 
   const anchor = await prisma.invoice.findUnique({
     where: { id: invoiceId },
@@ -73,6 +76,8 @@ export async function applyPooledMinimum(
       storageWaivedUsd: true,
       freightCost: true,
       freightOverride: true,
+      freightRateOverride: true,
+      freightOverrideReason: true,
       exchangeRate: true,
       localCurrency: true,
       shipment: { select: { id: true, trackingNumber: true } },
@@ -89,9 +94,10 @@ export async function applyPooledMinimum(
     payment settled, and handing the difference back is a refund — a different
     decision, made somewhere else.
 
-    A price somebody agreed: a special rate AND a shared minimum on one bill is
-    a judgement about which of the two wins, and this is not the screen to make
-    it on.
+    A price set by hand: a special rate AND a shared minimum on one bill is a
+    judgement about which of the two wins. It is made by a person on the screen,
+    with the old price in front of them and a box to tick; without the tick this
+    refuses. What was replaced is written to the audit line.
 
     A bill that is not live: void, written off or cancelled are decisions about
     the bill itself, and no arithmetic is a reason to overturn one.
@@ -102,10 +108,10 @@ export async function applyPooledMinimum(
       `${paid.invoiceNumber} already has money against it. Correcting it now would change what that payment settled — cancel the payment first, or adjust the bill by hand.`
     );
   }
-  const agreed = members.find((m) => m.freightOverride !== null);
-  if (agreed) {
+  const agreedBills = members.filter(handSetFreight);
+  if (agreedBills.length > 0 && !replaceAgreed) {
     return fail(
-      `${agreed.invoiceNumber} carries a price somebody agreed for that cargo. Which of the two wins is a decision, so set the figures by hand on the bills themselves.`
+      `${agreedBills[0].invoiceNumber} carries a price set by hand. Tick the box that says the shared minimum replaces it, or set the figures by hand on the bills themselves.`
     );
   }
   const dead = members.find((m) =>
@@ -157,6 +163,18 @@ export async function applyPooledMinimum(
             totalLocal:
               rate === null ? null : new Prisma.Decimal(toLocal(next, rate)),
             ...(status === null ? {} : { status }),
+            /* A price that was set by hand stops being one: the shared minimum
+               replaced it, and a stale figure left beside the new freight would
+               be read as the price again. */
+            ...(handSetFreight(m)
+              ? {
+                  freightOverride: null,
+                  freightRateOverride: null,
+                  freightRateMethod: null,
+                  freightRateQuantity: null,
+                  freightOverrideReason: null,
+                }
+              : {}),
           },
         });
         if (written.count === 0) {
@@ -175,6 +193,14 @@ export async function applyPooledMinimum(
         });
         total += next;
       }
+      /* The correction only ever lowers what a customer owes. If the arithmetic
+         says otherwise — a hand-set price below the pooled figure — nothing is
+         written and the desk is told. */
+      if (total > before + 0.005) {
+        throw new Error(
+          "The shared minimum would raise what this customer pays, so nothing was changed. Set the figures by hand on the bills."
+        );
+      }
       return Math.round(total * 100) / 100;
     });
 
@@ -192,6 +218,15 @@ export async function applyPooledMinimum(
         carrier: share.carrierTracking,
         from: Math.round(before * 100) / 100,
         to: after,
+        /* What the shared minimum replaced, so it can be put back by hand. */
+        replacedHandSetPrices: agreedBills.map((m) => ({
+          invoice: m.invoiceNumber,
+          freightOverride:
+            m.freightOverride === null ? null : toNumber(m.freightOverride),
+          freightRateOverride:
+            m.freightRateOverride === null ? null : toNumber(m.freightRateOverride),
+          reason: m.freightOverrideReason,
+        })),
       },
     });
 

@@ -376,3 +376,18 @@ export async function poolHold(shipmentId: string): Promise<{
     currency: bill.currency,
   };
 }
+
+/**
+ * A bill whose freight Finance set by hand — a typed figure, or an agreed rate —
+ * rather than the rate book's. The shared minimum and a hand-set price are two
+ * answers to "what does this cargo cost", so which wins is a person's call.
+ *
+ * Read by the screen (to ask) and by the action (to refuse until it was asked),
+ * from this one place so they cannot disagree.
+ */
+export function handSetFreight(bill: {
+  freightOverride: Prisma.Decimal | number | string | null;
+  freightRateOverride: Prisma.Decimal | number | string | null;
+}): boolean {
+  return bill.freightOverride !== null || bill.freightRateOverride !== null;
+}

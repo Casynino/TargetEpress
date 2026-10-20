@@ -26,6 +26,7 @@ export function ApplyPooledMinimum({
   billed,
   corrected,
   lines,
+  handSet,
 }: {
   invoiceId: string;
   currency: string;
@@ -35,9 +36,13 @@ export function ApplyPooledMinimum({
   corrected: number;
   /** Every bill in the pool and what it becomes. */
   lines: { trackingNumber: string; from: number; to: number }[];
+  /** Bills whose freight was set by hand, and the figure on each today. */
+  handSet: { invoiceNumber: string; figure: number }[];
 }) {
   const t = useT();
   const [asking, setAsking] = useState(false);
+  /* Finance's decision that the shared minimum wins over a price set by hand. */
+  const [replace, setReplace] = useState(false);
   const [state, action] = useActionState<
     ActionResult<{ from: number; to: number }> | undefined,
     FormData
@@ -123,9 +128,44 @@ export function ApplyPooledMinimum({
         )}
       </p>
 
+      {handSet.length > 0 ? (
+        <div className="mt-3 rounded-md border border-warning/40 bg-warning/5 p-2.5">
+          <p className="text-xs font-semibold text-warning">
+            {t("A price was set by hand on these bills")}
+          </p>
+          <ul className="mt-1 space-y-0.5 text-xs">
+            {handSet.map((h) => (
+              <li key={h.invoiceNumber} className="font-mono tabular-nums">
+                {h.invoiceNumber} · {money(h.figure)}
+              </li>
+            ))}
+          </ul>
+          <label className="mt-2 flex cursor-pointer items-start gap-2 text-xs">
+            <input
+              type="checkbox"
+              name="replaceAgreed"
+              value="1"
+              checked={replace}
+              onChange={(e) => setReplace(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0"
+            />
+            <span>
+              {t(
+                "The shared minimum wins. Replace the hand-set price with it. The old figure is written down in the record so it can be put back by hand."
+              )}
+            </span>
+          </label>
+        </div>
+      ) : null}
+
       <FormError state={state} />
       <div className="mt-3 flex items-center gap-2">
-        <SubmitButton size="sm" variant="brand" pendingLabel={t("Correcting…")}>
+        <SubmitButton
+          size="sm"
+          variant="brand"
+          pendingLabel={t("Correcting…")}
+          disabled={handSet.length > 0 && !replace}
+        >
           {`${t("Yes, correct it")} — ${money(corrected)}`}
         </SubmitButton>
         <button

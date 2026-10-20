@@ -12,6 +12,8 @@
  * leftovers of the one before it — same customer, same flight — and reported
  * six failures that had nothing to do with the code.
  */
+import { readFileSync } from "node:fs";
+
 import { prisma } from "@/lib/prisma";
 import { autoPriceShipments } from "@/lib/auto-price";
 import { toNumber } from "@/lib/format";
@@ -322,6 +324,25 @@ async function check(label: string, ids: string[], expectSum: number, detail?: s
   if (!ok) fails++;
   console.log(`${ok ? "  ok  " : "  FAIL"}  ${"per-item cargo never pools".padEnd(46)} laptop ${laptop.freight.toFixed(2)} · parcel ${parcel.freight.toFixed(2)}`);
   await wipe();
+}
+
+/* The correction button and a price set by hand.
+   Not driven end to end here (the action needs a signed-in session); these hold
+   the three rules the screen was tested against. */
+{
+  const act = readFileSync("lib/actions/pooling.ts", "utf8");
+  const ui = readFileSync("components/app/apply-pooled-minimum.tsx", "utf8");
+  const rules: [string, boolean][] = [
+    ["a hand-set price is refused unless the shared minimum was chosen", /handSetFreight\)/.test(act) && /agreedBills\.length > 0 && !replaceAgreed/.test(act)],
+    ["the choice is a tick box that holds the button until it is ticked", /name="replaceAgreed"/.test(ui) && /disabled=\{handSet\.length > 0 && !replace\}/.test(ui)],
+    ["what was replaced is written to the audit line", /replacedHandSetPrices/.test(act)],
+    ["the correction can never raise what a customer pays", /total > before \+ 0\.005/.test(act)],
+    ["a payment or a dead bill is still refused", /already has money against it/.test(act) && /\["VOID", "WRITTEN_OFF", "CANCELLED"\]/.test(act)],
+  ];
+  for (const [label, pass] of rules) {
+    if (!pass) fails++;
+    console.log(`${pass ? "  ok  " : "  FAIL"}  ${label}`);
+  }
 }
 
 await wipe();

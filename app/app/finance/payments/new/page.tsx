@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Banknote, MessageCircle, ReceiptText, Search, Users, Wallet } from "lucide-react";
 
 import { rateFactsOf } from "@/lib/agreed-rate";
-import { poolShareFor } from "@/lib/minimum-pool";
+import { handSetFreight, poolShareFor } from "@/lib/minimum-pool";
 import { MinimumPoolNote } from "@/components/app/minimum-pool-note";
 import { ApplyPooledMinimum } from "@/components/app/apply-pooled-minimum";
 import { Button } from "@/components/ui/button";
@@ -598,6 +598,7 @@ export default async function RecordCustomerPaymentPage({
       billed: number;
       invoiceIds: string[];
       lines: { trackingNumber: string; from: number; to: number }[];
+      handSet: { invoiceNumber: string; figure: number }[];
     }[] = [];
     for (const invoice of customer.invoices) {
       if (seen.has(invoice.shipment.id)) continue;
@@ -623,6 +624,10 @@ export default async function RecordCustomerPaymentPage({
           share,
           billed: Math.round(billed * 100) / 100,
           invoiceIds: members.map((m) => m.id),
+          handSet: members.filter(handSetFreight).map((m) => ({
+            invoiceNumber: m.invoiceNumber,
+            figure: toNumber(m.freightOverride ?? m.freightCost),
+          })),
           /* Exactly what each bill would become, so the desk agrees to the
              change rather than to a description of it. The carrier keeps the
              whole charge and everything else goes to nothing — the same rule
@@ -848,6 +853,7 @@ export default async function RecordCustomerPaymentPage({
                 billed={group.billed}
                 corrected={group.share.pooledFreight}
                 lines={group.lines}
+                handSet={group.handSet}
               />
             ) : (
               <p className="mt-1.5 text-xs text-muted-foreground">
