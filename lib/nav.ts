@@ -243,7 +243,7 @@ const SECTIONS: NavSection[] = [
       },
       {
         href: "/app/support/sourcing",
-        label: "Sourcing requests",
+        label: "Sourcing",
         icon: "ShoppingBag",
         permission: "sourcing.manage",
       },
@@ -266,7 +266,7 @@ const SECTIONS: NavSection[] = [
     items: [
       {
         href: "/app/admin/settings",
-        label: "Company settings",
+        label: "Settings",
         icon: "SlidersHorizontal",
         // The accounts customers pay into and the offices they collect from.
         // The owner's alone — see settings.manage.
@@ -495,8 +495,8 @@ const SUPPORT_SECTIONS: NavSection[] = [
     group: { label: "Batches", icon: "Boxes" },
     items: [
       /* Loaded, then landed — the flight's own order, as everywhere else. */
-      { href: "/app/batches", label: "Loading batches", icon: "Boxes" },
-      { href: "/app/shipments", label: "Arrived batches", icon: "PlaneTakeoff" },
+      { href: "/app/batches", label: "Loading", icon: "Boxes" },
+      { href: "/app/shipments", label: "Arrived", icon: "PlaneTakeoff" },
     ],
   },
   {
@@ -545,12 +545,12 @@ const SUPPORT_SECTIONS: NavSection[] = [
       },
       // Read-only for this desk: they quote from the rate book and answer
       // "what will this cost", they do not set it. pricing.manage is Finance's.
-      { href: "/app/finance/pricing", label: "Price configuration", icon: "Tags" },
+      { href: "/app/finance/pricing", label: "Prices", icon: "Tags" },
     ],
   },
   {
     title: "Support",
-    group: { label: "Customer Support", icon: "MessageSquare" },
+    group: { label: "Support", icon: "MessageSquare" },
     items: [
       { href: "/app/support/tickets", label: "Tickets", icon: "MessageSquare" },
       { href: "/app/exceptions", label: "Issues & Claims", icon: "TriangleAlert" },
@@ -558,13 +558,13 @@ const SUPPORT_SECTIONS: NavSection[] = [
   },
   {
     title: "China",
-    group: { label: "China Services", icon: "Store" },
+    group: { label: "Sourcing", icon: "Store" },
     items: [
       /* The market comes before the request made in it — and it is the row this
          desk opens far more often. The admin menu has always had them this way
          round; these two were the odd pair out. */
       { href: "/app/support/markets", label: "China markets", icon: "Store" },
-      { href: "/app/support/sourcing", label: "Sourcing requests", icon: "ShoppingBag" },
+      { href: "/app/support/sourcing", label: "Requests", icon: "ShoppingBag" },
     ],
   },
 ];
@@ -706,7 +706,7 @@ const FINANCE_SECTIONS: NavSection[] = [
       },
       {
         href: "/app/finance/transactions",
-        label: "General ledger",
+        label: "Ledger",
         icon: "ArrowLeftRight",
         permission: "ledger.view",
       },
@@ -753,7 +753,7 @@ const FINANCE_SECTIONS: NavSection[] = [
           desk that sets prices would have had no way in at all.
         */
         href: "/app/finance/pricing",
-        label: "Price configuration",
+        label: "Prices",
         icon: "Tags",
         permission: "pricing.view",
       },
@@ -794,25 +794,25 @@ const FINANCE_SECTIONS: NavSection[] = [
           way in was missing.
         */
         href: "/app/finance/batches",
-        label: "Batch finances",
+        label: "Finances",
         icon: "Boxes",
         permission: "profit.view",
       },
       {
         href: "/app/finance/income",
-        label: "Closed batches",
+        label: "Closed",
         icon: "ClipboardCheck",
         permission: "accounting.view",
       },
       {
         href: "/app/shipments",
-        label: "Arrived batches",
+        label: "Arrived",
         icon: "PlaneTakeoff",
         permission: "batch.view",
       },
       {
         href: "/app/batches",
-        label: "Loading batches",
+        label: "Loading",
         icon: "Boxes",
         permission: "batch.view",
       },
@@ -840,7 +840,7 @@ const FINANCE_SECTIONS: NavSection[] = [
   },
   {
     title: "Support",
-    group: { label: "Support & Issues", icon: "MessageSquare" },
+    group: { label: "Support", icon: "MessageSquare" },
     items: [
       {
         href: "/app/exceptions",
@@ -928,13 +928,13 @@ const CHINA_SECTIONS: NavSection[] = [
     items: [
       {
         href: "/app/batches",
-        label: "Loading batches",
+        label: "Loading",
         icon: "Boxes",
         permission: "batch.view",
       },
       {
         href: "/app/shipments",
-        label: "Arrived batches",
+        label: "Arrived",
         icon: "PlaneTakeoff",
         permission: "batch.view",
       },
@@ -1000,7 +1000,7 @@ const ADMIN_SECTIONS: NavSection[] = [
   },
   {
     title: "Cargo operations",
-    group: { label: "Cargo operations", icon: "Boxes" },
+    group: { label: "Cargo", icon: "Boxes" },
     items: [
       { href: "/app/search", label: "Search", icon: "Package", permission: "shipment.view" },
       { href: "/app/requests", label: "Requests", icon: "Inbox", permission: "shipment.create" },
@@ -1013,11 +1013,11 @@ const ADMIN_SECTIONS: NavSection[] = [
     group: { label: "Batches", icon: "PlaneTakeoff" },
     items: [
       { href: "/app/release", label: "Scan & release", icon: "ScanLine", permission: "shipment.release" },
-      { href: "/app/batches", label: "Loading batches", icon: "Boxes", permission: "batch.view" },
-      { href: "/app/shipments", label: "Arrived batches", icon: "PlaneTakeoff", permission: "batch.view" },
+      { href: "/app/batches", label: "Loading", icon: "Boxes", permission: "batch.view" },
+      { href: "/app/shipments", label: "Arrived", icon: "PlaneTakeoff", permission: "batch.view" },
       /* With the other batches, at the owner's instruction: a flight's life in
          order — loading, landed, closed. */
-      { href: "/app/finance/income", label: "Closed batches", icon: "ClipboardCheck", permission: "accounting.view" },
+      { href: "/app/finance/income", label: "Closed", icon: "ClipboardCheck", permission: "accounting.view" },
     ],
   },
   {
@@ -1033,7 +1033,9 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/app/finance", label: "Overview", icon: "Wallet", permission: "accounting.view" },
       { href: "/app/finance/loans", label: "Loans", icon: "Banknote", permission: "loan.view" },
       { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock", permission: "credit.view" },
+      { href: "/app/finance/pricing", label: "Prices", icon: "Tags", permission: "pricing.view" },
       { href: "/app/manager/payroll", label: "Payroll", icon: "Wallet", permission: "payroll.approve" },
+      { href: "/app/finance/transactions", label: "Ledger", icon: "ArrowLeftRight", permission: "ledger.view" },
       { href: "/app/finance/received", label: "Income", icon: "Banknote", permission: "accounting.view" },
       { href: "/app/finance/storage", label: "Storage", icon: "Warehouse", permission: "accounting.view" },
       { href: "/app/finance/accounts", label: "Accounts", icon: "Landmark", permission: "account.view" },
@@ -1041,8 +1043,6 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/app/collections/follow-up", label: "Collections", icon: "PhoneCall", permission: "collections.view" },
       { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp", permission: "profit.view" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode", permission: "pickupNote.view" },
-      { href: "/app/finance/transactions", label: "General ledger", icon: "ArrowLeftRight", permission: "ledger.view" },
-      { href: "/app/finance/pricing", label: "Price configuration", icon: "Tags", permission: "pricing.view" },
       {
         /* Taking one payment is Finance's work; the row stays for a reader who
            holds payment.record, and the owner does not. */
@@ -1055,7 +1055,7 @@ const ADMIN_SECTIONS: NavSection[] = [
   },
   {
     title: "Support",
-    group: { label: "Support and issues", icon: "MessageSquare" },
+    group: { label: "Support", icon: "MessageSquare" },
     items: [
       { href: "/app/support/tickets", label: "Tickets", icon: "MessageSquare", permission: "ticket.manage" },
       // "Support home", not "Home" — this menu already has one, and a bare
@@ -1078,16 +1078,16 @@ const ADMIN_SECTIONS: NavSection[] = [
       // The editor at /app/admin/markets, not the support desk's read view:
       // this is the menu of the person who changes what customers are told.
       { href: "/app/admin/markets", label: "China markets", icon: "Store", permission: "settings.manage" },
-      { href: "/app/support/sourcing", label: "Sourcing requests", icon: "ShoppingBag", permission: "sourcing.manage" },
+      { href: "/app/support/sourcing", label: "Sourcing", icon: "ShoppingBag", permission: "sourcing.manage" },
     ],
   },
   {
     title: "Administration",
-    group: { label: "Administration", icon: "SlidersHorizontal" },
+    group: { label: "Admin", icon: "SlidersHorizontal" },
     items: [
       { href: "/app/admin/users", label: "Staff", icon: "UserCog", permission: "user.manage" },
       { href: "/app/admin/deleted", label: "Deleted records", icon: "Trash2", permission: "records.viewDeleted" },
-      { href: "/app/admin/settings", label: "Company settings", icon: "SlidersHorizontal", permission: "settings.manage" },
+      { href: "/app/admin/settings", label: "Settings", icon: "SlidersHorizontal", permission: "settings.manage" },
     ],
   },
   {
@@ -1166,7 +1166,7 @@ const MANAGER_SECTIONS: NavSection[] = [
       { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
       { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp" },
       { href: "/app/manager/reconciliation", label: "Reconciliation", icon: "Scale" },
-      { href: "/app/finance/transactions", label: "General ledger", icon: "ArrowLeftRight" },
+      { href: "/app/finance/transactions", label: "Ledger", icon: "ArrowLeftRight" },
       {
         /* The same row every other money desk carries, and on this desk it sits
            last: the rows above are what the manager comes here to read, and
@@ -1240,7 +1240,7 @@ const MANAGER_SECTIONS: NavSection[] = [
       /* Last, at the owner's instruction. The two above are opened with a
          question already in mind; this one is produced and read at the end of
          a period, which is also the order they happen in. */
-      { href: "/app/manager/reports", label: "Management report", icon: "FileText" },
+      { href: "/app/manager/reports", label: "Report", icon: "FileText" },
     ],
   },
 ];

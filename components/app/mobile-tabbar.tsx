@@ -75,7 +75,7 @@ const TABS: Record<Role, Tab[]> = {
   ADMIN: [
     { href: "/app/dashboard", icon: LayoutDashboard, exact: true },
     { href: "/app/search", icon: Search },
-    { href: "/app/shipments", icon: PlaneTakeoff },
+    { href: "/app/shipments", icon: PlaneTakeoff, label: "Arrived batches" },
     { href: "/app/finance", icon: Wallet, label: "Finance" },
   ],
   /* The manager's four: their own command centre, the search every role gets,
@@ -99,7 +99,7 @@ const TABS: Record<Role, Tab[]> = {
     { href: "/app/dashboard", icon: LayoutDashboard, exact: true },
     { href: "/app/search", icon: Search },
     { href: "/app/cargo/new", icon: PackagePlus },
-    { href: "/app/batches", icon: Boxes },
+    { href: "/app/batches", icon: Boxes, label: "Loading batches" },
   ],
   // The Dar floor works a line: a box lands and is checked in, a customer
   // arrives and it is scanned out. Those two screens are the shift.
