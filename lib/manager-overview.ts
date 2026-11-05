@@ -77,6 +77,14 @@ export type ManagerOverview = {
   /** USD→TZS as published. Null when no rate exists — then figures stay in USD. */
   rate: number | null;
 
+  /**
+   * This month against last, from the one engine the Finance overview and the
+   * P&L read: the twelve-month trend, routes, top customers, where the money
+   * went, collection and the health signals. Handed through whole so the
+   * owner's analysis and Finance's can never be two calculations.
+   */
+  period: FinanceDashboard;
+
   operations: {
     /** Batches still filling or sealed in Guangzhou, not yet in the air. */
     batchesLoading: number;
@@ -640,6 +648,7 @@ export async function managerOverview(
 
   const overview: Omit<ManagerOverview, "insights"> = {
     rate,
+    period: fin,
 
     operations: {
       batchesLoading,

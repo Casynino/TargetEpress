@@ -369,7 +369,7 @@ export default async function DashboardPage() {
       ) : null}
       {/* The owner's banner is the money, drawn inside his dashboard. */}
       {user.role === "ADMIN" ? (
-        <ExecutiveDashboard role={user.role} firstName={firstName} today={today} />
+        <ExecutiveDashboard role={user.role} />
       ) : null}
     </>
   );

@@ -92,6 +92,10 @@ import { creditAttention } from "@/lib/support";
 import { FlightProfitTable } from "@/components/app/flight-profit-table";
 import { MoneyTile } from "@/components/app/money-tile";
 import { OwnerMoneyHero } from "@/components/app/owner-money-hero";
+import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
+import { ORIGIN_LABELS } from "@/lib/constants";
+import { formatLocal, formatShillingTotal } from "@/lib/money";
+import { fitFigure } from "@/lib/figure-size";
 import { auditSentence } from "@/lib/audit-humanise";
 import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
@@ -158,42 +162,37 @@ import { percentDeltaLabel } from "@/lib/format";
  * answering those questions about a different person, and the screen would offer
  * an action the reader's own server check then refuses.
  */
-export async function ExecutiveDashboard({
-  role,
-  firstName = "",
-  today = "",
-}: {
-  role: Role;
-  firstName?: string;
-  today?: string;
-}) {
-  // Before the Promise.all, not after it — a const read from a callback that
-  // runs first is a temporal dead zone TypeScript cannot see.
+export async function ExecutiveDashboard({ role }: { role: Role }) {
+  // Before the Promise.all — a const read from a callback that runs first is a
+  // temporal dead zone TypeScript cannot see.
   const locale = await viewerLocale();
 
   const [
     stats,
     volume,
-    revenue,
     perf,
     execRateRow,
     position,
     flow,
     owed,
     creditWarnings,
+    flights,
+    mix,
     money,
   ] = await Promise.all([
     executiveStats(),
     monthlyVolume(new Date(), locale),
-    monthlyRevenue(new Date(), locale),
     corridorPerformance(),
     currentRate(),
     corridorPosition(),
     cashFlowByMonth(new Date(), locale),
     receivablesAgeing(),
     creditAlerts(),
-    /* The same object the manager's command centre reads, so the two screens
-       give one answer about today's money. */
+    profitByDispatch(8),
+    cargoMix(30, locale),
+    /* The same object the manager's command centre reads — today's money, the
+       accounts, the approval queues and this month's analysis — so the two
+       screens give one answer. */
     managerOverview(locale),
   ]);
   const execRate = execRateRow ? toNumber(execRateRow.rate) : null;
@@ -201,16 +200,25 @@ export async function ExecutiveDashboard({
     execRate
       ? `TSh ${Math.round(usd * execRate).toLocaleString("en-US")}`
       : formatUsd(usd);
+  /* A dollar series for a chart, in shillings at today's rate. */
+  const inTsh = (usd: number) => (execRate ? Math.round(usd * execRate) : usd);
+  /* A total already added up in shillings, with its dollar figure to fall back on. */
+  const tz = (local: number, usd: number) => formatShillingTotal(local, usd, execRate);
+  /* Percent change on last month; nothing to compare against is no figure, not 0%. */
+  const change = (now: number, before: number) =>
+    before > 0.005 ? ((now - before) / before) * 100 : undefined;
+
+  const fin = money.finance;
+  const period = money.period;
+  const pl = period.pl;
+  const prior = period.prior;
 
   /*
     WHAT WAITS ON THE OWNER — AND NOTHING THAT WAITS ON A DESK.
 
-    The owner's rule (5 Nov 2026): "Admin manages the business… departments
-    execute their duties." This panel used to compose every desk's own problem
-    set — boxes short of a manifest, prices to confirm — which is the desks'
-    work, and the owner asked for it off his screen. What is left is what only
-    a decision of his moves: the approval queues he may rule on (the manager's
-    board, lib/approvals.ts, filtered to what this reader can decide), and
+    The owner's rule (5 Nov 2026): the departments execute their duties. This
+    panel shows only what a decision of his moves: the approval queues he may
+    rule on (lib/approvals.ts, filtered to what this reader can decide) and
     credit at risk, which is money that left on a promise he granted.
   */
   const decisionItems: AttnItem[] = money.management.queues
@@ -226,9 +234,7 @@ export async function ExecutiveDashboard({
       detail: t(locale, queue.detail),
       href: linkFor(role, queue.href) ?? "/app/manager/approvals",
       value:
-        queue.valueUsd !== null && queue.valueUsd > 0
-          ? execTsh(queue.valueUsd)
-          : undefined,
+        queue.valueUsd !== null && queue.valueUsd > 0 ? execTsh(queue.valueUsd) : undefined,
       valueSub:
         queue.oldestDays !== null && queue.oldestDays > 0
           ? `${t(locale, "oldest")} ${queue.oldestDays}${t(locale, "d")}`
@@ -250,30 +256,57 @@ export async function ExecutiveDashboard({
     { label: t(locale, "Cleared, not collected"), value: position.ready, tone: 5 as const },
     { label: t(locale, "Under investigation"), value: position.flagged, tone: 3 as const },
   ];
-
   const netThisMonth = flow.net[flow.net.length - 1] ?? 0;
-  const thisMonthRevenue = revenue.values[revenue.values.length - 1] ?? 0;
-  const revenueChange = percentDeltaLabel(thisMonthRevenue, revenue.previousMonth);
-  const deliveredShare =
-    stats.active + stats.deliveredThisMonth > 0
-      ? (stats.deliveredThisMonth / (stats.active + stats.deliveredThisMonth)) * 100
-      : 0;
-  const fin = money.finance;
+  const healthTone = {
+    good: "text-success",
+    bad: "text-destructive",
+    warn: "text-warning",
+    flat: "text-foreground",
+  } as const;
 
   return (
-    <div className="space-y-7">
-      {/* 1. THE MONEY, before anything else. */}
+    <div className="space-y-6">
+      {/* 1. The money, in one clean strip. */}
       <OwnerMoneyHero
-        firstName={firstName}
-        today={today}
         heldTzs={fin.heldTzs}
         inTodayTzs={fin.cashInTodayTzs}
         outTodayTzs={fin.cashOutTodayTzs}
         netTodayTzs={fin.netCashTodayTzs}
-        accounts={fin.accounts}
+        bankTzs={fin.bankTzs}
+        mobileMoneyTzs={fin.mobileMoneyTzs}
+        cashTzs={fin.cashTzs}
       />
 
-      {/* 2. The owner's own pages: money, decisions, the record. */}
+      {/* 2. Today, since midnight — four figures in one band, not four cards. */}
+      <section className="panel grid grid-cols-2 divide-border overflow-hidden sm:grid-cols-4 sm:divide-x">
+        {[
+          { k: t(locale, "Billed today"), v: execTsh(fin.revenueTodayUsd), tone: "text-foreground", href: "/app/finance/invoices" },
+          { k: t(locale, "Collected today"), v: formatLocal(fin.cashInTodayTzs), tone: "text-success", href: linkFor(role, "/app/finance/payments") },
+          { k: t(locale, "Spent today"), v: formatLocal(fin.cashOutTodayTzs), tone: fin.cashOutTodayTzs > 0 ? "text-warning" : "text-foreground", href: "/app/finance/expenses" },
+          {
+            k: t(locale, "Net cash today"),
+            v: `${fin.netCashTodayTzs < 0 ? "−" : ""}${formatLocal(Math.abs(fin.netCashTodayTzs))}`,
+            tone: fin.netCashTodayTzs < 0 ? "text-destructive" : "text-success",
+            href: "/app/finance/transactions",
+          },
+        ].map((cell) => (
+          <Link
+            key={cell.k}
+            href={cell.href ?? "/app/finance"}
+            className="min-w-0 px-4 py-3 transition-colors hover:bg-accent/40 [container-type:inline-size]"
+          >
+            <p className="truncate text-[11px] uppercase tracking-wide text-muted-foreground">{cell.k}</p>
+            <p
+              className={`mt-1 whitespace-nowrap font-display font-bold tabular-nums ${cell.tone}`}
+              style={{ fontSize: fitFigure(cell.v, 20) }}
+            >
+              {cell.v}
+            </p>
+          </Link>
+        ))}
+      </section>
+
+      {/* 3. The owner's own pages. */}
       <ActionPills
         items={(
           [
@@ -287,154 +320,107 @@ export async function ExecutiveDashboard({
         ).flatMap((pill) => (pill.href ? [{ ...pill, href: pill.href }] : []))}
       />
 
-      {/* 3. Only what waits on a decision of the owner's. */}
+      {/* 4. Only what waits on a decision of the owner's. */}
       <AttentionCenter
         items={attention}
         reviewAll={{ href: linkFor(role, "/app/manager/approvals") ?? "/app/exceptions", label: t(locale, "Every decision") }}
         empty={t(locale, "Nothing needs your decision. Every desk is clear.")}
       />
 
-      {/* 4. Today's business, since midnight. */}
-      <div>
-        <SectionLabel action={{ href: "/app/finance", label: t(locale, "The money, in full") }}>
-          {t(locale, "Today's business")}
-        </SectionLabel>
-        <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-4 lg:grid-cols-4">
-          <MoneyTile
-            label={t(locale, "Billed today")}
-            usd={fin.revenueTodayUsd}
-            rate={execRate}
-            hint={t(locale, "invoiced today, not yet money")}
-            icon={Receipt}
-            href="/app/finance/invoices"
-          />
-          <MoneyTile
-            label={t(locale, "Collected today")}
-            usd={fin.collectedTodayUsd}
-            rate={execRate}
-            hint={t(locale, "what customers actually handed over")}
-            icon={HandCoins}
-            tone={fin.collectedTodayUsd > 0 ? "good" : "default"}
-            href={linkFor(role, "/app/finance/payments")}
-          />
-          <MoneyTile
-            label={t(locale, "Spent today")}
-            usd={fin.expensesTodayUsd}
-            rate={execRate}
-            hint={t(locale, "everything that left an account since midnight")}
-            icon={Banknote}
-            tone={fin.expensesTodayUsd > 0 ? "warn" : "default"}
-            href="/app/finance/expenses"
-          />
-          <KpiCard
-            delay={1}
-            label={t(locale, "Net cash today")}
-            value={
-              execRate === null
-                ? formatUsd(fin.collectedTodayUsd - fin.expensesTodayUsd)
-                : `${fin.netCashTodayTzs < 0 ? "−" : ""}TSh ${Math.abs(Math.round(fin.netCashTodayTzs)).toLocaleString("en-US")}`
-            }
-            hint={t(locale, "what came in, less what went out")}
-            icon={Scale}
-            tone={fin.netCashTodayTzs < 0 ? "warning" : "success"}
-            href="/app/finance/transactions"
-          />
-        </div>
-      </div>
-
-      {/* 5. The month: what came in, what it earned, what is still owed. */}
+      {/* 5. The month against the last, with a year of each figure behind it. */}
       <div>
         <SectionLabel action={{ href: "/app/finance/reports", label: t(locale, "Profit & loss") }}>
-          {t(locale, "This month")}
+          {`${t(locale, "This month")} · ${t(locale, "against last month")}`}
         </SectionLabel>
-        <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
-          <MoneyTile
-            label={t(locale, "Freight collected this month")}
-            usd={thisMonthRevenue}
-            rate={execRate}
-            count={
-              revenueChange
-                ? `${revenueChange} ${t(locale, "on last month")}`
-                : stats.allTimeCollected > thisMonthRevenue
-                  ? t(locale, "nothing came in last month")
-                  : t(locale, "first month with takings")
-            }
-            hint={`${execTsh(stats.allTimeCollected)} ${t(locale, "received all time")} · ${t(locale, "the delivery fare is not ours")}`}
-            icon={Banknote}
-            tone="good"
-            trend={revenue.values}
-            href="/app/finance"
-          />
-          {/* Billed less costs — invoiced, not money received; the sentence
-              under the row says so, and Outstanding beside it is the rest. */}
+        {/* Two to a row on a phone: eight cards one under another was a page of
+            scrolling before the first chart. No sparklines or rings beside
+            the figures — at half a phone they squeezed the number to nothing,
+            and the twelve-month chart below draws the trend properly. */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
           <KpiCard
-            delay={2}
-            label={t(locale, "Billed this month, less costs")}
-            value={execTsh(fin.profitThisMonthUsd)}
-            ringPct={fin.marginPct ?? undefined}
-            ringLabel={t(locale, "Share of this month's billing left after costs")}
-            hint={
-              fin.marginPct === null
-                ? t(locale, "nothing billed this month yet")
-                : `${t(locale, "Billed")} ${execTsh(fin.profitThisMonthUsd + fin.expensesThisMonthUsd)} · ${t(locale, "What it cost")} ${execTsh(fin.expensesThisMonthUsd)}`
-            }
-            icon={ChartNoAxesCombined}
-            tone={
-              fin.profitThisMonthUsd < 0
-                ? "warning"
-                : fin.marginPct !== null && fin.marginPct >= 20
-                  ? "success"
-                  : "brand"
-            }
+            delay={1}
+            label={t(locale, "Billed")}
+            value={tz(pl.revenueLocal, pl.revenue)}
+            delta={change(pl.revenue, prior.revenue)}
+            hint={`${t(locale, "last month")} ${tz(prior.revenueLocal, prior.revenue)}`}
+            icon={Receipt}
+            tone="brand"
             href="/app/finance/reports"
           />
-          <MoneyTile
-            label={t(locale, "Outstanding")}
-            usd={stats.outstanding}
-            rate={execRate}
-            hint={t(locale, "Owed on every unpaid bill, not just this month")}
-            icon={Wallet}
-            tone={stats.outstanding > 0 ? "warn" : "good"}
-            href="/app/collections/follow-up"
-          />
-          <MoneyTile
-            label={t(locale, "Credit outstanding")}
-            usd={fin.creditOutstandingUsd}
-            rate={execRate}
-            hint={t(locale, "cargo released on a promise, never cash")}
-            icon={CreditCard}
-            tone={fin.creditOutstandingUsd > 0 ? "warn" : "default"}
-            href="/app/finance/credit"
+          <KpiCard
+            delay={2}
+            label={t(locale, "Collected")}
+            value={tz(pl.cashInLocal, pl.cashIn)}
+            delta={change(pl.cashIn, prior.cashIn)}
+            hint={`${t(locale, "last month")} ${tz(prior.cashInLocal, prior.cashIn)}`}
+            icon={HandCoins}
+            tone="success"
+            href="/app/finance/received"
           />
           <KpiCard
             delay={3}
-            label={t(locale, "Delivered this month")}
-            numeric={stats.deliveredThisMonth}
-            ringPct={deliveredShare}
-            ringLabel={t(locale, "Delivered this month against everything still moving")}
-            hint={`${stats.active} ${t(locale, "still moving")}`}
-            icon={Truck}
-            tone="brand"
+            label={t(locale, "Costs")}
+            value={tz(pl.costsLocal, pl.costs)}
+            delta={change(pl.costs, prior.costs)}
+            invertDelta
+            hint={`${t(locale, "last month")} ${tz(prior.costsLocal, prior.costs)}`}
+            icon={Banknote}
+            tone="warning"
+            href="/app/finance/expenses"
           />
           <KpiCard
             delay={4}
+            label={t(locale, "Billed less costs")}
+            value={tz(pl.profitLocal, pl.profit)}
+            delta={change(pl.profit, prior.profit)}
+            ringPct={pl.margin ?? undefined}
+            ringLabel={t(locale, "Share of this month's billing left after costs")}
+            hint={
+              pl.margin === null
+                ? t(locale, "nothing billed this month yet")
+                : `${Math.round(pl.margin)}% ${t(locale, "margin")}`
+            }
+            icon={ChartNoAxesCombined}
+            tone={pl.profit < 0 ? "warning" : (pl.margin ?? 0) >= 20 ? "success" : "brand"}
+            href="/app/finance/reports"
+          />
+          <KpiCard
+            delay={5}
+            label={t(locale, "Owed to us")}
+            value={execTsh(stats.outstanding)}
+            hint={t(locale, "Owed on every unpaid bill, not just this month")}
+            icon={Wallet}
+            tone={stats.outstanding > 0 ? "warning" : "success"}
+            href="/app/collections/follow-up"
+          />
+          <KpiCard
+            delay={6}
+            label={t(locale, "Collected of what was billed")}
+            value={period.collections.rate === null ? "—" : `${Math.round(period.collections.rate)}%`}
+            hint={`${execTsh(period.collections.collectedUsd)} ${t(locale, "of")} ${execTsh(period.collections.expectedUsd)}`}
+            icon={Scale}
+            tone={(period.collections.rate ?? 0) >= 80 ? "success" : "info"}
+          />
+          <KpiCard
+            delay={7}
+            label={t(locale, "Cargo this month")}
+            value={formatWeight(period.volume.kgReceived)}
+            hint={`${period.volume.packages} ${t(locale, "packages")} · ${period.volume.customers} ${t(locale, "customers")}`}
+            icon={Package}
+            tone="info"
+            href="/app/shipments"
+          />
+          <KpiCard
+            delay={8}
             label={`${t(locale, "Within the")} ${COMPANY.promiseDays} ${t(locale, "day promise")}`}
             value={perf.promiseRate === null ? "—" : `${perf.promiseRate.toFixed(0)}%`}
-            ringPct={perf.promiseRate ?? undefined}
-            ringLabel={t(locale, "Promise adherence")}
             hint={
               perf.avgToTanzaniaDays === null
                 ? `${t(locale, "Over")} ${perf.sample} ${t(locale, "delivered")}`
                 : `${t(locale, "China → Dar, averaging")} ${perf.avgToTanzaniaDays.toFixed(1)} ${t(locale, "days")}`
             }
             icon={Timer}
-            tone={
-              perf.promiseRate === null
-                ? "info"
-                : perf.promiseRate >= 80
-                  ? "success"
-                  : "warning"
-            }
+            tone={perf.promiseRate === null ? "info" : perf.promiseRate >= 80 ? "success" : "warning"}
           />
         </div>
         <p className="mt-2 text-xs leading-snug text-muted-foreground">
@@ -442,7 +428,7 @@ export async function ExecutiveDashboard({
             locale,
             "Billed less costs is what was invoiced this month, not money received. What has not been paid is under Outstanding."
           )}
-          {fin.marginPct !== null && fin.marginPct > 95 ? (
+          {pl.margin !== null && pl.margin > 95 ? (
             <span className="text-warning">
               {" "}
               {t(
@@ -454,109 +440,237 @@ export async function ExecutiveDashboard({
         </p>
       </div>
 
-      {/* 6. How the business is going: money over the year, what is owed, where the cargo is. */}
-      <div>
-        <SectionLabel action={{ href: "/app/finance/transactions", label: t(locale, "The Ledger") }}>
-          {t(locale, "How the business is going")}
-        </SectionLabel>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <section className="panel min-w-0 p-4">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <h3 className="text-sm font-semibold">{t(locale, "Money in and out")}</h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {t(locale, "What arrived against what it cost, this year")}
-                </p>
-              </div>
-              <p className="shrink-0 text-right">
-                <span
-                  className={`block font-mono text-xs font-semibold ${netThisMonth < 0 ? "text-signal" : "text-success"}`}
-                >
-                  {netThisMonth < 0 ? "−" : "+"}
-                  {execTsh(Math.abs(netThisMonth))}
-                </span>
-                <span className="block text-[10px] text-muted-foreground">{t(locale, "this month")}</span>
+      {/* 6. A year of the business, and how healthy it is. */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <section className="panel min-w-0 p-5 xl:col-span-2">
+          <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="font-display font-semibold">{t(locale, "Billed, costs and what was left")}</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {t(locale, "The last twelve months")}
+                {execRate ? " · TSh" : " · USD"}
               </p>
             </div>
-            <FlowBars
-              className="mt-3"
-              labels={flow.labels}
-              valuesIn={flow.moneyIn}
-              valuesOut={flow.moneyOut}
-              currentIndex={flow.currentIndex}
-              format={execTsh}
-            />
-          </section>
-
-          <section className="panel min-w-0 p-4">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <h3 className="text-sm font-semibold">{t(locale, "What we are owed, by age")}</h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {t(locale, "From the day the bill became real")}
-                </p>
-              </div>
-              {owed.oldestDays > 0 ? (
-                <p className="shrink-0 text-right text-xs text-muted-foreground">
-                  {t(locale, "oldest")}{" "}
-                  <span className="font-mono font-semibold text-foreground">{owed.oldestDays}d</span>
-                </p>
-              ) : null}
-            </div>
-            <AgeingBar
-              className="mt-3"
-              segments={owed.buckets.map((bucket) => ({
-                key: bucket.key,
-                label: t(locale, bucket.label),
-                count: bucket.count,
-                value: bucket.usd,
-              }))}
-              format={execTsh}
-              unit={{ one: t(locale, "bill"), many: t(locale, "bills") }}
-              empty={t(locale, "Nothing is owed. Every bill raised has been settled.")}
-            />
-          </section>
-
-          <section className="panel min-w-0 p-4">
-            <h3 className="text-sm font-semibold">{t(locale, "Where the cargo is")}</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t(locale, "Everything the business is carrying, Guangzhou to the counter")}
-            </p>
-            <div className="mt-3 flex justify-center">
-              <Donut
-                size={118}
-                stroke={18}
-                label={String(position.total)}
-                caption={t(locale, "consignments")}
-                slices={positionSlices}
-              />
-            </div>
-            <DonutLegend className="mt-3" slices={positionSlices} />
-          </section>
-        </div>
+          </div>
+          {/* In shillings before it reaches the chart: the chart draws in the
+              browser and cannot be handed a formatter from here. */}
+          <AreaChart
+            labels={period.trend.labels}
+            series={[
+              { name: t(locale, "Billed"), values: period.trend.revenue.map(inTsh), tone: 1 },
+              { name: t(locale, "Costs"), values: period.trend.expenses.map(inTsh), tone: 3 },
+              { name: t(locale, "Billed less costs"), values: period.trend.profit.map(inTsh), tone: 5 },
+            ]}
+          />
+        </section>
+        <section className="panel min-w-0 p-5">
+          <h2 className="font-display font-semibold">{t(locale, "Financial health")}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t(locale, "This month, read against the rules the business keeps")}</p>
+          <ul className="mt-3 divide-y">
+            {period.health.slice(0, 6).map((metric) => (
+              <li key={metric.key} className="flex items-baseline justify-between gap-3 py-2">
+                <span className="min-w-0 text-sm text-muted-foreground">{t(locale, metric.label)}</span>
+                <span className={`shrink-0 whitespace-nowrap font-display text-base font-bold tabular-nums ${healthTone[metric.tone]}`}>
+                  {metric.value}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
 
-      <section className="panel min-w-0 p-5">
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="font-display font-semibold">{t(locale, "Cargo volume")}</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {volume.year} {t(locale, "against")} {volume.year - 1}
+      {/* 7. What each flight earned — the table carries its own card and heading. */}
+      <FlightProfitTable flights={flights} />
+
+      {/* 8. Where the money comes from, who brings it, and where it goes. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <section className="panel min-w-0 p-5">
+          <h2 className="font-display font-semibold">{t(locale, "By route")}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t(locale, "Billed this month, and how much of it came in")}</p>
+          <ul className="mt-3 space-y-3">
+            {period.revenue.byOrigin.length === 0 ? (
+              <li className="text-sm text-muted-foreground">{t(locale, "Nothing billed this month yet")}</li>
+            ) : (
+              period.revenue.byOrigin.map((row) => {
+                const share = row.expectedUsd > 0 ? Math.min(100, (row.collectedUsd / row.expectedUsd) * 100) : 0;
+                return (
+                  <li key={row.origin}>
+                    <div className="flex items-baseline justify-between gap-3 text-sm">
+                      <span className="min-w-0 truncate font-medium">
+                        {t(locale, ORIGIN_LABELS[row.origin as keyof typeof ORIGIN_LABELS] ?? row.origin)}
+                      </span>
+                      <span className="shrink-0 whitespace-nowrap font-semibold tabular-nums">{execTsh(row.expectedUsd)}</span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-success" style={{ width: `${share}%` }} />
+                    </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {execTsh(row.collectedUsd)} {t(locale, "collected")} · {Math.round(share)}%
+                    </p>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </section>
+
+        <section className="panel min-w-0 p-5">
+          <h2 className="font-display font-semibold">{t(locale, "Top customers")}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t(locale, "Billed this month, and what they still owe")}</p>
+          <ul className="mt-3 divide-y">
+            {period.revenue.topCustomers.length === 0 ? (
+              <li className="py-2 text-sm text-muted-foreground">{t(locale, "Nothing billed this month yet")}</li>
+            ) : (
+              period.revenue.topCustomers.slice(0, 6).map((row, i) => (
+                <li key={row.name} className="flex items-center gap-3 py-2">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-[11px] font-semibold tabular-nums">
+                    {i + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm">{row.name}</span>
+                  <span className="shrink-0 text-right">
+                    <span className="block whitespace-nowrap text-sm font-semibold tabular-nums">{execTsh(row.expectedUsd)}</span>
+                    <span className={`block whitespace-nowrap text-[11px] tabular-nums ${row.outstandingUsd > 0.005 ? "text-destructive" : "text-success"}`}>
+                      {row.outstandingUsd > 0.005 ? `${execTsh(row.outstandingUsd)} ${t(locale, "owed")}` : t(locale, "settled")}
+                    </span>
+                  </span>
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
+
+        <section className="panel min-w-0 p-5">
+          <h2 className="font-display font-semibold">{t(locale, "Where money is spent")}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t(locale, "This month's costs, largest first")}</p>
+          <ul className="mt-3 space-y-2.5">
+            {period.expenses.byCategory.length === 0 ? (
+              <li className="text-sm text-muted-foreground">{t(locale, "No costs recorded this month")}</li>
+            ) : (
+              period.expenses.byCategory.slice(0, 6).map((row) => (
+                <li key={row.category}>
+                  <div className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate">
+                      {t(locale, EXPENSE_CATEGORY_LABELS[row.category] ?? row.category)}
+                    </span>
+                    <span className="shrink-0 whitespace-nowrap tabular-nums">{tz(row.amountLocal, row.amount)}</span>
+                  </div>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-destructive/60"
+                      style={{ width: `${Math.max(2, Math.min(100, row.share))}%` }}
+                    />
+                  </div>
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
+      </div>
+
+      {/* 9. The money over the year, the debts by age, and the cargo right now. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <section className="panel min-w-0 p-4">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold">{t(locale, "Money in and out")}</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {t(locale, "What arrived against what it cost, this year")}
+              </p>
+            </div>
+            <p className="shrink-0 text-right">
+              <span className={`block font-mono text-xs font-semibold ${netThisMonth < 0 ? "text-signal" : "text-success"}`}>
+                {netThisMonth < 0 ? "−" : "+"}
+                {execTsh(Math.abs(netThisMonth))}
+              </span>
+              <span className="block text-[10px] text-muted-foreground">{t(locale, "this month")}</span>
             </p>
           </div>
-          <div className="text-right">
-            <p className="font-display text-2xl font-bold tabular">{volume.total.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground">{t(locale, "this year")}</p>
+          <FlowBars
+            className="mt-3"
+            labels={flow.labels}
+            valuesIn={flow.moneyIn}
+            valuesOut={flow.moneyOut}
+            currentIndex={flow.currentIndex}
+            format={execTsh}
+          />
+        </section>
+
+        <section className="panel min-w-0 p-4">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold">{t(locale, "What we are owed, by age")}</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">{t(locale, "From the day the bill became real")}</p>
+            </div>
+            {owed.oldestDays > 0 ? (
+              <p className="shrink-0 text-right text-xs text-muted-foreground">
+                {t(locale, "oldest")}{" "}
+                <span className="font-mono font-semibold text-foreground">{owed.oldestDays}d</span>
+              </p>
+            ) : null}
           </div>
+          <AgeingBar
+            className="mt-3"
+            segments={owed.buckets.map((bucket) => ({
+              key: bucket.key,
+              label: t(locale, bucket.label),
+              count: bucket.count,
+              value: bucket.usd,
+            }))}
+            format={execTsh}
+            unit={{ one: t(locale, "bill"), many: t(locale, "bills") }}
+            empty={t(locale, "Nothing is owed. Every bill raised has been settled.")}
+          />
+          <p className="mt-3 border-t pt-2 text-xs text-muted-foreground">
+            {t(locale, "Credit outstanding")}{" "}
+            <span className="font-semibold text-foreground tabular-nums">{execTsh(fin.creditOutstandingUsd)}</span>
+          </p>
+        </section>
+
+        <section className="panel min-w-0 p-4">
+          <h3 className="text-sm font-semibold">{t(locale, "Where the cargo is")}</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {t(locale, "Everything the business is carrying, Guangzhou to the counter")}
+          </p>
+          <div className="mt-3 flex justify-center">
+            <Donut size={118} stroke={18} label={String(position.total)} caption={t(locale, "consignments")} slices={positionSlices} />
+          </div>
+          <DonutLegend className="mt-3" slices={positionSlices} />
+        </section>
+      </div>
+
+      {/* 10. What the business carries. */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        {/* The mix carries its own card. */}
+        <div className="min-w-0">
+          <CargoMix
+            slices={mix.slices}
+            totalShipments={mix.totalShipments}
+            totalWeightKg={mix.totalWeightKg}
+            periodLabel={`${t(locale, "Registered in the last")} ${mix.days} ${t(locale, "days")}`}
+          />
         </div>
-        <AreaChart
-          labels={volume.labels}
-          series={[
-            { name: String(volume.year), values: volume.current, tone: 1 },
-            { name: String(volume.year - 1), values: volume.previous, tone: 2 },
-          ]}
-        />
-      </section>
+        <section className="panel min-w-0 p-5 xl:col-span-2">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-display font-semibold">{t(locale, "Cargo volume")}</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {volume.year} {t(locale, "against")} {volume.year - 1}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="font-display text-2xl font-bold tabular">{volume.total.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">{t(locale, "this year")}</p>
+            </div>
+          </div>
+          <AreaChart
+            labels={volume.labels}
+            series={[
+              { name: String(volume.year), values: volume.current, tone: 1 },
+              { name: String(volume.year - 1), values: volume.previous, tone: 2 },
+            ]}
+          />
+        </section>
+      </div>
     </div>
   );
 }
