@@ -319,7 +319,15 @@ export async function ExecutiveDashboard({
         ).flatMap((pill) => (pill.href ? [{ ...pill, href: pill.href }] : []))}
       />
 
-      {/* 3. The money: where it sits, as a ring, and today since midnight — one
+      {/* 3. Only what waits on a decision of the owner's — first after the
+          shortcuts, as the owner asked, and the money under it. */}
+      <AttentionCenter
+        items={attention}
+        reviewAll={{ href: linkFor(role, "/app/manager/approvals") ?? "/app/exceptions", label: t(locale, "Every decision") }}
+        empty={t(locale, "Nothing needs your decision. Every desk is clear.")}
+      />
+
+      {/* 4. The money: where it sits, as a ring, and today since midnight — one
           card, not two. The owner found two cards with a large ring, a long
           list and boxes inside boxes looked forced, on the phone above all. */}
       <section className="panel min-w-0 overflow-hidden">
@@ -404,13 +412,6 @@ export async function ExecutiveDashboard({
           </div>
         </div>
       </section>
-
-      {/* 4. Only what waits on a decision of the owner's. */}
-      <AttentionCenter
-        items={attention}
-        reviewAll={{ href: linkFor(role, "/app/manager/approvals") ?? "/app/exceptions", label: t(locale, "Every decision") }}
-        empty={t(locale, "Nothing needs your decision. Every desk is clear.")}
-      />
 
       {/* 5. The month against the last, with a year of each figure behind it. */}
       <div>
