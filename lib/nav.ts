@@ -1015,41 +1015,42 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/app/release", label: "Scan & release", icon: "ScanLine", permission: "shipment.release" },
       { href: "/app/batches", label: "Loading batches", icon: "Boxes", permission: "batch.view" },
       { href: "/app/shipments", label: "Arrived batches", icon: "PlaneTakeoff", permission: "batch.view" },
+      /* With the other batches, at the owner's instruction: a flight's life in
+         order — loading, landed, closed. */
+      { href: "/app/finance/income", label: "Closed batches", icon: "ClipboardCheck", permission: "accounting.view" },
     ],
   },
   {
     title: "Finance",
     group: { label: "Finance", icon: "ReceiptText" },
     items: [
+      /* OVERVIEW FIRST, THEN NARROWEST NAME TO WIDEST, at the owner's
+         instruction ("overview first, then low to high"): measured as drawn in
+         the menu's own font, not by counting letters, so the column reads as
+         one even step down the page. Keep it that way when a row is added.
+         Payroll opens the approving screen — the owner approves the salary run
+         Finance prepares. */
+      { href: "/app/finance", label: "Overview", icon: "Wallet", permission: "accounting.view" },
+      { href: "/app/finance/loans", label: "Loans", icon: "Banknote", permission: "loan.view" },
+      { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock", permission: "credit.view" },
+      { href: "/app/manager/payroll", label: "Payroll", icon: "Wallet", permission: "payroll.approve" },
+      { href: "/app/finance/received", label: "Income", icon: "Banknote", permission: "accounting.view" },
+      { href: "/app/finance/storage", label: "Storage", icon: "Warehouse", permission: "accounting.view" },
+      { href: "/app/finance/accounts", label: "Accounts", icon: "Landmark", permission: "account.view" },
+      { href: "/app/finance/expenses", label: "Expenses", icon: "Receipt", permission: "expense.view" },
+      { href: "/app/collections/follow-up", label: "Collections", icon: "PhoneCall", permission: "collections.view" },
+      { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp", permission: "profit.view" },
+      { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode", permission: "pickupNote.view" },
+      { href: "/app/finance/transactions", label: "General ledger", icon: "ArrowLeftRight", permission: "ledger.view" },
+      { href: "/app/finance/pricing", label: "Price configuration", icon: "Tags", permission: "pricing.view" },
       {
-        /* Taking one payment, with its own door — the same row Finance and
-           Support carry. It lived as a button on Home and on the call list,
-           so anybody coming down the sidebar had to work out which page held
-           it. Lands with the picker open on everybody who owes. */
+        /* Taking one payment is Finance's work; the row stays for a reader who
+           holds payment.record, and the owner does not. */
         href: "/app/collections/follow-up?record=1",
         label: "Record Payment",
         icon: "Banknote",
         permission: "payment.record",
       },
-      { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock", permission: "credit.view" },
-      { href: "/app/finance/pricing", label: "Price configuration", icon: "Tags", permission: "pricing.view" },
-      { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode", permission: "pickupNote.view" },
-      { href: "/app/finance", label: "Overview", icon: "Wallet", permission: "accounting.view" },
-      { href: "/app/finance/received", label: "Income", icon: "Banknote", permission: "accounting.view" },
-      { href: "/app/finance/storage", label: "Storage", icon: "Warehouse", permission: "accounting.view" },
-      /* Off the tab row and into the menu — see the note in FINANCE_SECTIONS.
-         The owner reads all six; with the pills gone, a row each is the only
-         way to any of them. */
-      { href: "/app/finance/accounts", label: "Accounts", icon: "Landmark", permission: "account.view" },
-      { href: "/app/finance/transactions", label: "General ledger", icon: "ArrowLeftRight", permission: "ledger.view" },
-      { href: "/app/finance/expenses", label: "Expenses", icon: "Receipt", permission: "expense.view" },
-      { href: "/app/finance/payroll", label: "Payroll", icon: "Wallet", permission: "payroll.prepare" },
-      { href: "/app/finance/loans", label: "Loans", icon: "Banknote", permission: "loan.view" },
-      { href: "/app/finance/income", label: "Closed batches", icon: "ClipboardCheck", permission: "accounting.view" },
-      { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp", permission: "profit.view" },
-      // collections.view, matching the route's own guard. The shared menu had
-      // this on ticket.manage, from when the call list lived under /app/support.
-      { href: "/app/collections/follow-up", label: "Collections", icon: "PhoneCall", permission: "collections.view" },
     ],
   },
   {

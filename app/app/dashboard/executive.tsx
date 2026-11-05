@@ -118,7 +118,7 @@ import {
   recentActivity,
 } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
-import { can } from "@/lib/rbac";
+import { can, linkFor } from "@/lib/rbac";
 import { CargoMix } from "@/components/app/cargo-mix";
 import {
   FloorChips,
@@ -296,9 +296,21 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
         are still a press away in the sidebar.
       */}
       <ActionPills
-        items={[
+        /* Only doors this reader may walk through. The owner and the manager
+           supervise Finance's verify queue rather than work it, so for them the
+           pill opens the same payments, read-only, and says so. */
+        items={(
+          [
           { href: "/app/finance/transactions", label: t(locale, "The Ledger"), icon: Landmark, weight: "primary", tone: "signal" },
-          { href: "/app/finance/verify", label: t(locale, "Verify payments"), icon: ShieldCheck, weight: "secondary", tone: "info" },
+          {
+            href: linkFor(role, "/app/finance/verify"),
+            label: can(role, "payment.verify")
+              ? t(locale, "Verify payments")
+              : t(locale, "Payments with Finance"),
+            icon: ShieldCheck,
+            weight: "secondary",
+            tone: "info",
+          },
           { href: "/app/exceptions", label: t(locale, "Issues & Claims"), icon: AlertTriangle, tone: "warning" },
           // Brand and violet wherever these two appear — the support desk, the
           // warehouse floors and here. Colour is only a landmark while it means
@@ -313,7 +325,8 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
           // desk deleted, or purging it for good, is the one action in this app
           // nobody else can take back.
           { href: "/app/admin/deleted", label: t(locale, "Deleted records"), icon: Trash2, tone: "success" },
-        ]}
+          ] satisfies (Omit<ActionPill, "href"> & { href: string | undefined })[]
+        ).flatMap((pill) => (pill.href ? [{ ...pill, href: pill.href }] : []))}
       />
 
       {/* Top of the page, same as every other desk. It used to sit two thirds
@@ -369,7 +382,7 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
             hint={t(locale, "what customers actually handed over")}
             icon={HandCoins}
             tone={money.finance.collectedTodayUsd > 0 ? "good" : "default"}
-            href="/app/finance/payments"
+            href={linkFor(role, "/app/finance/payments")}
           />
           <MoneyTile
             label={t(locale, "Billed today")}

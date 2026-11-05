@@ -317,7 +317,8 @@ export function insights(s: InsightSources): Insight[] {
       tone: (verifyAge ?? 0) >= 5 ? "bad" : "warn",
       rank: 85,
       text: `${t(locale, "A payment has been waiting")} ${verifyAge ?? 0} ${t(locale, "days for Finance to verify it")}`,
-      href: "/app/finance/verify",
+      /* The read-only list: the people reading this supervise the queue. */
+      href: "/app/collections/submissions",
     },
     {
       when: revenueDelta !== undefined && Math.abs(revenueDelta) >= 1,

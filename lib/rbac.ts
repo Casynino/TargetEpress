@@ -876,19 +876,104 @@ const ALL: Permission[] = Array.from(
   ])
 );
 
+/*
+  THE DEPARTMENTS' DAILY WORK — supervised by the owner and the manager, never
+  done by them.
+
+  The owner's rule (5 Nov 2026): "Admin manages the business. Manager
+  supervises operations. Departments execute their respective duties." Both
+  chairs used to hold every department's keys, so the owner could register a
+  box and the manager could take a payment, and in practice they did — which
+  is how a figure ends up with nobody's name on the job that produced it.
+
+  Withheld BY NAME, from ALL, so a permission added later still defaults to
+  the two people running the company — the reason MANAGER has always been
+  built by subtraction — and each withheld key can be read and argued with
+  here. What stays with them is every way of LOOKING, every DECISION (approve,
+  review, sign off, waive, discount), and the exceptional corrections listed
+  under each role below.
+
+  The departments' own lists are untouched by this: each still holds exactly
+  what it held. Every action asks authorize() for its permission, so a key
+  withheld here is refused at the server, not merely missing from a menu.
+*/
+const DEPARTMENT_WORK: Permission[] = [
+  // China warehouse: registering, labelling, loading and dispatching.
+  "shipment.create",
+  "label.print",
+  "cargoType.suggest",
+  "batch.create",
+  "batch.manage",
+  "shipment.depart",
+  "exception.foundInChina",
+  // Dar warehouse: receiving, checking in, scanning and handing over.
+  "batch.receive",
+  "batch.verify",
+  "shipment.scan",
+  "shipment.release",
+  "exception.resolve",
+  // Finance: bills, payments, pickup notes, expenses, transfers, payroll runs.
+  "invoice.manage",
+  "invoice.edit",
+  "invoice.send",
+  "invoice.priceConfirm",
+  "invoice.rate",
+  "payment.record",
+  "payment.verify",
+  "payment.submit",
+  "pickupNote.issue",
+  "pickupNote.cancel",
+  "expense.record",
+  "treasury.move",
+  "loan.record",
+  "payroll.prepare",
+  "batch.close",
+  "exception.compensate",
+  "credit.request",
+  // Customer Support: tickets, sourcing, messages, the customer file.
+  "ticket.manage",
+  "sourcing.manage",
+  "message.send",
+  "customer.manage",
+  "customer.merge",
+  "customer.delete",
+];
+
 /**
- * The manager: everything the owner can SEE, almost nothing the owner can CHANGE
- * about the system itself.
+ * THE OWNER: monitor, review, decide.
  *
- * Built by subtraction from ALL rather than by listing what to include, and that
- * is the important decision. A manager's job is to run the business, which means
- * the interesting question is never "should they see the ledger" — of course they
- * should — but "what must stay with the owner alone". Adding permissions one at a
- * time to a growing role would have meant every new capability defaulted to
- * WITHHELD from the person running the company, and somebody discovering a gap
- * mid-shift. Subtracting means every new capability defaults to granted, and the
- * five things the owner keeps are named here, in one list, where they can be
- * read and argued with.
+ * Every view, every decision, and the owner's own controls — staff and roles,
+ * company settings, the price book and the exchange rate, opening bank
+ * accounts, a correcting ledger line, erasing a record for good, undoing a
+ * release, removing another desk's file.
+ *
+ * Beyond the departments' work, the owner also leaves to the manager the
+ * hands-on exceptions: working a case, and correcting a cargo record (edit,
+ * delete, move, attach, either half of its journey) or undoing an arrival.
+ * The owner's answer to a wrong record is to have it fixed, not to fix it.
+ */
+const ADMIN: Permission[] = ALL.filter(
+  (permission) =>
+    !DEPARTMENT_WORK.includes(permission) &&
+    ![
+      "exception.raise",
+      "exception.investigate",
+      "shipment.edit",
+      "shipment.delete",
+      "shipment.amendOutbound",
+      "shipment.amendLanded",
+      "shipment.move",
+      "shipment.attach",
+      "batch.undoArrival",
+    ].includes(permission)
+);
+
+/**
+ * THE MANAGER: supervise operations and make the assigned decisions.
+ *
+ * Built by subtraction from ALL, and that is load-bearing: a new capability
+ * defaults to granted for the person running the company day to day, and what
+ * is withheld is named here.
  *
  * WHAT THE OWNER KEEPS, and why each one:
  *
@@ -896,16 +981,24 @@ const ALL: Permission[] = Array.from(
  *   pricing.manage   The rate book. A manager reads it — pricing.view — but the
  *                    price of the service is the owner's decision about his own
  *                    business, not an operating control.
+ *   fx.manage        The exchange rate every bill converts at — the same kind
+ *                    of decision as the rate book.
  *   account.manage   Opening and closing the company's bank accounts. Managing
  *                    the money that moves through them is the job; deciding which
  *                    accounts exist is ownership.
  *   shipment.purge   Destroying a record for good. Nobody else has it at any
  *                    rank, and a manager is not an exception — deleting is
  *                    already theirs via shipment.delete, which is reversible.
+ *
+ * And the departments' daily work (DEPARTMENT_WORK). What the manager keeps
+ * beyond the owner's set is the hands-on exception: raising and working a
+ * case, correcting a cargo record on either half of its journey, undoing an
+ * arrival or a release — the step-in when a department cannot.
  */
 /*
   STAFFING MOVED TO THE MANAGER, at the owner's instruction: the manager hires,
-  assigns and deactivates.
+  assigns and deactivates. Confirmed again on 5 Nov 2026 when the rest of the
+  operational keys were taken back.
 
   `user.manage` was on the withheld list, and the reason given was real — whoever
   can grant roles can grant themselves anything, which would make every other line
@@ -922,14 +1015,13 @@ const ALL: Permission[] = Array.from(
 */
 const MANAGER: Permission[] = ALL.filter(
   (permission) =>
+    !DEPARTMENT_WORK.includes(permission) &&
     ![
       "settings.manage",
       "pricing.manage",
+      "fx.manage",
       "account.manage",
       "shipment.purge",
-      /* The manager is the lender. She may see what she is owed; recording it
-         is Finance's and the owner's. */
-      "loan.record",
     ].includes(permission)
 );
 
@@ -1000,7 +1092,7 @@ const DEVELOPER: Permission[] = [
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   DEVELOPER,
-  ADMIN: ALL,
+  ADMIN,
   MANAGER,
   CHINA_WAREHOUSE: CHINA,
   DAR_WAREHOUSE: DAR,
@@ -1235,6 +1327,46 @@ export function permissionForPath(pathname: string): Permission | null {
     pathname === r.prefix || pathname.startsWith(`${r.prefix}/`)
   ).sort((a, b) => b.prefix.length - a.prefix.length)[0];
   return match?.permission ?? null;
+}
+
+/*
+  A WORK TOOL'S READ-ONLY TWIN.
+
+  The owner and the manager supervise the departments' work without doing it,
+  so a dashboard figure that opens the tool which produces it — the receiving
+  dock, the release counter, Finance's verify queue — would land them on the
+  no-access page. Each of these tools has a screen that shows the same thing
+  without the buttons, and that is where the figure goes instead.
+*/
+const READ_VIEW_OF: Record<string, string> = {
+  "/app/receive": "/app/shipments",
+  "/app/incoming": "/app/shipments",
+  "/app/verification": "/app/shipments",
+  "/app/pickup-queue": "/app/inventory",
+  "/app/release": "/app/inventory",
+  "/app/finance/verify": "/app/collections/submissions",
+  "/app/collections/verify": "/app/collections/submissions",
+  "/app/finance/payments": "/app/finance/received",
+};
+
+/**
+ * Where a link should take this reader: the page itself when they may open it,
+ * its read-only twin when they may open that, and nowhere otherwise — a figure
+ * with no way in is shown as a figure, never as a door to "no access".
+ */
+export function linkFor(
+  role: Role | undefined | null,
+  href: string
+): string | undefined {
+  const path = href.split(/[?#]/)[0];
+  const needs = permissionForPath(path);
+  if (!needs || can(role, needs)) return href;
+  const twin = READ_VIEW_OF[path];
+  if (twin) {
+    const twinNeeds = permissionForPath(twin);
+    if (!twinNeeds || can(role, twinNeeds)) return twin;
+  }
+  return undefined;
 }
 
 /**

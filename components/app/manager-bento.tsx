@@ -824,7 +824,8 @@ export type Stage = {
   value: string;
   hint: string;
   icon: LucideIcon;
-  href: string;
+  /** Absent when the reader may not open the screen behind it. */
+  href?: string;
   tone: FigureTone;
 };
 
@@ -841,19 +842,16 @@ export function PipelineStrip({ stages }: { stages: Stage[] }) {
     <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
       {stages.map((stage, index) => {
         const Icon = stage.icon;
-        return (
-          <Link
-            key={stage.key}
-            href={stage.href}
-            className={cn(
-              "focus-ring relative flex flex-col justify-center rounded-lg border p-3 transition-colors",
-              STAGE_TINTS[stage.tone],
-              // The chevron between stages, on the wider layouts only. Sized to
-              // sit inside the 8px gap (`gap-2`) rather than over the next card.
-              index < stages.length - 1 &&
-                "sm:after:absolute sm:after:-right-2 sm:after:top-1/2 sm:after:z-10 sm:after:h-2 sm:after:w-2 sm:after:-translate-y-1/2 sm:after:rotate-45 sm:after:border-r sm:after:border-t sm:after:border-border sm:after:bg-card sm:after:content-['']"
-            )}
-          >
+        const className = cn(
+          "focus-ring relative flex flex-col justify-center rounded-lg border p-3 transition-colors",
+          STAGE_TINTS[stage.tone],
+          // The chevron between stages, on the wider layouts only. Sized to
+          // sit inside the 8px gap (`gap-2`) rather than over the next card.
+          index < stages.length - 1 &&
+            "sm:after:absolute sm:after:-right-2 sm:after:top-1/2 sm:after:z-10 sm:after:h-2 sm:after:w-2 sm:after:-translate-y-1/2 sm:after:rotate-45 sm:after:border-r sm:after:border-t sm:after:border-border sm:after:bg-card sm:after:content-['']"
+        );
+        const body = (
+          <>
             <span
               className={cn(
                 "inline-flex h-6 w-6 items-center justify-center rounded-md",
@@ -876,7 +874,17 @@ export function PipelineStrip({ stages }: { stages: Stage[] }) {
             <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
               {stage.hint}
             </p>
+          </>
+        );
+        /* A stage the reader may not open is still a figure worth reading. */
+        return stage.href ? (
+          <Link key={stage.key} href={stage.href} className={className}>
+            {body}
           </Link>
+        ) : (
+          <div key={stage.key} className={className}>
+            {body}
+          </div>
         );
       })}
     </div>

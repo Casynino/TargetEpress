@@ -69,7 +69,7 @@ import {
   recentActivity,
 } from "@/lib/queries";
 import { accountStandings } from "@/lib/control";
-import { can } from "@/lib/rbac";
+import { can, linkFor } from "@/lib/rbac";
 import { creditAttention } from "@/lib/support";
 import { creditAlerts } from "@/lib/credit-queries";
 import { requirePermission } from "@/lib/session";
@@ -509,7 +509,7 @@ export default async function ManagerHome() {
               hint={t(locale, "what customers actually handed over")}
               icon={HandCoins}
               tone={finance.collectedTodayUsd > 0 ? "good" : "default"}
-              href="/app/finance/payments"
+              href={linkFor(user.role, "/app/finance/payments")}
             />
             <MoneyTile
               label={t(locale, "Billed today")}
@@ -1115,7 +1115,7 @@ export default async function ManagerHome() {
                   value: count(operations.batchesInAir),
                   hint: t(locale, "departed, not yet landed"),
                   icon: Plane,
-                  href: "/app/incoming",
+                  href: linkFor(user.role, "/app/incoming"),
                   tone: "brand",
                 },
                 {
@@ -1124,7 +1124,7 @@ export default async function ManagerHome() {
                   value: count(operations.batchesArrived),
                   hint: t(locale, "manifest still being ticked off"),
                   icon: PlaneLanding,
-                  href: "/app/receive",
+                  href: linkFor(user.role, "/app/receive"),
                   tone: operations.batchesArrived > 0 ? "warn" : "good",
                 },
               ]}
@@ -1339,7 +1339,7 @@ export default async function ManagerHome() {
                   label: t(locale, "Waiting on our reply"),
                   value: count(customers.awaitingReply),
                   tone: customers.awaitingReply > 0 ? "warn" : "plain",
-                  href: "/app/support/tickets",
+                  href: linkFor(user.role, "/app/support/tickets"),
                 },
                 /* Past their credit due date. A real row, not padding: it is
                    the one customer figure on this page that costs money the

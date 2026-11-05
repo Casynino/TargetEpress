@@ -687,7 +687,8 @@ export async function reconciliation(locale: Locale = "en") {
          the same total for the same reason. */
       expected:
         "No money figure is shown for these on purpose: a claim is stored in the currency the customer sent, so adding them together would add shillings to dollars. The count is the honest figure until Finance rules on each one.",
-      href: "/app/finance/verify",
+      /* The read-only list: this page is read by the people who supervise the queue. */
+      href: "/app/collections/submissions",
     },
   ];
 
