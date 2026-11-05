@@ -60,6 +60,16 @@ const TINT: Record<NonNullable<ActionPill["tone"]>, string> = {
  * Pills rather than cards: this sits between a banner and a wall of figures,
  * and a row of bordered cards there reads as a third grid of numbers.
  */
+/* The glyph's tint on the phone tile, by the same tone the pill uses. */
+const CHIP: Record<NonNullable<ActionPill["tone"]>, string> = {
+  brand: "bg-brand/15 text-brand",
+  signal: "bg-signal/15 text-signal",
+  success: "bg-success/15 text-success",
+  warning: "bg-warning/15 text-warning",
+  info: "bg-info/15 text-info",
+  violet: "bg-chart-6/15 text-chart-6",
+};
+
 export function ActionPills({
   items,
   after,
@@ -82,7 +92,14 @@ export function ActionPills({
   if (items.length === 0) return null;
 
   return (
-    <nav aria-label={label} className="flex flex-wrap gap-2">
+    <nav
+      aria-label={label}
+      /* On a phone, tiles on a four-column grid — one glyph, one word, every
+         tile the same size, the way a banking app lays its actions out. As
+         pills they wrapped by their own width into a staircase with an orphan
+         on the last line. From sm up they are the pills they always were. */
+      className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap"
+    >
       {/*
         Keyed by where it goes, not by what it says.
 
@@ -97,7 +114,20 @@ export function ActionPills({
         <Fragment key={item.href}>
         <Link
           href={item.href}
-          className={`focus-ring inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm ${
+          className="focus-ring flex min-w-0 flex-col items-center gap-1.5 rounded-2xl border bg-card px-1 py-2.5 text-center transition-transform active:scale-95 sm:hidden"
+        >
+          <span
+            className={`flex h-9 w-9 items-center justify-center rounded-xl ${CHIP[item.tone ?? "brand"]}`}
+          >
+            <item.icon className="h-[18px] w-[18px]" />
+          </span>
+          <span className="line-clamp-2 w-full px-0.5 text-[11px] font-medium leading-tight text-foreground/80">
+            {item.label}
+          </span>
+        </Link>
+        <Link
+          href={item.href}
+          className={`focus-ring hidden items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors sm:inline-flex sm:text-sm ${
             item.weight === "primary"
               ? `border-transparent ${SOLID[item.tone ?? "brand"]}`
               : item.weight === "secondary"
@@ -108,11 +138,14 @@ export function ActionPills({
           <item.icon className="h-3.5 w-3.5" />
           {item.label}
         </Link>
-        {after && afterHref === item.href ? after : null}
+        {/* A full row of its own on the phone grid — it is a button with its
+            own words, not a tile, and in a quarter-width cell it ran off the
+            screen. Inline again from sm up. */}
+        {after && afterHref === item.href ? <div className="col-span-4 min-w-0 sm:contents">{after}</div> : null}
         </Fragment>
       ))}
       {/* Unmatched href, or none given: the action still belongs in the row. */}
-      {after && !items.some((i) => i.href === afterHref) ? after : null}
+      {after && !items.some((i) => i.href === afterHref) ? <div className="col-span-4 min-w-0 sm:contents">{after}</div> : null}
     </nav>
   );
 }

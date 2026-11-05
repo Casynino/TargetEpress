@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fitFigure } from "@/components/app/kpi-card";
 import type { Metadata } from "next";
 import {
   ArrowDownLeft,
@@ -568,13 +569,16 @@ export default async function FinanceOverviewPage() {
           ].map((cell) => (
             <div
               key={cell.k}
-              className={`min-w-0 bg-gradient-to-b ${cell.wash} to-transparent bg-card px-4 py-4`}
+              className={`min-w-0 bg-gradient-to-b ${cell.wash} to-transparent bg-card px-4 py-4 [container-type:inline-size]`}
             >
               <dt className="truncate text-[11px] uppercase tracking-wide text-muted-foreground">
                 {cell.k}
               </dt>
               <dd
                 className={`mt-1 whitespace-nowrap font-display font-bold leading-tight tabular-nums ${figureSize(cell.v)} ${cell.tone}`}
+                /* Its step, or smaller when the cell is narrower than the step
+                   was measured for — a phone, or a laptop at 125%. */
+                style={{ fontSize: fitFigure(cell.v, 20) }}
               >
                 {cell.v}
               </dd>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fitFigure } from "@/components/app/kpi-card";
 import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -56,19 +57,17 @@ export function StatCard({
         finance overview band; shillings are simply longer than dollars, so the
         figures this app shows are the long kind by default.
       */}
-      <p
-        className={`mt-2 font-display font-bold tabular ${(() => {
-          /* A number arrives here as often as a string, and Number has no
-             length — measure what will actually be painted. */
-          const n = String(value).length;
-          if (n <= 11) return "text-2xl";
-          if (n <= 14) return "text-xl";
-          if (n <= 17) return "text-lg";
-          return "text-base";
-        })()}`}
-      >
-        {value}
-      </p>
+      {/* Fitted to the card's own width rather than stepped by digit count:
+          the same figure is roomy on a wide screen and cramped in a narrow
+          column, and only the column knows which. Never past text-2xl. */}
+      <div className="mt-2 min-w-0 [container-type:inline-size]">
+        <p
+          className="whitespace-nowrap font-display font-bold leading-tight tabular"
+          style={{ fontSize: fitFigure(String(value), 24) }}
+        >
+          {value}
+        </p>
+      </div>
       {hint ? (
         <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
       ) : null}

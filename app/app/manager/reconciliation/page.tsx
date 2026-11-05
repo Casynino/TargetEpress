@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { fitFigure } from "@/components/app/kpi-card";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -697,31 +698,32 @@ export default async function ManagerReconciliation({
               him — "this week, CRDB, still pending" states its own size.
             */}
             <dl className="mt-2 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-lg bg-muted/30 px-2 py-1.5">
+              <div className="min-w-0 rounded-lg bg-muted/30 px-2 py-1.5 [container-type:inline-size]">
                 <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {t(locale, "In")}
                 </dt>
-                <dd className="font-mono text-xs font-semibold tabular-nums text-success">
+                <dd className="whitespace-nowrap font-mono font-semibold tabular-nums text-success" style={{ fontSize: fitFigure(shillings(totals.inUsd), 12) }}>
                   {shillings(totals.inUsd)}
                 </dd>
               </div>
-              <div className="rounded-lg bg-muted/30 px-2 py-1.5">
+              <div className="min-w-0 rounded-lg bg-muted/30 px-2 py-1.5 [container-type:inline-size]">
                 <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {t(locale, "Out")}
                 </dt>
-                <dd className="font-mono text-xs font-semibold tabular-nums text-destructive">
+                <dd className="whitespace-nowrap font-mono font-semibold tabular-nums text-destructive" style={{ fontSize: fitFigure(shillings(totals.outUsd), 12) }}>
                   {shillings(totals.outUsd)}
                 </dd>
               </div>
-              <div className="rounded-lg bg-muted/30 px-2 py-1.5">
+              <div className="min-w-0 rounded-lg bg-muted/30 px-2 py-1.5 [container-type:inline-size]">
                 <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {t(locale, "Net")}
                 </dt>
                 <dd
                   className={cn(
-                    "font-mono text-xs font-bold tabular-nums",
+                    "whitespace-nowrap font-mono font-bold tabular-nums",
                     totals.netUsd < 0 ? "text-destructive" : "text-foreground"
                   )}
+                  style={{ fontSize: fitFigure(shillings(totals.netUsd), 12) }}
                 >
                   {shillings(totals.netUsd)}
                 </dd>
@@ -1491,14 +1493,17 @@ export default async function ManagerReconciliation({
                           <div
                             key={`${check.key}-${index}`}
                             className={cn(
-                              "rounded-lg px-2.5 py-2",
+                              "min-w-0 rounded-lg px-2.5 py-2 [container-type:inline-size]",
                               check.ok ? "bg-muted/40" : "bg-background/60"
                             )}
                           >
                             <p className="truncate text-[11px] uppercase tracking-wide text-muted-foreground">
                               {side.label}
                             </p>
-                            <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums">
+                            <p
+                              className="mt-0.5 whitespace-nowrap font-mono font-semibold tabular-nums"
+                              style={{ fontSize: fitFigure(sideText(side), 14) }}
+                            >
                               {sideText(side)}
                             </p>
                           </div>

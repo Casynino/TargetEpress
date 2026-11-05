@@ -123,6 +123,20 @@ export type ManagerOverview = {
     cashTzs: number;
     bankTzs: number;
     mobileMoneyTzs: number;
+    /*
+      EVERY COMPANY ACCOUNT, IN SHILLINGS — the owner's "money you can use
+      right now", account by account. Same rule as the three totals above: a
+      shilling account as it stands, a dollar account converted once. Loans are
+      not here: a lender's balance is a debt, never money held.
+    */
+    accounts: { name: string; kind: string; tzs: number }[];
+    /** The sum of `accounts`. */
+    heldTzs: number;
+    /** Today's money in and out of the accounts, from the register, in shillings. */
+    cashInTodayTzs: number;
+    cashOutTodayTzs: number;
+    /** In − out, plus what a lender put in and less what was paid back to her. */
+    netCashTodayTzs: number;
     /** Revenue less costs, this month, on the accrual basis. */
     profitThisMonthUsd: number;
     marginPct: number | null;
@@ -600,6 +614,19 @@ export async function managerOverview(
         0
       );
 
+  const accountsTzs = fin.position.accounts
+    .map((account) => ({
+      name: account.name,
+      kind: account.kind,
+      tzs:
+        rate === null
+          ? account.balanceUsd
+          : account.currency === "TZS"
+            ? account.balance
+            : account.balance * rate,
+    }))
+    .sort((a, b) => b.tzs - a.tzs);
+
   // ----------------------------------------------------------------- queues
   const oldestApprovalDays = queues.reduce<number | null>(
     (oldest, queue) =>
@@ -649,6 +676,15 @@ export async function managerOverview(
       cashTzs: heldByKind("CASH"),
       bankTzs: heldByKind("BANK"),
       mobileMoneyTzs: heldByKind("MOBILE_MONEY"),
+      accounts: accountsTzs,
+      heldTzs: accountsTzs.reduce((sum, account) => sum + account.tzs, 0),
+      cashInTodayTzs: plToday.cashInLocal,
+      cashOutTodayTzs: plToday.cashOutLocal,
+      netCashTodayTzs:
+        plToday.cashInLocal -
+        plToday.cashOutLocal +
+        plToday.borrowedCashLocal -
+        plToday.repaidCashLocal,
       profitThisMonthUsd: fin.pl.profit,
       marginPct: fin.pl.margin,
       collectionRatePct: fin.revenue.collectionRate,

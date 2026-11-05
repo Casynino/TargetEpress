@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { fitFigure } from "@/lib/figure-size";
 import Link from "next/link";
 import {
   CalendarClock,
@@ -471,16 +472,17 @@ export default async function FollowUpPage({
               },
               { k: t(locale, "Storage so far"), v: money(totals.storageUsd), sub: inUsd(totals.storageUsd), tone: "text-foreground" },
             ].map((cell) => (
-              <div key={cell.k} className="min-w-0">
+              <div key={cell.k} className="min-w-0 [container-type:inline-size]">
                 <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {cell.k}
                 </dt>
                 <dd
                   className={cn(
-                    "font-display font-bold leading-tight tabular-nums",
-                    String(cell.v).length <= 11 ? "text-2xl" : String(cell.v).length <= 14 ? "text-xl" : "text-lg",
+                    "whitespace-nowrap font-display font-bold leading-tight tabular-nums",
                     cell.tone
                   )}
+                  /* Fitted to its own column — half a phone, a quarter of a laptop. */
+                  style={{ fontSize: fitFigure(String(cell.v), 24) }}
                 >
                   {cell.v}
                 </dd>

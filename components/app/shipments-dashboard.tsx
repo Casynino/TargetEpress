@@ -1,5 +1,6 @@
 "use client";
 
+import { fitFigure } from "@/lib/figure-size";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, Plane, Search } from "lucide-react";
@@ -341,15 +342,16 @@ export function ShipmentsDashboard({
         )}
       >
         {cells.map((cell) => (
-          <div key={cell.k} className="bg-card px-4 py-3">
+          <div key={cell.k} className="min-w-0 bg-card px-4 py-3 [container-type:inline-size]">
             <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
               {cell.k}
             </dt>
             <dd
               className={cn(
-                "mt-0.5 font-display text-base font-bold tabular-nums",
+                "mt-0.5 whitespace-nowrap font-display font-bold tabular-nums",
                 cell.tone
               )}
+              style={{ fontSize: fitFigure(String(cell.main), 16) }}
             >
               {cell.main}
             </dd>

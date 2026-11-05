@@ -28,12 +28,14 @@ export const LOCAL_CURRENCY = "TZS";
  */
 export function formatLocal(amount: number, currency = LOCAL_CURRENCY) {
   const symbol = currency === LOCAL_CURRENCY ? "TSh" : currency;
-  return `${symbol} ${Math.round(amount).toLocaleString("en-US")}`;
+  /* A no-break space, so a narrow card never puts "TSh" on one line and the
+     figure on the next — read as two numbers, or as a figure in no currency. */
+  return `${symbol}\u00a0${Math.round(amount).toLocaleString("en-US")}`;
 }
 
 /** Dollars, always to the cent: these are invoice figures. */
 export function formatUsd(amount: number) {
-  return `${BASE_CURRENCY} ${amount.toLocaleString("en-US", {
+  return `${BASE_CURRENCY}\u00a0${amount.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;

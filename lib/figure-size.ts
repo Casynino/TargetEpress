@@ -36,3 +36,14 @@ export function figureSizeSmall(value: string): string {
   if (n <= 17) return "text-sm";
   return "text-xs";
 }
+
+/**
+ * A figure's size measured against its own box rather than guessed from its
+ * length: its cap, or smaller when the column is too narrow to hold it at the
+ * cap. In container units, so the nearest ancestor must be a size container
+ * (`[container-type:inline-size]`). Digits and separators average under 0.6em
+ * in this face, so 0.6 per character keeps the whole figure inside.
+ */
+export function fitFigure(text: string, capPx: number) {
+  return `min(${capPx}px, calc(100cqi / ${(0.6 * Math.max(text.length, 1)).toFixed(2)}))`;
+}

@@ -91,6 +91,7 @@ import {
 import { creditAttention } from "@/lib/support";
 import { FlightProfitTable } from "@/components/app/flight-profit-table";
 import { MoneyTile } from "@/components/app/money-tile";
+import { OwnerMoneyHero } from "@/components/app/owner-money-hero";
 import { auditSentence } from "@/lib/audit-humanise";
 import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
@@ -157,11 +158,17 @@ import { percentDeltaLabel } from "@/lib/format";
  * answering those questions about a different person, and the screen would offer
  * an action the reader's own server check then refuses.
  */
-export async function ExecutiveDashboard({ role }: { role: Role }) {
-  // Before the Promise.all, not after it. deskPulse() inside that block reads
-  // `locale`, and a const referenced from a callback that runs first is a
-  // temporal dead zone — TypeScript allows it because the reference sits in a
-  // closure it cannot prove runs early, and the page then dies at runtime.
+export async function ExecutiveDashboard({
+  role,
+  firstName = "",
+  today = "",
+}: {
+  role: Role;
+  firstName?: string;
+  today?: string;
+}) {
+  // Before the Promise.all, not after it — a const read from a callback that
+  // runs first is a temporal dead zone TypeScript cannot see.
   const locale = await viewerLocale();
 
   const [
@@ -169,12 +176,8 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
     volume,
     revenue,
     perf,
-    activity,
-    aging,
     execRateRow,
     position,
-    desks,
-    ownerItems,
     flow,
     owed,
     creditWarnings,
@@ -184,31 +187,13 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
     monthlyVolume(new Date(), locale),
     monthlyRevenue(new Date(), locale),
     corridorPerformance(),
-    recentActivity(10),
-    agingInWarehouse(5),
     currentRate(),
-    // The three the owner asks and nobody else can answer from one page:
-    // where is all of it, how is each desk, and is the money keeping up.
     corridorPosition(),
-    currentRate().then((row) => deskPulse(row ? toNumber(row.rate) : null, locale)),
-    currentRate().then((row) => ownerAttention(row ? toNumber(row.rate) : null, locale)),
     cashFlowByMonth(new Date(), locale),
     receivablesAgeing(),
-    /* §19. ownerAttention composes each desk's own problem set, and credit is the
-       one exposure that belongs to no desk's cargo: it is not a box anybody is
-       holding, it is money that left the building on a promise. */
     creditAlerts(),
-    /*
-      THE SAME OBJECT THE COMMAND CENTRE READS.
-
-      The owner told us he sees less on his own home screen than the manager
-      does, and he was right: today's takings, today's billing, today's
-      spending, the credit out on trust and the month's margin were all on
-      /app/manager and none of them here. Read from managerOverview rather
-      than re-derived, because two screens deriving the same day's money two
-      ways is how they end up disagreeing — which is the other half of what he
-      reported.
-    */
+    /* The same object the manager's command centre reads, so the two screens
+       give one answer about today's money. */
     managerOverview(locale),
   ]);
   const execRate = execRateRow ? toNumber(execRateRow.rate) : null;
@@ -217,23 +202,40 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
       ? `TSh ${Math.round(usd * execRate).toLocaleString("en-US")}`
       : formatUsd(usd);
 
-  /**
-   * Everything waiting on the owner, in one bounded panel.
-   *
-   * ownerAttention composes each desk's own problem set rather than the named,
-   * thresholded list every other role gets — this chair answers for all four,
-   * and a desk quietly failing at scale must not read as a clear desk. Grouped
-   * by the department that owns the fix, because "which of my desks" is the
-   * first thing this reader needs.
-   *
-   * Credit is appended as its own group rather than folded into Finance's, and
-   * the reason is what the rows are: cargo the company let go of before being
-   * paid. The owner grants the facilities, so the two limit warnings are his
-   * question before they are anybody else's — and they are rows in this one
-   * bounded panel, never a new section, which is the standing rule about it.
-   */
+  /*
+    WHAT WAITS ON THE OWNER — AND NOTHING THAT WAITS ON A DESK.
+
+    The owner's rule (5 Nov 2026): "Admin manages the business… departments
+    execute their duties." This panel used to compose every desk's own problem
+    set — boxes short of a manifest, prices to confirm — which is the desks'
+    work, and the owner asked for it off his screen. What is left is what only
+    a decision of his moves: the approval queues he may rule on (the manager's
+    board, lib/approvals.ts, filtered to what this reader can decide), and
+    credit at risk, which is money that left on a promise he granted.
+  */
+  const decisionItems: AttnItem[] = money.management.queues
+    .filter((queue) => queue.count > 0 && can(role, queue.permission))
+    .map((queue) => ({
+      id: `queue-${queue.key}`,
+      group: t(locale, "Decisions"),
+      severity:
+        queue.key === "claims" || (queue.oldestDays ?? 0) >= 5
+          ? ("warning" as const)
+          : ("info" as const),
+      label: `${queue.count} · ${t(locale, queue.label)}`,
+      detail: t(locale, queue.detail),
+      href: linkFor(role, queue.href) ?? "/app/manager/approvals",
+      value:
+        queue.valueUsd !== null && queue.valueUsd > 0
+          ? execTsh(queue.valueUsd)
+          : undefined,
+      valueSub:
+        queue.oldestDays !== null && queue.oldestDays > 0
+          ? `${t(locale, "oldest")} ${queue.oldestDays}${t(locale, "d")}`
+          : undefined,
+    }));
   const attention: AttnItem[] = [
-    ...ownerItems,
+    ...decisionItems,
     ...creditAttention(creditWarnings, {
       locale,
       rate: execRate,
@@ -244,352 +246,203 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
   const positionSlices = [
     { label: t(locale, "In Guangzhou"), value: position.inChina, tone: 2 as const },
     { label: t(locale, "In the air"), value: position.inAir, tone: 1 as const },
-    {
-      label: t(locale, "On the Dar floor"),
-      value: position.onFloor,
-      tone: 4 as const,
-    },
-    {
-      label: t(locale, "Cleared, not collected"),
-      value: position.ready,
-      tone: 5 as const,
-    },
-    {
-      label: t(locale, "Under investigation"),
-      value: position.flagged,
-      tone: 3 as const,
-    },
+    { label: t(locale, "On the Dar floor"), value: position.onFloor, tone: 4 as const },
+    { label: t(locale, "Cleared, not collected"), value: position.ready, tone: 5 as const },
+    { label: t(locale, "Under investigation"), value: position.flagged, tone: 3 as const },
   ];
 
   const netThisMonth = flow.net[flow.net.length - 1] ?? 0;
-
   const thisMonthRevenue = revenue.values[revenue.values.length - 1] ?? 0;
-  /* Across the year boundary too — read from the query rather than by
-     stepping back one slot in a list that starts at January. */
-  const lastMonthRevenue = revenue.previousMonth;
-  const revenueChange = percentDeltaLabel(thisMonthRevenue, lastMonthRevenue);
+  const revenueChange = percentDeltaLabel(thisMonthRevenue, revenue.previousMonth);
   const deliveredShare =
     stats.active + stats.deliveredThisMonth > 0
       ? (stats.deliveredThisMonth / (stats.active + stats.deliveredThisMonth)) * 100
       : 0;
+  const fin = money.finance;
 
   return (
     <div className="space-y-7">
-      {/*
-        The six the owner alone decides, or reads.
+      {/* 1. THE MONEY, before anything else. */}
+      <OwnerMoneyHero
+        firstName={firstName}
+        today={today}
+        heldTzs={fin.heldTzs}
+        inTodayTzs={fin.cashInTodayTzs}
+        outTodayTzs={fin.cashOutTodayTzs}
+        netTodayTzs={fin.netCashTodayTzs}
+        accounts={fin.accounts}
+      />
 
-        Shipments, Batches and Customers came out. Every one is a sidebar row
-        one press away, and none of them is a decision — this desk does not
-        register cargo, load a batch or open a customer record, it answers for
-        what the four desks did with them. A shortcut row that lists places is a
-        second sidebar; this one lists the things that stop without this chair.
-
-        Claims wait on exception.approve, and Deleted records on
-        records.viewDeleted — the one register nobody else can read.
-
-        The Ledger and Verify payments are not exclusive — Finance reads one and
-        works the other every day. They lead anyway: this row is what the owner
-        presses, and money moving and money standing still are the two things
-        they check before anything else.
-
-        Profit & loss and Company settings came out at the owner's request. Both
-        are still a press away in the sidebar.
-      */}
+      {/* 2. The owner's own pages: money, decisions, the record. */}
       <ActionPills
-        /* Only doors this reader may walk through. The owner and the manager
-           supervise Finance's verify queue rather than work it, so for them the
-           pill opens the same payments, read-only, and says so. */
         items={(
           [
-          { href: "/app/finance/transactions", label: t(locale, "The Ledger"), icon: Landmark, weight: "primary", tone: "signal" },
-          {
-            href: linkFor(role, "/app/finance/verify"),
-            label: can(role, "payment.verify")
-              ? t(locale, "Verify payments")
-              : t(locale, "Payments with Finance"),
-            icon: ShieldCheck,
-            weight: "secondary",
-            tone: "info",
-          },
-          { href: "/app/exceptions", label: t(locale, "Issues & Claims"), icon: AlertTriangle, tone: "warning" },
-          // Brand and violet wherever these two appear — the support desk, the
-          // warehouse floors and here. Colour is only a landmark while it means
-          // the same thing on every screen.
-          //
-          // Named apart, in the sidebar's own words. Both of these read
-          // "Batches", which is one word for two different places: what has
-          // left China, and the two tables cargo is still waiting on there.
-          { href: "/app/shipments", label: t(locale, "Arrived batches"), icon: Package, tone: "brand" },
-          { href: "/app/batches", label: t(locale, "Loading batches"), icon: Plane, tone: "violet" },
-          // records.viewDeleted is management's alone: restoring something a
-          // desk deleted, or purging it for good, is the one action in this app
-          // nobody else can take back.
-          { href: "/app/admin/deleted", label: t(locale, "Deleted records"), icon: Trash2, tone: "success" },
+            { href: "/app/finance/transactions", label: t(locale, "The Ledger"), icon: Landmark, weight: "primary", tone: "signal" },
+            { href: "/app/finance/accounts", label: t(locale, "Accounts"), icon: Wallet, weight: "secondary", tone: "info" },
+            { href: "/app/finance/reports", label: t(locale, "Profit & loss"), icon: TrendingUp, tone: "success" },
+            { href: linkFor(role, "/app/manager/approvals"), label: t(locale, "Approvals"), icon: ShieldCheck, tone: "brand" },
+            { href: "/app/exceptions", label: t(locale, "Issues & Claims"), icon: AlertTriangle, tone: "warning" },
+            { href: "/app/admin/deleted", label: t(locale, "Deleted records"), icon: Trash2, tone: "violet" },
           ] satisfies (Omit<ActionPill, "href"> & { href: string | undefined })[]
         ).flatMap((pill) => (pill.href ? [{ ...pill, href: pill.href }] : []))}
       />
 
-      {/* Top of the page, same as every other desk. It used to sit two thirds
-          of the way down beside a chart. */}
+      {/* 3. Only what waits on a decision of the owner's. */}
       <AttentionCenter
         items={attention}
-        reviewAll={{ href: "/app/exceptions", label: t(locale, "Every case") }}
+        reviewAll={{ href: linkFor(role, "/app/manager/approvals") ?? "/app/exceptions", label: t(locale, "Every decision") }}
         empty={t(locale, "Nothing needs your decision. Every desk is clear.")}
       />
 
-      {/* The panel that belongs only to this desk. Four departments cannot be
-          compared by opening four dashboards one at a time. */}
+      {/* 4. Today's business, since midnight. */}
       <div>
-        <SectionLabel>{t(locale, "Every desk, right now")}</SectionLabel>
-        <DeskPulsePanel desks={desks} locale={locale} />
-      </div>
-
-      {/* In transit, In Dar and Exceptions came out: the corridor ring below
-          shows all three as proportions of one whole, and a figure twice on one
-          screen reads as a bug. What is left is not on any chart. */}
-      <StatStrip
-        chips={[
-          { label: t(locale, "Active"), value: String(stats.active), icon: Package, tone: "brand" },
-          { label: t(locale, "Batches"), value: String(stats.activeBatches), icon: Boxes },
-          { label: t(locale, "Customers"), value: String(stats.customers), icon: Users },
-          { label: t(locale, "Staff"), value: String(stats.staff), icon: UserCog },
-        ]}
-      />
-
-      {/*
-        TODAY'S MONEY, ON THE OWNER'S OWN SCREEN.
-
-        Everything on this row already existed — on /app/manager, which the
-        owner can open and which is titled for somebody else. He said it
-        plainly: the owner should see more than the manager, not less. These
-        are the five figures a person who owns the business asks about before
-        anything else, and the one thing his home screen could not answer was
-        "what came in today".
-
-        Same source as the command centre's row, so the two cannot drift.
-      */}
-      <div>
-        <SectionLabel
-          action={{ href: "/app/finance", label: t(locale, "The money, in full") }}
-        >
-          {t(locale, "The money · today")}
+        <SectionLabel action={{ href: "/app/finance", label: t(locale, "The money, in full") }}>
+          {t(locale, "Today's business")}
         </SectionLabel>
-        <div className="grid grid-cols-2 items-start gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MoneyTile
-            label={t(locale, "Collected today")}
-            usd={money.finance.collectedTodayUsd}
-            rate={execRate}
-            hint={t(locale, "what customers actually handed over")}
-            icon={HandCoins}
-            tone={money.finance.collectedTodayUsd > 0 ? "good" : "default"}
-            href={linkFor(role, "/app/finance/payments")}
-          />
+        <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-4 lg:grid-cols-4">
           <MoneyTile
             label={t(locale, "Billed today")}
-            usd={money.finance.revenueTodayUsd}
+            usd={fin.revenueTodayUsd}
             rate={execRate}
             hint={t(locale, "invoiced today, not yet money")}
             icon={Receipt}
             href="/app/finance/invoices"
           />
           <MoneyTile
+            label={t(locale, "Collected today")}
+            usd={fin.collectedTodayUsd}
+            rate={execRate}
+            hint={t(locale, "what customers actually handed over")}
+            icon={HandCoins}
+            tone={fin.collectedTodayUsd > 0 ? "good" : "default"}
+            href={linkFor(role, "/app/finance/payments")}
+          />
+          <MoneyTile
             label={t(locale, "Spent today")}
-            usd={money.finance.expensesTodayUsd}
+            usd={fin.expensesTodayUsd}
             rate={execRate}
             hint={t(locale, "everything that left an account since midnight")}
             icon={Banknote}
-            tone={money.finance.expensesTodayUsd > 0 ? "warn" : "default"}
+            tone={fin.expensesTodayUsd > 0 ? "warn" : "default"}
             href="/app/finance/expenses"
           />
-          <MoneyTile
-            label={t(locale, "Credit outstanding")}
-            usd={money.finance.creditOutstandingUsd}
-            rate={execRate}
-            hint={t(locale, "cargo released on a promise, never cash")}
-            icon={CreditCard}
-            tone={money.finance.creditOutstandingUsd > 0 ? "warn" : "default"}
-            href="/app/finance/credit"
+          <KpiCard
+            delay={1}
+            label={t(locale, "Net cash today")}
+            value={
+              execRate === null
+                ? formatUsd(fin.collectedTodayUsd - fin.expensesTodayUsd)
+                : `${fin.netCashTodayTzs < 0 ? "−" : ""}TSh ${Math.abs(Math.round(fin.netCashTodayTzs)).toLocaleString("en-US")}`
+            }
+            hint={t(locale, "what came in, less what went out")}
+            icon={Scale}
+            tone={fin.netCashTodayTzs < 0 ? "warning" : "success"}
+            href="/app/finance/transactions"
           />
         </div>
       </div>
 
+      {/* 5. The month: what came in, what it earned, what is still owed. */}
       <div>
-        <SectionLabel
-          action={{ href: "/app/finance", label: t(locale, "Full position") }}
-        >
-          {t(locale, "Business health · right now")}
+        <SectionLabel action={{ href: "/app/finance/reports", label: t(locale, "Profit & loss") }}>
+          {t(locale, "This month")}
         </SectionLabel>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {/*
-          Shillings lead here too.
-
-          This was the one money card on the page still reading in dollars. The
-          reason was real — payments arrive in either currency and are summed at
-          the rate frozen onto each invoice, so the dollar figure is exact and a
-          shilling one is today's rate applied to it. But that is precisely what
-          the tile beside it does, and what every money figure in this app does:
-          the shilling leads because it is the money in the room, and the exact
-          dollar figure sits underneath labelled as the invoice's.
-
-          One card in dollars in a row of shillings does not read as more
-          precise. It reads as a different unit nobody warned you about.
-        */}
-        {/*
-          FREIGHT, NAMED — BECAUSE THE BAR BELOW IT COUNTS MORE.
-
-          A customer often sends the freight and the delivery fare in one
-          transfer. This tile and its trend are the cargo half only; "Money in
-          and out" further down adds the fare back, because the fare leaving
-          again is counted in the same chart's Money out. Both are right and
-          they do not match, so the tile says which one it is instead of
-          leaving the owner to find two figures for one month.
-        */}
-        <MoneyTile
-          label={t(locale, "Freight collected this month")}
-          usd={thisMonthRevenue}
-          rate={execRate}
-          count={
-            revenueChange
-              ? `${revenueChange} ${t(locale, "on last month")}`
-              : /* Only genuinely the first month if nothing was ever
-                   collected. A quiet month after busy ones is not the
-                   business's first, and saying so made the owner doubt a
-                   figure that was right. */
-                stats.allTimeCollected > thisMonthRevenue
-                ? t(locale, "nothing came in last month")
-                : t(locale, "first month with takings")
-          }
-          hint={`${execTsh(stats.allTimeCollected)} ${t(locale, "received all time")} · ${t(locale, "the delivery fare is not ours")}`}
-          icon={Banknote}
-          tone="good"
-          trend={revenue.values}
-          href="/app/finance"
-        />
-        {/* Shillings lead. Freight is priced in dollars and paid in
-            shillings, and the owner reads this the way the till does. */}
-        <MoneyTile
-          label={t(locale, "Outstanding")}
-          usd={stats.outstanding}
-          rate={execRate}
-          /* Every open bill, not this month's — it sits between two tiles
-             that are both month figures, and read as one. */
-          hint={t(locale, "Owed on every unpaid bill, not just this month")}
-          icon={Wallet}
-          tone={stats.outstanding > 0 ? "warn" : "good"}
-          href="/app/finance/invoices?status=UNPAID"
-        />
-        <KpiCard
-          delay={2}
-          label={t(locale, "Delivered this month")}
-          numeric={stats.deliveredThisMonth}
-          ringPct={deliveredShare}
-          /* The ring divides this month's deliveries by everything still
-             moving plus them — and "still moving" is the whole corridor, not
-             this month's registrations. Said as "the month's cargo", it named
-             a population the figure was never measured against. */
-          ringLabel={t(locale, "Delivered this month against everything still moving")}
-          hint={`${stats.active} ${t(locale, "still moving")}`}
-          icon={Truck}
-          tone="brand"
-        />
-        {/*
-          THE PROMISE THE BUSINESS ACTUALLY MAKES.
-
-          This said "Within 3-day promise" and measured departure → Dar
-          check-in, so it graded the corridor against a promise retired months
-          ago, on the wrong leg, and showed the owner 0%. It now counts the
-          span the customer counts: handed over in China → reached our Dar
-          warehouse, against the 3-10 days on the rate card.
-        */}
-        <KpiCard
-          delay={3}
-          label={`${t(locale, "Within the")} ${COMPANY.promiseDays} ${t(locale, "day promise")}`}
-          value={perf.promiseRate === null ? "—" : `${perf.promiseRate.toFixed(0)}%`}
-          /* No ring where there is nothing measured. A `?? 0` drew a full
-             0% ring beside a dash, which reads as "we met the promise on
-             none of it" rather than "no cargo has completed the journey
-             yet" — the first thing the owner saw and called wrong. */
-          ringPct={perf.promiseRate ?? undefined}
-          ringLabel={t(locale, "Promise adherence")}
-          hint={
-            perf.avgToTanzaniaDays === null
-              ? `${t(locale, "Over")} ${perf.sample} ${t(locale, "delivered")}`
-              : `${t(locale, "China → Dar, averaging")} ${perf.avgToTanzaniaDays.toFixed(1)} ${t(locale, "days")}`
-          }
-          icon={Timer}
-          tone={
-            perf.promiseRate === null
-              ? "info"
-              : perf.promiseRate >= 80
-                ? "success"
-                : "warning"
-          }
-        />
-        {/*
-          BILLED LESS COSTS — WHICH IS NOT MONEY IN THE BANK.
-
-          The owner asked how the month could show a profit of 48m when 8.3m
-          had come in. It could because this figure counts bills RAISED, not
-          money RECEIVED: the other 39.8m was standing with customers, most of
-          it against cargo still on our own Dar floor.
-
-          Nothing about the arithmetic was wrong. The card said "Profit", sat
-          in a row headed "the money · today" beside three cash tiles, and
-          showed one term of a three-term sum with the other two nowhere on the
-          page. So it now says what it is, stands with the other month figures
-          rather than the day's cash, and prints both halves underneath —
-          billed and cost — which is the only way the figure can be checked.
-
-          `billed` is arithmetic on two numbers already here, not a fourth
-          opinion about what revenue means: profitAndLoss defines profit as
-          revenue less costs and managerOverview returns both.
-        */}
-        <KpiCard
-          delay={4}
-          label={t(locale, "Billed this month, less costs")}
-          value={execTsh(money.finance.profitThisMonthUsd)}
-          ringPct={money.finance.marginPct ?? undefined}
-          ringLabel={t(locale, "Share of this month's billing left after costs")}
-          hint={
-            money.finance.marginPct === null
-              ? t(locale, "nothing billed this month yet")
-              : /* "cost" alone is already a row counter in the dictionary
-                   ("3 costs"), so the two halves reuse the labels the manager
-                   page prints under the same figure. */
-                `${t(locale, "Billed")} ${execTsh(
-                  money.finance.profitThisMonthUsd + money.finance.expensesThisMonthUsd
-                )} · ${t(locale, "What it cost")} ${execTsh(money.finance.expensesThisMonthUsd)}`
-          }
-          icon={ChartNoAxesCombined}
-          tone={
-            money.finance.profitThisMonthUsd < 0
-              ? "warning"
-              : money.finance.marginPct !== null && money.finance.marginPct >= 20
-                ? "success"
-                : "brand"
-          }
-          href="/app/manager/reports"
-        />
+        <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
+          <MoneyTile
+            label={t(locale, "Freight collected this month")}
+            usd={thisMonthRevenue}
+            rate={execRate}
+            count={
+              revenueChange
+                ? `${revenueChange} ${t(locale, "on last month")}`
+                : stats.allTimeCollected > thisMonthRevenue
+                  ? t(locale, "nothing came in last month")
+                  : t(locale, "first month with takings")
+            }
+            hint={`${execTsh(stats.allTimeCollected)} ${t(locale, "received all time")} · ${t(locale, "the delivery fare is not ours")}`}
+            icon={Banknote}
+            tone="good"
+            trend={revenue.values}
+            href="/app/finance"
+          />
+          {/* Billed less costs — invoiced, not money received; the sentence
+              under the row says so, and Outstanding beside it is the rest. */}
+          <KpiCard
+            delay={2}
+            label={t(locale, "Billed this month, less costs")}
+            value={execTsh(fin.profitThisMonthUsd)}
+            ringPct={fin.marginPct ?? undefined}
+            ringLabel={t(locale, "Share of this month's billing left after costs")}
+            hint={
+              fin.marginPct === null
+                ? t(locale, "nothing billed this month yet")
+                : `${t(locale, "Billed")} ${execTsh(fin.profitThisMonthUsd + fin.expensesThisMonthUsd)} · ${t(locale, "What it cost")} ${execTsh(fin.expensesThisMonthUsd)}`
+            }
+            icon={ChartNoAxesCombined}
+            tone={
+              fin.profitThisMonthUsd < 0
+                ? "warning"
+                : fin.marginPct !== null && fin.marginPct >= 20
+                  ? "success"
+                  : "brand"
+            }
+            href="/app/finance/reports"
+          />
+          <MoneyTile
+            label={t(locale, "Outstanding")}
+            usd={stats.outstanding}
+            rate={execRate}
+            hint={t(locale, "Owed on every unpaid bill, not just this month")}
+            icon={Wallet}
+            tone={stats.outstanding > 0 ? "warn" : "good"}
+            href="/app/collections/follow-up"
+          />
+          <MoneyTile
+            label={t(locale, "Credit outstanding")}
+            usd={fin.creditOutstandingUsd}
+            rate={execRate}
+            hint={t(locale, "cargo released on a promise, never cash")}
+            icon={CreditCard}
+            tone={fin.creditOutstandingUsd > 0 ? "warn" : "default"}
+            href="/app/finance/credit"
+          />
+          <KpiCard
+            delay={3}
+            label={t(locale, "Delivered this month")}
+            numeric={stats.deliveredThisMonth}
+            ringPct={deliveredShare}
+            ringLabel={t(locale, "Delivered this month against everything still moving")}
+            hint={`${stats.active} ${t(locale, "still moving")}`}
+            icon={Truck}
+            tone="brand"
+          />
+          <KpiCard
+            delay={4}
+            label={`${t(locale, "Within the")} ${COMPANY.promiseDays} ${t(locale, "day promise")}`}
+            value={perf.promiseRate === null ? "—" : `${perf.promiseRate.toFixed(0)}%`}
+            ringPct={perf.promiseRate ?? undefined}
+            ringLabel={t(locale, "Promise adherence")}
+            hint={
+              perf.avgToTanzaniaDays === null
+                ? `${t(locale, "Over")} ${perf.sample} ${t(locale, "delivered")}`
+                : `${t(locale, "China → Dar, averaging")} ${perf.avgToTanzaniaDays.toFixed(1)} ${t(locale, "days")}`
+            }
+            icon={Timer}
+            tone={
+              perf.promiseRate === null
+                ? "info"
+                : perf.promiseRate >= 80
+                  ? "success"
+                  : "warning"
+            }
+          />
         </div>
-        {/*
-          THE SENTENCE THAT STOPS THE CARD BEING MISREAD.
-
-          Said once, under the row, rather than crammed into a 48px ring: the
-          money figure above is what was invoiced, and Outstanding beside it is
-          how much of that nobody has paid yet.
-
-          The second half only appears when it is true. A margin above 95% on a
-          corridor that buys space from an airline means the flight's own costs
-          have not been entered — the app warns about this per flight already
-          ("A batch with no costs recorded reads as pure profit"), and this is
-          the screen the owner actually opens.
-        */}
         <p className="mt-2 text-xs leading-snug text-muted-foreground">
           {t(
             locale,
             "Billed less costs is what was invoiced this month, not money received. What has not been paid is under Outstanding."
           )}
-          {money.finance.marginPct !== null && money.finance.marginPct > 95 ? (
+          {fin.marginPct !== null && fin.marginPct > 95 ? (
             <span className="text-warning">
               {" "}
               {t(
@@ -601,63 +454,28 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
         </p>
       </div>
 
-      {/* Where all of it is, whether the money is keeping up, and how old the
-          debt is — the three the owner cannot get from any one desk's page. */}
+      {/* 6. How the business is going: money over the year, what is owed, where the cargo is. */}
       <div>
-        <SectionLabel
-          action={{ href: "/app/shipments", label: t(locale, "Every consignment") }}
-        >
-          {t(locale, "The corridor, right now")}
+        <SectionLabel action={{ href: "/app/finance/transactions", label: t(locale, "The Ledger") }}>
+          {t(locale, "How the business is going")}
         </SectionLabel>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <section className="panel p-4">
-            <h3 className="text-sm font-semibold">
-              {t(locale, "Where the cargo is")}
-            </h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t(
-                locale,
-                "Everything the business is carrying, Guangzhou to the counter"
-              )}
-            </p>
-            <div className="mt-3 flex justify-center">
-              <Donut
-                size={118}
-                stroke={18}
-                label={String(position.total)}
-                caption={t(locale, "consignments")}
-                slices={positionSlices}
-              />
-            </div>
-            <DonutLegend className="mt-3" slices={positionSlices} />
-          </section>
-
-          <section className="panel p-4">
+          <section className="panel min-w-0 p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold">
-                  {t(locale, "Money in and out")}
-                </h3>
+                <h3 className="text-sm font-semibold">{t(locale, "Money in and out")}</h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {t(locale, "What arrived against what it cost, this year")}
                 </p>
               </div>
-              {/* The bars run across the year; this figure is THIS MONTH
-                  alone. Unlabelled beside a caption ending "this year", it
-                  read as the year's net — which is a different and much
-                  larger number. */}
               <p className="shrink-0 text-right">
                 <span
-                  className={`block font-mono text-xs font-semibold ${
-                    netThisMonth < 0 ? "text-signal" : "text-success"
-                  }`}
+                  className={`block font-mono text-xs font-semibold ${netThisMonth < 0 ? "text-signal" : "text-success"}`}
                 >
                   {netThisMonth < 0 ? "−" : "+"}
                   {execTsh(Math.abs(netThisMonth))}
                 </span>
-                <span className="block text-[10px] text-muted-foreground">
-                  {t(locale, "this month")}
-                </span>
+                <span className="block text-[10px] text-muted-foreground">{t(locale, "this month")}</span>
               </p>
             </div>
             <FlowBars
@@ -670,12 +488,10 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
             />
           </section>
 
-          <section className="panel p-4">
+          <section className="panel min-w-0 p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold">
-                  {t(locale, "What we are owed, by age")}
-                </h3>
+                <h3 className="text-sm font-semibold">{t(locale, "What we are owed, by age")}</h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {t(locale, "From the day the bill became real")}
                 </p>
@@ -683,9 +499,7 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
               {owed.oldestDays > 0 ? (
                 <p className="shrink-0 text-right text-xs text-muted-foreground">
                   {t(locale, "oldest")}{" "}
-                  <span className="font-mono font-semibold text-foreground">
-                    {owed.oldestDays}d
-                  </span>
+                  <span className="font-mono font-semibold text-foreground">{owed.oldestDays}d</span>
                 </p>
               ) : null}
             </div>
@@ -702,105 +516,47 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
               empty={t(locale, "Nothing is owed. Every bill raised has been settled.")}
             />
           </section>
+
+          <section className="panel min-w-0 p-4">
+            <h3 className="text-sm font-semibold">{t(locale, "Where the cargo is")}</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t(locale, "Everything the business is carrying, Guangzhou to the counter")}
+            </p>
+            <div className="mt-3 flex justify-center">
+              <Donut
+                size={118}
+                stroke={18}
+                label={String(position.total)}
+                caption={t(locale, "consignments")}
+                slices={positionSlices}
+              />
+            </div>
+            <DonutLegend className="mt-3" slices={positionSlices} />
+          </section>
         </div>
       </div>
 
-      <div>
-        <SectionLabel
-          action={{ href: "/app/shipments", label: t(locale, "All batches") }}
-        >
-          {t(locale, "Volume")}
-        </SectionLabel>
-        <section className="panel p-5">
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-display font-semibold">
-                {t(locale, "Cargo volume")}
-              </h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {volume.year} {t(locale, "against")} {volume.year - 1}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="font-display text-2xl font-bold tabular">
-                {volume.total.toLocaleString()}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t(locale, "this year")}
-              </p>
-            </div>
+      <section className="panel min-w-0 p-5">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-display font-semibold">{t(locale, "Cargo volume")}</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {volume.year} {t(locale, "against")} {volume.year - 1}
+            </p>
           </div>
-          <AreaChart
-            labels={volume.labels}
-            series={[
-              { name: String(volume.year), values: volume.current, tone: 1 },
-              { name: String(volume.year - 1), values: volume.previous, tone: 2 },
-            ]}
-          />
-        </section>
-      </div>
-
-      <div>
-        <SectionLabel
-          action={{
-            href: "/app/finance/transactions",
-            label: t(locale, "The Ledger"),
-          }}
-        >
-          {t(locale, "Cargo behind the money, and who did what")}
-        </SectionLabel>
-        {/* No "Collections by month" bar. Money in and out above draws the same
-            payments, against the costs they have to cover — one series where
-            there were two charts, and the one that could never answer whether
-            any of it was kept. */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <section className="panel p-5">
-          <h2 className="font-display font-semibold">
-            {t(locale, "Unpaid in warehouse")}
-          </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {t(locale, "Cargo we are storing for free")}
-          </p>
-          <ul className="mt-4 divide-y">
-            {aging.length === 0 ? (
-              <li className="py-6 text-center text-sm text-muted-foreground">
-                {t(locale, "Nothing outstanding.")}
-              </li>
-            ) : (
-              aging.map((shipment) => (
-                <li
-                  key={shipment.id}
-                  className="flex items-center justify-between gap-3 py-2.5"
-                >
-                  <Link
-                    href={`/app/cargo/${shipment.trackingNumber}`}
-                    className="font-mono text-sm tabular hover:text-brand"
-                  >
-                    {shipment.trackingNumber}
-                  </Link>
-                  <span className="text-xs text-muted-foreground">
-                    {formatRelative(shipment.arrivedAt, locale)}
-                  </span>
-                </li>
-              ))
-            )}
-          </ul>
-        </section>
-        <ActivityFeed
-          entries={activity.map((entry) => ({
-            id: entry.id,
-            action: entry.action,
-            summary: auditSentence(locale, entry),
-            createdAt: entry.createdAt,
-            actorName: entry.actor?.name ?? entry.actorEmail ?? null,
-          }))}
-          title={t(locale, "Company activity")}
-          description={t(locale, "Every privileged action, newest first")}
-          href="/app/admin/audit"
-        />
+          <div className="text-right">
+            <p className="font-display text-2xl font-bold tabular">{volume.total.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">{t(locale, "this year")}</p>
+          </div>
         </div>
-      </div>
-
+        <AreaChart
+          labels={volume.labels}
+          series={[
+            { name: String(volume.year), values: volume.current, tone: 1 },
+            { name: String(volume.year - 1), values: volume.previous, tone: 2 },
+          ]}
+        />
+      </section>
     </div>
   );
 }

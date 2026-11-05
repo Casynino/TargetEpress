@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fitFigure } from "@/components/app/kpi-card";
 import { ArrowRight, type LucideIcon } from "lucide-react";
 
 import { areaPath, clampPct, ringGeometry, scalePoints, smoothPath } from "@/lib/chart";
@@ -245,15 +246,18 @@ export function Figure({
           </span>
         ) : null}
       </div>
-      <p
-        className={cn(
-          "mt-3 font-display font-bold leading-none tracking-tight tabular-nums",
-          size === "lg" ? "text-[34px]" : "text-[26px]",
-          FIGURE_TONES[tone]
-        )}
-      >
-        {value}
-      </p>
+      {/* Fitted to the card, never past its size — see fitFigure. */}
+      <div className="mt-3 min-w-0 [container-type:inline-size]">
+        <p
+          className={cn(
+            "whitespace-nowrap font-display font-bold leading-none tracking-tight tabular-nums",
+            FIGURE_TONES[tone]
+          )}
+          style={{ fontSize: fitFigure(String(value), size === "lg" ? 34 : 26) }}
+        >
+          {value}
+        </p>
+      </div>
       {hint ? (
         <p className="mt-auto pt-2.5 text-xs leading-snug text-muted-foreground">
           {hint}

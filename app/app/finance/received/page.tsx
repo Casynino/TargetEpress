@@ -375,14 +375,15 @@ export default async function IncomePage({
             Icon: Clock3,
           },
         ].map((tile) => (
-          <div key={tile.label} className="rounded-xl border bg-card p-4 shadow-soft">
+          <div key={tile.label} className="min-w-0 rounded-xl border bg-card p-4 shadow-soft [container-type:inline-size]">
             <div className="flex items-center gap-2">
               <tile.Icon className="h-4 w-4 text-muted-foreground" />
               <p className="text-xs font-medium text-muted-foreground">
                 {t(locale, tile.label)}
               </p>
             </div>
-            <p className="mt-1.5 font-display text-xl font-bold tabular">
+            {/* Never wraps: past its card's width the figure shrinks instead. */}
+            <p className="mt-1.5 whitespace-nowrap font-display text-[length:min(20px,calc(100cqi/10))] font-bold tabular">
               {tile.value === null
                 ? (() => {
                     const shillings = byCurrency.find((row) => row.currency === "TZS");
@@ -453,11 +454,63 @@ export default async function IncomePage({
                         {exact(dayShillings, dayUsd)}
                       </p>
                     </div>
-                    {rows.map((row) => (
-                      <div
-                        key={row.id}
-                        className="flex flex-wrap items-center gap-3 border-b px-4 py-3 last:border-b-0"
-                      >
+                    {rows.map((row) => {
+                      const amountText = exact(
+                        rowInShillings(
+                          {
+                            currency: row.currency,
+                            amount: row.amount,
+                            amountUsd: row.creditedAmount ?? row.amount,
+                          },
+                          rate
+                        ),
+                        toNumber(row.creditedAmount ?? row.amount)
+                      );
+                      return (
+                      <div key={row.id} className="border-b px-4 py-3 last:border-b-0">
+                        {/* A phone or a narrow laptop gets its own arrangement: who and how much on
+                            the first line, the paperwork under it, where it
+                            landed at the bottom. Squeezed into the desktop row
+                            the name shrank to "E2E…", the tracking number broke
+                            in two and the amount fell onto a line of its own. */}
+                        <div className="flex gap-3 xl:hidden">
+                          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand/10 text-brand">
+                            <Package className="h-4 w-4" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline justify-between gap-3">
+                              <p className="min-w-0 truncate text-sm font-medium">
+                                {row.invoice?.customer.name ?? t(locale, "Not attributed")}
+                              </p>
+                              <p className="shrink-0 whitespace-nowrap font-display text-base font-bold tabular">
+                                {amountText}
+                              </p>
+                            </div>
+                            <p className="mt-1 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                              {row.invoice?.shipment?.trackingNumber ? (
+                                <Badge variant="secondary" className="shrink-0 whitespace-nowrap">
+                                  {row.invoice.shipment.trackingNumber}
+                                </Badge>
+                              ) : null}
+                              <span className="min-w-0 truncate">
+                                {formatDateTime(row.paidAt, locale).slice(-5)} ·{" "}
+                                {row.receipt?.receiptNumber ?? t(locale, "no receipt")}
+                              </span>
+                            </p>
+                            <div className="mt-1.5 flex items-center justify-between gap-3">
+                              <p className="min-w-0 truncate text-xs">
+                                {row.account?.name ?? t(locale, "Not said where it went")}
+                              </p>
+                              <Link
+                                href={`/app/finance/payments/${row.id}`}
+                                className="focus-ring shrink-0 rounded-lg border px-2.5 py-1 text-xs font-medium hover:bg-accent"
+                              >
+                                {t(locale, "Open")}
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="hidden flex-wrap items-center gap-3 xl:flex">
                         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand/10 text-brand">
                           <Package className="h-4 w-4" />
                         </span>
@@ -467,7 +520,7 @@ export default async function IncomePage({
                               {row.invoice?.customer.name ?? t(locale, "Not attributed")}
                             </span>
                             {row.invoice?.shipment?.trackingNumber ? (
-                              <Badge variant="secondary">
+                              <Badge variant="secondary" className="whitespace-nowrap">
                                 {row.invoice.shipment.trackingNumber}
                               </Badge>
                             ) : null}
@@ -502,21 +555,13 @@ export default async function IncomePage({
                         >
                           {t(locale, "Open")}
                         </Link>
-                        <p className="w-28 shrink-0 text-right font-display text-base font-bold tabular">
-                          {exact(
-                            rowInShillings(
-                              {
-                                currency: row.currency,
-                                amount: row.amount,
-                                amountUsd: row.creditedAmount ?? row.amount,
-                              },
-                              rate
-                            ),
-                            toNumber(row.creditedAmount ?? row.amount)
-                          )}
+                        <p className="min-w-28 shrink-0 whitespace-nowrap text-right font-display text-base font-bold tabular">
+                          {amountText}
                         </p>
+                        </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
               })}

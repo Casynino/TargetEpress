@@ -196,10 +196,12 @@ export async function MoneyTile({
           secondary. */}
       {rate ? (
         <div className="relative mt-2.5 flex items-baseline gap-1.5 rounded-lg bg-background/70 px-2.5 py-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {/* The words step aside in a narrow tile (two to a row on a phone),
+              so the dollar figure keeps one line — see globals.css. */}
+          <span className="money-tile-invoice-label text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t(locale, "on the invoice")}
           </span>
-          <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
+          <span className="whitespace-nowrap font-mono text-xs font-semibold tabular-nums text-foreground">
             {formatUsd(usd)}
           </span>
         </div>

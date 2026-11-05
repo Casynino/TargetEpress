@@ -38,7 +38,7 @@ import { DeskHero } from "@/components/app/desk-hero";
 import { DeskPulsePanel } from "@/components/app/desk-pulse";
 import { AlertQueue } from "@/components/app/alert-queue";
 import { AttentionCenter, type AttnItem } from "@/components/app/attention-center";
-import { KpiCard } from "@/components/app/kpi-card";
+import { KpiCard, fitFigure } from "@/components/app/kpi-card";
 import { PageHeader } from "@/components/app/page-header";
 import { SectionLabel } from "@/components/app/section-label";
 import { StatStrip } from "@/components/app/stat-strip";
@@ -339,7 +339,7 @@ export default async function DashboardPage() {
           search={{ action: "/app/search" }}
           hourOfDay={localHour(inChina ? "CN" : "TZ")}
         />
-      ) : (
+      ) : user.role === "ADMIN" ? null : (
       <DeskHero
         firstName={firstName}
         role={user.role}
@@ -367,7 +367,10 @@ export default async function DashboardPage() {
       {user.role === "FINANCE" ? (
         <FinanceDashboard role={user.role} />
       ) : null}
-      {user.role === "ADMIN" ? <ExecutiveDashboard role={user.role} /> : null}
+      {/* The owner's banner is the money, drawn inside his dashboard. */}
+      {user.role === "ADMIN" ? (
+        <ExecutiveDashboard role={user.role} firstName={firstName} today={today} />
+      ) : null}
     </>
   );
 }
@@ -2309,9 +2312,12 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                     shape. */}
                 <div className="mt-3 flex items-center gap-4">
                   <Donut size={104} stroke={16} slices={cashSlices} />
-                  <div className="min-w-0">
-                    <p className="font-display text-2xl font-bold leading-none tabular-nums">
-                      {tsh(cashUsd).replace("TSh ", "")}
+                  <div className="min-w-0 flex-1 [container-type:inline-size]">
+                    <p
+                      className="whitespace-nowrap font-display font-bold leading-none tabular-nums"
+                      style={{ fontSize: fitFigure(tsh(cashUsd).replace(/^TSh\s/, ""), 24) }}
+                    >
+                      {tsh(cashUsd).replace(/^TSh\s/, "")}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {t(locale, "TSh in hand")}

@@ -614,3 +614,12 @@
     scroll-margin-top: 6rem;
   }
 }
+
+/* A money tile two to a row on a phone has no room for "ON THE INVOICE" beside
+   the dollar figure, and the pair wrapped into three lines. The figure stays;
+   the words step aside. The tile is its own size container (money-tile.tsx). */
+@container (max-width: 200px) {
+  .money-tile-invoice-label {
+    display: none;
+  }
+}

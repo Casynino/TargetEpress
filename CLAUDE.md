@@ -30,6 +30,14 @@ Next.js 15 App Router · React 19 (RSC + server actions) · Prisma 6 · Postgres
 
 **Deleted cargo appears nowhere** but the delete history — including PDFs, labels and QR scans.
 
+## Roles: the owner oversees, the manager supervises, departments do the work
+
+The owner's rule (5 Nov 2026). `DEPARTMENT_WORK` in `lib/rbac.ts` names each department's daily keys (registering, labelling, dispatching, receiving, releasing, bills, payments, pickup notes, expenses, transfers, payroll runs, tickets, sourcing, customer edits) and both ADMIN and MANAGER are `ALL` minus that list — still by subtraction, so a new key defaults to them. They keep every view and every decision (approve, review, sign off, waive, discount, credit, payroll approval, ledger correction). The owner alone keeps settings, the price book, the exchange rate, opening accounts and purge; the manager alone keeps the hands-on exceptions (working a case, correcting a cargo record, undoing an arrival) and staffing. The four departments' own lists are untouched. `npm run check:roles` fails if any of this moves.
+
+- A dashboard figure must never open a page its reader cannot enter: use `linkFor(role, href)` (`lib/rbac.ts`), which falls back to the tool's read-only twin (receiving → arrived batches, verify queue → payments with Finance) or to no link.
+- **The owner's dashboard is about the money and how the business is going**, never a desk's to-do list: `OwnerMoneyHero` (money you can use right now, today's move, where it sits — from `managerOverview().finance.accounts`, the same engine as Finance's overview), then quick links, then only the decisions the owner can take (approval queues filtered by `can`, plus credit at risk), then today, this month, and the business charts.
+- **Numbers fit their own box** on every screen: big figures are sized in container units (`fitFigure` in `components/app/kpi-card.tsx`, MoneyTile's own rule), never fixed, so a long shilling figure shrinks on a Windows laptop (1366 px, or 1920 at 125%) instead of running out of its card. Check new screens at 390, 820, 1349 and 1519 px wide.
+
 ## Developer account
 
 A separate `Role.DEVELOPER` row with its own email and password — never a flag on a staff account. Same pattern as ORA (`/Users/Nino/Desktop/Clients /3-Devs/ORA`). Nothing in the app can create, promote, suspend or reset one: `scripts/create-developer.mjs` (needs the database) is the only way, and `--recover` resets the password.

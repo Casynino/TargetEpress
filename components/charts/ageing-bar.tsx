@@ -136,7 +136,7 @@ export function AgeingBar({
                   )}
                   aria-hidden
                 />
-                <span className="min-w-0 flex-1 truncate">{segment.label}</span>
+                <span className="min-w-0 flex-1 leading-tight">{segment.label}</span>
               </span>
 
               <span className="flex items-center justify-between gap-2 pl-4 sm:contents sm:pl-0">

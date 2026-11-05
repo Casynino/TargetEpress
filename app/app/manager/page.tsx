@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { fitFigure } from "@/lib/figure-size";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -838,8 +839,16 @@ export default async function ManagerHome() {
               </p>
             </div>
             <div className="flex items-start gap-4">
-              <div className="text-right">
-                <p className="font-display text-[22px] font-bold leading-none tabular-nums">
+              <div className="min-w-0 flex-1 text-right [container-type:inline-size]">
+                <p
+                  className="whitespace-nowrap font-display font-bold leading-none tabular-nums"
+                  style={{
+                    fontSize: fitFigure(
+                      shillings(finance.bankTzs + finance.mobileMoneyTzs + finance.cashTzs),
+                      22
+                    ),
+                  }}
+                >
                   {shillings(
                     finance.bankTzs + finance.mobileMoneyTzs + finance.cashTzs
                   )}

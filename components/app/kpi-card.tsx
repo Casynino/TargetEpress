@@ -69,6 +69,9 @@ const SPARK_TONE: Record<Tone, 1 | 2 | 3 | 4 | 5 | 6> = {
  * Server component: the entrance is a CSS animation and the only client code is
  * the <CountUp> leaf, so a row of eight cards ships almost no JavaScript.
  */
+export { fitFigure } from "@/lib/figure-size";
+import { fitFigure } from "@/lib/figure-size";
+
 export function KpiCard({
   label,
   value,
@@ -111,6 +114,14 @@ export function KpiCard({
   delay?: number;
   className?: string;
 }) {
+  /* What will actually be painted, so the size can be fitted to it. */
+  const shownText =
+    numeric !== undefined
+      ? `${prefix}${numeric.toLocaleString("en-US", {
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals,
+        })}${suffix}`
+      : (value ?? "—");
   const deltaGood = delta === undefined ? null : invertDelta ? delta < 0 : delta > 0;
   const DeltaIcon =
     delta === undefined || delta === 0
@@ -176,12 +187,16 @@ export function KpiCard({
       </div>
 
       <div className="relative mt-3 flex items-end justify-between gap-3">
-        <div className="min-w-0">
+        {/* The figure shrinks to its own column, never grows past 26px. A fixed
+            size ran a long shilling figure out through the card's edge on a
+            narrow laptop — the Windows screens the owner reads on. */}
+        <div className="min-w-0 flex-1 [container-type:inline-size]">
           <p
             className={cn(
-              "font-display text-[26px] font-bold leading-none tracking-tight tabular",
+              "whitespace-nowrap font-display font-bold leading-none tracking-tight tabular",
               VALUE_TONES[tone]
             )}
+            style={{ fontSize: fitFigure(shownText, 26) }}
           >
             {numeric !== undefined ? (
               <CountUp
