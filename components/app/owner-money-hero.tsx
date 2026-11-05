@@ -1,6 +1,4 @@
 import Image from "next/image";
-import Link from "next/link";
-import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 
 import { t } from "@/lib/i18n";
 import { formatLocal } from "@/lib/money";
@@ -27,8 +25,9 @@ function tanzaniaHour() {
  *
  * The owner asked for the banner the Vegas owner opens on — dark, a photograph
  * down the right, the greeting large and the day's money said in one line under
- * it, with where the money sits as small chips. On a phone the photograph sits
- * softly behind the words and the chips wrap; nothing else is added.
+ * it. Where the money sits is NOT here — the owner asked for the banner clean,
+ * and the split lives in its own card just under it, as a ring. On a phone the
+ * photograph sits softly behind the words.
  *
  * Every figure is the shared overview's own (lib/manager-overview.ts), already
  * in shillings, so the banner and the Accounts page cannot disagree.
@@ -38,24 +37,14 @@ export async function OwnerMoneyHero({
   roleLabel,
   heldTzs,
   inTodayTzs,
-  outTodayTzs,
-  netTodayTzs,
   owedTzs,
-  bankTzs,
-  mobileMoneyTzs,
-  cashTzs,
 }: {
   firstName: string;
   roleLabel: string;
   heldTzs: number;
   inTodayTzs: number;
-  outTodayTzs: number;
-  netTodayTzs: number;
   /** Every unpaid bill, in shillings. */
   owedTzs: number;
-  bankTzs: number;
-  mobileMoneyTzs: number;
-  cashTzs: number;
 }) {
   const locale = await viewerLocale();
   const hour = tanzaniaHour();
@@ -65,12 +54,6 @@ export async function OwnerMoneyHero({
       : hour < 17
         ? t(locale, "Good afternoon")
         : t(locale, "Good evening");
-  const net = Math.round(netTodayTzs);
-  const chips = [
-    { label: t(locale, "Bank"), value: bankTzs, dot: "bg-sky-400" },
-    { label: t(locale, "Mobile money"), value: mobileMoneyTzs, dot: "bg-emerald-400" },
-    { label: t(locale, "Cash"), value: cashTzs, dot: "bg-amber-300" },
-  ];
 
   return (
     <section className="relative isolate overflow-hidden rounded-[1.75rem] bg-[#0b1322] text-white shadow-[0_24px_60px_-30px_rgba(5,15,40,0.8)]">
@@ -113,42 +96,6 @@ export async function OwnerMoneyHero({
           ) : null}
         </p>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          {chips.map((chip) => (
-            <Link
-              key={chip.label}
-              href="/app/finance/accounts"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.08] px-3 py-1.5 text-xs text-white/70 backdrop-blur transition-colors hover:bg-white/[0.12]"
-            >
-              <span className={`size-2 rounded-full ${chip.dot}`} />
-              <strong className="whitespace-nowrap text-sm font-semibold tabular-nums text-white">
-                {formatLocal(chip.value)}
-              </strong>
-              {chip.label}
-            </Link>
-          ))}
-          {/* The net move today, worded as one; both gross figures on hover. */}
-          <span
-            title={`${t(locale, "In")} ${formatLocal(inTodayTzs)} · ${t(locale, "out")} ${formatLocal(outTodayTzs)}`}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.08] px-3 py-1.5 text-xs text-white/70 backdrop-blur"
-          >
-            {net === 0 ? null : net > 0 ? (
-              <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-300" />
-            ) : (
-              <ArrowUpRight className="h-3.5 w-3.5 text-rose-300" />
-            )}
-            {net === 0 ? (
-              t(locale, "No change today")
-            ) : (
-              <>
-                <strong className="whitespace-nowrap text-sm font-semibold tabular-nums text-white">
-                  {formatLocal(Math.abs(net))}
-                </strong>
-                {net > 0 ? t(locale, "up today") : t(locale, "down today")}
-              </>
-            )}
-          </span>
-        </div>
       </div>
     </section>
   );

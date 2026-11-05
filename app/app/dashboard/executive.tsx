@@ -53,7 +53,7 @@ import { SectionLabel } from "@/components/app/section-label";
 import { StatStrip } from "@/components/app/stat-strip";
 import { AreaChart } from "@/components/charts/area-chart";
 import { AgeingBar } from "@/components/charts/ageing-bar";
-import { Donut, DonutLegend, SWATCHES } from "@/components/charts/donut";
+import { Donut, DonutLegend, SWATCHES, type DonutSlice } from "@/components/charts/donut";
 import { BarChart } from "@/components/charts/bar-chart";
 import { FlowBars } from "@/components/charts/flow-bars";
 import { Button } from "@/components/ui/button";
@@ -255,6 +255,30 @@ export async function ExecutiveDashboard({
     }),
   ];
 
+  /* The accounts as a ring: the four largest, then everything else together,
+     so the ring stays readable however many accounts there are. A balance
+     below zero is not a share of what is held, so it is not drawn. */
+  const held = fin.accounts.filter((account) => account.tzs > 0.5);
+  const moneySlices: DonutSlice[] = [
+    ...held.slice(0, 4).map((account, i) => ({
+      label: account.name,
+      value: account.tzs,
+      tone: ([1, 4, 2, 5] as const)[i],
+    })),
+    ...(held.length > 4
+      ? [{ label: t(locale, "Other accounts"), value: held.slice(4).reduce((n, a) => n + a.tzs, 0), tone: 6 as const }]
+      : []),
+  ];
+  /* The ring's centre is small: millions and billions, not every digit — the
+     exact figure is in the banner and beside each slice. */
+  const compactTsh = (n: number) => {
+    const a = Math.abs(n);
+    if (a >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
+    if (a >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+    if (a >= 1e3) return `${Math.round(n / 1e3)}K`;
+    return String(Math.round(n));
+  };
+
   const positionSlices = [
     { label: t(locale, "In Guangzhou"), value: position.inChina, tone: 2 as const },
     { label: t(locale, "In the air"), value: position.inAir, tone: 1 as const },
@@ -279,41 +303,103 @@ export async function ExecutiveDashboard({
         owedTzs={execRate ? stats.outstanding * execRate : stats.outstanding}
         heldTzs={fin.heldTzs}
         inTodayTzs={fin.cashInTodayTzs}
-        outTodayTzs={fin.cashOutTodayTzs}
-        netTodayTzs={fin.netCashTodayTzs}
-        bankTzs={fin.bankTzs}
-        mobileMoneyTzs={fin.mobileMoneyTzs}
-        cashTzs={fin.cashTzs}
       />
 
-      {/* 2. Today, since midnight — four figures in one band, not four cards. */}
-      <section className="panel grid grid-cols-2 divide-border overflow-hidden sm:grid-cols-4 sm:divide-x">
-        {[
-          { k: t(locale, "Billed today"), v: execTsh(fin.revenueTodayUsd), tone: "text-foreground", href: "/app/finance/invoices" },
-          { k: t(locale, "Collected today"), v: formatLocal(fin.cashInTodayTzs), tone: "text-success", href: linkFor(role, "/app/finance/payments") },
-          { k: t(locale, "Spent today"), v: formatLocal(fin.cashOutTodayTzs), tone: fin.cashOutTodayTzs > 0 ? "text-warning" : "text-foreground", href: "/app/finance/expenses" },
-          {
-            k: t(locale, "Net cash today"),
-            v: `${fin.netCashTodayTzs < 0 ? "−" : ""}${formatLocal(Math.abs(fin.netCashTodayTzs))}`,
-            tone: fin.netCashTodayTzs < 0 ? "text-destructive" : "text-success",
-            href: "/app/finance/transactions",
-          },
-        ].map((cell) => (
-          <Link
-            key={cell.k}
-            href={cell.href ?? "/app/finance"}
-            className="min-w-0 px-4 py-3 transition-colors hover:bg-accent/40 [container-type:inline-size]"
-          >
-            <p className="truncate text-[11px] uppercase tracking-wide text-muted-foreground">{cell.k}</p>
-            <p
-              className={`mt-1 whitespace-nowrap font-display font-bold tabular-nums ${cell.tone}`}
-              style={{ fontSize: fitFigure(cell.v, 20) }}
+      {/* 2. Where the money is, as a ring, beside today since midnight. Close
+          under the banner, where the owner asked for it — not in the banner. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section className="panel min-w-0 p-5">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-display font-semibold">{t(locale, "Where the money is")}</h2>
+            <Link href="/app/finance/accounts" className="shrink-0 text-xs font-semibold text-brand hover:underline">
+              {t(locale, "Open accounts")}
+            </Link>
+          </div>
+          {moneySlices.length === 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">{t(locale, "No account holds any money yet.")}</p>
+          ) : (
+            <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row sm:items-center">
+              <Donut
+                size={148}
+                stroke={20}
+                label={compactTsh(fin.heldTzs)}
+                caption={t(locale, "TSh in the accounts")}
+                slices={moneySlices}
+              />
+              <ul className="w-full min-w-0 flex-1 space-y-2">
+                {moneySlices.map((slice) => {
+                  const share = fin.heldTzs > 0 ? (slice.value / fin.heldTzs) * 100 : 0;
+                  return (
+                    /* The account's name on its own line and its balance under it:
+                       side by side, a ten-digit balance left the name "O…". */
+                    <li key={slice.label} className="min-w-0">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${SWATCHES[slice.tone]}`} />
+                        <span className="min-w-0 flex-1 truncate">{slice.label}</span>
+                        <span className="shrink-0 tabular-nums">
+                          {share > 0 && share < 1 ? "<1%" : `${Math.round(share)}%`}
+                        </span>
+                      </div>
+                      <p className="pl-[18px] text-sm font-semibold tabular-nums whitespace-nowrap">
+                        {formatLocal(slice.value)}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </section>
+
+        <section className="panel min-w-0 p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-display font-semibold">{t(locale, "Today")}</h2>
+            <span
+              title={`${t(locale, "In")} ${formatLocal(fin.cashInTodayTzs)} · ${t(locale, "out")} ${formatLocal(fin.cashOutTodayTzs)}`}
+              className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                Math.round(fin.netCashTodayTzs) === 0
+                  ? "bg-muted text-muted-foreground"
+                  : fin.netCashTodayTzs > 0
+                    ? "bg-success/15 text-success"
+                    : "bg-destructive/15 text-destructive"
+              }`}
             >
-              {cell.v}
-            </p>
-          </Link>
-        ))}
-      </section>
+              {Math.round(fin.netCashTodayTzs) === 0
+                ? t(locale, "No change today")
+                : `${formatLocal(Math.abs(fin.netCashTodayTzs))} ${fin.netCashTodayTzs > 0 ? t(locale, "up today") : t(locale, "down today")}`}
+            </span>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            {[
+              { k: t(locale, "Billed today"), v: execTsh(fin.revenueTodayUsd), tone: "text-foreground", sub: t(locale, "invoiced today, not yet money"), href: "/app/finance/invoices" },
+              { k: t(locale, "Collected today"), v: formatLocal(fin.cashInTodayTzs), tone: "text-success", sub: t(locale, "what customers actually handed over"), href: linkFor(role, "/app/finance/payments") },
+              { k: t(locale, "Spent today"), v: formatLocal(fin.cashOutTodayTzs), tone: fin.cashOutTodayTzs > 0 ? "text-warning" : "text-foreground", sub: t(locale, "everything that left an account since midnight"), href: "/app/finance/expenses" },
+              {
+                k: t(locale, "Net cash today"),
+                v: `${fin.netCashTodayTzs < 0 ? "−" : ""}${formatLocal(Math.abs(fin.netCashTodayTzs))}`,
+                tone: fin.netCashTodayTzs < 0 ? "text-destructive" : "text-success",
+                sub: t(locale, "what came in, less what went out"),
+                href: "/app/finance/transactions",
+              },
+            ].map((cell) => (
+              <Link
+                key={cell.k}
+                href={cell.href ?? "/app/finance"}
+                className="min-w-0 rounded-xl border bg-background/40 px-4 py-3 transition-colors hover:bg-accent/40 [container-type:inline-size]"
+              >
+                <p className="truncate text-[11px] uppercase tracking-wide text-muted-foreground">{cell.k}</p>
+                <p
+                  className={`mt-1 whitespace-nowrap font-display font-bold tabular-nums ${cell.tone}`}
+                  style={{ fontSize: fitFigure(cell.v, 22) }}
+                >
+                  {cell.v}
+                </p>
+                <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground">{cell.sub}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      </div>
 
       {/* 3. The owner's own pages. */}
       <ActionPills
