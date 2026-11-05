@@ -60,6 +60,19 @@ const TINT: Record<NonNullable<ActionPill["tone"]>, string> = {
  * Pills rather than cards: this sits between a banner and a wall of figures,
  * and a row of bordered cards there reads as a third grid of numbers.
  */
+/* Columns on the phone, chosen so every row is full: six make two rows of
+   three, not a row of four over a row of two with a hole beside it. */
+const PHONE_COLUMNS: Record<number, string> = {
+  1: "grid-cols-1",
+  2: "grid-cols-2",
+  3: "grid-cols-3",
+  4: "grid-cols-4",
+  5: "grid-cols-5",
+  6: "grid-cols-3",
+  7: "grid-cols-4",
+  8: "grid-cols-4",
+};
+
 /* The glyph's tint on the phone tile, by the same tone the pill uses. */
 const CHIP: Record<NonNullable<ActionPill["tone"]>, string> = {
   brand: "bg-brand/15 text-brand",
@@ -98,7 +111,7 @@ export function ActionPills({
          tile the same size, the way a banking app lays its actions out. As
          pills they wrapped by their own width into a staircase with an orphan
          on the last line. From sm up they are the pills they always were. */
-      className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap"
+      className={`grid ${PHONE_COLUMNS[Math.min(items.length, 8)] ?? "grid-cols-4"} gap-2 sm:flex sm:flex-wrap`}
     >
       {/*
         Keyed by where it goes, not by what it says.
@@ -141,11 +154,11 @@ export function ActionPills({
         {/* A full row of its own on the phone grid — it is a button with its
             own words, not a tile, and in a quarter-width cell it ran off the
             screen. Inline again from sm up. */}
-        {after && afterHref === item.href ? <div className="col-span-4 min-w-0 sm:contents">{after}</div> : null}
+        {after && afterHref === item.href ? <div className="col-span-full min-w-0 sm:contents">{after}</div> : null}
         </Fragment>
       ))}
       {/* Unmatched href, or none given: the action still belongs in the row. */}
-      {after && !items.some((i) => i.href === afterHref) ? <div className="col-span-4 min-w-0 sm:contents">{after}</div> : null}
+      {after && !items.some((i) => i.href === afterHref) ? <div className="col-span-full min-w-0 sm:contents">{after}</div> : null}
     </nav>
   );
 }

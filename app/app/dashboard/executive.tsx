@@ -255,25 +255,25 @@ export async function ExecutiveDashboard({
     }),
   ];
 
-  /* The accounts as a ring: the four largest, then everything else together,
+  /* The accounts as a ring: the three largest, then everything else together,
      so the ring stays readable however many accounts there are. A balance
      below zero is not a share of what is held, so it is not drawn. */
   const held = fin.accounts.filter((account) => account.tzs > 0.5);
   const moneySlices: DonutSlice[] = [
-    ...held.slice(0, 4).map((account, i) => ({
+    ...held.slice(0, 3).map((account, i) => ({
       label: account.name,
       value: account.tzs,
-      tone: ([1, 4, 2, 5] as const)[i],
+      tone: ([1, 4, 2] as const)[i],
     })),
-    ...(held.length > 4
-      ? [{ label: t(locale, "Other accounts"), value: held.slice(4).reduce((n, a) => n + a.tzs, 0), tone: 6 as const }]
+    ...(held.length > 3
+      ? [{ label: t(locale, "Other accounts"), value: held.slice(3).reduce((n, a) => n + a.tzs, 0), tone: 5 as const }]
       : []),
   ];
   /* The ring's centre is small: millions and billions, not every digit — the
      exact figure is in the banner and beside each slice. */
   const compactTsh = (n: number) => {
     const a = Math.abs(n);
-    if (a >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
+    if (a >= 1e9) return `${(n / 1e9).toFixed(1)}B`;
     if (a >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
     if (a >= 1e3) return `${Math.round(n / 1e3)}K`;
     return String(Math.round(n));
@@ -305,103 +305,7 @@ export async function ExecutiveDashboard({
         inTodayTzs={fin.cashInTodayTzs}
       />
 
-      {/* 2. Where the money is, as a ring, beside today since midnight. Close
-          under the banner, where the owner asked for it — not in the banner. */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <section className="panel min-w-0 p-5">
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="font-display font-semibold">{t(locale, "Where the money is")}</h2>
-            <Link href="/app/finance/accounts" className="shrink-0 text-xs font-semibold text-brand hover:underline">
-              {t(locale, "Open accounts")}
-            </Link>
-          </div>
-          {moneySlices.length === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">{t(locale, "No account holds any money yet.")}</p>
-          ) : (
-            <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row sm:items-center">
-              <Donut
-                size={148}
-                stroke={20}
-                label={compactTsh(fin.heldTzs)}
-                caption={t(locale, "TSh in the accounts")}
-                slices={moneySlices}
-              />
-              <ul className="w-full min-w-0 flex-1 space-y-2">
-                {moneySlices.map((slice) => {
-                  const share = fin.heldTzs > 0 ? (slice.value / fin.heldTzs) * 100 : 0;
-                  return (
-                    /* The account's name on its own line and its balance under it:
-                       side by side, a ten-digit balance left the name "O…". */
-                    <li key={slice.label} className="min-w-0">
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${SWATCHES[slice.tone]}`} />
-                        <span className="min-w-0 flex-1 truncate">{slice.label}</span>
-                        <span className="shrink-0 tabular-nums">
-                          {share > 0 && share < 1 ? "<1%" : `${Math.round(share)}%`}
-                        </span>
-                      </div>
-                      <p className="pl-[18px] text-sm font-semibold tabular-nums whitespace-nowrap">
-                        {formatLocal(slice.value)}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-        </section>
-
-        <section className="panel min-w-0 p-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="font-display font-semibold">{t(locale, "Today")}</h2>
-            <span
-              title={`${t(locale, "In")} ${formatLocal(fin.cashInTodayTzs)} · ${t(locale, "out")} ${formatLocal(fin.cashOutTodayTzs)}`}
-              className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                Math.round(fin.netCashTodayTzs) === 0
-                  ? "bg-muted text-muted-foreground"
-                  : fin.netCashTodayTzs > 0
-                    ? "bg-success/15 text-success"
-                    : "bg-destructive/15 text-destructive"
-              }`}
-            >
-              {Math.round(fin.netCashTodayTzs) === 0
-                ? t(locale, "No change today")
-                : `${formatLocal(Math.abs(fin.netCashTodayTzs))} ${fin.netCashTodayTzs > 0 ? t(locale, "up today") : t(locale, "down today")}`}
-            </span>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            {[
-              { k: t(locale, "Billed today"), v: execTsh(fin.revenueTodayUsd), tone: "text-foreground", sub: t(locale, "invoiced today, not yet money"), href: "/app/finance/invoices" },
-              { k: t(locale, "Collected today"), v: formatLocal(fin.cashInTodayTzs), tone: "text-success", sub: t(locale, "what customers actually handed over"), href: linkFor(role, "/app/finance/payments") },
-              { k: t(locale, "Spent today"), v: formatLocal(fin.cashOutTodayTzs), tone: fin.cashOutTodayTzs > 0 ? "text-warning" : "text-foreground", sub: t(locale, "everything that left an account since midnight"), href: "/app/finance/expenses" },
-              {
-                k: t(locale, "Net cash today"),
-                v: `${fin.netCashTodayTzs < 0 ? "−" : ""}${formatLocal(Math.abs(fin.netCashTodayTzs))}`,
-                tone: fin.netCashTodayTzs < 0 ? "text-destructive" : "text-success",
-                sub: t(locale, "what came in, less what went out"),
-                href: "/app/finance/transactions",
-              },
-            ].map((cell) => (
-              <Link
-                key={cell.k}
-                href={cell.href ?? "/app/finance"}
-                className="min-w-0 rounded-xl border bg-background/40 px-4 py-3 transition-colors hover:bg-accent/40 [container-type:inline-size]"
-              >
-                <p className="truncate text-[11px] uppercase tracking-wide text-muted-foreground">{cell.k}</p>
-                <p
-                  className={`mt-1 whitespace-nowrap font-display font-bold tabular-nums ${cell.tone}`}
-                  style={{ fontSize: fitFigure(cell.v, 22) }}
-                >
-                  {cell.v}
-                </p>
-                <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground">{cell.sub}</p>
-              </Link>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      {/* 3. The owner's own pages. */}
+      {/* 2. The owner's own pages, straight under the banner as on Hao Stock. */}
       <ActionPills
         items={(
           [
@@ -414,6 +318,92 @@ export async function ExecutiveDashboard({
           ] satisfies (Omit<ActionPill, "href"> & { href: string | undefined })[]
         ).flatMap((pill) => (pill.href ? [{ ...pill, href: pill.href }] : []))}
       />
+
+      {/* 3. The money: where it sits, as a ring, and today since midnight — one
+          card, not two. The owner found two cards with a large ring, a long
+          list and boxes inside boxes looked forced, on the phone above all. */}
+      <section className="panel min-w-0 overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b px-5 py-3">
+          <h2 className="font-display font-semibold">{t(locale, "The money")}</h2>
+          <div className="flex items-center gap-3">
+            <span
+              title={`${t(locale, "In")} ${formatLocal(fin.cashInTodayTzs)} · ${t(locale, "out")} ${formatLocal(fin.cashOutTodayTzs)}`}
+              className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                Math.round(fin.netCashTodayTzs) === 0
+                  ? "bg-muted text-muted-foreground"
+                  : fin.netCashTodayTzs > 0
+                    ? "bg-success/15 text-success"
+                    : "bg-destructive/15 text-destructive"
+              }`}
+            >
+              {Math.round(fin.netCashTodayTzs) === 0
+                ? t(locale, "No change today")
+                : `${formatLocal(Math.abs(fin.netCashTodayTzs))} ${fin.netCashTodayTzs > 0 ? t(locale, "up today") : t(locale, "down today")}`}
+            </span>
+            <Link href="/app/finance/accounts" className="whitespace-nowrap text-xs font-semibold text-brand hover:underline">
+              {t(locale, "Open accounts")}
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 divide-y lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+          {/* Where it sits. */}
+          <div className="flex min-w-0 items-center gap-5 px-5 py-4">
+            {moneySlices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t(locale, "No account holds any money yet.")}</p>
+            ) : (
+              <>
+                <Donut
+                  size={108}
+                  stroke={15}
+                  label={compactTsh(fin.heldTzs)}
+                  caption={t(locale, "TSh in the accounts")}
+                  slices={moneySlices}
+                  className="shrink-0"
+                />
+                <ul className="min-w-0 flex-1 space-y-2">
+                  {moneySlices.map((slice) => (
+                    /* Name over balance: side by side, a ten-digit balance
+                       cut the name down to a letter. */
+                    <li key={slice.label} className="min-w-0">
+                      <p className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                        <span className={`h-2 w-2 shrink-0 rounded-full ${SWATCHES[slice.tone]}`} />
+                        <span className="truncate">{slice.label}</span>
+                      </p>
+                      <p className="whitespace-nowrap pl-4 text-sm font-semibold tabular-nums">
+                        {formatLocal(slice.value)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+
+          {/* Today, as a plain list — label and figure, nothing boxed. */}
+          <div className="min-w-0 px-5 py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t(locale, "Today")}</p>
+            <dl className="mt-1 divide-y">
+              {[
+                { k: t(locale, "Billed today"), v: execTsh(fin.revenueTodayUsd), tone: "text-foreground", href: "/app/finance/invoices" },
+                { k: t(locale, "Collected today"), v: formatLocal(fin.cashInTodayTzs), tone: "text-success", href: linkFor(role, "/app/finance/payments") },
+                { k: t(locale, "Spent today"), v: formatLocal(fin.cashOutTodayTzs), tone: fin.cashOutTodayTzs > 0 ? "text-warning" : "text-foreground", href: "/app/finance/expenses" },
+                {
+                  k: t(locale, "Net cash today"),
+                  v: `${fin.netCashTodayTzs < 0 ? "−" : ""}${formatLocal(Math.abs(fin.netCashTodayTzs))}`,
+                  tone: fin.netCashTodayTzs < 0 ? "text-destructive" : "text-success",
+                  href: "/app/finance/transactions",
+                },
+              ].map((row) => (
+                <Link key={row.k} href={row.href ?? "/app/finance"} className="flex items-baseline justify-between gap-3 py-2 hover:opacity-80">
+                  <dt className="min-w-0 truncate text-sm text-muted-foreground">{row.k}</dt>
+                  <dd className={`shrink-0 whitespace-nowrap font-display text-base font-bold tabular-nums ${row.tone}`}>{row.v}</dd>
+                </Link>
+              ))}
+            </dl>
+          </div>
+        </div>
+      </section>
 
       {/* 4. Only what waits on a decision of the owner's. */}
       <AttentionCenter
