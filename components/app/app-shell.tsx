@@ -13,8 +13,9 @@ import { NewVersionNotice } from "@/components/app/new-version-notice";
 import { BUILD_ID } from "@/lib/build-id";
 import { NotificationBell } from "@/components/app/notification-bell";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  ChevronDown,
   TrendingUp,
   Scale,
   Receipt,
@@ -405,6 +406,9 @@ function MainSiteLink({ compact = false }: { compact?: boolean }) {
   );
 }
 
+/** Which sidebar groups the reader opened or folded, per device. */
+const NAV_FOLD_KEY = "tx.nav.folds";
+
 function NavList({
   sections,
   locale,
@@ -437,6 +441,42 @@ function NavList({
     })
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
+  /*
+    FOLDING GROUPS, as on Super Drive: a heading opens and closes its pages.
+
+    Until the reader decides, the group holding the page they are on is open
+    and the rest are folded — a long menu reads as its headings. What they open
+    or fold is remembered on this device, and going to a page inside a folded
+    group opens that group again so the lit row is never hidden.
+  */
+  const [opened, setOpened] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    try {
+      setOpened(JSON.parse(localStorage.getItem(NAV_FOLD_KEY) ?? "{}") as Record<string, boolean>);
+    } catch {
+      /* private window: the defaults stand */
+    }
+  }, []);
+  const activeGroup = sections.find(
+    (section) => section.group && section.items.some((item) => item.href === activeHref),
+  )?.title;
+  useEffect(() => {
+    if (activeGroup && opened[activeGroup] === false) {
+      setOpened((current) => ({ ...current, [activeGroup]: true }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGroup]);
+  const toggle = (title: string, isOpen: boolean) =>
+    setOpened((current) => {
+      const next = { ...current, [title]: !isOpen };
+      try {
+        localStorage.setItem(NAV_FOLD_KEY, JSON.stringify(next));
+      } catch {
+        /* the fold still works for this visit */
+      }
+      return next;
+    });
+
   return (
     <nav className={className}>
       {sections.map((section) => {
@@ -444,8 +484,9 @@ function NavList({
           ? (ICONS[section.group.icon] ?? Package)
           : null;
         // A named group holds the row lit inside it, so the heading tells you
-        // where you are even when its children are scrolled past.
+        // where you are even when its children are folded away.
         const inGroup = section.items.some((item) => item.href === activeHref);
+        const isOpen = section.group ? (opened[section.title] ?? inGroup) : true;
 
         return (
           <div
@@ -454,26 +495,36 @@ function NavList({
             // not need to be named — "OVERVIEW" above two links told nobody
             // anything — so the heading is opt-in, for menus long enough that a
             // flat column becomes a wall.
-            className={cn(section.group ? "mb-4 last:mb-0" : "mb-6 last:mb-0")}
+            className={cn(section.group ? "mb-1.5 last:mb-0" : "mb-4 last:mb-0")}
           >
             {section.group && GroupIcon ? (
-              <p
+              <button
+                type="button"
+                onClick={() => toggle(section.title, isOpen)}
+                aria-expanded={isOpen}
                 className={cn(
-                  "flex items-center gap-2 px-3 pb-1.5 pt-1 text-xs font-semibold uppercase tracking-[0.12em] transition-colors",
-                  inGroup ? "text-foreground" : "text-muted-foreground/70",
+                  "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors hover:bg-muted/60 hover:text-foreground",
+                  inGroup ? "text-foreground" : "text-muted-foreground",
                 )}
               >
-                <GroupIcon className="h-3.5 w-3.5 shrink-0" />
-                {t(locale, section.group.label)}
-              </p>
+                <GroupIcon className={cn("h-4 w-4 shrink-0", inGroup ? "text-brand" : "text-muted-foreground/80")} />
+                <span className="min-w-0 flex-1 truncate">{t(locale, section.group.label)}</span>
+                <ChevronDown
+                  className={cn(
+                    "h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition-transform duration-200",
+                    !isOpen && "-rotate-90",
+                  )}
+                />
+              </button>
             ) : null}
+            {isOpen ? (
             <ul
               className={cn(
                 "space-y-0.5",
                 // Indented against a hairline: the children read as belonging to
                 // the heading rather than as more top-level rows that happen to
                 // sit under it.
-                section.group && "ml-[1.4rem] border-l border-border/60 pl-2",
+                section.group && "mb-2 ml-[1.35rem] mt-0.5 border-l border-border/60 pl-2",
               )}
             >
               {section.items.map((item) => {
@@ -484,23 +535,29 @@ function NavList({
                     <Link
                       href={item.href}
                       onClick={onNavigate}
+                      aria-current={active ? "page" : undefined}
                       className={cn(
                         // min-h-11 on a phone: 36px rows are a miss-tap away
                         // from each other, and this menu is used one-handed on a
                         // warehouse floor. Desktop keeps the tighter rhythm.
-                        "flex min-h-11 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors lg:min-h-0",
+                        "relative flex min-h-11 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors lg:min-h-0",
                         active
                           ? "bg-brand/10 font-medium text-brand"
                           : "text-muted-foreground hover:bg-muted hover:text-foreground",
                       )}
                     >
+                      {/* The page you are on, marked on the hairline too. */}
+                      {active && section.group ? (
+                        <span aria-hidden className="absolute inset-y-1.5 -left-[9px] w-[3px] rounded-r bg-brand" />
+                      ) : null}
                       <Icon className="h-4 w-4 shrink-0" />
-                      {t(locale, item.label)}
+                      <span className="min-w-0 flex-1 truncate">{t(locale, item.label)}</span>
                     </Link>
                   </li>
                 );
               })}
             </ul>
+            ) : null}
           </div>
         );
       })}
