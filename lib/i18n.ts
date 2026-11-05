@@ -4510,7 +4510,7 @@ const ZH: Record<string, string> = {
   "owed by customers": "客户欠款",
   "Other accounts": "其他账户",
   "Where the money is": "资金分布",
-  "TSh in the accounts": "账户中的先令",
+  "In the accounts": "账户中",
   "Payments with Finance": "财务处理中的付款",
   "This is what will change": "以下内容将被更改",
   "The customer goes from": "客户应付金额由",

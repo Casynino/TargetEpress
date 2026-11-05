@@ -103,7 +103,7 @@ export function CargoPanel({ p, o }: { p: Pulse; o: Ops }) {
     p.batchesByStatus.find((b) => b.name === "IN_TRANSIT")?.n ?? 0;
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <HealthCard
           label="Cargo in the system"
           value={formatNumber(p.activeCargo)}
@@ -143,7 +143,7 @@ export function CargoPanel({ p, o }: { p: Pulse; o: Ops }) {
       </div>
 
       <div className="space-y-4">
-        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
           <Card className="h-full">
             <CardContent className="p-5">
               <h2 className="text-sm font-semibold">Cargo added per day</h2>
@@ -176,7 +176,7 @@ export function CargoPanel({ p, o }: { p: Pulse; o: Ops }) {
             </CardContent>
           </Card>
         </div>
-        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
           <Card className="h-full">
             <CardContent className="p-5">
               <h2 className="text-sm font-semibold">Cargo by stage</h2>
@@ -264,7 +264,7 @@ export function MoneyPanel({ p, o }: { p: Pulse; o: Ops }) {
   const billsPaid = p.billsByStatus.find((b) => b.name === "PAID")?.n ?? 0;
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <HealthCard
           label="Bills issued"
           value={formatNumber(billTotal)}
@@ -304,7 +304,7 @@ export function MoneyPanel({ p, o }: { p: Pulse; o: Ops }) {
       </div>
 
       <div className="space-y-4">
-        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
           <Card className="h-full">
             <CardContent className="p-5">
               <h2 className="text-sm font-semibold">
@@ -347,7 +347,7 @@ export function MoneyPanel({ p, o }: { p: Pulse; o: Ops }) {
             </CardContent>
           </Card>
         </div>
-        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
           <Card className="h-full">
             <CardContent className="p-5">
               <h2 className="text-sm font-semibold">Bills by status</h2>
@@ -450,7 +450,7 @@ export function MessagesPanel({ o }: { o: Ops }) {
   const messages14 = o.messageSeries.reduce((s, d) => s + d.n, 0);
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <HealthCard
           label="Messages sent (14 days)"
           value={formatNumber(messages14)}
@@ -490,7 +490,7 @@ export function MessagesPanel({ o }: { o: Ops }) {
       </div>
 
       <div className="space-y-4">
-        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
           <Card className="h-full">
             <CardContent className="p-5">
               <h2 className="text-sm font-semibold">
@@ -528,7 +528,7 @@ export function MessagesPanel({ o }: { o: Ops }) {
             </CardContent>
           </Card>
         </div>
-        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
           <Card className="h-full">
             <CardContent className="p-5">
               <h2 className="text-sm font-semibold">Tickets by status</h2>

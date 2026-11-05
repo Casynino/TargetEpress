@@ -179,7 +179,7 @@ export default async function DeveloperAuditPage({
 
       <form
         method="get"
-        className="grid gap-2 sm:grid-cols-[1fr_9rem_9rem_auto]"
+        className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_9rem_9rem_auto]"
       >
         {scope !== "all" && <input type="hidden" name="scope" value={scope} />}
         <Input

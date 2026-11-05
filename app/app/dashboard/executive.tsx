@@ -269,15 +269,6 @@ export async function ExecutiveDashboard({
       ? [{ label: t(locale, "Other accounts"), value: held.slice(3).reduce((n, a) => n + a.tzs, 0), tone: 5 as const }]
       : []),
   ];
-  /* The ring's centre is small: millions and billions, not every digit — the
-     exact figure is in the banner and beside each slice. */
-  const compactTsh = (n: number) => {
-    const a = Math.abs(n);
-    if (a >= 1e9) return `${(n / 1e9).toFixed(1)}B`;
-    if (a >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
-    if (a >= 1e3) return `${Math.round(n / 1e3)}K`;
-    return String(Math.round(n));
-  };
 
   const positionSlices = [
     { label: t(locale, "In Guangzhou"), value: position.inChina, tone: 2 as const },
@@ -355,36 +346,46 @@ export async function ExecutiveDashboard({
         </div>
 
         <div className="grid grid-cols-1 divide-y lg:grid-cols-2 lg:divide-x lg:divide-y-0">
-          {/* Where it sits. */}
-          <div className="flex min-w-0 items-center gap-5 px-5 py-4">
+          {/* Where it sits: the total stated plainly, then a clean ring — no
+              figure squeezed into its centre, where it ran over the ring and
+              could not be read. */}
+          <div className="min-w-0 px-5 py-4 [container-type:inline-size]">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {t(locale, "In the accounts")}
+            </p>
+            <p
+              className="mt-1 whitespace-nowrap font-display font-bold tabular-nums"
+              style={{ fontSize: fitFigure(formatLocal(fin.heldTzs), 26) }}
+            >
+              {formatLocal(fin.heldTzs)}
+            </p>
             {moneySlices.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t(locale, "No account holds any money yet.")}</p>
+              <p className="mt-3 text-sm text-muted-foreground">{t(locale, "No account holds any money yet.")}</p>
             ) : (
-              <>
-                <Donut
-                  size={108}
-                  stroke={15}
-                  label={compactTsh(fin.heldTzs)}
-                  caption={t(locale, "TSh in the accounts")}
-                  slices={moneySlices}
-                  className="shrink-0"
-                />
+              <div className="mt-3 flex items-center gap-5">
+                <Donut size={92} stroke={14} slices={moneySlices} className="shrink-0" />
                 <ul className="min-w-0 flex-1 space-y-2">
-                  {moneySlices.map((slice) => (
-                    /* Name over balance: side by side, a ten-digit balance
-                       cut the name down to a letter. */
-                    <li key={slice.label} className="min-w-0">
-                      <p className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-                        <span className={`h-2 w-2 shrink-0 rounded-full ${SWATCHES[slice.tone]}`} />
-                        <span className="truncate">{slice.label}</span>
-                      </p>
-                      <p className="whitespace-nowrap pl-4 text-sm font-semibold tabular-nums">
-                        {formatLocal(slice.value)}
-                      </p>
-                    </li>
-                  ))}
+                  {moneySlices.map((slice) => {
+                    const share = fin.heldTzs > 0 ? (slice.value / fin.heldTzs) * 100 : 0;
+                    return (
+                      /* Name over balance: side by side, a ten-digit balance
+                         cut the name down to a letter. */
+                      <li key={slice.label} className="min-w-0">
+                        <p className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                          <span className={`h-2 w-2 shrink-0 rounded-full ${SWATCHES[slice.tone]}`} />
+                          <span className="min-w-0 flex-1 truncate">{slice.label}</span>
+                          <span className="shrink-0 tabular-nums">
+                            {share > 0 && share < 1 ? "<1%" : `${Math.round(share)}%`}
+                          </span>
+                        </p>
+                        <p className="whitespace-nowrap pl-4 text-sm font-semibold tabular-nums">
+                          {formatLocal(slice.value)}
+                        </p>
+                      </li>
+                    );
+                  })}
                 </ul>
-              </>
+              </div>
             )}
           </div>
 

@@ -335,7 +335,7 @@ export function ActivityPanel({
   );
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <HealthCard
           label="Signed in today"
           value={formatNumber(m.signedIn24)}
@@ -375,7 +375,7 @@ export function ActivityPanel({
       </div>
 
       <div className="space-y-4">
-        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
           <Card className="h-full">
             <CardContent className="p-5">
               <h2 className="text-sm font-semibold">Sign-ins per day</h2>
@@ -415,7 +415,7 @@ export function ActivityPanel({
             </CardContent>
           </Card>
         </div>
-        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
           <Card className="h-full">
             <CardContent className="p-5">
               <h2 className="text-sm font-semibold">
@@ -463,7 +463,7 @@ export function ActivityPanel({
             </CardContent>
           </Card>
         </div>
-        <div className="grid items-stretch gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2 [&>*]:h-full">
             <Card className="h-full">
               <CardContent className="p-0">
@@ -645,7 +645,7 @@ export function SpeedPanel({ m }: { m: Monitor }) {
   const notSet = m.env.filter((e) => !e.set).length;
   return (
     <div className="space-y-4">
-      <div className="grid items-stretch gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
         <Card className="h-full">
           <CardContent className="p-5">
             <div className="mb-1 flex items-center justify-between gap-2">
@@ -736,7 +736,7 @@ export function SecurityPanel({ m, sec }: { m: Monitor; sec: Security }) {
   const s = m.security;
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <HealthCard
           label="Failed sign-ins"
           value={formatNumber(sec.failed14)}
@@ -766,7 +766,7 @@ export function SecurityPanel({ m, sec }: { m: Monitor; sec: Security }) {
         />
       </div>
 
-      <div className="grid items-stretch gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 [&>*]:h-full">
           <Card className="h-full">
             <CardContent className="p-5">
@@ -835,7 +835,7 @@ export function SecurityPanel({ m, sec }: { m: Monitor; sec: Security }) {
         </Card>
       </div>
 
-      <div className="grid items-stretch gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
         <Card className="h-full">
           <CardContent className="p-0">
             <div className="border-b border-border px-5 py-3.5">
@@ -1041,7 +1041,10 @@ export function PeoplePanel({ m }: { m: Monitor }) {
               Open Access
             </Link>
           </div>
-          <ul className="grid md:grid-cols-2">
+          {/* grid-cols-1 on a phone, not a bare `grid`: with no column rule the
+              grid sized itself to its longest line — 692px — and the phone
+              zoomed the whole Developer home out to fit it. */}
+          <ul className="grid grid-cols-1 md:grid-cols-2">
             {roles.map((role) => {
               const info = ROLE_INFO[role];
               const c = byRole.get(role)!;
@@ -1094,7 +1097,7 @@ export function PeoplePanel({ m }: { m: Monitor }) {
         </CardContent>
       </Card>
 
-      <div className="grid items-stretch gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
         <Card className="h-full">
           <CardContent className="p-0">
             <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
