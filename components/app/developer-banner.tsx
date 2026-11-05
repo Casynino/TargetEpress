@@ -1,9 +1,12 @@
 "use client";
 
-import { Eye } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Eye, X } from "lucide-react";
 import { useFormStatus } from "react-dom";
 
 import { stopWorkingAs } from "@/lib/actions/developer";
+
+const KEY = "tx.workas.collapsed";
 
 function StopButton() {
   const { pending } = useFormStatus();
@@ -19,37 +22,79 @@ function StopButton() {
 }
 
 /**
- * WHO THE DEVELOPER IS LOOKING AS — A SLIM BAR AT THE TOP OF THE PAGE.
+ * WHO THE DEVELOPER IS LOOKING AS, WITHOUT TAKING A STRIP OF THE SCREEN.
  *
- * It was a pill floating in the corner, and it sat on top of whatever was
- * under it: a card's figure on a laptop, a button on a phone. The owner asked
- * for the page to look exactly as the person sees it, so the bar now stands IN
- * the page, above the content, and pushes it down rather than covering it.
+ * A small pill floating in the corner, only while "Work as" is on. It can be
+ * folded down to a round eye button — the Developer knows who they opened — and
+ * unfolds again with one press. It holds no layout space, so the page under it
+ * is exactly the page the person sees.
  *
  * Violet, the Developer's own colour and one nothing else in the application
  * uses, so a page that is otherwise identical to the staff one is still never
- * mistaken for it. Everything done under it is recorded as the Developer.
+ * mistaken for it.
+ * Everything done under it is recorded as the Developer, folded or not.
  */
 export function DeveloperBanner({
   workingAs,
 }: {
   workingAs: { name: string; roleLabel: string };
 }) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  /* Remembered for the tab, so a reload does not unfold what was folded. */
+  useEffect(() => {
+    try {
+      setCollapsed(sessionStorage.getItem(KEY) === "1");
+    } catch {
+      /* private window: it simply starts unfolded */
+    }
+  }, []);
+  const fold = (on: boolean) => {
+    setCollapsed(on);
+    try {
+      sessionStorage.setItem(KEY, on ? "1" : "0");
+    } catch {
+      /* the fold still works for this page view */
+    }
+  };
+
   return (
     <div
       role="status"
-      className="mb-4 flex items-center gap-3 rounded-xl bg-violet-700 px-3.5 py-2 text-sm text-white shadow-sm print:hidden"
+      className="fixed bottom-20 right-3 z-[60] print:hidden lg:bottom-4 lg:right-4"
     >
-      <Eye className="size-4 shrink-0" />
-      <p className="min-w-0 flex-1 truncate">
-        <span className="font-semibold">Working as {workingAs.name}</span>
-        <span className="hidden text-white/75 sm:inline">
-          {" "}· {workingAs.roleLabel} · everything you do is recorded as you
-        </span>
-      </p>
-      <form action={stopWorkingAs} className="shrink-0">
-        <StopButton />
-      </form>
+      {collapsed ? (
+        <button
+          type="button"
+          onClick={() => fold(false)}
+          aria-label={`Working as ${workingAs.name}. Show`}
+          title={`Working as ${workingAs.name}`}
+          className="focus-ring grid size-10 place-items-center rounded-full bg-violet-700 text-white shadow-lg hover:bg-violet-600"
+        >
+          <Eye className="size-4" />
+        </button>
+      ) : (
+        <div className="flex items-center gap-2 rounded-full bg-violet-700 py-1.5 pl-3.5 pr-1.5 text-sm text-white shadow-lg">
+          <Eye className="size-4 shrink-0" />
+          <span
+            className="max-w-[12rem] truncate font-medium sm:max-w-none"
+            title={`${workingAs.roleLabel} · everything you do is recorded as you`}
+          >
+            Working as {workingAs.name}
+          </span>
+          <form action={stopWorkingAs}>
+            <StopButton />
+          </form>
+          <button
+            type="button"
+            onClick={() => fold(true)}
+            aria-label="Fold away"
+            className="focus-ring grid size-7 place-items-center rounded-full text-white/80 hover:bg-white/15 hover:text-white"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

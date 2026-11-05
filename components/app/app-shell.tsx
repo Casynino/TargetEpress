@@ -188,6 +188,9 @@ export function AppShell({
       wasted sticker every single time, not a wasted corner of A4.
     */}
       <div className="min-h-screen bg-muted/30 print:min-h-0">
+        {developerMode?.workingAs ? (
+          <DeveloperBanner workingAs={developerMode.workingAs} />
+        ) : null}
         {/* Desktop sidebar */}
         <aside className="fixed bottom-0 left-0 top-0 z-30 hidden w-64 flex-col border-r bg-background lg:flex">
           <div className="flex h-16 items-center border-b px-5">
@@ -316,11 +319,13 @@ export function AppShell({
               user.role === "DEVELOPER" ? "max-w-none" : "max-w-[1400px]",
             )}
           >
-            {/* Working as someone: a bar in the page, above it — never over it. */}
-            {developerMode?.workingAs ? (
-              <DeveloperBanner workingAs={developerMode.workingAs} />
-            ) : null}
             {children}
+            {/* Working as someone: the pill floats at the bottom, where the
+                owner wants it, and this much room is left under the page so
+                it never sits on the last button or figure. */}
+            {developerMode?.workingAs ? (
+              <div aria-hidden className="h-14 print:hidden" />
+            ) : null}
           </div>
           {/*
           The room the bottom bar stands in.
