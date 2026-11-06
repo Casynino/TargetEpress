@@ -1465,7 +1465,7 @@ export default async function ManagerReconciliation({
                   const body = (
                     <>
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold leading-snug">{check.label}</p>
+                        <p className="text-sm font-semibold leading-snug">{t(locale, check.label)}</p>
                         <span
                           className={cn(
                             "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
@@ -1484,7 +1484,7 @@ export default async function ManagerReconciliation({
                       </div>
 
                       <p className="mt-1 text-xs leading-snug text-muted-foreground">
-                        {check.question}
+                        {t(locale, check.question)}
                       </p>
 
                       {/* The two routes to one figure, which is the whole check. */}
@@ -1498,7 +1498,7 @@ export default async function ManagerReconciliation({
                             )}
                           >
                             <p className="truncate text-[11px] uppercase tracking-wide text-muted-foreground">
-                              {side.label}
+                              {t(locale, side.label)}
                             </p>
                             <p
                               className="mt-0.5 whitespace-nowrap font-mono font-semibold tabular-nums"
@@ -1523,7 +1523,7 @@ export default async function ManagerReconciliation({
 
                       {check.expected ? (
                         <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
-                          {check.expected}
+                          {t(locale, check.expected)}
                         </p>
                       ) : null}
 

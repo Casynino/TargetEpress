@@ -25,6 +25,8 @@ import {
 } from "@/lib/credit-queries";
 import { ROLE_LABELS } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 import { outstandingOf } from "@/lib/invoice-balance";
 import { currentRateValue } from "@/lib/fx";
 import { accountBalances } from "@/lib/ledger";
@@ -125,8 +127,13 @@ export type ReportUnit = "USD" | "TZS";
  */
 export function presentReport(
   report: ReportResult,
-  opts: { unit: ReportUnit; rate: number | null }
+  opts: { unit: ReportUnit; rate: number | null; locale?: Locale }
 ): ReportResult & { unit: ReportUnit; unitLabel: string; currencyNote: string } {
+  /* The note is read on screen in the viewer's language; the download asks
+     for nothing and keeps the English it always printed. */
+  const zh = opts.locale === "zh";
+  const nativeNames = () =>
+    native.map((c) => (zh ? t("zh", c.label) : c.label)).join(zh ? "、" : ", ");
   const toShillings = opts.unit === "TZS" && opts.rate !== null;
   const unit: ReportUnit = toShillings ? "TZS" : "USD";
   const unitLabel = toShillings ? "TSh" : "USD";
@@ -189,14 +196,27 @@ export function presentReport(
         the figures, in the same document whose header says "As recorded".
       */
       if (moneyKeys.size === 0) {
+        if (zh) {
+          return native.length > 0
+            ? `${nativeNames()}均为账户本身的币种，见“币种”列。本报表没有任何换算。`
+            : "本报表没有金额数字。";
+        }
         return native.length > 0
-          ? `${native.map((c) => c.label).join(", ")} are each in the account's own currency, shown in the Currency column. Nothing on this report is converted.`
+          ? `${nativeNames()} are each in the account's own currency, shown in the Currency column. Nothing on this report is converted.`
           : "Nothing on this report is a money figure.";
+      }
+      if (toShillings && zh) {
+        return `金额以先令显示，按 USD 1 = TSh ${(opts.rate as number).toLocaleString("en-US")} 换算，即打印时的有效汇率。${
+          native.length > 0 ? `${nativeNames()}均为账户本身的币种，见“币种”列，未作换算。` : ""
+        }`;
+      }
+      if (zh) {
+        return opts.unit === "TZS" ? "尚未公布汇率，因此金额以美元显示。" : "金额以美元显示，与账单一致。";
       }
       if (toShillings) {
         return `Money shown in shillings, converted at USD 1 = TSh ${(opts.rate as number).toLocaleString("en-US")}, the rate in force when this was printed.${
           native.length > 0
-            ? ` ${native.map((c) => c.label).join(", ")} are each in the account's own currency, shown in the Currency column, and are not converted.`
+            ? ` ${nativeNames()} are each in the account's own currency, shown in the Currency column, and are not converted.`
             : ""
         }`;
       }

@@ -151,7 +151,7 @@ export default async function FinanceReportsPage({
     }),
     /* Everything else on this page — and the profit and loss for both the
        window and the stretch before it — from the one function Admin reads. */
-    financeDashboard(window, picked.previous, { batchId: batch ?? null }),
+    financeDashboard(window, picked.previous, { batchId: batch ?? null, locale }),
     /* The published rate, so this page can talk about money in the currency
        the office actually holds. */
     currentRate(),
@@ -202,6 +202,7 @@ export default async function FinanceReportsPage({
   const report = presentReport(rawReportResult, {
     unit: inUsd ? "USD" : "TZS",
     rate,
+    locale,
   });
 
   /*
@@ -350,11 +351,21 @@ export default async function FinanceReportsPage({
       */}
       <dl className="mb-2 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3 xl:grid-cols-6">
         {(() => {
+          /* Said whole in each language: the period sits in a different
+             place in "up 12% on last week" and "比上周增长 12%". */
+          const zh = locale === "zh";
+          const prev = picked.previous.label;
           const change = (now: number, before: number) => {
-            if (before === 0) return now === 0 ? "nothing either way" : `new ${window.label}`;
+            if (before === 0)
+              return now === 0
+                ? t(locale, "nothing either way")
+                : zh
+                  ? `${window.label}新增`
+                  : `new ${window.label}`;
             const pct = Math.round(((now - before) / Math.abs(before)) * 100);
-            if (pct === 0) return `same as ${picked.previous.label}`;
-            return `${pct > 0 ? "up" : "down"} ${Math.abs(pct)}% on ${picked.previous.label}`;
+            if (pct === 0) return zh ? `与${prev}持平` : `same as ${prev}`;
+            if (zh) return `比${prev}${pct > 0 ? "增长" : "下降"} ${Math.abs(pct)}%`;
+            return `${pct > 0 ? "up" : "down"} ${Math.abs(pct)}% on ${prev}`;
           };
           const cells: {
             k: string;
@@ -396,8 +407,10 @@ export default async function FinanceReportsPage({
               alt: null,
               sub:
                 prior.margin === null || pl.margin === null
-                  ? "no margin to compare"
-                  : `${(pl.margin - prior.margin).toFixed(1)} points on ${picked.previous.label}`,
+                  ? t(locale, "no margin to compare")
+                  : zh
+                    ? `比${prev} ${(pl.margin - prior.margin).toFixed(1)} 个百分点`
+                    : `${(pl.margin - prior.margin).toFixed(1)} points on ${prev}`,
               tone: (pl.margin ?? 0) < 0 ? "text-destructive" : "text-foreground",
               wash:
                 (pl.margin ?? 0) >= (prior.margin ?? 0)

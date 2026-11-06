@@ -284,7 +284,7 @@ export default async function SupportHome() {
     {
       group: "Tickets",
       when: overview.urgentTickets > 0,
-      label: `${overview.urgentTickets} ticket${overview.urgentTickets === 1 ? "" : "s"} marked urgent`,
+      label: `${overview.urgentTickets} ${t(locale, overview.urgentTickets === 1 ? "ticket marked urgent" : "tickets marked urgent")}`,
       detail: t(locale, "A customer is waiting on an answer somebody flagged as important."),
       href: "/app/support/tickets?priority=high",
       cta: t(locale, "Answer"),
@@ -293,7 +293,7 @@ export default async function SupportHome() {
     {
       group: "Collections",
       when: chasing.length > 0,
-      label: `${chasing.length} customer${chasing.length === 1 ? "" : "s"} to chase`,
+      label: `${chasing.length} ${t(locale, chasing.length === 1 ? "customer to chase" : "customers to chase")}`,
       // "Billed on cash terms", because the row beside it is now billed too — a
       // credit inside its terms is also billed and is expressly not a chase.
       detail: t(locale, "Billed on cash terms, and the money has not arrived."),
@@ -306,7 +306,7 @@ export default async function SupportHome() {
       // Ahead of the softer queues: a rejected claim means a customer was told
       // their payment went through and it did not.
       when: rejectedNeedingACall > 0,
-      label: `${rejectedNeedingACall} payment${rejectedNeedingACall === 1 ? "" : "s"} sent back by Finance`,
+      label: `${rejectedNeedingACall} ${t(locale, rejectedNeedingACall === 1 ? "payment sent back by Finance" : "payments sent back by Finance")}`,
       detail: t(
         locale,
         "Finance could not verify these. The customer needs ringing before the claim can go up again."
@@ -319,7 +319,7 @@ export default async function SupportHome() {
     {
       group: "Collections",
       when: submissionCount("PENDING") > 0,
-      label: `${submissionCount("PENDING")} with Finance`,
+      label: `${submissionCount("PENDING")} ${t(locale, "with Finance")}`,
       detail: t(
         locale,
         "Payments this desk has handed up, waiting to be checked. Nothing to do but watch."
@@ -331,7 +331,7 @@ export default async function SupportHome() {
     {
       group: "Sourcing",
       when: overview.openRequests > 0,
-      label: `${overview.openRequests} sourcing request${overview.openRequests === 1 ? "" : "s"} open`,
+      label: `${overview.openRequests} ${t(locale, overview.openRequests === 1 ? "sourcing request open" : "sourcing requests open")}`,
       detail: t(locale, "Somebody asked us to find them something in China."),
       href: "/app/support/sourcing",
       cta: t(locale, "Work them"),
@@ -339,7 +339,7 @@ export default async function SupportHome() {
     {
       group: "Cases",
       when: callBacks > 0,
-      label: `${callBacks} investigation${callBacks === 1 ? "" : "s"} waiting on the customer`,
+      label: `${callBacks} ${t(locale, callBacks === 1 ? "investigation waiting on the customer" : "investigations waiting on the customer")}`,
       detail: t(
         locale,
         "A case is parked until somebody rings them back. That call is this desk's."

@@ -118,9 +118,13 @@ export default async function ClosedBatchesPage({
         <div className="mb-4 overflow-hidden rounded-xl border border-destructive/30 bg-destructive/[0.05]">
           <p className="border-b border-destructive/20 px-5 py-2.5 text-xs font-semibold uppercase tracking-wide text-destructive">
             <Undo2 className="mr-1.5 inline h-3.5 w-3.5" />
-            {sheet.returned.length === 1
-              ? "1 batch was sent back to be fixed"
-              : `${sheet.returned.length} batches were sent back to be fixed`}
+            {sheet.returned.length}{" "}
+            {t(
+              locale,
+              sheet.returned.length === 1
+                ? "batch was sent back to be fixed"
+                : "batches were sent back to be fixed"
+            )}
           </p>
           <ul className="divide-y divide-destructive/15">
             {sheet.returned.map((row) => (
@@ -137,7 +141,7 @@ export default async function ClosedBatchesPage({
                 <span className="min-w-0 flex-1 text-muted-foreground">
                   {row.reviewNote?.trim()
                     ? `“${row.reviewNote.trim()}”`
-                    : "No reason was written down."}
+                    : t(locale, "No reason was written down.")}
                   {row.reviewedBy ? (
                     <span className="ml-1.5 text-xs">— {row.reviewedBy}</span>
                   ) : null}
@@ -146,7 +150,7 @@ export default async function ClosedBatchesPage({
                   href={`/app/shipments/${row.batchId}#batch-costs`}
                   className="text-xs font-medium text-brand hover:underline"
                 >
-                  Open it and fix it →
+                  {t(locale, "Open it and fix it")} →
                 </Link>
               </li>
             ))}
@@ -158,8 +162,8 @@ export default async function ClosedBatchesPage({
         <p className="mb-4 rounded-xl border border-warning/30 bg-warning/[0.06] px-5 py-3 text-sm">
           <span className="font-medium">{sheet.awaiting}</span>{" "}
           {sheet.awaiting === 1
-            ? "batch is waiting for the boss to confirm it."
-            : "batches are waiting for the boss to confirm them."}
+            ? t(locale, "batch is waiting for the boss to confirm it.")
+            : t(locale, "batches are waiting for the boss to confirm them.")}
         </p>
       ) : null}
 
@@ -176,9 +180,9 @@ export default async function ClosedBatchesPage({
           <Input
             name="q"
             defaultValue={q ?? ""}
-            placeholder="Batch number, who closed it, the boss's note…"
+            placeholder={t(locale, "Batch number, who closed it, the boss's note…")}
             className="h-9 w-72 pl-9 text-sm"
-            aria-label="Search closed batches"
+            aria-label={t(locale, "Search closed batches")}
           />
         </form>
 
@@ -207,7 +211,7 @@ export default async function ClosedBatchesPage({
                     : "border-transparent text-muted-foreground hover:bg-accent"
                 )}
               >
-                {option.label}
+                {t(locale, option.label)}
               </Link>
             );
           })}
@@ -231,7 +235,7 @@ export default async function ClosedBatchesPage({
                     : ""
                 )}
               >
-                {state.label}
+                {t(locale, state.label)}
                 {state.count > 0 ? (
                   <span className="ml-1.5 tabular-nums opacity-70">
                     {state.count}
@@ -244,7 +248,7 @@ export default async function ClosedBatchesPage({
 
         {sheet.months.length > 1 ? (
           <div className="flex flex-wrap gap-1.5">
-            {[{ key: "", label: "Every month" }, ...sheet.months].map((option) => {
+            {[{ key: "", label: t(locale, "Every month") }, ...sheet.months].map((option) => {
               const active = (month ?? "") === option.key;
               return (
                 <Link
@@ -271,7 +275,7 @@ export default async function ClosedBatchesPage({
             href="?"
             className="text-xs text-muted-foreground underline hover:text-foreground"
           >
-            Show every closed batch
+            {t(locale, "Show every closed batch")}
           </Link>
         ) : null}
       </div>
@@ -292,11 +296,16 @@ export default async function ClosedBatchesPage({
         <dl className="mb-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-4">
           {(() => {
             const p = sheet.period!;
+            /* Said whole in each language: "up 12% on last week" and
+               "比上周增长 12%" put the period in different places. */
+            const zh = locale === "zh";
+            const prev = t(locale, p.previousLabel);
             const change = (now: number, before: number) => {
-              if (before === 0) return now === 0 ? null : `new ${p.previousLabel === "last week" ? "this week" : "this month"}`;
+              if (before === 0) return now === 0 ? null : t(locale, `new ${p.label}`);
               const pct = Math.round(((now - before) / Math.abs(before)) * 100);
-              if (pct === 0) return `same as ${p.previousLabel}`;
-              return `${pct > 0 ? "up" : "down"} ${Math.abs(pct)}% on ${p.previousLabel}`;
+              if (pct === 0) return zh ? `与${prev}持平` : `same as ${prev}`;
+              if (zh) return `比${prev}${pct > 0 ? "增长" : "下降"} ${Math.abs(pct)}%`;
+              return `${pct > 0 ? "up" : "down"} ${Math.abs(pct)}% on ${prev}`;
             };
             /*
               Counted the same way the money is.
@@ -347,7 +356,7 @@ export default async function ClosedBatchesPage({
                 )}
               >
                 <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  {cell.k} · {p.label}
+                  {t(locale, cell.k)} · {t(locale, p.label)}
                 </dt>
                 <dd
                   className={`mt-1 whitespace-nowrap font-display font-bold leading-tight tabular-nums ${figureSize(cell.v)}`}
@@ -370,7 +379,7 @@ export default async function ClosedBatchesPage({
                         : "text-destructive"
                   )}
                 >
-                  {cell.d ?? `nothing closed ${p.previousLabel}`}
+                  {cell.d ?? (zh ? `${prev}没有关闭批次` : `nothing closed ${prev}`)}
                 </p>
               </div>
             ));
@@ -380,12 +389,14 @@ export default async function ClosedBatchesPage({
 
       {sheet.rows.length === 0 && sheet.total > 0 ? (
         <p className="mb-4 rounded-xl border border-dashed px-5 py-8 text-center text-sm text-muted-foreground">
-          Nothing matches that. {sheet.total} closed{" "}
-          {sheet.total === 1 ? "batch" : "batches"} in all —{" "}
+          {t(locale, "Nothing matches that.")}{" "}
+          {locale === "zh"
+            ? `共 ${sheet.total} 个已关闭批次 —`
+            : `${sheet.total} closed ${sheet.total === 1 ? "batch" : "batches"} in all —`}{" "}
           <Link href="?" className="text-brand hover:underline">
-            show them
+            {t(locale, "show them")}
           </Link>
-          .
+          {locale === "zh" ? "" : "."}
         </p>
       ) : (
         <IncomeSheetTable

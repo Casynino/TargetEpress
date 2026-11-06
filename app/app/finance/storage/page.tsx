@@ -115,7 +115,10 @@ export default async function StorageDuePage() {
     {
       label: "Cargo past its free days",
       value: String(rows.length),
-      hint: `${STORAGE_POLICY.freeDays} free days, then USD ${STORAGE_POLICY.perDayUsd} a day`,
+      hint:
+        locale === "zh"
+          ? `免费 ${STORAGE_POLICY.freeDays} 天，之后每天 USD ${STORAGE_POLICY.perDayUsd}`
+          : `${STORAGE_POLICY.freeDays} free days, then USD ${STORAGE_POLICY.perDayUsd} a day`,
       Icon: Warehouse,
       tone: "text-foreground",
     },

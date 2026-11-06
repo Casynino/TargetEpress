@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Download, FileText } from "lucide-react";
 
 import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 import { REPORTS, type ReportResult } from "@/lib/reports";
 import { viewerLocale } from "@/lib/viewer";
 
@@ -12,8 +13,12 @@ import { viewerLocale } from "@/lib/viewer";
  * deciding how many decimals a figure gets, which is how the same number ends
  * up reading "5,407,506" on a laptop and "5407506" on a handset.
  */
-function cellText(value: unknown) {
+function cellText(value: unknown, locale: Locale) {
   if (value === null || value === undefined || value === "") return "—";
+  /* Fixed wording the engine writes into a cell — a P&L line, a category, a
+     due state — reads in the viewer's language; a name or a number has no
+     entry and falls through unchanged. */
+  if (typeof value === "string") return t(locale, value);
   if (typeof value === "number") {
     return value.toLocaleString("en-US", {
       minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
@@ -166,7 +171,7 @@ export async function ReportViewer({
         <ul className="divide-y border-y md:hidden">
           {report.rows.map((row, i) => (
             <li key={i} className="px-4 py-3">
-              <p className="font-medium">{cellText(row[report.columns[0].key])}</p>
+              <p className="font-medium">{cellText(row[report.columns[0].key], locale)}</p>
               <dl className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
                 {report.columns.slice(1).map((c) => {
                   const value = row[c.key];
@@ -182,7 +187,7 @@ export async function ReportViewer({
                             : ""
                         }`}
                       >
-                        {cellText(value)}
+                        {cellText(value, locale)}
                       </dd>
                     </div>
                   );
@@ -205,7 +210,7 @@ export async function ReportViewer({
                         {t(locale, c.label)}
                       </dt>
                       <dd className="truncate tabular-nums">
-                        {cellText(report.totals?.[c.key])}
+                        {cellText(report.totals?.[c.key], locale)}
                       </dd>
                     </div>
                   ))}
@@ -245,7 +250,7 @@ export async function ReportViewer({
                             : ""
                         }`}
                       >
-                        {cellText(value)}
+                        {cellText(value, locale)}
                       </td>
                     );
                   })}
@@ -267,7 +272,7 @@ export async function ReportViewer({
                       {i === 0
                         ? t(locale, "Total")
                         : report.totals?.[c.key] !== undefined
-                          ? cellText(report.totals[c.key])
+                          ? cellText(report.totals[c.key], locale)
                           : ""}
                     </td>
                   ))}

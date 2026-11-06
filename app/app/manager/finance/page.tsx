@@ -165,6 +165,10 @@ export default async function ManagerFinance({
     }
     const change = Math.round(((now - before) / Math.abs(before)) * 100);
     if (change === 0) return `${t(locale, "same as")} ${picked.previous.label}`;
+    /* Chinese puts the period first: "比上周增长 12%". */
+    if (locale === "zh") {
+      return `比${picked.previous.label}${change > 0 ? "增长" : "下降"} ${Math.abs(change)}%`;
+    }
     return `${t(locale, change > 0 ? "up" : "down")} ${Math.abs(change)}% ${t(
       locale,
       "on"

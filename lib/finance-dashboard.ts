@@ -3,6 +3,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 
 import { toNumber } from "@/lib/format";
+import type { Locale } from "@/lib/locale";
 import { outstandingOf } from "@/lib/invoice-balance";
 import { currentRateValue } from "@/lib/fx";
 import { accountBalances } from "@/lib/ledger";
@@ -161,7 +162,7 @@ const pct = (part: number, whole: number) =>
 export async function financeDashboard(
   window: ProfitWindow,
   previous: ProfitWindow,
-  filters: { batchId?: string | null; origin?: string | null } = {}
+  filters: { batchId?: string | null; origin?: string | null; locale?: Locale } = {}
 ): Promise<FinanceDashboard> {
   const range = { gte: window.from, lt: window.to };
   const batchWhere = filters.batchId ? { id: filters.batchId } : {};
@@ -726,6 +727,10 @@ export async function financeDashboard(
       ? Math.round(((pl.profit - prior.profit) / Math.abs(prior.profit)) * 1000) / 10
       : null;
 
+  /* The explanations are whole sentences with the figure inside, so each
+     language is written out rather than pieced together from fragments. The
+     printed statement asks for English and gets exactly what it always did. */
+  const zh = filters.locale === "zh";
   const health: FinanceDashboard["health"] = [
     {
       key: "collection",
@@ -733,8 +738,12 @@ export async function financeDashboard(
       value: collectionRate === null ? "—" : `${collectionRate}%`,
       explain:
         collectionRate === null
-          ? "Nothing was billed in this period, so there is no rate to work out."
-          : `${collectionRate}% of what was billed in this period has actually been paid.`,
+          ? zh
+            ? "本期没有开出账单，无法计算回款率。"
+            : "Nothing was billed in this period, so there is no rate to work out."
+          : zh
+            ? `本期已开账单中有 ${collectionRate}% 已实际收款。`
+            : `${collectionRate}% of what was billed in this period has actually been paid.`,
       tone: collectionRate === null ? "flat" : collectionRate >= 80 ? "good" : collectionRate >= 50 ? "warn" : "bad",
     },
     {
@@ -743,8 +752,12 @@ export async function financeDashboard(
       value: pl.margin === null ? "—" : `${pl.margin.toFixed(1)}%`,
       explain:
         pl.margin === null
-          ? "Nothing was billed, so there is no margin."
-          : `USD ${(pl.margin / 100).toFixed(2)} of every USD 1.00 billed is left after the costs of this period.`,
+          ? zh
+            ? "没有开出账单，因此没有利润率。"
+            : "Nothing was billed, so there is no margin."
+          : zh
+            ? `每开出 USD 1.00 账单，扣除本期成本后剩余 USD ${(pl.margin / 100).toFixed(2)}。`
+            : `USD ${(pl.margin / 100).toFixed(2)} of every USD 1.00 billed is left after the costs of this period.`,
       tone: pl.margin === null ? "flat" : pl.margin >= 30 ? "good" : pl.margin >= 0 ? "warn" : "bad",
     },
     {
@@ -753,8 +766,12 @@ export async function financeDashboard(
       value: expenseRatio === null ? "—" : `${expenseRatio}%`,
       explain:
         expenseRatio === null
-          ? "Nothing was billed, so costs cannot be measured against it."
-          : `${expenseRatio}% of what was billed went back out as costs.`,
+          ? zh
+            ? "没有开出账单，无法衡量成本占比。"
+            : "Nothing was billed, so costs cannot be measured against it."
+          : zh
+            ? `已开账单中有 ${expenseRatio}% 作为成本支出。`
+            : `${expenseRatio}% of what was billed went back out as costs.`,
       tone: expenseRatio === null ? "flat" : expenseRatio <= 70 ? "good" : expenseRatio <= 100 ? "warn" : "bad",
     },
     {
@@ -763,8 +780,12 @@ export async function financeDashboard(
       value: outstandingRatio === null ? "—" : `${outstandingRatio}%`,
       explain:
         outstandingRatio === null
-          ? "Nothing is owed and nothing has been collected."
-          : `${outstandingRatio}% of everything billed is still sitting with customers.`,
+          ? zh
+            ? "没有欠款，也没有收款。"
+            : "Nothing is owed and nothing has been collected."
+          : zh
+            ? `所有已开账单中有 ${outstandingRatio}% 仍未由客户付清。`
+            : `${outstandingRatio}% of everything billed is still sitting with customers.`,
       tone: outstandingRatio === null ? "flat" : outstandingRatio <= 20 ? "good" : outstandingRatio <= 50 ? "warn" : "bad",
     },
     {
@@ -773,8 +794,12 @@ export async function financeDashboard(
       value: revenueGrowth === null ? "—" : `${revenueGrowth > 0 ? "+" : ""}${revenueGrowth}%`,
       explain:
         revenueGrowth === null
-          ? `Nothing was billed in ${previous.label}, so there is nothing to grow from.`
-          : `Billed ${revenueGrowth > 0 ? "more" : "less"} than in ${previous.label}.`,
+          ? zh
+            ? `${previous.label}没有开出账单，无从比较增长。`
+            : `Nothing was billed in ${previous.label}, so there is nothing to grow from.`
+          : zh
+            ? `开出的账单比${previous.label}${revenueGrowth > 0 ? "多" : "少"}。`
+            : `Billed ${revenueGrowth > 0 ? "more" : "less"} than in ${previous.label}.`,
       tone: revenueGrowth === null ? "flat" : revenueGrowth >= 0 ? "good" : "bad",
     },
     {
@@ -783,8 +808,12 @@ export async function financeDashboard(
       value: profitGrowth === null ? "—" : `${profitGrowth > 0 ? "+" : ""}${profitGrowth}%`,
       explain:
         profitGrowth === null
-          ? `${previous.label} made nothing, so there is nothing to compare against.`
-          : `Profit is ${profitGrowth > 0 ? "up" : "down"} on ${previous.label}.`,
+          ? zh
+            ? `${previous.label}没有利润，无从比较。`
+            : `${previous.label} made nothing, so there is nothing to compare against.`
+          : zh
+            ? `利润比${previous.label}${profitGrowth > 0 ? "增长" : "下降"}。`
+            : `Profit is ${profitGrowth > 0 ? "up" : "down"} on ${previous.label}.`,
       tone: profitGrowth === null ? "flat" : profitGrowth >= 0 ? "good" : "bad",
     },
   ];

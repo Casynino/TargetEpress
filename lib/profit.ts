@@ -6,6 +6,7 @@ import { BILLED_INVOICE_STATUSES } from "@/lib/constants";
 import { creditForPeriod } from "@/lib/credit-queries";
 import { formatMonthYear, toNumber } from "@/lib/format";
 import { BASE_CURRENCY, currentRateValue } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { loanCashRows, moneyOutRows } from "@/lib/ledger";
 import type { Locale } from "@/lib/locale";
 import {
@@ -112,7 +113,13 @@ export function windowFor(
   const now = new Date();
   const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const day = 86_400_000;
-  const span = (from: Date, to: Date, label: string): ProfitWindow => ({ from, to, label });
+  /* The label is read inside sentences on the report ("up 12% on last week"),
+     so it is translated here, once, rather than at every place that says it. */
+  const span = (from: Date, to: Date, label: string): ProfitWindow => ({
+    from,
+    to,
+    label: t(locale, label),
+  });
 
   /* A range somebody typed. Its predecessor is the same number of days
      immediately before it, which is the only honest comparison for an
@@ -155,7 +162,11 @@ export function windowFor(
     const prevFrom = new Date(now.getFullYear(), q * 3 - 3, 1);
     return {
       key: "quarter",
-      window: span(from, to, `Q${q + 1} ${now.getFullYear()}`),
+      window: span(
+        from,
+        to,
+        locale === "zh" ? `${now.getFullYear()}年第${q + 1}季度` : `Q${q + 1} ${now.getFullYear()}`
+      ),
       previous: span(prevFrom, from, "the quarter before"),
     };
   }
