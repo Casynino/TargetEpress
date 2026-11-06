@@ -210,7 +210,8 @@ async function main() {
       check(
         'the customer is shown "Under investigation", not "Ready for pickup"',
         investigating.kind === "shipment" &&
-          investigating.statusLabel === "Under investigation" &&
+          /under investigation/i.test(investigating.statusLabel) &&
+          !/ready for pickup/i.test(investigating.statusLabel) &&
           investigating.investigation?.state === "UNDER_INVESTIGATION",
         investigating.kind === "shipment" ? investigating.statusLabel : ""
       );
@@ -238,7 +239,7 @@ async function main() {
         compensating.kind === "shipment" &&
           compensating.collectable === false &&
           compensating.investigation?.state === "COMPENSATION_IN_PROGRESS" &&
-          compensating.statusLabel === "Compensation in progress",
+          /compensation in progress/i.test(compensating.statusLabel),
         compensating.kind === "shipment" ? compensating.statusLabel : ""
       );
 

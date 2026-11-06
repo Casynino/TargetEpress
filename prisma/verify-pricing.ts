@@ -31,7 +31,9 @@ const CASES: Case[] = [
   // Tier boundary either side of 10 kg.
   { name: "Normal goods, 9 kg → 13.50/kg", category: "NORMAL_GOODS", weightKg: 9, expect: 121.5 },
   { name: "Normal goods, exactly 10 kg → 12.50/kg", category: "NORMAL_GOODS", weightKg: 10, expect: 125 },
-  { name: "Normal goods, 3 × 4 kg = 12 kg → 12.50/kg", category: "NORMAL_GOODS", weightKg: 4, quantity: 3, expect: 150 },
+  /* weightKg is the consignment total as weighed (see QuoteInput.weightKg) —
+     three 4 kg boxes arrive as 12 kg, never as 4 kg × 3. */
+  { name: "Normal goods, 3 boxes weighing 12 kg → 12.50/kg", category: "NORMAL_GOODS", weightKg: 12, quantity: 3, expect: 150 },
 
   // Fixed-per-item ignores weight entirely.
   { name: "Smart Phone (Full Box) × 2, heavy → 25 each", category: "ELECTRONICS", typeName: "Smart Phone (Full Box)", weightKg: 40, quantity: 2, expect: 50 },

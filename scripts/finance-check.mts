@@ -52,6 +52,7 @@ async function checkBatch(batchNumber: string, batchId: string) {
         select: {
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           status: true,
         },
       },
@@ -107,8 +108,24 @@ async function checkBatch(batchNumber: string, batchId: string) {
     );
   compare(batchNumber, "written off", app.writtenOffUsd, writtenOff);
 
-  // Nobody owes an estimate, so outstanding is measured against what was billed.
-  compare(batchNumber, "outstanding", app.outstandingUsd, Math.max(0, billed - paid));
+  /* Nobody owes an estimate, so outstanding is measured against what was
+     billed — bill by bill, each clamped at zero, less any adjustment written
+     against it. One sum over the whole flight let a single overpaid bill cancel
+     everybody else's debt, which is the error the app's own figure avoids. */
+  const outstanding = confirmed
+    .filter((c) => c.invoice!.status !== "WRITTEN_OFF")
+    .reduce(
+      (n, c) =>
+        n +
+        Math.max(
+          0,
+          toNumber(c.invoice!.total) -
+            toNumber(c.invoice!.amountPaid) -
+            toNumber(c.invoice!.amountAdjusted)
+        ),
+      0
+    );
+  compare(batchNumber, "outstanding", app.outstandingUsd, outstanding);
 
   const drafts = cargo.filter((c) => c.invoice?.status === "DRAFT").length;
   compare(batchNumber, "draft invoices", app.drafts, drafts);

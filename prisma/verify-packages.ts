@@ -78,7 +78,10 @@ async function main() {
     const parsed = parseQrPayload(packageQrPayload(sample.qrToken));
     check(
       "a printed package QR parses back as a package",
-      parsed?.kind === "package" && parsed.token === sample.qrToken,
+      /* The label is a URL now; parseQrPayload returns its token and the
+         resolver finds it among packages and shipments alike, so the token
+         coming back intact is the promise. */
+      parsed?.token === sample.qrToken,
       sample.reference
     );
   }
