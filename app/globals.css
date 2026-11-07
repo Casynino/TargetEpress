@@ -672,23 +672,17 @@ html:not(.dark) .glass-panel.glass-drawer { background-color: rgba(255, 255, 255
 .glass-panel .g-dim { color: var(--glass-text-dim); }
 .glass-panel .g-hover:hover { color: var(--glass-strong); }
 .glass-panel .g-input::placeholder { color: var(--glass-soft); }
-/* the open page */
-.glass-active {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.17), rgba(255, 255, 255, 0.07));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42), inset 0 2px 8px rgba(255, 255, 255, 0.1), 0 6px 18px -10px rgba(0, 0, 0, 0.6);
-}
-html:not(.dark) .glass-active {
-  background: linear-gradient(180deg, rgba(14, 61, 110, 0.13), rgba(14, 61, 110, 0.06));
-  box-shadow: inset 0 0 0 1px rgba(14, 61, 110, 0.38), 0 6px 16px -10px rgba(14, 61, 110, 0.5);
-}
-.glass-row { transition: background-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease; }
-.glass-row:hover { background: rgba(255, 255, 255, 0.08); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); }
-html:not(.dark) .glass-row:hover { background: rgba(14, 61, 110, 0.06); box-shadow: inset 0 0 0 1px rgba(14, 61, 110, 0.14); }
-/* the search box */
-.glass-field { background: rgba(255, 255, 255, 0.07); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12); }
-html:not(.dark) .glass-field { background: rgba(14, 61, 110, 0.05); box-shadow: inset 0 0 0 1px rgba(14, 61, 110, 0.12); }
-.glass-kbd { background: rgba(255, 255, 255, 0.1); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12); }
-html:not(.dark) .glass-kbd { background: rgba(14, 61, 110, 0.07); box-shadow: inset 0 0 0 1px rgba(14, 61, 110, 0.12); }
+/* the open page: no shape at all, only a thin gold bar on its left (the icon turns gold in the markup) — "clean" */
+.glass-active { background: transparent; }
+.glass-active::before { content: ""; position: absolute; left: 0; top: 50%; height: 1.15rem; width: 3px; transform: translateY(-50%); border-radius: 3px; background: #fdc400; }
+/* a row under the pointer: the text gets brighter (in the markup), nothing is drawn */
+.glass-row { transition: color 0.15s ease; }
+/* the search: a plain line, no box */
+.glass-field { background: transparent; box-shadow: inset 0 -1px 0 var(--glass-line); }
+.glass-kbd { background: transparent; box-shadow: none; }
+/* the round fold button, its label, the names beside the rail and the switch's knob: white by day, the card's navy at night */
+.glass-chip { background: #ffffff; color: #1e293b; }
+html.dark .glass-chip { background: #101a2d; color: #dce5f2; }
 /* a group's pages hang off a thin line with a curved elbow at each one, like branches */
 .glass-tree { position: relative; border-left: 1px solid var(--glass-line); }
 .glass-tree > li { position: relative; }

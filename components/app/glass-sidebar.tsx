@@ -355,15 +355,15 @@ export function GlassSidebar({
           onClick={onNavigate}
           aria-current={active ? "page" : undefined}
           className={cn(
-            "relative flex items-center gap-3 rounded-full",
+            "relative flex items-center gap-3 rounded-lg",
             FOCUS,
-            child ? "px-3 py-2 text-[13px]" : "px-3.5 py-2.5 text-[13.5px]",
+            child ? "px-3 py-1.5 text-[13px]" : "px-3.5 py-2 text-[13.5px]",
             // 44px on a phone: the menu is used one-handed on a warehouse floor.
             mode === "sheet" && "min-h-11",
             active ? "glass-active font-medium g-strong" : "glass-row g-text g-hover",
           )}
         >
-          <Icon className={cn("shrink-0", child ? "size-4" : "size-[18px]", active ? "g-gold" : "g-icon")} />
+          <Icon className={cn("shrink-0", child ? "size-4" : "size-[18px]", active && "g-gold")} />
           <span className="min-w-0 flex-1 truncate">{t(item.label)}</span>
           {/* Which group a search result lives in, so two "Arrived" rows are told apart. */}
           {where ? <span className="shrink-0 text-[11px] g-soft">{where}</span> : null}
@@ -390,7 +390,7 @@ export function GlassSidebar({
       </div>
 
       <div className="px-3 pb-1.5">
-        <label className="glass-field flex items-center gap-2.5 rounded-full px-3.5 py-2.5 text-sm g-soft">
+        <label className="glass-field flex items-center gap-2.5 px-3.5 py-2 text-sm g-soft">
           <Search className="size-4 shrink-0" />
           <input
             ref={searchRef}
@@ -471,7 +471,7 @@ export function GlassSidebar({
                   onClick={() => folds.set(section.title, !isOpen)}
                   aria-expanded={isOpen}
                   className={cn(
-                    "glass-row g-hover flex w-full items-center gap-3 rounded-full px-3.5 py-2.5 text-left text-[13.5px] font-medium",
+                    "glass-row g-hover flex w-full items-center gap-3 rounded-lg px-3.5 py-2 text-left text-[13.5px] font-medium",
                     FOCUS,
                     mode === "sheet" && "min-h-11",
                     here ? "g-strong" : "g-text",
@@ -542,10 +542,10 @@ export function GlassSidebar({
                   className={cn(
                     "relative mb-0.5 grid size-10 shrink-0 place-items-center rounded-full",
                     FOCUS,
-                    active ? "glass-active" : "glass-row",
+                    active ? "glass-active g-strong" : "glass-row g-soft g-hover",
                   )}
                 >
-                  <Icon className={cn("size-[17px]", active ? "g-gold" : "g-soft")} />
+                  <Icon className={cn("size-[17px]", active && "g-gold")} />
                   <span className="sr-only">{t(item.label)}</span>
                 </Link>
               );
@@ -583,7 +583,7 @@ export function GlassSidebar({
           type="button"
           onClick={() => onCollapsedChange?.(!collapsed)}
           aria-expanded={!collapsed}
-          className="grid size-7 place-items-center rounded-full bg-white text-slate-800 shadow-[0_4px_14px_rgba(0,0,0,0.4)] ring-1 ring-black/10 outline-none transition hover:scale-105 focus-visible:ring-2 focus-visible:ring-[#fdc400]"
+          className="glass-chip grid size-7 place-items-center rounded-full shadow-[0_4px_14px_rgba(0,0,0,0.4)] ring-1 ring-black/10 outline-none transition hover:scale-105 focus-visible:ring-2 focus-visible:ring-[#fdc400] dark:ring-white/10"
         >
           {collapsed ? (
             <ChevronRight className="size-[15px]" strokeWidth={2.5} />
@@ -592,16 +592,16 @@ export function GlassSidebar({
           )}
           <span className="sr-only">{collapsed ? t("Expand") : t("Collapse")}</span>
         </button>
-        <span className="pointer-events-none absolute left-9 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 opacity-0 shadow-lg transition group-hover:opacity-100">
+        <span className="glass-chip pointer-events-none absolute left-9 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold opacity-0 shadow-lg transition group-hover:opacity-100">
           {collapsed ? t("Expand") : t("Collapse")}{" "}
-          <kbd className="ml-1 rounded bg-slate-100 px-1 font-sans text-[10px] text-slate-500">[</kbd>
+          <kbd className="ml-1 rounded bg-black/5 px-1 font-sans text-[10px] opacity-70 dark:bg-white/10">[</kbd>
         </span>
       </div>
 
       {hint ? (
         <span
           role="tooltip"
-          className="pointer-events-none fixed z-50 -translate-y-1/2 whitespace-nowrap rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-lg"
+          className="glass-chip pointer-events-none fixed z-50 -translate-y-1/2 whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold shadow-lg"
           style={{ left: hint.x, top: hint.y }}
         >
           {hint.label}
@@ -718,7 +718,7 @@ function Footer({
             >
               <span
                 className={cn(
-                  "absolute top-0.5 size-5 rounded-full bg-white shadow transition-all",
+                  "glass-chip absolute top-0.5 size-5 rounded-full shadow transition-all",
                   dark ? "left-[1.4rem]" : "left-0.5",
                 )}
               />

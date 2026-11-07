@@ -34,7 +34,7 @@ export function LanguageSwitch({
       role="group"
       aria-label={t("Language")}
       className={cn(
-        "glass-field inline-flex rounded-full p-0.5",
+        "inline-flex items-center gap-0.5",
         className,
       )}
     >
@@ -49,10 +49,10 @@ export function LanguageSwitch({
             onClick={() => start(() => void setLanguage(locale))}
             className={cn(
               // Drawn for the glass sidebar (.glass-* in globals.css), the
-              // only place it lives: the chosen language is the same lit
-              // pill as the page you are on.
-              "focus-ring inline-flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-full px-2.5 text-[12.5px] font-medium transition-colors disabled:cursor-default lg:min-h-8",
-              active ? "glass-active g-strong" : "g-soft g-hover"
+              // only place it lives: no box, the chosen language in gold
+              // like the page you are on.
+              "focus-ring inline-flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-md px-2 text-[12.5px] transition-colors disabled:cursor-default lg:min-h-8",
+              active ? "g-gold font-semibold" : "g-soft g-hover font-medium"
             )}
           >
             {LOCALE_LABELS[locale]}
