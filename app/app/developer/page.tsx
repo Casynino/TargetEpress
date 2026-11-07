@@ -132,20 +132,10 @@ export default async function DeveloperHomePage() {
       : eatHour >= 12 && eatHour < 17
         ? "Good afternoon"
         : "Good evening";
-  const dateLabel = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Africa/Dar_es_Salaam",
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  }).format(new Date());
 
   return (
     <div className="space-y-6">
-      <DevHero
-        eyebrow={dateLabel}
-        title={`${greeting}, ${firstName}.`}
-        subtitle="Your control room for Target Express — health, people and everything done, in one place."
-      />
+      <DevHero greeting={`${greeting}, ${firstName}`} />
 
       {/* What you press, in one row: the two things that act, then the two that look. */}
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">

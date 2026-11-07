@@ -2,7 +2,8 @@ import Link from "next/link";
 import { PackagePlus, type LucideIcon } from "lucide-react";
 
 import { CargoSearch } from "@/components/app/cargo-search";
-import { DualClock } from "@/components/app/dual-clock";
+import { BANNER_ACTION_MAIN } from "@/components/app/desk-hero";
+import { PageBanner } from "@/components/app/page-banner";
 import { t } from "@/lib/i18n";
 import { viewerLocale } from "@/lib/viewer";
 
@@ -25,9 +26,9 @@ export type HeroChip = {
 /**
  * The first thing the warehouse sees.
  *
- * A greeting, the time in both countries, and today's three numbers. It is the
- * only part of the page that is about the person rather than the cargo, and it
- * earns its space by answering "how is today going" before anyone scrolls.
+ * The small banner with the warehouse's name and a greeting, then the search
+ * box and the day's one action just under it. It is the only part of the page
+ * that is about the person rather than the cargo.
  *
  * The greeting follows the reader's own clock, not the server's — a Guangzhou
  * desk at 9am should not be told good evening because the host is in Virginia.
@@ -40,14 +41,13 @@ export type HeroChip = {
 export async function WarehouseHero({
   firstName,
   warehouseName,
-  emphasis,
   action,
   search,
   hourOfDay,
 }: {
   firstName: string;
+  /** Already translated, and short enough for the banner's wide letters. */
   warehouseName: string;
-  emphasis: "CN" | "TZ";
   /** The one thing this desk starts its day with, when the row of actions
       under the banner does not already carry it — the same button twice,
       one above the other, is what the owner asked to be rid of. */
@@ -56,9 +56,9 @@ export async function WarehouseHero({
    * Where the search box posts. Omit and no box is drawn.
    *
    * The floor is asked "where is my cargo" all day, same as every other desk,
-   * and the answer starts by typing a number somewhere. It sits in the banner
-   * rather than below the fold because a person on the phone should not have
-   * to find a page first.
+   * and the answer starts by typing a number somewhere. It sits right under
+   * the banner rather than below the fold because a person on the phone
+   * should not have to find a page first.
    */
   search?: { action: string };
   /** Local hour at the warehouse, computed on the server for that zone. */
@@ -71,64 +71,26 @@ export async function WarehouseHero({
   );
 
   return (
-    <section className="relative mb-4 overflow-hidden rounded-2xl">
-      {/* The same band the money desk gets, so every department opens onto the
-          same thing. Target's own colours: the red off the mark running into
-          the blue the app uses for anything you can act on. Nothing moves —
-          this page is read a hundred times a day and animation on it becomes
-          wallpaper by lunchtime.
-
-          Compact, the size of Swift's: the warehouse and both cities' clocks on
-          one short line, a smaller greeting, the slim search box, and the
-          day's one action as a small round button. */}
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-gradient-to-br from-signal via-brand to-info"
-      />
-      <div
-        aria-hidden
-        className="grid-backdrop pointer-events-none absolute inset-0 opacity-20"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/5"
-      />
-
-      <div className="relative px-4 py-4 sm:px-6 sm:py-5">
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-white/75">
-          <p className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
-            <span className="font-semibold uppercase tracking-wider text-white/90">
-              {t(locale, warehouseName)}
-            </span>
-          </p>
-          {/* The warehouse you are standing in first. */}
-          <DualClock inline emphasis={emphasis} />
-        </div>
-        <h1 className="mt-2 font-display text-xl font-bold tracking-tight text-white sm:text-2xl">
-          {greeting}, {firstName}
-        </h1>
-        <p className="mt-0.5 hidden text-sm text-white/75 sm:block">
-          {t(locale, "Here is what is happening on the floor today.")}
-        </p>
-        {search ? (
-          <div className="mt-3 max-w-2xl">
-            <CargoSearch action={search.action} compact />
-          </div>
-        ) : null}
-        {action ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link
-              href={action.href}
-              className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-full bg-white px-3 text-xs font-semibold text-brand shadow-lift transition-colors hover:bg-white/90"
-            >
+    <>
+      {/* The small banner every desk opens on (components/app/page-banner);
+          the two cities' clocks are in the top bar now. */}
+      <PageBanner title={warehouseName} line={`${greeting}, ${firstName}`} />
+      {search || action ? (
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+          {search ? (
+            <div className="min-w-0 flex-1 sm:max-w-xl">
+              <CargoSearch action={search.action} compact />
+            </div>
+          ) : null}
+          {action ? (
+            <Link href={action.href} className={BANNER_ACTION_MAIN}>
               <PackagePlus className="h-3.5 w-3.5" />
               {t(locale, action.label)}
             </Link>
-          </div>
-        ) : null}
-      </div>
-    </section>
+          ) : null}
+        </div>
+      ) : null}
+    </>
   );
 }
 

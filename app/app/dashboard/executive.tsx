@@ -68,7 +68,6 @@ import {
 } from "@/components/ui/table";
 import {
   EXCEPTION_OPEN_STATUSES,
-  ROLE_LABELS,
   STORAGE_POLICY,
 } from "@/lib/constants";
 import {
@@ -290,7 +289,6 @@ export async function ExecutiveDashboard({
       {/* 1. The greeting, and the money in one sentence. */}
       <OwnerMoneyHero
         firstName={firstName}
-        roleLabel={ROLE_LABELS[role]}
         owedTzs={execRate ? stats.outstanding * execRate : stats.outstanding}
         heldTzs={fin.heldTzs}
         inTodayTzs={fin.cashInTodayTzs}

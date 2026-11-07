@@ -261,12 +261,6 @@ export default async function ManagerHome() {
     (account) => account.lastCheck === null || account.staleSince !== null
   ).length;
 
-  const today = now.toLocaleDateString(locale === "zh" ? "zh-CN" : "en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-
   const { operations, finance, customers, staff, management, rate } = overview;
 
   // Shillings lead, everywhere, through the one helper — a per-cell `rate ? … :
@@ -345,14 +339,6 @@ export default async function ManagerHome() {
       <DeskHero
         firstName={firstName}
         role={user.role}
-        today={today}
-        // What this chair is for: the whole company, not one department's
-        // corner of it — and the half of that which is standing still until
-        // this person decides something.
-        subtitle={t(
-          locale,
-          "Here is the whole business, and what is waiting on you."
-        )}
         search={{ action: "/app/search" }}
       />
 

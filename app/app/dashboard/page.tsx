@@ -271,12 +271,6 @@ export default async function DashboardPage() {
   const firstName = (me?.name ?? user.name).split(" ")[0];
 
 
-  const today = new Date().toLocaleDateString(locale === "zh" ? "zh-CN" : "en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-
   const warehouse =
     user.role === "CHINA_WAREHOUSE" || user.role === "DAR_WAREHOUSE";
   const inChina = user.role === "CHINA_WAREHOUSE";
@@ -307,9 +301,8 @@ export default async function DashboardPage() {
           warehouseName={
             inChina
               ? t(locale, "China Warehouse")
-              : t(locale, "Dar es Salaam Warehouse")
+              : t(locale, "Dar Warehouse")
           }
-          emphasis={inChina ? "CN" : "TZ"}
           /*
             WHERE THIS DESK'S DAY STARTS.
 
@@ -343,12 +336,6 @@ export default async function DashboardPage() {
       <DeskHero
         firstName={firstName}
         role={user.role}
-        today={today}
-        subtitle={
-          user.role === "FINANCE"
-            ? t(locale, "Here is the money, and what is waiting on you.")
-            : t(locale, "Here is what is happening at Target Express today.")
-        }
         // The same box the support desk opens on. Every desk that is not
         // holding the box finds one this way — a customer reads out a number
         // and it has to go somewhere without hunting for a page first. Posts

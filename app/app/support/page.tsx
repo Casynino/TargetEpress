@@ -22,11 +22,11 @@ import { BarChart } from "@/components/charts/bar-chart";
 import { Donut } from "@/components/charts/donut";
 import { FlowBars } from "@/components/charts/flow-bars";
 import { CargoSearch } from "@/components/app/cargo-search";
-import { DualClock } from "@/components/app/dual-clock";
+import { PageBanner } from "@/components/app/page-banner";
 import { QuickAction } from "@/components/app/support-forms";
 import { Badge } from "@/components/ui/badge";
 import { creditAlerts } from "@/lib/credit-queries";
-import { formatDateTime, formatWeekdayDate, toNumber } from "@/lib/format";
+import { formatDateTime, toNumber } from "@/lib/format";
 import { currentRate, formatLocal, formatShillings, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -105,7 +105,6 @@ export default async function SupportHome() {
     select: { name: true },
   });
   const firstName = (me?.name ?? user.name).split(" ")[0];
-  const today = formatWeekdayDate(new Date(), locale);
 
   const [
     overview,
@@ -382,53 +381,13 @@ export default async function SupportHome() {
 
   return (
     <>
-      {/* The same band every other department opens onto. The search box lives
-          inside it rather than under it: on this desk the phone is already
-          ringing when the page loads, and the first thing wanted is the box on
-          the other end of the call. */}
-      <div className="relative mb-4 overflow-hidden rounded-2xl">
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-gradient-to-br from-signal via-brand to-info"
-        />
-        <div
-          aria-hidden
-          className="grid-backdrop pointer-events-none absolute inset-0 opacity-20"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/5"
-        />
-        {/* Compact, the size every desk's banner now is: the day, the desk and
-            both clocks on one short line, then the greeting and the box. */}
-        <div className="relative px-4 py-4 sm:px-6 sm:py-5">
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-white/75">
-            <p className="flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
-              {today} ·{" "}
-              <span className="font-semibold uppercase tracking-wider text-white/90">
-                {t(locale, "Support desk")}
-              </span>
-            </p>
-            <DualClock inline emphasis="TZ" />
-          </div>
-          {/* The person, then the job. Every other desk in the app opens by
-              greeting whoever signed in; this one opened on an instruction,
-              which made it the only screen that did not know who was reading
-              it. */}
-          <h1 className="mt-2 font-display text-xl font-bold tracking-tight text-white sm:text-2xl">
-            {t(locale, "Habari")}, {firstName}
-          </h1>
-          <p className="mt-0.5 hidden text-sm text-white/75 sm:block">
-            {t(
-              locale,
-              "Find cargo by tracking number, a customer’s name, the number they are calling from, a batch or an invoice."
-            )}
-          </p>
-          <div className="mt-3 max-w-2xl">
-            <CargoSearch action="/app/support/search" compact />
-          </div>
-        </div>
+      {/* The small banner every desk opens on, then the box. On this desk the
+          phone is already ringing when the page loads, and the first thing
+          wanted is the box on the other end of the call — so it sits right
+          under the banner, before anything else. */}
+      <PageBanner title={t(locale, "Support desk")} line={`${t(locale, "Habari")}, ${firstName}`} />
+      <div className="mb-4 max-w-xl">
+        <CargoSearch action="/app/support/search" compact />
       </div>
 
       <div className="mb-6">

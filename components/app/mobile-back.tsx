@@ -105,7 +105,12 @@ const ROOTS = new Set([
   "/app/support/tickets",
 ]);
 
-export function MobileBack() {
+export function MobileBack({
+  fallback = null,
+}: {
+  /** What the bar shows instead on a desk's own home, where there is no way back. */
+  fallback?: React.ReactNode;
+} = {}) {
   const router = useRouter();
   const pathname = usePathname() ?? "";
   const t = useT();
@@ -127,7 +132,7 @@ export function MobileBack() {
     setWalked(back ? { href: back, label: labelForPath(back) ?? "Back" } : null);
   }, [pathname]);
 
-  if (ROOTS.has(pathname)) return null;
+  if (ROOTS.has(pathname)) return <>{fallback}</>;
 
   const match = PARENTS.find(
     (p) => pathname.startsWith(p.prefix) && pathname !== p.parent
