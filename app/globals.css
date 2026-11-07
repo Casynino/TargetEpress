@@ -623,3 +623,77 @@
     display: none;
   }
 }
+
+/* ───────── Glass sidebar (owner, 8 Nov 2026): the Super Drive panel, value for value — a tall, very round, frosted
+   panel with a soft light at the top and a warm glow at the bottom; the open page is a bright-ringed glass pill with
+   a gold icon; rows light up softly on hover. Navy glass at night, white glass by day. ───────── */
+.glass-panel {
+  --glass-line: rgba(255, 255, 255, 0.16);
+  --glass-text-dim: rgba(255, 255, 255, 0.55);
+  --glass-strong: #eef3fa;
+  --glass-text: #aab9d2;
+  --glass-soft: #8fa3c2;
+  --glass-icon: #6f86ab;
+  --glass-gold: #e5b000;
+  position: relative;
+  border-radius: 2.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background:
+    radial-gradient(120% 45% at 50% 0%, rgba(255, 255, 255, 0.11), transparent 70%),
+    radial-gradient(120% 50% at 50% 100%, rgba(253, 196, 0, 0.22), rgba(237, 100, 36, 0.06) 55%, transparent 80%),
+    rgba(17, 29, 50, 0.62);
+  -webkit-backdrop-filter: blur(26px) saturate(150%);
+  backdrop-filter: blur(26px) saturate(150%);
+  box-shadow: 0 26px 70px -26px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+  color: var(--glass-text);
+}
+html:not(.dark) .glass-panel {
+  --glass-line: rgba(14, 61, 110, 0.2);
+  --glass-text-dim: rgba(15, 27, 45, 0.5);
+  --glass-strong: #0f172a;
+  --glass-text: #475569;
+  --glass-soft: #64748b;
+  --glass-icon: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.85);
+  background:
+    radial-gradient(120% 45% at 50% 0%, rgba(255, 255, 255, 0.9), transparent 70%),
+    radial-gradient(120% 50% at 50% 100%, rgba(253, 196, 0, 0.26), rgba(237, 100, 36, 0.07) 55%, transparent 80%),
+    rgba(255, 255, 255, 0.66);
+  box-shadow: 0 26px 70px -30px rgba(15, 27, 45, 0.4), 0 0 0 1px rgba(15, 27, 45, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+/* the phone's drawer lies over a dark backdrop, not the page: thicker glass so it reads clean */
+.glass-panel.glass-drawer { background-color: rgba(17, 29, 50, 0.92); }
+html:not(.dark) .glass-panel.glass-drawer { background-color: rgba(255, 255, 255, 0.94); }
+.glass-panel .g-strong { color: var(--glass-strong); }
+.glass-panel .g-text { color: var(--glass-text); }
+.glass-panel .g-soft { color: var(--glass-soft); }
+.glass-panel .g-icon { color: var(--glass-icon); }
+.glass-panel .g-gold { color: var(--glass-gold); }
+.glass-panel .g-dim { color: var(--glass-text-dim); }
+.glass-panel .g-hover:hover { color: var(--glass-strong); }
+.glass-panel .g-input::placeholder { color: var(--glass-soft); }
+/* the open page */
+.glass-active {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.17), rgba(255, 255, 255, 0.07));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42), inset 0 2px 8px rgba(255, 255, 255, 0.1), 0 6px 18px -10px rgba(0, 0, 0, 0.6);
+}
+html:not(.dark) .glass-active {
+  background: linear-gradient(180deg, rgba(14, 61, 110, 0.13), rgba(14, 61, 110, 0.06));
+  box-shadow: inset 0 0 0 1px rgba(14, 61, 110, 0.38), 0 6px 16px -10px rgba(14, 61, 110, 0.5);
+}
+.glass-row { transition: background-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease; }
+.glass-row:hover { background: rgba(255, 255, 255, 0.08); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); }
+html:not(.dark) .glass-row:hover { background: rgba(14, 61, 110, 0.06); box-shadow: inset 0 0 0 1px rgba(14, 61, 110, 0.14); }
+/* the search box */
+.glass-field { background: rgba(255, 255, 255, 0.07); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12); }
+html:not(.dark) .glass-field { background: rgba(14, 61, 110, 0.05); box-shadow: inset 0 0 0 1px rgba(14, 61, 110, 0.12); }
+.glass-kbd { background: rgba(255, 255, 255, 0.1); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12); }
+html:not(.dark) .glass-kbd { background: rgba(14, 61, 110, 0.07); box-shadow: inset 0 0 0 1px rgba(14, 61, 110, 0.12); }
+/* a group's pages hang off a thin line with a curved elbow at each one, like branches */
+.glass-tree { position: relative; border-left: 1px solid var(--glass-line); }
+.glass-tree > li { position: relative; }
+.glass-tree > li::before { content: ""; position: absolute; left: -1.05rem; top: 50%; width: 0.8rem; height: 0.8rem; border-left: 1px solid var(--glass-line); border-bottom: 1px solid var(--glass-line); border-bottom-left-radius: 0.65rem; transform: translateY(-88%); pointer-events: none; }
+.glass-divider { height: 1px; background: linear-gradient(90deg, transparent, var(--glass-line), transparent); }
+.glass-switch { background: rgba(255, 255, 255, 0.16); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22); }
+html:not(.dark) .glass-switch { background: rgba(14, 61, 110, 0.14); box-shadow: inset 0 0 0 1px rgba(14, 61, 110, 0.2); }
+.glass-switch[aria-checked="true"] { background: #FDC400; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4); }

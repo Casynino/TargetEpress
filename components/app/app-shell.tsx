@@ -3,8 +3,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
 
-import { LanguageSwitch } from "@/components/app/language-switch";
 import { DeveloperBanner } from "@/components/app/developer-banner";
+import { GlassSidebar, type ShellUser } from "@/components/app/glass-sidebar";
+import { SIDEBAR_COOKIE, SIDEBAR_ROOM } from "@/lib/sidebar";
 import { LocaleProvider, useLocale } from "@/components/app/locale-provider";
 import { MobileBack } from "@/components/app/mobile-back";
 import { NavTrail } from "@/components/app/nav-trail";
@@ -12,133 +13,27 @@ import { MobileTabbar } from "@/components/app/mobile-tabbar";
 import { NewVersionNotice } from "@/components/app/new-version-notice";
 import { BUILD_ID } from "@/lib/build-id";
 import { NotificationBell } from "@/components/app/notification-bell";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import {
-  ChevronDown,
-  TrendingUp,
-  Scale,
-  Receipt,
-  BadgeCheck,
-  FileText,
-  ShieldCheck,
-  Landmark,
-  AlertTriangle,
-  ArrowLeftRight,
-  Banknote,
-  CalendarClock,
-  Bell,
-  Boxes,
-  ChartNoAxesCombined,
-  ClipboardCheck,
-  FlaskConical,
-  Globe,
-  Headset,
-  History,
-  Inbox,
-  Layers,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  MessageSquare,
-  Package,
-  PackagePlus,
-  PhoneCall,
-  PlaneTakeoff,
-  QrCode,
-  ReceiptText,
-  ScanLine,
-  ShoppingBag,
-  Store,
-  Tags,
-  Trash2,
-  TriangleAlert,
-  Truck,
-  UserCog,
-  UserRound,
-  SlidersHorizontal,
-  Users,
-  Wallet,
-  Warehouse,
-  type LucideIcon,
-} from "lucide-react";
+import { useState } from "react";
+import { Globe, Menu } from "lucide-react";
 
-import { BrandLockup } from "@/components/brand-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
   SheetContent,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { logoutAction } from "@/lib/actions/auth";
-import { ROLE_LABELS } from "@/lib/constants";
 import { t } from "@/lib/i18n";
-import type { Locale } from "@/lib/locale";
 import type { NavSection } from "@/lib/nav";
 import { cn } from "@/lib/utils";
-
-const ICONS: Record<string, LucideIcon> = {
-  TrendingUp,
-  Scale,
-  Receipt,
-  BadgeCheck,
-  FileText,
-  ShieldCheck,
-  Landmark,
-  SlidersHorizontal,
-  LayoutDashboard,
-  ScanLine,
-  Package,
-  PackagePlus,
-  Boxes,
-  ClipboardCheck,
-  Truck,
-  AlertTriangle,
-  Wallet,
-  ReceiptText,
-  Banknote,
-  CalendarClock,
-  QrCode,
-  Users,
-  ChartNoAxesCombined,
-  UserCog,
-  History,
-  FlaskConical,
-  Globe,
-  UserRound,
-  Bell,
-  Inbox,
-  Layers,
-  ArrowLeftRight,
-  Headset,
-  MessageSquare,
-  PhoneCall,
-  PlaneTakeoff,
-  ShoppingBag,
-  Store,
-  Tags,
-  Trash2,
-  TriangleAlert,
-  Warehouse,
-};
-
-type ShellUser = {
-  name: string;
-  email: string;
-  role: keyof typeof ROLE_LABELS;
-  photoUrl?: string | null;
-  /** Which language this person reads the system in. */
-  locale: Locale;
-};
 
 export function AppShell({
   sections,
   user,
   unreadNotifications = 0,
   developerMode = null,
+  sidebarCollapsed = false,
   children,
 }: {
   sections: NavSection[];
@@ -155,9 +50,18 @@ export function AppShell({
   } | null;
   /** Drives the count on the bell, and the dot on your own name. */
   unreadNotifications?: number;
+  /** The desktop sidebar folded to its rail, as this person last left it. */
+  sidebarCollapsed?: boolean;
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(sidebarCollapsed);
+  const fold = (next: boolean) => {
+    setCollapsed(next);
+    // A cookie, not localStorage: the server reads it, so a folded sidebar is
+    // folded on the first paint instead of opening and snapping shut.
+    document.cookie = `${SIDEBAR_COOKIE}=${next ? "rail" : "open"}; path=/; max-age=31536000; samesite=lax`;
+  };
 
   return (
     // Publishes the reader's language to every client component below. Server
@@ -192,20 +96,15 @@ export function AppShell({
         {developerMode?.workingAs ? (
           <DeveloperBanner workingAs={developerMode.workingAs} />
         ) : null}
-        {/* Desktop sidebar */}
-        <aside className="fixed bottom-0 left-0 top-0 z-30 hidden w-64 flex-col border-r bg-background lg:flex">
-          <div className="flex h-16 items-center border-b px-5">
-            <Link href="/app/dashboard">
-              <BrandLockup />
-            </Link>
-          </div>
-          <NavList
-            sections={sections}
-            locale={user.locale}
-            className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3"
-          />
-          <UserPanel user={user} unread={unreadNotifications} />
-        </aside>
+        {/* Desktop sidebar: floating glass that folds to a rail. */}
+        <GlassSidebar
+          mode="desktop"
+          sections={sections}
+          user={user}
+          unread={unreadNotifications}
+          collapsed={collapsed}
+          onCollapsedChange={fold}
+        />
 
         {/* Mobile top bar */}
         {/*
@@ -246,26 +145,20 @@ export function AppShell({
           */}
             <SheetContent
               side="left"
-              className="flex h-[100dvh] w-[280px] max-w-[85vw] flex-col p-0"
+              // The drawer is only a frame: the glass pane inside it is the
+              // sidebar, with its own round button to close it.
+              className="flex h-[100dvh] w-[19.5rem] max-w-[calc(85vw+0.75rem)] flex-col gap-0 border-0 bg-transparent py-3 pl-3 pr-0 shadow-none [&>button]:hidden"
             >
               <SheetTitle className="sr-only">
                 {t(user.locale, "Navigation")}
               </SheetTitle>
-              <div className="flex h-16 shrink-0 items-center border-b px-5">
-                <BrandLockup />
-              </div>
-              {/*
-              `overscroll-contain` so reaching the end of the menu does not
-              start scrolling the page behind the sheet — which on a phone
-              reads as the whole app sliding around under your thumb.
-            */}
-              <NavList
+              <GlassSidebar
+                mode="sheet"
                 sections={sections}
-                locale={user.locale}
-                className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3"
+                user={user}
+                unread={unreadNotifications}
                 onNavigate={() => setMobileOpen(false)}
               />
-              <UserPanel user={user} unread={unreadNotifications} />
             </SheetContent>
           </Sheet>
 
@@ -292,7 +185,14 @@ export function AppShell({
           </div>
         </div>
 
-        <div className="lg:pl-64">
+        <div
+          className="transition-[padding] duration-200 motion-reduce:transition-none lg:pl-[var(--sidebar-room)] print:pl-0"
+          style={
+            {
+              "--sidebar-room": collapsed ? SIDEBAR_ROOM.rail : SIDEBAR_ROOM.open,
+            } as React.CSSProperties
+          }
+        >
           {/* A thin bar for the bell and the way out to the public site. Nothing
             else belongs up here — anything more would compete with the page's
             own heading. */}
@@ -403,248 +303,5 @@ function MainSiteLink({ compact = false }: { compact?: boolean }) {
         )}
       </Link>
     </Button>
-  );
-}
-
-/** Which sidebar groups the reader opened or folded, per device. */
-const NAV_FOLD_KEY = "tx.nav.folds";
-
-function NavList({
-  sections,
-  locale,
-  className,
-  onNavigate,
-}: {
-  sections: NavSection[];
-  /** Nav labels live in lib/nav.ts as English; this renders them for the reader. */
-  locale: Locale;
-  className?: string;
-  onNavigate?: () => void;
-}) {
-  const pathname = usePathname();
-
-  // Longest match wins, across the whole sidebar rather than row by row.
-  //
-  // Rows can nest — Pickup notes lives under /app/finance/pickup-notes while
-  // Finance owns /app/finance — and matching each row independently lights up
-  // both at once, which tells you two contradictory things about where you
-  // are. The most specific row that matches is the one you are actually on.
-  const activeHref = sections
-    .flatMap((section) => section.items)
-    .filter((item) => {
-      const paths = [item.href, ...(item.alsoMatches ?? [])];
-      return paths.some((path) =>
-        item.exact
-          ? pathname === path
-          : pathname === path || pathname.startsWith(`${path}/`),
-      );
-    })
-    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
-
-  /*
-    FOLDING GROUPS, as on Super Drive: a heading opens and closes its pages.
-
-    Until the reader decides, the group holding the page they are on is open
-    and the rest are folded — a long menu reads as its headings. What they open
-    or fold is remembered on this device, and going to a page inside a folded
-    group opens that group again so the lit row is never hidden.
-  */
-  const [opened, setOpened] = useState<Record<string, boolean>>({});
-  useEffect(() => {
-    try {
-      setOpened(JSON.parse(localStorage.getItem(NAV_FOLD_KEY) ?? "{}") as Record<string, boolean>);
-    } catch {
-      /* private window: the defaults stand */
-    }
-  }, []);
-  const activeGroup = sections.find(
-    (section) => section.group && section.items.some((item) => item.href === activeHref),
-  )?.title;
-  useEffect(() => {
-    if (activeGroup && opened[activeGroup] === false) {
-      setOpened((current) => ({ ...current, [activeGroup]: true }));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroup]);
-  const toggle = (title: string, isOpen: boolean) =>
-    setOpened((current) => {
-      const next = { ...current, [title]: !isOpen };
-      try {
-        localStorage.setItem(NAV_FOLD_KEY, JSON.stringify(next));
-      } catch {
-        /* the fold still works for this visit */
-      }
-      return next;
-    });
-
-  return (
-    <nav className={className}>
-      {sections.map((section) => {
-        const GroupIcon = section.group
-          ? (ICONS[section.group.icon] ?? Package)
-          : null;
-        // A named group holds the row lit inside it, so the heading tells you
-        // where you are even when its children are folded away.
-        const inGroup = section.items.some((item) => item.href === activeHref);
-        const isOpen = section.group ? (opened[section.title] ?? inGroup) : true;
-
-        return (
-          <div
-            key={section.title}
-            // Spacing is the separator for an ungrouped run. Groups this short do
-            // not need to be named — "OVERVIEW" above two links told nobody
-            // anything — so the heading is opt-in, for menus long enough that a
-            // flat column becomes a wall.
-            className={cn(section.group ? "mb-1.5 last:mb-0" : "mb-4 last:mb-0")}
-          >
-            {section.group && GroupIcon ? (
-              <button
-                type="button"
-                onClick={() => toggle(section.title, isOpen)}
-                aria-expanded={isOpen}
-                className={cn(
-                  "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors hover:bg-muted/60 hover:text-foreground",
-                  inGroup ? "text-foreground" : "text-muted-foreground",
-                )}
-              >
-                <GroupIcon className={cn("h-4 w-4 shrink-0", inGroup ? "text-brand" : "text-muted-foreground/80")} />
-                <span className="min-w-0 flex-1 truncate">{t(locale, section.group.label)}</span>
-                <ChevronDown
-                  className={cn(
-                    "h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition-transform duration-200",
-                    !isOpen && "-rotate-90",
-                  )}
-                />
-              </button>
-            ) : null}
-            {isOpen ? (
-            <ul
-              className={cn(
-                "space-y-0.5",
-                // Indented against a hairline: the children read as belonging to
-                // the heading rather than as more top-level rows that happen to
-                // sit under it.
-                section.group && "mb-2 ml-[1.35rem] mt-0.5 border-l border-border/60 pl-2",
-              )}
-            >
-              {section.items.map((item) => {
-                const Icon = ICONS[item.icon] ?? Package;
-                const active = item.href === activeHref;
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      onClick={onNavigate}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        // min-h-11 on a phone: 36px rows are a miss-tap away
-                        // from each other, and this menu is used one-handed on a
-                        // warehouse floor. Desktop keeps the tighter rhythm.
-                        "relative flex min-h-11 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors lg:min-h-0",
-                        active
-                          ? "bg-brand/10 font-medium text-brand"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                      )}
-                    >
-                      {/* The page you are on, marked on the hairline too. */}
-                      {active && section.group ? (
-                        <span aria-hidden className="absolute inset-y-1.5 -left-[9px] w-[3px] rounded-r bg-brand" />
-                      ) : null}
-                      <Icon className="h-4 w-4 shrink-0" />
-                      <span className="min-w-0 flex-1 truncate">{t(locale, item.label)}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-            ) : null}
-          </div>
-        );
-      })}
-    </nav>
-  );
-}
-
-function UserPanel({ user, unread = 0 }: { user: ShellUser; unread?: number }) {
-  return (
-    /*
-      Never scrolls away, and never sits under a phone's home indicator.
-
-      `shrink-0` is what keeps it on screen when the menu above it is long —
-      without it a flex column hands the panel's height to the nav and pushes
-      Sign out past the bottom edge. The safe-area padding is the difference
-      between a button you can press and one that is technically visible
-      underneath the gesture bar.
-    */
-    <div className="shrink-0 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-      {/* The whole block is a link to the profile — the photo is the obvious
-          thing to press for "my stuff", and it is where people reach first. */}
-      <Link
-        href="/app/profile"
-        className="flex min-h-11 items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-accent"
-      >
-        <span className="relative shrink-0">
-          {user.photoUrl ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={user.photoUrl}
-              alt=""
-              className="h-9 w-9 rounded-full border object-cover"
-            />
-          ) : (
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand/10 text-sm font-semibold text-brand">
-              {user.name.slice(0, 1).toUpperCase()}
-            </span>
-          )}
-          {unread > 0 ? (
-            <span
-              title={`${unread} unread notification(s)`}
-              className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-xs font-bold text-brand-foreground"
-            >
-              {unread > 9 ? "9+" : unread}
-            </span>
-          ) : null}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{user.name}</p>
-          <p className="truncate text-xs text-muted-foreground">
-            {/* The role sits under the name on every screen in the product, so
-                an English one here undoes the Chinese everywhere else. The
-                English label stays the dictionary key. */}
-            {t(user.locale, ROLE_LABELS[user.role])}
-          </p>
-        </div>
-      </Link>
-      {/*
-        Beside the theme toggle, because it is the same kind of thing: how this
-        person wants to read the screen. Offered to everyone — the Guangzhou
-        desk needs it, and a Tanzanian manager checking what the China team
-        actually typed needs it just as much. English is the default for every
-        account, so nobody who does not want this ever meets it.
-      */}
-      <div className="flex items-center justify-between gap-2 px-2 py-1">
-        <LanguageSwitch current={user.locale} />
-        <ThemeToggle className="hidden h-8 w-8 lg:inline-flex" />
-      </div>
-      <Separator className="my-2" />
-      <form action={logoutAction}>
-        {/*
-          Outlined rather than a ghost.
-
-          A muted ghost button at the bottom of a dark sheet is a row of grey
-          text among other rows of grey text; the one control people go looking
-          for should not be the hardest one to find. Full width and h-11, which
-          is the floor for something pressed with a thumb.
-        */}
-        <Button
-          type="submit"
-          variant="outline"
-          className="h-11 w-full justify-start gap-2.5 px-3 text-sm"
-        >
-          <LogOut className="h-4 w-4" />
-          {t(user.locale, "Sign out")}
-        </Button>
-      </form>
-    </div>
   );
 }

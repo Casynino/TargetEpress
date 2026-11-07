@@ -6712,6 +6712,14 @@ const ZH: Record<string, string> = {
   "Search, or pick from a group. Anything new is saved for next time.": "搜索，或从分组中选择。新输入的内容会保存，下次可直接选用。",
   "billed on those flights": "这些航班开出的账单",
   "net pay": "实发工资",
+  // The glass sidebar.
+  "Search pages": "搜索页面",
+  "No page matches that.": "没有匹配的页面。",
+  "Collapse": "收起",
+  "Expand": "展开",
+  "Night mode": "夜间模式",
+  "Main": "主要",
+  "Workspace": "工作区",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

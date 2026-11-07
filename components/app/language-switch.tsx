@@ -1,7 +1,6 @@
 "use client";
 
 import { useTransition } from "react";
-import { Languages } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
 import { setLanguage } from "@/lib/actions/language";
@@ -34,7 +33,10 @@ export function LanguageSwitch({
     <div
       role="group"
       aria-label={t("Language")}
-      className={cn("inline-flex rounded-lg border p-0.5", className)}
+      className={cn(
+        "glass-field inline-flex rounded-full p-0.5",
+        className,
+      )}
     >
       {LOCALES.map((locale) => {
         const active = locale === current;
@@ -46,13 +48,13 @@ export function LanguageSwitch({
             aria-current={active ? "true" : undefined}
             onClick={() => start(() => void setLanguage(locale))}
             className={cn(
-              "focus-ring inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors disabled:cursor-default",
-              active
-                ? "bg-brand text-white"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              // Drawn for the glass sidebar (.glass-* in globals.css), the
+              // only place it lives: the chosen language is the same lit
+              // pill as the page you are on.
+              "focus-ring inline-flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-full px-2.5 text-[12.5px] font-medium transition-colors disabled:cursor-default lg:min-h-8",
+              active ? "glass-active g-strong" : "g-soft g-hover"
             )}
           >
-            {locale === "en" ? <Languages className="h-3.5 w-3.5" /> : null}
             {LOCALE_LABELS[locale]}
           </button>
         );

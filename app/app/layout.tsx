@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 
 import { AppShell } from "@/components/app/app-shell";
+import { SIDEBAR_COOKIE } from "@/lib/sidebar";
 import { ROLE_LABELS } from "@/lib/constants";
 import { localeOf } from "@/lib/locale";
 import { navForRole } from "@/lib/nav";
@@ -23,6 +25,8 @@ export default async function AppLayout({
   // Middleware already gated this, but pages must never rely on it alone.
   const user = await requireUser();
   const sections = navForRole(user.role);
+
+  const sidebarCollapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "rail";
 
   const [me, unread] = await Promise.all([
     prisma.user.findUnique({
@@ -56,6 +60,7 @@ export default async function AppLayout({
         locale: localeOf(me?.preferredLanguage),
       }}
       unreadNotifications={unread}
+      sidebarCollapsed={sidebarCollapsed}
       developerMode={
         user.impersonatedBy
           ? {
