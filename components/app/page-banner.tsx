@@ -65,15 +65,12 @@ async function BannerBell() {
 export function PageBanner({
   title,
   line,
-  extra,
   kicker = "Target Express",
 }: {
   /** The desk's name, drawn in wide capitals. */
   title: string;
   /** One short line under the gold name — the date. */
   line?: React.ReactNode;
-  /** A second, smaller line: the owner's money, a warehouse's two clocks. */
-  extra?: React.ReactNode;
   /** The gold line. The company's name, left in English like the wordmark. */
   kicker?: string;
 }) {
@@ -117,7 +114,6 @@ export function PageBanner({
         </h1>
         <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-[#fdc400]">{kicker}</p>
         {line ? <p className="mt-1.5 text-sm text-white/65">{line}</p> : null}
-        {extra ? <div className="mt-1 text-xs leading-relaxed text-white/55 sm:text-[13px]">{extra}</div> : null}
       </div>
     </section>
   );

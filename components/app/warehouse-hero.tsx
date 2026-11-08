@@ -3,7 +3,6 @@ import { PackagePlus, type LucideIcon } from "lucide-react";
 
 import { CargoSearch } from "@/components/app/cargo-search";
 import { BANNER_ACTION_MAIN } from "@/components/app/desk-hero";
-import { DualClock } from "@/components/app/dual-clock";
 import { PageBanner, bannerDate } from "@/components/app/page-banner";
 import { t } from "@/lib/i18n";
 import { viewerLocale } from "@/lib/viewer";
@@ -27,8 +26,8 @@ export type HeroChip = {
 /**
  * The first thing the warehouse sees.
  *
- * The small banner with the warehouse's name, the date and both cities'
- * clocks, then the search box and the day's one action just under it.
+ * The small banner with the warehouse's name and the date, then the search
+ * box and the day's one action just under it.
  *
  * The date follows the warehouse's own calendar, not the server's — Guangzhou
  * is five hours ahead of Dar and already on tomorrow for part of every night.
@@ -46,7 +45,7 @@ export async function WarehouseHero({
 }: {
   /** Already translated, and short enough for the banner's wide letters. */
   warehouseName: string;
-  /** The warehouse you are standing in: its calendar, and its clock first. */
+  /** The warehouse you are standing in, whose calendar the date follows. */
   emphasis: "CN" | "TZ";
   /** The one thing this desk starts its day with, when the row of actions
       under the banner does not already carry it — the same button twice,
@@ -66,13 +65,11 @@ export async function WarehouseHero({
 
   return (
     <>
-      {/* The small banner every desk opens on (components/app/page-banner),
-          with both cities' clocks under the date: cargo on every desk starts
-          in Guangzhou and ends in Dar es Salaam. */}
+      {/* The small banner every desk opens on (components/app/page-banner):
+          the warehouse's name and its own date, nothing more. */}
       <PageBanner
         title={warehouseName}
         line={bannerDate(locale, emphasis === "CN" ? "Asia/Shanghai" : "Africa/Dar_es_Salaam")}
-        extra={<DualClock inline emphasis={emphasis} />}
       />
       {search || action ? (
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">

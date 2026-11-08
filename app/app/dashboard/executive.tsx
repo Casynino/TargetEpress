@@ -90,7 +90,7 @@ import {
 import { creditAttention } from "@/lib/support";
 import { FlightProfitTable } from "@/components/app/flight-profit-table";
 import { MoneyTile } from "@/components/app/money-tile";
-import { OwnerMoneyHero } from "@/components/app/owner-money-hero";
+import { PageBanner, bannerDate } from "@/components/app/page-banner";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 import { ORIGIN_LABELS } from "@/lib/constants";
 import { formatLocal, formatShillingTotal } from "@/lib/money";
@@ -280,12 +280,9 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
 
   return (
     <div className="space-y-6">
-      {/* 1. The greeting, and the money in one sentence. */}
-      <OwnerMoneyHero
-        owedTzs={execRate ? stats.outstanding * execRate : stats.outstanding}
-        heldTzs={fin.heldTzs}
-        inTodayTzs={fin.cashInTodayTzs}
-      />
+      {/* 1. The small banner every desk opens on: clean, no figures — the
+          owner's word. The money has its own card further down. */}
+      <PageBanner title={t(locale, "Management")} line={bannerDate(locale)} />
 
       {/* 2. The owner's own pages, straight under the banner as on Hao Stock. */}
       <ActionPills
