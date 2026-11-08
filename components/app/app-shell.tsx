@@ -146,7 +146,7 @@ export function AppShell({
             <div
               className={cn(
                 "mx-auto px-4 sm:px-6 lg:px-8",
-                user.role === "DEVELOPER" ? "max-w-none" : "max-w-[1400px]",
+                user.role === "DEVELOPER" ? "max-w-none" : "max-w-[1920px]",
               )}
             >
               <header className="pointer-events-auto flex h-14 items-center justify-between gap-2 rounded-2xl border bg-card/90 pl-1 pr-1.5 shadow-sm backdrop-blur sm:px-3">
@@ -239,15 +239,15 @@ export function AppShell({
           four with half the adhesive stock blank. The page decides its own
           margins through @page; this must get out of the way.
         */}
-          {/* The Developer's pages fill the screen, like the other projects'
-            consoles: charts and tables are the point there, and a centred
-            column leaves a dead band down both sides of a wide monitor. Every
-            other account — and the Developer while working AS another account,
-            whose role is then theirs — keeps the readable column. */}
+          {/* The page uses the width it is given, as on Super Drive (owner,
+            8 Nov 2026): a centred 1400px column left a dead band down both
+            sides of a wide monitor, worst with the sidebar folded. Every desk
+            now runs to 1920px — past that a row of figures is too far apart to
+            read as one row — and the Developer's console fills the screen. */}
           <div
             className={cn(
               "mx-auto px-4 pb-4 pt-1 sm:px-6 sm:pb-6 lg:px-8 lg:pb-8 lg:pt-6 print:max-w-none print:p-0",
-              user.role === "DEVELOPER" ? "max-w-none" : "max-w-[1400px]",
+              user.role === "DEVELOPER" ? "max-w-none" : "max-w-[1920px]",
             )}
           >
             {children}
