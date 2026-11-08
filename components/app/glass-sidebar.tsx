@@ -657,7 +657,6 @@ function Footer({
 
   const [, start] = useTransition();
   const other: Locale = user.locale === "zh" ? "en" : "zh";
-  const logoutForm = useRef<HTMLFormElement>(null);
   const role = t(ROLE_LABELS[user.role]);
   const firstName = user.name.trim().split(/\s+/)[0] ?? user.name;
   const item = "gap-2 rounded-lg px-2.5 py-1.5 text-[13px]";
@@ -763,7 +762,10 @@ function Footer({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className={cn(item, "text-rose-600 focus:text-rose-600 dark:text-rose-400 dark:focus:text-rose-400")}
-            onSelect={() => logoutForm.current?.requestSubmit()}
+            // Called straight: a menu item cannot submit a form, and a hidden
+            // form kept only to be submitted from here is one more thing to
+            // keep in step with the server's copy of the page.
+            onSelect={() => start(() => logoutAction())}
           >
             <LogOut className="size-3.5" />
             {t("Logout")}
@@ -771,7 +773,6 @@ function Footer({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <form ref={logoutForm} action={logoutAction} className="hidden" />
     </div>
   );
 }

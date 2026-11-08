@@ -77,21 +77,17 @@ export function NewVersionNotice({ build }: { build: string }) {
     and it arrives rather than simply being there: a short drop, one ring out
     of its edge, and a slow sheen every few seconds after that.
 
-    Across the MIDDLE of the top bar on a desktop, which is empty there — the
-    logo sits at one end and the language and bell at the other, and the strip
-    between them carries a notice without covering anything.
-
-    A phone has no such gap: the language button sits dead centre between the
-    hamburger and the bell, and a centred pill lands straight on top of it. So
-    on a phone it stays centred and moves to the bottom, above the tab bar,
-    where there is nothing to cover and nothing to reach past.
+    Centred near the BOTTOM on every screen. A computer has no top bar any
+    more (8 Nov 2026), so a pill at the top landed on the desk's banner and
+    covered the person's name; down there it covers nothing. On a phone it
+    sits just above the tab bar, where there is nothing to reach past.
 
     One sentence and one target: the whole pill is the button, with the reload
     icon on the end so what pressing it does is shown rather than spelled out
     a second time.
   */
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom)+0.75rem)] z-[60] flex justify-center px-4 print:hidden lg:bottom-auto lg:top-3">
+    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom)+0.75rem)] z-[60] flex justify-center px-4 print:hidden lg:bottom-6">
       <button
         type="button"
         onClick={() => window.location.reload()}
