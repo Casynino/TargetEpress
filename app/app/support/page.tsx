@@ -421,7 +421,7 @@ export default async function SupportHome() {
             // that has left China, the other to the two tables cargo is still
             // waiting on there — and "has mine flown yet" is the whole
             // difference between them, asked on this desk all day.
-            { href: "/app/collections", label: t(locale, "Collections"), icon: Banknote, weight: "primary", tone: "signal" },
+            { href: "/app/collections", label: t(locale, "Collections"), short: t(locale, "Collect"), icon: Banknote, weight: "primary", tone: "signal" },
             /* The one gap in Record Payment: it takes a single bill. A
                customer with several open bills pays once, same as Finance's
                own counter — this desk was already allowed to claim it,

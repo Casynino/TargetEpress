@@ -6729,7 +6729,6 @@ const ZH: Record<string, string> = {
   "Claims": "索赔",
   "Deleted": "已删除",
   "Load": "装货",
-  "Follow-up": "跟进",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

@@ -1892,7 +1892,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
        and was reachable only by typing the URL, which is the same as not
        existing — the desk starts on this screen, so the way in belongs on it. */
     { href: "/app/finance/payments/new", label: t(locale, "Merge Payment"), short: t(locale, "Merge"), icon: Layers, weight: "secondary", tone: "success" },
-    { href: "/app/collections/follow-up", label: t(locale, "Payment follow-up"), short: t(locale, "Follow-up"), icon: Clock, tone: "warning" },
+    { href: "/app/collections/follow-up", label: t(locale, "Payment follow-up"), short: t(locale, "Chase"), icon: Clock, tone: "warning" },
     { href: "/app/finance/pickup-notes", label: t(locale, "Pickup notes"), short: t(locale, "Pickup"), icon: QrCode, tone: "success" },
     { href: "/app/finance/transactions", label: t(locale, "Record a cost"), short: t(locale, "Cost"), icon: Banknote, weight: "secondary", tone: "signal" },
   ];

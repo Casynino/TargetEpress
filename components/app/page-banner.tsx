@@ -18,12 +18,11 @@ const PHOTO =
   "https://images.unsplash.com/photo-1515780855147-aee414989c82?auto=format&fit=crop&w=900&q=70";
 
 /**
- * The job title under the name. The owner is the CEO and the manager the
+ * The job title under the name. The owner and the manager both read
  * Director (owner, 8 Nov 2026); every other desk is its department.
  */
 function jobTitle(role: Role) {
-  if (role === "ADMIN") return "CEO";
-  if (role === "MANAGER") return "Director";
+  if (role === "ADMIN" || role === "MANAGER") return "Director";
   return ROLE_LABELS[role];
 }
 

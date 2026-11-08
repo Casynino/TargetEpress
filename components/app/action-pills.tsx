@@ -67,16 +67,11 @@ const TINT: Record<NonNullable<ActionPill["tone"]>, string> = {
  * and a row of bordered cards there reads as a third grid of numbers.
  */
 /*
-  How many icons share a row on the phone, so the rows are spread across the
-  whole width and none looks like it is missing a neighbour (owner, 8 Nov
-  2026): up to five in one row; six as three and three; seven or eight as four
-  over the rest, the short row centred under the full one.
+  On the phone every icon sits in ONE line, each an equal share of the width
+  (owner, 8 Nov 2026) — small enough that a desk's six or seven fit across.
 */
 function phoneColumns(count: number) {
-  if (count <= 5) return count;
-  if (count === 6) return 3;
-  if (count <= 8) return 4;
-  return 5;
+  return Math.max(1, count);
 }
 
 /* The phone icon: a plain line drawing in the pill's own colour and nothing
@@ -93,7 +88,7 @@ export const GLYPH: Record<NonNullable<ActionPill["tone"]>, string> = {
 /** The phone tile's frame. Shared with the actions that sit in the same row:
     each takes an equal share of the row (`--cols`, set on the row). */
 export const PHONE_TILE =
-  "focus-ring flex min-w-0 basis-[calc(100%/var(--cols))] flex-col items-center gap-2 rounded-xl px-0.5 py-2 text-center transition-transform active:scale-95 active:bg-foreground/5 sm:hidden";
+  "focus-ring flex min-w-0 basis-[calc(100%/var(--cols))] flex-col items-center gap-1.5 rounded-xl px-0.5 py-1.5 text-center transition-transform active:scale-95 active:bg-foreground/5 sm:hidden";
 
 /** The inside of a phone tile: the line icon and one word under it. */
 export function PhoneTileFace({
@@ -107,8 +102,8 @@ export function PhoneTileFace({
 }) {
   return (
     <>
-      <Icon className={`h-7 w-7 ${GLYPH[tone]}`} strokeWidth={1.6} />
-      <span className="w-full truncate px-0.5 text-[13px] leading-tight text-foreground/80">
+      <Icon className={`h-6 w-6 ${GLYPH[tone]}`} strokeWidth={1.6} />
+      <span className="w-full truncate text-[11px] leading-tight text-foreground/80">
         {label}
       </span>
     </>
@@ -143,12 +138,11 @@ export function ActionPills({
   return (
     <nav
       aria-label={label}
-      /* On a phone, icons in equal shares of the row — one glyph, one word,
-         every tile the same width, a short last row centred under the full
-         one. As pills they wrapped by their own width into a staircase with an
-         orphan on the last line. From sm up they are the pills they always
-         were. */
-      className="flex flex-wrap justify-center gap-y-3 sm:justify-start sm:gap-2"
+      /* On a phone, one line of icons in equal shares of the row — one glyph,
+         one word, every tile the same width. As pills they wrapped by their
+         own width into a staircase with an orphan on the last line. From sm
+         up they are the pills they always were. */
+      className="flex flex-nowrap justify-center sm:flex-wrap sm:justify-start sm:gap-2"
       style={{ "--cols": phoneColumns(tiles) } as React.CSSProperties}
     >
       {/*
