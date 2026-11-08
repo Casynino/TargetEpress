@@ -99,11 +99,17 @@ function withHint(res: NextResponse, signedIn: boolean) {
   return res;
 }
 
+/* The staff app is "/app" and everything under "/app/". A bare prefix test
+   also caught "/apple-icon.png", so the iPhone's home-screen icon was sent to
+   the sign-in page and an iPhone adding the app got no icon. */
+const isAppPath = (pathname: string) =>
+  pathname === "/app" || pathname.startsWith("/app/");
+
 const guarded = auth((req) => {
   const { pathname } = req.nextUrl;
   const session = req.auth;
 
-  const isInternal = pathname.startsWith("/app");
+  const isInternal = isAppPath(pathname);
   const isLogin = pathname === "/login";
 
   /* A cookie whose account has been suspended: the app has just sent them
@@ -163,7 +169,7 @@ export default function middleware(
   if (closed) return closed;
 
   const { pathname } = req.nextUrl;
-  if (!pathname.startsWith("/app") && pathname !== "/login") {
+  if (!isAppPath(pathname) && pathname !== "/login") {
     return NextResponse.next();
   }
   /* next-auth v5 types `auth()` as a route handler, whose second argument
