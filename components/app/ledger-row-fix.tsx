@@ -381,18 +381,24 @@ export function LedgerRowFix({
           type="button"
           onClick={() => setOpen(open === "edit" ? null : "edit")}
           className={iconButton}
+          aria-label={t("Edit")}
+          title={t("Edit")}
         >
           <Pencil className="h-3.5 w-3.5" />
-          {t("Edit")}
+          {/* The word from 2xl; an icon on a laptop, where the ledger needs
+              the width for its money. */}
+          <span className="hidden 2xl:inline">{t("Edit")}</span>
         </button>
       ) : null}
       <button
         type="button"
         onClick={() => setOpen(open === "cancel" ? null : "cancel")}
+        aria-label={t("Cancel")}
+        title={t("Cancel")}
         className={`${iconButton} hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive`}
       >
         <Ban className="h-3.5 w-3.5" />
-        {t("Cancel")}
+        <span className="hidden 2xl:inline">{t("Cancel")}</span>
       </button>
 
       {open

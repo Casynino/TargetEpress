@@ -1355,7 +1355,10 @@ export default async function LedgerPage({
                 <TableHead className="hidden md:table-cell">
                   {t(locale, "Account")}
                 </TableHead>
-                <TableHead className="hidden lg:table-cell">
+                {/* From 2xl only. On a laptop the name rides in the
+                    description's second line instead, so the money columns
+                    stay on the screen (owner, 8 Nov 2026). */}
+                <TableHead className="hidden 2xl:table-cell">
                   {t(locale, "By")}
                 </TableHead>
                 <TableHead className="text-right">{t(locale, "Debit")}</TableHead>
@@ -1371,11 +1374,13 @@ export default async function LedgerPage({
                 <TableHead className="text-right">
                   {t(locale, "Balance")}
                 </TableHead>
-                <TableHead className="hidden sm:table-cell text-right">
+                {/* From xl: below it the receipt is one press away on the
+                    entry's own page, where it is shown in full. */}
+                <TableHead className="hidden xl:table-cell text-right">
                   {t(locale, "Proof")}
                 </TableHead>
                 {canFix ? (
-                  <TableHead className="w-36 text-right">
+                  <TableHead className="text-right 2xl:w-36">
                     {t(locale, "Fix")}
                   </TableHead>
                 ) : null}
@@ -1547,7 +1552,7 @@ export default async function LedgerPage({
                         should. Without it the one-line title set the column's
                         least width at 30rem and pushed the money columns off
                         a laptop's screen. */}
-                    <TableCell className="w-full min-w-[14rem] max-w-0 py-2.5">
+                    <TableCell className="w-full min-w-[11rem] max-w-0 py-2.5">
                       {/* Stretched over the whole row: a ledger line is one
                           thing, so anywhere on it opens it. Still a single
                           real link, so it is keyboard-reachable and can be
@@ -1632,6 +1637,14 @@ export default async function LedgerPage({
                             {clearedOnRow} {t(locale, "written off")}
                           </span>
                         ) : null}
+                        {/* The "By" column's answer, where that column is
+                            folded away (below 2xl). */}
+                        {entry.recordedBy?.name ? (
+                          <span className="whitespace-nowrap 2xl:hidden">
+                            {purpose || refs.length ? "· " : null}
+                            {t(locale, "by")} {entry.recordedBy.name}
+                          </span>
+                        ) : null}
                       </span>
                     </TableCell>
 
@@ -1656,7 +1669,7 @@ export default async function LedgerPage({
                         {entry.account.name}
                       </Link>
                     </TableCell>
-                    <TableCell className="hidden lg:table-cell min-w-[8.5rem] py-2.5 text-xs text-muted-foreground">
+                    <TableCell className="hidden 2xl:table-cell min-w-[8.5rem] py-2.5 text-xs text-muted-foreground">
                       {/* Two people, when two people were involved, said in the
                           words the desk uses: submitted, then verified.
 
@@ -1716,7 +1729,7 @@ export default async function LedgerPage({
                       {showBalance(runningById.get(entry.id) ?? 0)}
                     </TableCell>
 
-                    <TableCell className="hidden sm:table-cell py-2.5 text-right text-xs">
+                    <TableCell className="hidden xl:table-cell py-2.5 text-right text-xs">
                       {proof ? (
                         <a
                           href={proof}
@@ -1744,7 +1757,7 @@ export default async function LedgerPage({
                       z-10 because the whole row is already a stretched link.
                     */}
                     {canFix ? (
-                      <TableCell className="w-36 py-2.5 pr-1 text-right">
+                      <TableCell className="py-2.5 pr-1 text-right 2xl:w-36">
                         {/*
                           Both of these used to be links: the pencil opened the
                           invoice, the cancel opened the entry's own page. A desk
