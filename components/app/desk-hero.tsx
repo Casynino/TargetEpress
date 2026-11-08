@@ -48,7 +48,7 @@ export async function DeskHero({
           gated on ticket.manage. The actions are offered only where the role
           actually does them. */}
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="min-w-0 flex-1 sm:max-w-xl">
+        <div className="min-w-0 flex-1 sm:max-w-md">
           <CargoSearch action={search.action} compact />
         </div>
         {can(role, "shipment.create") || can(role, "shipment.release") ? (

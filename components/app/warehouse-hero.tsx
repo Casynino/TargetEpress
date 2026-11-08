@@ -74,7 +74,7 @@ export async function WarehouseHero({
       {search || action ? (
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
           {search ? (
-            <div className="min-w-0 flex-1 sm:max-w-xl">
+            <div className="min-w-0 flex-1 sm:max-w-md">
               <CargoSearch action={search.action} compact />
             </div>
           ) : null}

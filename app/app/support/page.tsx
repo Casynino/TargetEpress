@@ -378,7 +378,7 @@ export default async function SupportHome() {
           wanted is the box on the other end of the call — so it sits right
           under the banner, before anything else. */}
       <PageBanner title={t(locale, "Support desk")} line={bannerDate(locale)} />
-      <div className="mb-4 max-w-xl">
+      <div className="mb-4 sm:max-w-md">
         <CargoSearch action="/app/support/search" compact />
       </div>
 

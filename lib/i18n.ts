@@ -6720,6 +6720,7 @@ const ZH: Record<string, string> = {
   "Night mode": "夜间模式",
   "Main": "主要",
   "Workspace": "工作区",
+  "Tracking number, customer, phone or batch": "运单号、客户、电话或批次",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

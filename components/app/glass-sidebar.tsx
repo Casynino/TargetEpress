@@ -24,6 +24,7 @@ import {
   History,
   Inbox,
   Landmark,
+  Languages,
   Layers,
   LayoutDashboard,
   LogOut,
@@ -504,7 +505,7 @@ export function GlassSidebar({
   /** The narrow rail: only icons, thin lines between the sets, Night mode and the person. */
   const railView = (
     <div className="flex min-h-0 flex-1 flex-col items-center">
-      <div className="pb-2 pr-3 pt-4">{brand(true)}</div>
+      <div className="pb-2 pt-4">{brand(true)}</div>
       <button
         type="button"
         data-hint={t("Search pages")}
@@ -608,11 +609,13 @@ export function GlassSidebar({
 }
 
 /**
- * The bottom of the panel, as on Super Drive: small icons with no words — the
- * bell with the unread count, the night or day look, and the other language
- * written in itself — then the signed-in person as initials and the first
- * name. A small menu opens from it: the full name and role, My profile, Main
- * site, Sign out. In the rail the icons stand in a column.
+ * The bottom of the panel, as on Super Drive: only the signed-in person, as
+ * initials and the first name — no icons (owner, 8 Nov 2026). A small menu
+ * opens from it: the full name and role, My profile, Notifications with the
+ * unread count, the night or day look, the other language written in itself,
+ * Main site, Sign out. On a computer the bell and the night switch are also in
+ * each desk's banner; this menu is where they live on every other page and on
+ * a phone. In the rail only the initials show.
  */
 function Footer({
   mode,
@@ -633,12 +636,11 @@ function Footer({
   useEffect(() => setMounted(true), []);
   const dark = mounted && resolvedTheme === "dark";
 
-  const [pending, start] = useTransition();
+  const [, start] = useTransition();
   const other: Locale = user.locale === "zh" ? "en" : "zh";
   const logoutForm = useRef<HTMLFormElement>(null);
   const role = t(ROLE_LABELS[user.role]);
   const firstName = user.name.trim().split(/\s+/)[0] ?? user.name;
-  const iconButton = cn("glass-row g-text g-hover relative grid size-10 shrink-0 place-items-center rounded-full", FOCUS);
   const item = "gap-2 rounded-lg px-2.5 py-1.5 text-[13px]";
 
   return (
@@ -650,48 +652,6 @@ function Footer({
       )}
     >
       <div aria-hidden className="glass-divider mb-2 w-full" />
-
-      <div className={rail ? "mb-1 flex flex-col items-center gap-0.5" : "mb-1 flex items-center gap-1 px-1"}>
-        <Link
-          href="/app/notifications"
-          onClick={onNavigate}
-          title={t("Notifications")}
-          data-hint={t("Notifications")}
-          className={iconButton}
-        >
-          <Bell className="size-[18px]" />
-          <span className="sr-only">{t("Notifications")}</span>
-          {unread > 0 ? (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-signal px-1 text-[10px] font-bold leading-none text-white">
-              {unread > 9 ? "9+" : unread}
-            </span>
-          ) : null}
-        </Link>
-        <button
-          type="button"
-          onClick={() => setTheme(dark ? "light" : "dark")}
-          aria-pressed={dark}
-          title={t("Night mode")}
-          data-hint={t("Night mode")}
-          className={iconButton}
-        >
-          {dark ? <Moon className="size-[18px]" /> : <Sun className="size-[18px]" />}
-          <span className="sr-only">{t("Night mode")}</span>
-        </button>
-        {/* Two languages: the other one, written in itself, so the person who
-            cannot read the screen yet can still find it. */}
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => start(() => void setLanguage(other))}
-          title={LOCALE_LABELS[other]}
-          data-hint={LOCALE_LABELS[other]}
-          className={cn(iconButton, "text-[13px] font-semibold disabled:opacity-50")}
-        >
-          {other === "zh" ? "中" : "EN"}
-          <span className="sr-only">{LOCALE_LABELS[other]}</span>
-        </button>
-      </div>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -726,7 +686,7 @@ function Footer({
           side={rail ? "right" : "top"}
           align={rail ? "end" : "start"}
           sideOffset={rail ? 12 : 8}
-          className="w-44 rounded-xl p-1 shadow-[0_12px_30px_-12px_rgba(0,0,0,0.55)]"
+          className="w-48 rounded-xl p-1 shadow-[0_12px_30px_-12px_rgba(0,0,0,0.55)]"
         >
           <DropdownMenuLabel className="px-2.5 pb-1.5 pt-1 font-normal">
             <span className="block break-words text-[13px] font-semibold leading-snug">{user.name}</span>
@@ -739,6 +699,27 @@ function Footer({
               <UserRound className="size-3.5" />
               {t("My profile")}
             </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild className={item}>
+            <Link href="/app/notifications" onClick={onNavigate}>
+              <Bell className="size-3.5" />
+              <span className="flex-1">{t("Notifications")}</span>
+              {unread > 0 ? (
+                <span className="rounded-full bg-signal px-1.5 text-[10px] font-bold leading-4 text-white">
+                  {unread > 99 ? "99+" : unread}
+                </span>
+              ) : null}
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem className={item} onSelect={() => setTheme(dark ? "light" : "dark")}>
+            {dark ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
+            {dark ? t("Switch to light mode") : t("Switch to dark mode")}
+          </DropdownMenuItem>
+          {/* The other language, written in itself, so the person who cannot
+              read the screen yet can still find it. */}
+          <DropdownMenuItem className={item} onSelect={() => start(() => void setLanguage(other))}>
+            <Languages className="size-3.5" />
+            {LOCALE_LABELS[other]}
           </DropdownMenuItem>
           {/* The way out to the public site: a computer has no top bar now. */}
           <DropdownMenuItem asChild className={item}>

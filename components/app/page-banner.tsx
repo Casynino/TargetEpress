@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 
+import { BannerTheme } from "@/components/app/banner-theme";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
@@ -26,9 +27,9 @@ export function bannerDate(locale: Locale, zone = "Africa/Dar_es_Salaam") {
 }
 
 /**
- * The bell inside the banner, on a computer or a tablet. There is no top bar
- * there any more — the date is the banner's own line — so the bell sits at the
- * banner's left, as on Super Drive. A phone keeps its bell in its own bar.
+ * The bell inside the banner, on a computer. There is no top bar there any
+ * more — the date is the banner's own line — so the bell sits at the banner's
+ * left, as on Super Drive. A phone keeps its bell in its own bar.
  */
 async function BannerBell() {
   const [user, locale] = await Promise.all([requireUser(), viewerLocale()]);
@@ -37,7 +38,7 @@ async function BannerBell() {
     <Link
       href="/app/notifications"
       title={t(locale, "Notifications")}
-      className="focus-ring absolute left-6 top-1/2 z-10 hidden size-8 -translate-y-1/2 place-items-center rounded-full text-white/65 transition hover:text-white lg:inline-grid"
+      className="focus-ring relative hidden size-8 place-items-center rounded-full text-white/65 transition hover:text-white lg:inline-grid"
     >
       <Bell className="size-[15px]" />
       <span className="sr-only">{t(locale, "Notifications")}</span>
@@ -56,8 +57,9 @@ async function BannerBell() {
  * Copied from Super Drive's point-of-sale banner: deep navy, a blue glow on
  * the right and a little gold light from the top, the desk's name in wide
  * letters between two gold rules, "TARGET EXPRESS" in gold under it, and the
- * date. The bell sits at the left and the aircraft at the right on a wide
- * screen. Each desk's search box and first button sit just under it.
+ * date. The bell and the night / day switch sit at the left and the aircraft
+ * at the right on a wide screen. Each desk's search box and first button sit
+ * just under it.
  *
  * Text comes in already translated: the Developer console is English only and
  * passes plain strings.
@@ -93,7 +95,12 @@ export function PageBanner({
       >
         <Image src={PHOTO} alt="" fill sizes="30vw" className="object-cover opacity-75" />
       </div>
-      <BannerBell />
+      {/* The bell and the night / day switch: small icons at the left, in
+          the middle. A phone has them in its own bar and menu. */}
+      <div className="absolute left-6 top-1/2 z-10 flex -translate-y-1/2 items-center gap-2">
+        <BannerBell />
+        <BannerTheme />
+      </div>
 
       <div className="relative flex min-h-[7.5rem] flex-col items-center justify-center px-5 py-5 text-center">
         <h1
