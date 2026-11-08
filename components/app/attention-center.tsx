@@ -37,7 +37,8 @@ const SEVERITY: Record<AttnSeverity, { icon: typeof AlertTriangle; text: string;
 const RANK: Record<AttnSeverity, number> = { critical: 0, warning: 1, info: 2 };
 
 /**
- * Three rows fit; the fourth is the reason the panel scrolls rather than grows.
+ * Exactly three rows show; the fourth is the reason the panel scrolls rather
+ * than grows.
  *
  * Kept deliberately low. This band sits above everything the desk came to the
  * page for, so every extra row it shows by default is a row of the actual work
@@ -115,7 +116,7 @@ export function AttentionCenter({
               problem — a single "All" pill is a label pretending to be a
               control. */}
           {groups.length > 1 ? (
-            <div className="flex flex-wrap gap-1.5 border-b px-4 py-2">
+            <div className="flex flex-wrap gap-1.5 border-b px-3 py-1.5 sm:px-4">
               {[["All", items.length] as [string, number], ...groups].map(
                 ([group, count]) => (
                   <button
@@ -124,7 +125,7 @@ export function AttentionCenter({
                     onClick={() => setActive(group)}
                     aria-pressed={active === group}
                     className={cn(
-                      "focus-ring inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
+                      "focus-ring inline-flex h-6 items-center gap-1 rounded-full border px-2 text-[11px] font-medium transition-colors",
                       active === group
                         ? "border-brand bg-brand text-brand-foreground"
                         : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -139,8 +140,10 @@ export function AttentionCenter({
           ) : null}
 
           {/* Fixed height, internal scroll. The panel is the same size whether
-              this desk has three problems or thirty. */}
-          <ul className="max-h-[10.5rem] divide-y overflow-y-auto">
+              this desk has three problems or thirty — and small (owner, 8 Nov
+              2026): every row is 2.75rem, and the box shows exactly three of
+              them, so a fourth never peeks in half cut. */}
+          <ul className="max-h-[calc(3*2.75rem+2px)] divide-y overflow-y-auto overscroll-contain">
             {shown.map((item) => {
               const meta = SEVERITY[item.severity];
               const Icon = meta.icon;
@@ -148,28 +151,31 @@ export function AttentionCenter({
                 <li key={item.id}>
                   <Link
                     href={item.href}
-                    className="focus-ring flex items-center gap-2.5 px-4 py-2 transition-colors hover:bg-muted/40"
+                    className="focus-ring flex h-11 items-center gap-2.5 px-3 transition-colors hover:bg-muted/40 sm:px-4"
                   >
                     <span
                       aria-hidden
-                      className={cn("h-7 w-0.5 shrink-0 rounded-full", meta.bar)}
+                      className={cn("h-6 w-0.5 shrink-0 rounded-full", meta.bar)}
                     />
                     <Icon className={cn("h-3.5 w-3.5 shrink-0", meta.text)} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-semibold leading-tight">
+                      <span className="block truncate text-[13px] font-semibold leading-4">
                         {item.label}
                       </span>
-                      <span className="mt-0.5 block truncate text-xs leading-tight text-muted-foreground">
+                      <span className="block truncate text-[11.5px] leading-4 text-muted-foreground">
                         {item.detail}
                       </span>
                     </span>
                     {item.value ? (
-                      <span className="shrink-0 text-right leading-tight">
-                        <span className="block font-mono text-xs font-semibold tabular-nums">
+                      /* Plain figures, not a typewriter face: on a phone the
+                         wide mono pushed the title down to a few letters. The
+                         second line (the dollars) waits for a wider screen. */
+                      <span className="max-w-[45%] shrink-0 text-right leading-4">
+                        <span className="block truncate text-xs font-semibold tabular-nums">
                           {item.value}
                         </span>
                         {item.valueSub ? (
-                          <span className="block font-mono text-xs tabular-nums text-muted-foreground">
+                          <span className="hidden truncate text-[11px] tabular-nums text-muted-foreground sm:block">
                             {item.valueSub}
                           </span>
                         ) : null}
@@ -190,7 +196,7 @@ export function AttentionCenter({
           {/* Said out loud, because a scroll area with no edge showing looks
               like the whole list. */}
           {hidden > 0 ? (
-            <p className="flex items-center justify-center gap-1.5 border-t px-4 py-1.5 text-xs text-muted-foreground">
+            <p className="flex items-center justify-center gap-1.5 border-t px-4 py-1 text-[11px] text-muted-foreground">
               <ChevronDown className="h-3 w-3" />
               {t("scroll for")} {hidden} {t("more")}
             </p>
