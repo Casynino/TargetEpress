@@ -66,39 +66,36 @@ const TINT: Record<NonNullable<ActionPill["tone"]>, string> = {
  * Pills rather than cards: this sits between a banner and a wall of figures,
  * and a row of bordered cards there reads as a third grid of numbers.
  */
-/* Columns on the phone, chosen so the rows come out as full as they can: up
-   to five in one row (one-word names fit five across), six as two rows of
-   three rather than four over two with a hole beside it. */
-const PHONE_COLUMNS: Record<number, string> = {
-  1: "grid-cols-1",
-  2: "grid-cols-2",
-  3: "grid-cols-3",
-  4: "grid-cols-4",
-  5: "grid-cols-5",
-  6: "grid-cols-3",
-  7: "grid-cols-4",
-  8: "grid-cols-4",
-  9: "grid-cols-5",
-  10: "grid-cols-5",
+/*
+  How many icons share a row on the phone, so the rows are spread across the
+  whole width and none looks like it is missing a neighbour (owner, 8 Nov
+  2026): up to five in one row; six as three and three; seven or eight as four
+  over the rest, the short row centred under the full one.
+*/
+function phoneColumns(count: number) {
+  if (count <= 5) return count;
+  if (count === 6) return 3;
+  if (count <= 8) return 4;
+  return 5;
+}
+
+/* The phone icon: a plain line drawing in the pill's own colour and nothing
+   behind it — no square, no glow (owner, 8 Nov 2026, from Swift's phone). */
+export const GLYPH: Record<NonNullable<ActionPill["tone"]>, string> = {
+  brand: "text-brand",
+  signal: "text-signal",
+  success: "text-success",
+  warning: "text-warning",
+  info: "text-info",
+  violet: "text-chart-6",
 };
 
-/* The phone icon: a thin line glyph in the pill's own colour on a soft wash
-   of that colour, with a fine edge of it — light and clean, not a heavy
-   filled block (owner, 8 Nov 2026). */
-export const CHIP: Record<NonNullable<ActionPill["tone"]>, string> = {
-  brand: "from-brand/20 to-brand/5 text-brand ring-brand/25",
-  signal: "from-signal/20 to-signal/5 text-signal ring-signal/25",
-  success: "from-success/20 to-success/5 text-success ring-success/25",
-  warning: "from-warning/20 to-warning/5 text-warning ring-warning/25",
-  info: "from-info/20 to-info/5 text-info ring-info/25",
-  violet: "from-chart-6/20 to-chart-6/5 text-chart-6 ring-chart-6/25",
-};
-
-/** The phone tile's frame. Shared with the actions that sit in the same row. */
+/** The phone tile's frame. Shared with the actions that sit in the same row:
+    each takes an equal share of the row (`--cols`, set on the row). */
 export const PHONE_TILE =
-  "focus-ring flex min-w-0 flex-col items-center gap-1.5 rounded-xl px-0.5 py-1 text-center transition-transform active:scale-95 sm:hidden";
+  "focus-ring flex min-w-0 basis-[calc(100%/var(--cols))] flex-col items-center gap-2 rounded-xl px-0.5 py-2 text-center transition-transform active:scale-95 active:bg-foreground/5 sm:hidden";
 
-/** The inside of a phone tile: the glossy chip and one word under it. */
+/** The inside of a phone tile: the line icon and one word under it. */
 export function PhoneTileFace({
   icon: Icon,
   label,
@@ -110,12 +107,8 @@ export function PhoneTileFace({
 }) {
   return (
     <>
-      <span
-        className={`flex h-12 w-12 items-center justify-center rounded-[1.1rem] bg-gradient-to-b ring-1 ring-inset ${CHIP[tone]}`}
-      >
-        <Icon className="h-[22px] w-[22px]" strokeWidth={1.75} />
-      </span>
-      <span className="w-full truncate px-0.5 text-xs leading-tight text-foreground/75">
+      <Icon className={`h-7 w-7 ${GLYPH[tone]}`} strokeWidth={1.6} />
+      <span className="w-full truncate px-0.5 text-[13px] leading-tight text-foreground/80">
         {label}
       </span>
     </>
@@ -150,11 +143,13 @@ export function ActionPills({
   return (
     <nav
       aria-label={label}
-      /* On a phone, tiles on a four-column grid — one glyph, one word, every
-         tile the same size, the way a banking app lays its actions out. As
-         pills they wrapped by their own width into a staircase with an orphan
-         on the last line. From sm up they are the pills they always were. */
-      className={`grid ${PHONE_COLUMNS[Math.min(tiles, 10)] ?? "grid-cols-5"} gap-2 sm:flex sm:flex-wrap`}
+      /* On a phone, icons in equal shares of the row — one glyph, one word,
+         every tile the same width, a short last row centred under the full
+         one. As pills they wrapped by their own width into a staircase with an
+         orphan on the last line. From sm up they are the pills they always
+         were. */
+      className="flex flex-wrap justify-center gap-y-3 sm:justify-start sm:gap-2"
+      style={{ "--cols": phoneColumns(tiles) } as React.CSSProperties}
     >
       {/*
         Keyed by where it goes, not by what it says.
