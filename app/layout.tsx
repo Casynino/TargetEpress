@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Sora, JetBrains_Mono } from "next/font/google";
 
+import { ThemeColor } from "@/components/theme-color";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { COMPANY } from "@/lib/constants";
@@ -42,13 +43,28 @@ export const metadata: Metadata = {
       "Air freight from Guangzhou and Hong Kong to Dar es Salaam, with live shipment tracking.",
     type: "website",
   },
+  // "Add to Home Screen" opens it full screen, like an app: the page runs
+  // under the phone's status bar, with the strip below keeping the clock
+  // readable (owner, 9 Nov 2026).
+  appleWebApp: {
+    capable: true,
+    title: COMPANY.shortName,
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: { telephone: false },
 };
 
+/*
+  Edge to edge on a phone (viewport-fit=cover); the pages keep their own safe
+  margins. The bar colour starts as night, the app's default, and ThemeColor
+  moves it with the app's own switch — the phone's light or dark setting does
+  not decide what this app looks like, so it must not decide the bar either.
+*/
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b1220" },
-  ],
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0f131c",
 };
 
 export default function RootLayout({
@@ -72,6 +88,8 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
+          <ThemeColor />
+          <div aria-hidden className="status-strip" />
           <ToastProvider>{children}</ToastProvider>
         </ThemeProvider>
       </body>

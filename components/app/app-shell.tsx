@@ -23,6 +23,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { InstallPrompt } from "@/components/install-app";
 import { t } from "@/lib/i18n";
 import type { NavSection } from "@/lib/nav";
 import { cn } from "@/lib/utils";
@@ -144,7 +145,7 @@ export function AppShell({
           sticker.
         */}
           <div
-            className="pointer-events-none sticky top-0 z-20 pb-3 pt-3 lg:hidden print:hidden"
+            className="pointer-events-none sticky top-0 z-20 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] lg:hidden print:hidden"
             style={{
               // The shell's own ground (muted at 30% over the page colour),
               // painted solid at the top and fading out under the bar.
@@ -191,7 +192,7 @@ export function AppShell({
                     side="left"
                     // The drawer is only a frame: the glass pane inside it is the
                     // sidebar, with its own round button to close it.
-                    className="flex h-[100dvh] w-[15.5rem] max-w-[calc(78vw+0.75rem)] flex-col gap-0 border-0 bg-transparent py-3 pl-3 pr-0 shadow-none [&>button]:hidden"
+                    className="flex h-[100dvh] w-[15.5rem] max-w-[calc(78vw+0.75rem)] flex-col gap-0 border-0 bg-transparent pb-[calc(0.75rem+env(safe-area-inset-bottom))] pl-3 pr-0 pt-[calc(0.75rem+env(safe-area-inset-top))] shadow-none [&>button]:hidden"
                   >
                     <SheetTitle className="sr-only">
                       {t(user.locale, "Navigation")}
@@ -302,6 +303,8 @@ export function AppShell({
           role={user.role}
           onMore={() => setMobileOpen(true)}
         />
+        {/* Once per phone: how to put it on the home screen, where it runs full screen. */}
+        <InstallPrompt />
       </div>
     </LocaleProvider>
   );

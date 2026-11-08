@@ -73,9 +73,9 @@ const TABS: Record<Role, Tab[]> = {
   // pages are deliberately in the drawer — they are opened at a desk, on a
   // week's evidence, not one-handed between meetings.
   ADMIN: [
-    { href: "/app/dashboard", icon: LayoutDashboard, exact: true },
-    { href: "/app/search", icon: Search },
-    { href: "/app/shipments", icon: PlaneTakeoff, label: "Arrived batches" },
+    { href: "/app/dashboard", icon: LayoutDashboard, exact: true, label: "Home" },
+    { href: "/app/search", icon: Search, label: "Search" },
+    { href: "/app/shipments", icon: PlaneTakeoff, label: "Arrived" },
     { href: "/app/finance", icon: Wallet, label: "Finance" },
   ],
   /* The manager's four: their own command centre, the search every role gets,
@@ -87,8 +87,8 @@ const TABS: Record<Role, Tab[]> = {
      manager opens their phone to ask is "is anything waiting on me", and that
      is the screen that answers it. */
   MANAGER: [
-    { href: "/app/manager", icon: LayoutDashboard, exact: true },
-    { href: "/app/search", icon: Search },
+    { href: "/app/manager", icon: LayoutDashboard, exact: true, label: "Home" },
+    { href: "/app/search", icon: Search, label: "Search" },
     { href: "/app/manager/control", icon: ShieldCheck, label: "Control" },
     { href: "/app/finance", icon: Wallet, label: "Finance" },
   ],
@@ -96,23 +96,23 @@ const TABS: Record<Role, Tab[]> = {
   // any. Requests stays in the drawer — ringing a booking back is a sit-down
   // job, taking in a box is not.
   CHINA_WAREHOUSE: [
-    { href: "/app/dashboard", icon: LayoutDashboard, exact: true },
-    { href: "/app/search", icon: Search },
-    { href: "/app/cargo/new", icon: PackagePlus },
-    { href: "/app/batches", icon: Boxes, label: "Loading batches" },
+    { href: "/app/dashboard", icon: LayoutDashboard, exact: true, label: "Home" },
+    { href: "/app/search", icon: Search, label: "Search" },
+    { href: "/app/cargo/new", icon: PackagePlus, label: "Register" },
+    { href: "/app/batches", icon: Boxes, label: "Batches" },
   ],
   // The Dar floor works a line: a box lands and is checked in, a customer
   // arrives and it is scanned out. Those two screens are the shift.
   DAR_WAREHOUSE: [
-    { href: "/app/dashboard", icon: LayoutDashboard, exact: true },
-    { href: "/app/search", icon: Search },
-    { href: "/app/receive", icon: PackagePlus },
-    { href: "/app/release", icon: ScanLine },
+    { href: "/app/dashboard", icon: LayoutDashboard, exact: true, label: "Home" },
+    { href: "/app/search", icon: Search, label: "Search" },
+    { href: "/app/receive", icon: PackagePlus, label: "Receiving" },
+    { href: "/app/release", icon: ScanLine, label: "Release" },
   ],
   FINANCE: [
-    { href: "/app/dashboard", icon: LayoutDashboard, exact: true },
-    { href: "/app/search", icon: Search },
-    { href: "/app/collections/follow-up", icon: Banknote },
+    { href: "/app/dashboard", icon: LayoutDashboard, exact: true, label: "Home" },
+    { href: "/app/search", icon: Search, label: "Search" },
+    { href: "/app/collections/follow-up", icon: Banknote, label: "Chase" },
     { href: "/app/finance", icon: Wallet, label: "Finance" },
   ],
   // Home is /app/support, not /app/dashboard: the shared dashboard renders
@@ -120,10 +120,10 @@ const TABS: Record<Role, Tab[]> = {
   // Both of their queues ride the bar because both are answered with a customer
   // already on the phone.
   CUSTOMER_CARE: [
-    { href: "/app/support", icon: Headset, exact: true },
-    { href: "/app/search", icon: Search },
-    { href: "/app/support/tickets", icon: MessageSquare },
-    { href: "/app/collections/follow-up", icon: Banknote },
+    { href: "/app/support", icon: Headset, exact: true, label: "Home" },
+    { href: "/app/search", icon: Search, label: "Search" },
+    { href: "/app/support/tickets", icon: MessageSquare, label: "Tickets" },
+    { href: "/app/collections/follow-up", icon: Banknote, label: "Chase" },
   ],
 };
 
@@ -211,7 +211,7 @@ export function MobileTabbar({
                 axes with the label still centred under its icon.
               */
               className={cn(
-                "relative flex min-w-0 flex-1 flex-col items-center justify-start gap-0.5 pt-1.5 transition-colors active:bg-accent",
+                "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 transition-colors active:bg-accent",
                 active ? "text-brand" : "text-muted-foreground"
               )}
             >
@@ -241,7 +241,9 @@ export function MobileTabbar({
                 Chinese, which is what Guangzhou reads, every one of them is two
                 to four characters and never wraps at all.
               */}
-              <span className="line-clamp-2 px-0.5 text-center text-[10px] font-medium leading-[1.15]">
+              {/* One word under each icon, as in an app (owner, 9 Nov 2026):
+                  the menu's own long names live in the drawer. */}
+              <span className="max-w-full truncate px-0.5 text-center text-[11px] font-medium leading-tight">
                 {t(tab.label ?? labels.get(tab.href) ?? "")}
               </span>
             </Link>
@@ -260,11 +262,11 @@ export function MobileTabbar({
         <button
           type="button"
           onClick={onMore}
-          className="flex min-w-0 flex-1 flex-col items-center justify-start gap-0.5 pt-1.5 text-muted-foreground transition-colors active:bg-accent"
+          className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-muted-foreground transition-colors active:bg-accent"
         >
           <Menu className="h-5 w-5 shrink-0" />
-          <span className="line-clamp-2 px-0.5 text-center text-[10px] font-medium leading-[1.15]">
-            {t("Navigation")}
+          <span className="max-w-full truncate px-0.5 text-center text-[11px] font-medium leading-tight">
+            {t("Menu")}
           </span>
         </button>
       </div>

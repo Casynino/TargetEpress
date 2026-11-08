@@ -1,13 +1,18 @@
 import Link from "next/link";
 import { ArrowLeft, Lock, Plane, ShieldCheck } from "lucide-react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
-import { BrandLockup } from "@/components/brand-mark";
+import { LocaleProvider } from "@/components/app/locale-provider";
+import { BrandLockup, BrandMark } from "@/components/brand-mark";
 import { LoginForm } from "@/components/login-form";
+import { LoginGate } from "@/components/login-gate";
 import { LoginSky } from "@/components/login-sky";
 import { COMPANY } from "@/lib/constants";
 import { t } from "@/lib/i18n";
 import { viewerLocale } from "@/lib/viewer";
+
+// The scene is always night, so the phone's own bar is too.
+export const viewport: Viewport = { themeColor: "#05070f" };
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await viewerLocale();
@@ -32,6 +37,12 @@ export async function generateMetadata(): Promise<Metadata> {
  * floor and at midnight from a phone. The backdrop is one server component with
  * no JavaScript at all — see LoginSky — so nothing here delays the form a
  * person is trying to type into.
+ *
+ * On a phone the scene is the page (owner, 9 Nov 2026, as on Super Drive): the
+ * logo, two lines and one Sign in button, and the card opens as a pop-up over
+ * the routes instead of covering them. `dark` on the wrapper pins the form's
+ * own tokens to night too, so a person who chose day inside the app does not
+ * get white fields on the night sky.
  */
 export default async function LoginPage({
   searchParams,
@@ -42,25 +53,26 @@ export default async function LoginPage({
   const locale = await viewerLocale();
 
   return (
-    <div className="relative isolate min-h-screen overflow-hidden bg-[#05070f] text-white">
+    <div data-login-scene className="dark relative isolate min-h-dvh overflow-hidden bg-[#05070f] text-white">
       <LoginSky />
 
-      <div className="relative flex min-h-screen flex-col">
-        <header className="flex items-center justify-between gap-4 p-6 sm:px-10">
-          <Link href="/" className="focus-ring rounded-lg">
+      <LocaleProvider locale={locale}>
+      <div className="relative flex min-h-dvh flex-col pt-[env(safe-area-inset-top)]">
+        <header className="flex items-center justify-between gap-4 p-4 sm:p-6 sm:px-10">
+          <Link href="/" className="focus-ring rounded-lg max-md:hidden">
             <BrandLockup />
           </Link>
           <Link
             href="/"
-            className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-sm text-white/70 backdrop-blur-sm transition-colors hover:border-white/30 hover:text-white"
+            className="focus-ring inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/70 backdrop-blur-sm transition-colors hover:border-white/30 hover:text-white md:px-3.5 md:py-1.5 md:text-sm"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-3.5 w-3.5 md:h-4 md:w-4" />
             {t(locale, "Back to site")}
           </Link>
         </header>
 
-        <main className="flex flex-1 items-center px-6 py-10 sm:px-10">
-          <div className="mx-auto grid grid-cols-1 w-full max-w-6xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
+        <main className="flex flex-1 px-6 pb-16 pt-[6vh] sm:px-10 md:items-center md:py-10">
+          <div className="mx-auto grid grid-cols-1 w-full max-w-6xl items-start gap-12 md:items-center lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
             {/* The claim, on the side the routes are flying through. Hidden on
                 a phone: the form is why anybody opened this page, and it should
                 not start below the fold. */}
@@ -120,12 +132,31 @@ export default async function LoginPage({
 
             {/* The card. Glass over the routes rather than a panel beside
                 them, so the backdrop is something it sits in, not next to. */}
-            <div className="relative w-full">
+            <div className="relative flex w-full flex-col items-center text-center md:block md:text-left">
+              {/* The phone's page: the mark, who it is for, and the button. */}
+              <div className="flex flex-col items-center md:hidden">
+                <BrandMark className="login-up h-20 w-auto drop-shadow-[0_8px_24px_rgba(0,0,0,0.6)]" />
+                <p className="login-up mt-3 font-display text-[34px] font-extrabold leading-none tracking-tight text-signal" style={{ "--rd": "0.08s" } as React.CSSProperties}>
+                  Target
+                </p>
+                <p className="login-up mt-1.5 text-[13px] font-bold uppercase tracking-[0.22em] text-brand" style={{ "--rd": "0.12s" } as React.CSSProperties}>
+                  Express Air Cargo
+                </p>
+                <p className="login-up mt-[14vh] font-display text-[22px] font-semibold tracking-tight" style={{ "--rd": "0.25s" } as React.CSSProperties}>
+                  {t(locale, "Welcome on board")}
+                </p>
+                <p className="login-up mb-6 mt-1.5 max-w-[17rem] text-balance text-sm text-white/65" style={{ "--rd": "0.32s" } as React.CSSProperties}>
+                  {t(locale, "Every shipment has a journey.")}
+                </p>
+              </div>
+
+              <LoginGate startOpen={revoked === "1"}>
+              <div className="relative w-full max-md:max-w-sm max-md:text-left md:mx-0">
               <div
                 aria-hidden
                 className="absolute -inset-px rounded-3xl bg-gradient-to-b from-white/25 via-white/5 to-transparent"
               />
-              <div className="relative rounded-3xl border border-white/10 bg-white/[0.06] p-7 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:p-8">
+              <div className="relative rounded-3xl border border-white/10 bg-white/[0.06] p-7 max-md:bg-[#0c1222]/90 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:p-8">
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white/55">
                   <Lock className="h-3 w-3" />
                   {t(locale, "Staff access only")}
@@ -171,11 +202,18 @@ export default async function LoginPage({
                   )}
                 </p>
               </div>
+              </div>
+              </LoginGate>
             </div>
           </div>
         </main>
 
-        <footer className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4 p-6 text-xs leading-relaxed text-white/35 sm:px-10">
+        {/* A phone keeps one quiet line at the foot of the scene. */}
+        <p className="fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] text-center text-[11px] tracking-wide text-white/45 md:hidden">
+          {COMPANY.name} · <span className="font-semibold text-signal/80">KWETU MUDA NI MALI</span>
+        </p>
+
+        <footer className="hidden flex-wrap items-end justify-between gap-x-10 gap-y-4 p-6 text-xs leading-relaxed text-white/35 sm:px-10 md:flex">
           <p className="font-medium text-white/60">{COMPANY.name}</p>
           <div className="flex flex-wrap gap-x-8 gap-y-1">
             <p>🇨🇳 {COMPANY.chinaAddress}</p>
@@ -183,6 +221,7 @@ export default async function LoginPage({
           </div>
         </footer>
       </div>
+      </LocaleProvider>
     </div>
   );
 }

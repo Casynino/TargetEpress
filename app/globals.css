@@ -691,3 +691,37 @@ html.dark .glass-chip { background: #101a2d; color: #dce5f2; }
 .glass-tree > li { position: relative; }
 .glass-tree > li::before { content: ""; position: absolute; left: -1.05rem; top: 50%; width: 0.8rem; height: 0.8rem; border-left: 1px solid var(--glass-line); border-bottom: 1px solid var(--glass-line); border-bottom-left-radius: 0.65rem; transform: translateY(-88%); pointer-events: none; }
 .glass-divider { height: 1px; background: linear-gradient(90deg, transparent, var(--glass-line), transparent); }
+
+/* ───────── Full screen on a phone (owner, 9 Nov 2026, as on Super Drive) ─────────
+   The page runs edge to edge (viewport-fit=cover in app/layout.tsx). The
+   home-screen app runs under the phone's status bar (black-translucent, white
+   clock), so this strip is that bar's own colour: the page ground at night, the
+   banner navy by day so the white clock stays readable. It has no height in a
+   browser tab, where the browser draws its own bar. The sign-in scene runs
+   under the clock itself. */
+.status-strip { position: fixed; inset: 0 0 auto 0; z-index: 100; height: env(safe-area-inset-top, 0px); background: #0b1a33; pointer-events: none; }
+html.dark .status-strip { background: #0f131c; }
+body:has([data-login-scene]) .status-strip { display: none; }
+body:has([data-login-scene]) { background-color: #05070f; }
+@media print { .status-strip { display: none; } }
+/* a phone turned sideways keeps the page clear of the notch */
+body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+/* taps act at once (no double-tap zoom), and a long press does not select a button, as in an app */
+html { touch-action: manipulation; }
+@media (pointer: coarse) {
+  button, [role="button"], [role="tab"], [role="menuitem"], nav a { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+}
+/* An iPhone zooms the whole page into any field under 16px and stays zoomed —
+   the "forced", cut-off look. Small fields are 16px on a phone; fields already
+   set larger (money boxes) keep their own size. */
+@media (max-width: 767px) and (pointer: coarse) {
+  input.text-sm, input.text-xs, input[class*="text-[11px]"], input[class*="text-[12px]"], input[class*="text-[13px]"], input[class*="text-[14px]"], input[class*="text-[15px]"],
+  textarea.text-sm, textarea.text-xs, select.text-sm, select.text-xs { font-size: 16px; }
+}
+
+/* sign-in scene: the words rise in, and the phone pop-up opens with a short fade and rise */
+.login-up { animation: login-up 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: var(--rd, 0s); }
+@keyframes login-up { from { opacity: 0; transform: translateY(14px); } }
+.login-pop { animation: login-pop 0.22s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes login-pop { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .login-up, .login-pop { animation: none; } }
