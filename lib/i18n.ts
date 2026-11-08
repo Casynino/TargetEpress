@@ -6721,6 +6721,10 @@ const ZH: Record<string, string> = {
   "Main": "主要",
   "Workspace": "工作区",
   "Tracking number, customer, phone or batch": "运单号、客户、电话或批次",
+  // Job titles under the name on each desk's banner.
+  "CEO": "首席执行官",
+  "Director": "总监",
+  "Developer": "开发者",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

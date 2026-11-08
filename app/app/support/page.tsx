@@ -22,7 +22,7 @@ import { BarChart } from "@/components/charts/bar-chart";
 import { Donut } from "@/components/charts/donut";
 import { FlowBars } from "@/components/charts/flow-bars";
 import { CargoSearch } from "@/components/app/cargo-search";
-import { PageBanner, bannerDate } from "@/components/app/page-banner";
+import { PageBanner } from "@/components/app/page-banner";
 import { QuickAction } from "@/components/app/support-forms";
 import { Badge } from "@/components/ui/badge";
 import { creditAlerts } from "@/lib/credit-queries";
@@ -377,7 +377,7 @@ export default async function SupportHome() {
           phone is already ringing when the page loads, and the first thing
           wanted is the box on the other end of the call — so it sits right
           under the banner, before anything else. */}
-      <PageBanner title={t(locale, "Support desk")} line={bannerDate(locale)} />
+      <PageBanner />
       <div className="mb-4 sm:max-w-md">
         <CargoSearch action="/app/support/search" compact />
       </div>

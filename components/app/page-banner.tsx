@@ -1,8 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { Role } from "@prisma/client";
 import { Bell } from "lucide-react";
 
 import { BannerTheme } from "@/components/app/banner-theme";
+import { ROLE_LABELS } from "@/lib/constants";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
@@ -15,8 +17,18 @@ import { viewerLocale } from "@/lib/viewer";
 const PHOTO =
   "https://images.unsplash.com/photo-1515780855147-aee414989c82?auto=format&fit=crop&w=900&q=70";
 
+/**
+ * The job title under the name. The owner is the CEO and the manager the
+ * Director (owner, 8 Nov 2026); every other desk is its department.
+ */
+function jobTitle(role: Role) {
+  if (role === "ADMIN") return "CEO";
+  if (role === "MANAGER") return "Director";
+  return ROLE_LABELS[role];
+}
+
 /** Today, written out, on the desk's own calendar. */
-export function bannerDate(locale: Locale, zone = "Africa/Dar_es_Salaam") {
+function bannerDate(locale: Locale, zone: string) {
   return new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-GB", {
     weekday: "long",
     day: "numeric",
@@ -27,57 +39,32 @@ export function bannerDate(locale: Locale, zone = "Africa/Dar_es_Salaam") {
 }
 
 /**
- * The bell inside the banner, on a computer. There is no top bar there any
- * more — the date is the banner's own line — so the bell sits at the banner's
- * left, as on Super Drive. A phone keeps its bell in its own bar.
- */
-async function BannerBell() {
-  const [user, locale] = await Promise.all([requireUser(), viewerLocale()]);
-  const unread = await prisma.notification.count({ where: { userId: user.id, readAt: null } });
-  return (
-    <Link
-      href="/app/notifications"
-      title={t(locale, "Notifications")}
-      className="focus-ring relative hidden size-8 place-items-center rounded-full text-white/65 transition hover:text-white lg:inline-grid"
-    >
-      <Bell className="size-[15px]" />
-      <span className="sr-only">{t(locale, "Notifications")}</span>
-      {unread > 0 ? (
-        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-signal px-1 text-[10px] font-bold leading-none text-white">
-          {unread > 9 ? "9+" : unread}
-        </span>
-      ) : null}
-    </Link>
-  );
-}
-
-/**
  * THE SMALL BANNER every desk opens on (owner, 8 Nov 2026).
  *
  * Copied from Super Drive's point-of-sale banner: deep navy, a blue glow on
- * the right and a little gold light from the top, the desk's name in wide
- * letters between two gold rules, "TARGET EXPRESS" in gold under it, and the
- * date. The bell and the night / day switch sit at the left and the aircraft
- * at the right on a wide screen. Each desk's search box and first button sit
- * just under it.
+ * the right and a little gold light from the top. The person's name stands in
+ * wide capitals between two gold rules, their job title small in gold under
+ * it, then the date. The bell and the night / day switch sit at the left and
+ * the aircraft at the right on a wide screen. Each desk's search box and
+ * first button sit just under it.
  *
- * Text comes in already translated: the Developer console is English only and
- * passes plain strings.
+ * Everything is read here from whoever is signed in, so no desk can show a
+ * name and a title that disagree. While the Developer works as someone, it is
+ * that person's banner, as every other screen is theirs. The name comes from
+ * the record, not the session token, which keeps whatever it was at sign-in.
  */
-export function PageBanner({
-  title,
-  line,
-  kicker = "Target Express",
-}: {
-  /** The desk's name, drawn in wide capitals. */
-  title: string;
-  /** One short line under the gold name — the date. */
-  line?: React.ReactNode;
-  /** The gold line. The company's name, left in English like the wordmark. */
-  kicker?: string;
-}) {
+export async function PageBanner() {
+  const [user, locale] = await Promise.all([requireUser(), viewerLocale()]);
+  const [me, unread] = await Promise.all([
+    prisma.user.findUnique({ where: { id: user.id }, select: { name: true } }),
+    prisma.notification.count({ where: { userId: user.id, readAt: null } }),
+  ]);
+  const name = (me?.name ?? user.name).trim().split(/\s+/)[0] || user.name;
+  // The China warehouse is five hours ahead, and already on tomorrow for part
+  // of every night.
+  const zone = user.role === "CHINA_WAREHOUSE" ? "Asia/Shanghai" : "Africa/Dar_es_Salaam";
   // A long name gets narrower letters, or a phone would push it onto two lines.
-  const long = title.length > 10;
+  const long = name.length > 10;
 
   return (
     <section className="relative mb-4 overflow-hidden rounded-2xl bg-[#0a1a33] text-white shadow-[0_10px_30px_-14px_rgba(5,22,39,0.7)] ring-1 ring-white/10 print:hidden">
@@ -95,10 +82,23 @@ export function PageBanner({
       >
         <Image src={PHOTO} alt="" fill sizes="30vw" className="object-cover opacity-75" />
       </div>
-      {/* The bell and the night / day switch: small icons at the left, in
-          the middle. A phone has them in its own bar and menu. */}
+
+      {/* The bell and the night / day switch: small icons at the left, in the
+          middle, on a computer. A phone has them in its own bar and menu. */}
       <div className="absolute left-6 top-1/2 z-10 flex -translate-y-1/2 items-center gap-2">
-        <BannerBell />
+        <Link
+          href="/app/notifications"
+          title={t(locale, "Notifications")}
+          className="focus-ring relative hidden size-8 place-items-center rounded-full text-white/65 transition hover:text-white lg:inline-grid"
+        >
+          <Bell className="size-[15px]" />
+          <span className="sr-only">{t(locale, "Notifications")}</span>
+          {unread > 0 ? (
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-signal px-1 text-[10px] font-bold leading-none text-white">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          ) : null}
+        </Link>
         <BannerTheme />
       </div>
 
@@ -115,12 +115,14 @@ export function PageBanner({
           {/* The padding gives back the space the wide tracking leaves after
               the last letter, so the word sits truly in the middle. */}
           <span className={cn("min-w-0 break-words", long ? "pl-[0.22em] sm:pl-[0.3em]" : "pl-[0.35em] sm:pl-[0.5em]")}>
-            {title}
+            {name}
           </span>
           <span aria-hidden className="hidden h-px w-10 shrink-0 bg-[#fdc400]/60 sm:block" />
         </h1>
-        <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-[#fdc400]">{kicker}</p>
-        {line ? <p className="mt-1.5 text-sm text-white/65">{line}</p> : null}
+        <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-[#fdc400]">
+          {t(locale, jobTitle(user.role))}
+        </p>
+        <p className="mt-1.5 text-sm text-white/65">{bannerDate(locale, zone)}</p>
       </div>
     </section>
   );

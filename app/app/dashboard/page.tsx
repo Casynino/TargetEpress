@@ -278,12 +278,6 @@ export default async function DashboardPage() {
           clocks on one short line. */}
       {warehouse ? (
         <WarehouseHero
-          warehouseName={
-            inChina
-              ? t(locale, "China Warehouse")
-              : t(locale, "Dar Warehouse")
-          }
-          emphasis={inChina ? "CN" : "TZ"}
           /*
             WHERE THIS DESK'S DAY STARTS.
 

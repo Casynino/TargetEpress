@@ -3,8 +3,7 @@ import type { Role } from "@prisma/client";
 import { PackagePlus, ScanLine } from "lucide-react";
 
 import { CargoSearch } from "@/components/app/cargo-search";
-import { PageBanner, bannerDate } from "@/components/app/page-banner";
-import { ROLE_LABELS } from "@/lib/constants";
+import { PageBanner } from "@/components/app/page-banner";
 import { t } from "@/lib/i18n";
 import { can } from "@/lib/rbac";
 import { viewerLocale } from "@/lib/viewer";
@@ -16,18 +15,16 @@ export const BANNER_ACTION_MAIN = `${BANNER_ACTION} bg-brand text-brand-foregrou
 export const BANNER_ACTION_SECOND = `${BANNER_ACTION} border bg-card text-foreground hover:bg-accent`;
 
 /**
- * What an office desk opens on: the small banner with the desk's name and the
- * date, then the search box and the things this person can start the day
+ * What an office desk opens on: the small banner with the person's name, their
+ * job title and the date, then the search box and the things this person can start the day
  * with, just under it.
  *
  * Shared by every office desk and the manager, so their banners cannot drift
  * into two things that merely look alike. The warehouses keep their own
- * (components/app/warehouse-hero): their date follows the floor's calendar,
- * they carry both cities' clocks, and their one action differs.
+ * (components/app/warehouse-hero): their one action differs.
  *
- * The desk's name and the quick actions are DERIVED from `role`, not passed
- * in. They are two readings of the same fact — what this person is, and what
- * that lets them press — and two props could be handed values that disagree.
+ * The quick actions are DERIVED from `role`, not passed in: what this person
+ * is decides what they can press.
  */
 export async function DeskHero({
   role,
@@ -41,7 +38,7 @@ export async function DeskHero({
 
   return (
     <>
-      <PageBanner title={t(locale, ROLE_LABELS[role])} line={bannerDate(locale)} />
+      <PageBanner />
       {/* The box every desk opens on: a customer reads out a number and it has
           to go somewhere without hunting for a page first. Posts to
           /app/search rather than the support desk's own search, which is
