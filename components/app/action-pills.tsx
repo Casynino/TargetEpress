@@ -73,14 +73,16 @@ const PHONE_COLUMNS: Record<number, string> = {
   8: "grid-cols-4",
 };
 
-/* The glyph's tint on the phone tile, by the same tone the pill uses. */
+/* The phone tile's chip: a small glossy square in the pill's own colour with
+   a white glyph and a soft glow of the same colour under it — the premium
+   look the owner asked for (8 Nov 2026), instead of a pale tint. */
 const CHIP: Record<NonNullable<ActionPill["tone"]>, string> = {
-  brand: "bg-brand/15 text-brand",
-  signal: "bg-signal/15 text-signal",
-  success: "bg-success/15 text-success",
-  warning: "bg-warning/15 text-warning",
-  info: "bg-info/15 text-info",
-  violet: "bg-chart-6/15 text-chart-6",
+  brand: "from-brand to-brand/75 shadow-brand/30",
+  signal: "from-signal to-signal/75 shadow-signal/30",
+  success: "from-success to-success/75 shadow-success/30",
+  warning: "from-warning to-warning/75 shadow-warning/30",
+  info: "from-info to-info/75 shadow-info/30",
+  violet: "from-chart-6 to-chart-6/75 shadow-chart-6/30",
 };
 
 export function ActionPills({
@@ -127,14 +129,16 @@ export function ActionPills({
         <Fragment key={item.href}>
         <Link
           href={item.href}
-          className="focus-ring flex min-w-0 flex-col items-center gap-1.5 rounded-2xl border bg-card px-1 py-2.5 text-center transition-transform active:scale-95 sm:hidden"
+          className="focus-ring flex min-w-0 flex-col items-center gap-2 rounded-2xl border border-border/60 bg-card px-1 pb-2.5 pt-3 text-center shadow-sm transition-transform active:scale-95 sm:hidden"
         >
           <span
-            className={`flex h-9 w-9 items-center justify-center rounded-xl ${CHIP[item.tone ?? "brand"]}`}
+            className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-[0.9rem] bg-gradient-to-br text-white shadow-lg ring-1 ring-inset ring-white/20 ${CHIP[item.tone ?? "brand"]}`}
           >
-            <item.icon className="h-[18px] w-[18px]" />
+            {/* the gloss across the top half */}
+            <span aria-hidden className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/30 to-transparent" />
+            <item.icon className="relative h-[18px] w-[18px]" strokeWidth={2.1} />
           </span>
-          <span className="line-clamp-2 w-full px-0.5 text-[11px] font-medium leading-tight text-foreground/80">
+          <span className="line-clamp-2 w-full px-0.5 text-[11px] font-medium leading-tight text-foreground/85">
             {item.label}
           </span>
         </Link>

@@ -355,8 +355,9 @@ export function GlassSidebar({
             "relative flex items-center gap-3 rounded-lg",
             FOCUS,
             child ? "px-3 py-1.5 text-[13px]" : "px-3 py-2 text-[13px]",
-            // 44px on a phone: the menu is used one-handed on a warehouse floor.
-            mode === "sheet" && "min-h-11",
+            // A little taller on a phone, for a thumb — but slim, as the owner
+            // asked (8 Nov 2026): 40px a page, 36px inside a group.
+            mode === "sheet" && (child ? "min-h-9" : "min-h-10"),
             active ? "glass-active font-medium g-strong" : "glass-row g-text g-hover",
           )}
         >
@@ -470,7 +471,7 @@ export function GlassSidebar({
                   className={cn(
                     "glass-row g-hover flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium",
                     FOCUS,
-                    mode === "sheet" && "min-h-11",
+                    mode === "sheet" && "min-h-10",
                     here ? "g-strong" : "g-text",
                   )}
                 >
