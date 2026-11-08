@@ -82,16 +82,16 @@ const PHONE_COLUMNS: Record<number, string> = {
   10: "grid-cols-5",
 };
 
-/* The phone icon: a rounded square in the pill's own colour with a white
-   glyph, like a shopping app's icons — clean, no glow and no box around it
-   (owner, 8 Nov 2026). */
+/* The phone icon: a thin line glyph in the pill's own colour on a soft wash
+   of that colour, with a fine edge of it — light and clean, not a heavy
+   filled block (owner, 8 Nov 2026). */
 export const CHIP: Record<NonNullable<ActionPill["tone"]>, string> = {
-  brand: "from-brand to-brand/80",
-  signal: "from-signal to-signal/80",
-  success: "from-success to-success/80",
-  warning: "from-warning to-warning/80",
-  info: "from-info to-info/80",
-  violet: "from-chart-6 to-chart-6/80",
+  brand: "from-brand/20 to-brand/5 text-brand ring-brand/25",
+  signal: "from-signal/20 to-signal/5 text-signal ring-signal/25",
+  success: "from-success/20 to-success/5 text-success ring-success/25",
+  warning: "from-warning/20 to-warning/5 text-warning ring-warning/25",
+  info: "from-info/20 to-info/5 text-info ring-info/25",
+  violet: "from-chart-6/20 to-chart-6/5 text-chart-6 ring-chart-6/25",
 };
 
 /** The phone tile's frame. Shared with the actions that sit in the same row. */
@@ -111,13 +111,11 @@ export function PhoneTileFace({
   return (
     <>
       <span
-        className={`relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br text-white ring-1 ring-inset ring-white/15 ${CHIP[tone]}`}
+        className={`flex h-12 w-12 items-center justify-center rounded-[1.1rem] bg-gradient-to-b ring-1 ring-inset ${CHIP[tone]}`}
       >
-        {/* a faint sheen across the top */}
-        <span aria-hidden className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent" />
-        <Icon className="relative h-5 w-5" strokeWidth={2} />
+        <Icon className="h-[22px] w-[22px]" strokeWidth={1.75} />
       </span>
-      <span className="w-full truncate px-0.5 text-xs font-medium leading-tight text-foreground/80">
+      <span className="w-full truncate px-0.5 text-xs leading-tight text-foreground/75">
         {label}
       </span>
     </>

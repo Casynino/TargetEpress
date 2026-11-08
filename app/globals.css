@@ -92,45 +92,48 @@
      for hours; deep neutrals with quiet elevation are easier to sit in front of
      than a mid-navy, and status colour reads louder against them. */
   .dark {
-    --background: 220 24% 5%;
+    /* Navy rather than grey (owner, 8 Nov 2026): the night page, its cards
+       and its lines share the hue of the banner and the glass sidebar, so the
+       whole screen reads as one deep blue instead of grey boxes on black. */
+    --background: 222 36% 6%;
     --foreground: 210 24% 96%;
 
     /* Three points of lightness between page and card is not separation, it
        is a rumour. Surfaces need to read as surfaces in a dark theme or every
        screen flattens into one grey field. */
-    --card: 220 19% 11%;
+    --card: 222 30% 10%;
     --card-foreground: 210 24% 96%;
 
-    --popover: 220 20% 10%;
+    --popover: 222 32% 9.5%;
     --popover-foreground: 210 24% 96%;
 
     --primary: 210 24% 96%;
     --primary-foreground: 220 24% 6%;
 
-    --secondary: 220 16% 13%;
+    --secondary: 222 26% 14%;
     --secondary-foreground: 210 24% 96%;
 
-    --muted: 220 16% 13%;
-    --muted-foreground: 216 14% 62%;
+    --muted: 222 26% 14%;
+    --muted-foreground: 218 18% 64%;
 
-    --accent: 220 16% 15%;
+    --accent: 222 26% 16%;
     --accent-foreground: 210 24% 96%;
 
     --destructive: 0 68% 54%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 14% 22%;
-    --input: 220 14% 22%;
+    --border: 222 24% 19%;
+    --input: 222 24% 19%;
 
     /* Gold has to lift off navy without turning mustard, so it goes brighter
        and slightly warmer in the dark theme. */
     --gold: 43 78% 62%;
     --gold-foreground: 220 24% 6%;
 
-    --surface-1: 220 19% 11%;
-    --surface-2: 220 18% 14%;
-    --surface-3: 220 17% 18%;
-    --glass: 220 24% 12% / 0.62;
+    --surface-1: 222 30% 10%;
+    --surface-2: 222 28% 13%;
+    --surface-3: 222 26% 17%;
+    --glass: 222 34% 12% / 0.62;
     --glass-border: 210 40% 98% / 0.12;
     --ring: 213 70% 62%;
 
