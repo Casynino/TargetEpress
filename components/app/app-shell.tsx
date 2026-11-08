@@ -13,7 +13,7 @@ import { MobileTabbar } from "@/components/app/mobile-tabbar";
 import { NewVersionNotice } from "@/components/app/new-version-notice";
 import { BUILD_ID } from "@/lib/build-id";
 import { NotificationBell } from "@/components/app/notification-bell";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Globe, Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,15 @@ export function AppShell({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(sidebarCollapsed);
+  /*
+    The page's own language tag follows the reader. The root layout says "en"
+    for the public site, so a Chinese desk was handed Chinese text labelled
+    English: Chrome offered to translate it "from English", and a screen
+    reader read the characters with English rules.
+  */
+  useEffect(() => {
+    document.documentElement.lang = user.locale === "zh" ? "zh-CN" : "en";
+  }, [user.locale]);
   // Today on the desk's own calendar: Guangzhou for the China warehouse,
   // Dar es Salaam for everyone else.
   const dateFormat = (options: Intl.DateTimeFormatOptions) =>
