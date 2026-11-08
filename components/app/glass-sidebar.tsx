@@ -134,7 +134,7 @@ export type ShellUser = {
 /** Which sidebar groups the reader opened or folded, per device. */
 const NAV_FOLD_KEY = "tx.nav.folds";
 
-const LABEL = "px-4 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.18em] g-dim";
+const LABEL = "pb-1 text-[10.5px] font-semibold uppercase tracking-[0.18em] g-dim";
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[#fdc400]/60";
 
 function initials(name: string) {
@@ -240,6 +240,9 @@ export function GlassSidebar({
   const activeHref = activeHrefFor(sections, pathname);
   const folds = useFolds(sections, activeHref);
   const rail = mode === "desktop" && collapsed;
+  // The phone's drawer, as on Hao Stock (owner, 8 Nov 2026): read close up
+  // with no room to spare, so it runs a size smaller and shows its pages.
+  const sheet = mode === "sheet";
 
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -322,21 +325,24 @@ export function GlassSidebar({
       href="/app/dashboard"
       onClick={onNavigate}
       data-hint="Target Express"
-      className={cn("flex min-w-0 items-center gap-3 rounded-full", FOCUS)}
+      className={cn("flex min-w-0 items-center rounded-full", sheet ? "gap-2.5" : "gap-3", FOCUS)}
     >
       <span
         className={cn(
-          "grid size-10 shrink-0 place-items-center rounded-full bg-white ring-2 ring-[#fdc400]/45",
+          "grid shrink-0 place-items-center rounded-full bg-white ring-2 ring-[#fdc400]/45",
+          sheet ? "size-9" : "size-10",
         )}
       >
-        <BrandMark tone="paper" className="h-[18px] w-auto translate-x-px" />
+        <BrandMark tone="paper" className={cn("w-auto translate-x-px", sheet ? "h-4" : "h-[18px]")} />
       </span>
       {compact ? null : (
         /* The company's name, left in English on a Chinese screen like the
            wordmark it is — see BrandLockup. */
         <span className="min-w-0 leading-tight">
-          <span className="block truncate text-sm font-semibold tracking-tight g-strong">Target Express</span>
-          <span className="mt-0.5 block truncate text-xs g-soft">Air Cargo</span>
+          <span className={cn("block truncate font-semibold tracking-tight g-strong", sheet ? "text-[13px]" : "text-sm")}>
+            Target Express
+          </span>
+          <span className={cn("mt-0.5 block truncate g-soft", sheet ? "text-[11px]" : "text-xs")}>Air Cargo</span>
         </span>
       )}
     </Link>
@@ -352,16 +358,21 @@ export function GlassSidebar({
           onClick={onNavigate}
           aria-current={active ? "page" : undefined}
           className={cn(
-            "relative flex items-center gap-3 rounded-lg",
+            "relative flex items-center rounded-lg",
             FOCUS,
-            child ? "px-3 py-1.5 text-[13px]" : "px-3 py-2 text-[13px]",
-            // A little taller on a phone, for a thumb — but slim, as the owner
-            // asked (8 Nov 2026): 40px a page, 36px inside a group.
-            mode === "sheet" && (child ? "min-h-9" : "min-h-10"),
+            sheet
+              ? cn("gap-2.5 px-2.5 text-[12.5px]", child ? "min-h-7 py-1" : "min-h-8 py-1.5")
+              : cn("gap-3 text-[13px]", child ? "px-3 py-1.5" : "px-3 py-2"),
             active ? "glass-active font-medium g-strong" : "glass-row g-text g-hover",
           )}
         >
-          <Icon className={cn("shrink-0", child ? "size-4" : "size-[18px]", active && "g-gold")} />
+          <Icon
+            className={cn(
+              "shrink-0",
+              child ? (sheet ? "size-[15px]" : "size-4") : sheet ? "size-4" : "size-[18px]",
+              active && "g-gold",
+            )}
+          />
           <span className="min-w-0 flex-1 truncate">{t(item.label)}</span>
           {/* Which group a search result lives in, so two "Arrived" rows are told apart. */}
           {where ? <span className="shrink-0 text-[11px] g-soft">{where}</span> : null}
@@ -375,21 +386,26 @@ export function GlassSidebar({
   /** The full menu: name, search, MAIN, WORKSPACE (folding groups with branches), Night mode and the person. */
   const full = (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center justify-between gap-2 px-4 pb-3 pr-7 pt-4">
+      <div className={cn("flex items-center justify-between gap-2", sheet ? "px-3 pb-2 pr-3 pt-3" : "px-4 pb-3 pr-7 pt-4")}>
         {brand(false)}
         {mode === "sheet" ? (
           <SheetClose asChild>
-            <button type="button" className={cn("glass-row grid size-9 shrink-0 place-items-center rounded-full g-text", FOCUS)}>
-              <X className="size-[17px]" />
+            <button type="button" className={cn("glass-row grid size-8 shrink-0 place-items-center rounded-full g-text", FOCUS)}>
+              <X className="size-4" />
               <span className="sr-only">{t("Close")}</span>
             </button>
           </SheetClose>
         ) : null}
       </div>
 
-      <div className="px-3 pb-1.5">
-        <label className="glass-field flex items-center gap-2.5 px-3.5 py-2 text-sm g-soft">
-          <Search className="size-4 shrink-0" />
+      <div className={cn("pb-1.5", sheet ? "px-2.5" : "px-3")}>
+        <label
+          className={cn(
+            "glass-field flex items-center gap-2.5 g-soft",
+            sheet ? "px-2.5 py-1.5 text-[13px]" : "px-3.5 py-2 text-sm",
+          )}
+        >
+          <Search className={cn("shrink-0", sheet ? "size-[15px]" : "size-4")} />
           <input
             ref={searchRef}
             value={query}
@@ -407,7 +423,7 @@ export function GlassSidebar({
             }}
             placeholder={t("Search pages")}
             aria-label={t("Search pages")}
-            className="g-input g-strong min-w-0 flex-1 bg-transparent outline-none"
+            className={cn("g-input g-strong min-w-0 flex-1 bg-transparent outline-none", sheet ? "text-[13px]" : "text-sm")}
           />
           {query ? (
             <button
@@ -452,7 +468,7 @@ export function GlassSidebar({
             if (!section.group || !GroupIcon) {
               return (
                 <div key={section.title} className={cn(index > 0 && !afterGroups && "mt-2")}>
-                  {heading ? <p className={cn(LABEL, "pt-3")}>{heading}</p> : null}
+                  {heading ? <p className={cn(LABEL, sheet ? "px-3 pt-2.5" : "px-4 pt-3")}>{heading}</p> : null}
                   {afterGroups ? <div aria-hidden className="glass-divider mx-3 my-2.5" /> : null}
                   <ul className="space-y-0.5">{section.items.map((item) => row(item))}</ul>
                 </div>
@@ -460,22 +476,24 @@ export function GlassSidebar({
             }
 
             const here = section.items.some((item) => item.href === activeHref);
-            const isOpen = folds.opened[section.title] ?? here;
+            // On a phone the drawer is opened because somebody wants to GO
+            // somewhere, so its groups start open and show their pages.
+            const isOpen = folds.opened[section.title] ?? (sheet || here);
             return (
               <div key={section.title} className="mt-0.5">
-                {heading ? <p className={cn(LABEL, "pt-4")}>{heading}</p> : null}
+                {heading ? <p className={cn(LABEL, sheet ? "px-3 pt-3" : "px-4 pt-4")}>{heading}</p> : null}
                 <button
                   type="button"
                   onClick={() => folds.set(section.title, !isOpen)}
                   aria-expanded={isOpen}
                   className={cn(
-                    "glass-row g-hover flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium",
+                    "glass-row g-hover flex w-full items-center rounded-lg text-left font-medium",
                     FOCUS,
-                    mode === "sheet" && "min-h-10",
+                    sheet ? "min-h-8 gap-2.5 px-2.5 py-1.5 text-[12.5px]" : "gap-3 px-3 py-2 text-[13px]",
                     here ? "g-strong" : "g-text",
                   )}
                 >
-                  <GroupIcon className={cn("size-[18px] shrink-0", here ? "g-gold" : "g-icon")} />
+                  <GroupIcon className={cn("shrink-0", sheet ? "size-4" : "size-[18px]", here ? "g-gold" : "g-icon")} />
                   <span className="min-w-0 flex-1 truncate">{t(section.group.label)}</span>
                   <ChevronDown
                     className={cn("g-icon size-[15px] shrink-0 transition-transform duration-200", isOpen && "rotate-180")}
@@ -663,13 +681,18 @@ function Footer({
             className={cn(
               "glass-row flex w-full items-center gap-3 rounded-full text-left",
               FOCUS,
-              rail ? "justify-center p-1" : "px-2 py-2",
+              rail ? "justify-center p-1" : mode === "sheet" ? "px-1.5 py-1.5" : "px-2 py-2",
             )}
           >
-            <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#1f4e8c] to-[#0e2a52] text-xs font-semibold text-white ring-1 ring-white/25">
+            <span
+              className={cn(
+                "relative grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#1f4e8c] to-[#0e2a52] text-xs font-semibold text-white ring-1 ring-white/25",
+                mode === "sheet" ? "size-9" : "size-10",
+              )}
+            >
               {user.photoUrl ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={user.photoUrl} alt="" className="size-10 rounded-full object-cover" />
+                <img src={user.photoUrl} alt="" className={cn("rounded-full object-cover", mode === "sheet" ? "size-9" : "size-10")} />
               ) : (
                 initials(user.name)
               )}
@@ -679,7 +702,9 @@ function Footer({
             {rail ? (
               <span className="sr-only">{user.name}</span>
             ) : (
-              <span className="g-strong min-w-0 flex-1 truncate text-sm font-semibold">{firstName}</span>
+              <span className={cn("g-strong min-w-0 flex-1 truncate font-semibold", mode === "sheet" ? "text-[13px]" : "text-sm")}>
+                {firstName}
+              </span>
             )}
           </button>
         </DropdownMenuTrigger>

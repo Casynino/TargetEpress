@@ -191,7 +191,7 @@ export function AppShell({
                     side="left"
                     // The drawer is only a frame: the glass pane inside it is the
                     // sidebar, with its own round button to close it.
-                    className="flex h-[100dvh] w-[15.75rem] max-w-[80vw] flex-col gap-0 border-0 bg-transparent py-3 pl-3 pr-0 shadow-none [&>button]:hidden"
+                    className="flex h-[100dvh] w-[15.5rem] max-w-[calc(78vw+0.75rem)] flex-col gap-0 border-0 bg-transparent py-3 pl-3 pr-0 shadow-none [&>button]:hidden"
                   >
                     <SheetTitle className="sr-only">
                       {t(user.locale, "Navigation")}
