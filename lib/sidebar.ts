@@ -8,4 +8,4 @@
 export const SIDEBAR_COOKIE = "tx.sidebar";
 
 /** The room the page leaves for the floating panel, open and folded. */
-export const SIDEBAR_ROOM = { open: "17.5rem", rail: "5.9rem" } as const;
+export const SIDEBAR_ROOM = { open: "15.5rem", rail: "5.9rem" } as const;

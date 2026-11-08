@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import Link from "next/link";
 
 import { DeveloperBanner } from "@/components/app/developer-banner";
-import { DualClock } from "@/components/app/dual-clock";
 import { GlassSidebar, type ShellUser } from "@/components/app/glass-sidebar";
 import { SIDEBAR_COOKIE, SIDEBAR_ROOM } from "@/lib/sidebar";
 import { LocaleProvider, useLocale } from "@/components/app/locale-provider";
@@ -124,9 +123,11 @@ export function AppShell({
           }
         >
           {/*
-          THE TOP BAR, as on Super Drive (owner, 8 Nov 2026): one floating
-          rounded bar on every screen, the date on the left and the bell on the
-          right, and the page fading out under it as it scrolls.
+          THE TOP BAR, on a phone and a tablet only, as on Super Drive (owner,
+          8 Nov 2026): one floating rounded bar with the date and the bell, the
+          page fading out under it as it scrolls. A computer has none — the
+          date and the bell are in each desk's banner, and the bell in the
+          sidebar too.
 
           Hidden on paper. A print page is about 794px wide — narrower than the
           lg breakpoint — so a browser printing this would render the phone
@@ -134,7 +135,7 @@ export function AppShell({
           sticker.
         */}
           <div
-            className="pointer-events-none sticky top-0 z-20 pb-3 pt-3 print:hidden"
+            className="pointer-events-none sticky top-0 z-20 pb-3 pt-3 lg:hidden print:hidden"
             style={{
               // The shell's own ground (muted at 30% over the page colour),
               // painted solid at the top and fading out under the bar.
@@ -150,7 +151,7 @@ export function AppShell({
             >
               <header className="pointer-events-auto flex h-14 items-center justify-between gap-2 rounded-2xl border bg-card/90 pl-1 pr-1.5 shadow-sm backdrop-blur sm:px-3">
                 <div className="flex min-w-0 items-center gap-1 sm:gap-2">
-                  <div className="lg:hidden">
+                  <div>
                 <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                   <SheetTrigger asChild>
                     {/* 44x44, not 36x36. This is the control every warehouse phone
@@ -181,7 +182,7 @@ export function AppShell({
                     side="left"
                     // The drawer is only a frame: the glass pane inside it is the
                     // sidebar, with its own round button to close it.
-                    className="flex h-[100dvh] w-[19.5rem] max-w-[calc(85vw+0.75rem)] flex-col gap-0 border-0 bg-transparent py-3 pl-3 pr-0 shadow-none [&>button]:hidden"
+                    className="flex h-[100dvh] w-[16.75rem] max-w-[calc(85vw+0.75rem)] flex-col gap-0 border-0 bg-transparent py-3 pl-3 pr-0 shadow-none [&>button]:hidden"
                   >
                     <SheetTitle className="sr-only">
                       {t(user.locale, "Navigation")}
@@ -205,7 +206,7 @@ export function AppShell({
                   already is. On a desk's own home there is nowhere to go back
                   to, and the phone shows the date there instead.
                 */}
-                  <div className="min-w-0 lg:hidden">
+                  <div className="min-w-0">
                     <MobileBack
                       fallback={
                         <span className="block truncate pl-1 text-sm font-medium text-foreground/80 sm:hidden" suppressHydrationWarning>
@@ -215,7 +216,7 @@ export function AppShell({
                     />
                   </div>
                   <p
-                    className="hidden min-w-0 truncate text-sm font-medium text-foreground/80 sm:block lg:pl-1"
+                    className="hidden min-w-0 truncate text-sm font-medium text-foreground/80 sm:block"
                     suppressHydrationWarning
                   >
                     {dateLong}
@@ -223,13 +224,6 @@ export function AppShell({
                 </div>
 
                 <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
-                  {/* Both cities, because cargo on every desk starts in
-                      Guangzhou; the desk you are standing in first. */}
-                  <DualClock
-                    inline
-                    emphasis={user.role === "CHINA_WAREHOUSE" ? "CN" : "TZ"}
-                    className="mr-2 hidden text-xs text-muted-foreground xl:block"
-                  />
                   <MainSiteLink compact className="hidden sm:inline-flex" />
                   <NotificationBell unread={unreadNotifications} />
                 </div>
@@ -252,7 +246,7 @@ export function AppShell({
             whose role is then theirs — keeps the readable column. */}
           <div
             className={cn(
-              "mx-auto px-4 pb-4 pt-1 sm:px-6 sm:pb-6 lg:px-8 lg:pb-8 print:max-w-none print:p-0",
+              "mx-auto px-4 pb-4 pt-1 sm:px-6 sm:pb-6 lg:px-8 lg:pb-8 lg:pt-6 print:max-w-none print:p-0",
               user.role === "DEVELOPER" ? "max-w-none" : "max-w-[1400px]",
             )}
           >

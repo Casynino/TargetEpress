@@ -161,13 +161,7 @@ import { percentDeltaLabel } from "@/lib/format";
  * answering those questions about a different person, and the screen would offer
  * an action the reader's own server check then refuses.
  */
-export async function ExecutiveDashboard({
-  role,
-  firstName = "",
-}: {
-  role: Role;
-  firstName?: string;
-}) {
+export async function ExecutiveDashboard({ role }: { role: Role }) {
   // Before the Promise.all — a const read from a callback that runs first is a
   // temporal dead zone TypeScript cannot see.
   const locale = await viewerLocale();
@@ -288,7 +282,6 @@ export async function ExecutiveDashboard({
     <div className="space-y-6">
       {/* 1. The greeting, and the money in one sentence. */}
       <OwnerMoneyHero
-        firstName={firstName}
         owedTzs={execRate ? stats.outstanding * execRate : stats.outstanding}
         heldTzs={fin.heldTzs}
         inTodayTzs={fin.cashInTodayTzs}

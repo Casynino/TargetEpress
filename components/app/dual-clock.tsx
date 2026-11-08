@@ -54,7 +54,7 @@ export function DualClock({
           <span key={key}>
             {index > 0 ? " · " : ""}
             {T(CITY[key])}{" "}
-            <span className="font-semibold text-foreground">
+            <span className="font-semibold text-white">
               {now
                 ? now.toLocaleTimeString("en-GB", {
                     timeZone: ZONES[key].zone,

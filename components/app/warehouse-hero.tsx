@@ -3,7 +3,8 @@ import { PackagePlus, type LucideIcon } from "lucide-react";
 
 import { CargoSearch } from "@/components/app/cargo-search";
 import { BANNER_ACTION_MAIN } from "@/components/app/desk-hero";
-import { PageBanner } from "@/components/app/page-banner";
+import { DualClock } from "@/components/app/dual-clock";
+import { PageBanner, bannerDate } from "@/components/app/page-banner";
 import { t } from "@/lib/i18n";
 import { viewerLocale } from "@/lib/viewer";
 
@@ -26,12 +27,11 @@ export type HeroChip = {
 /**
  * The first thing the warehouse sees.
  *
- * The small banner with the warehouse's name and a greeting, then the search
- * box and the day's one action just under it. It is the only part of the page
- * that is about the person rather than the cargo.
+ * The small banner with the warehouse's name, the date and both cities'
+ * clocks, then the search box and the day's one action just under it.
  *
- * The greeting follows the reader's own clock, not the server's — a Guangzhou
- * desk at 9am should not be told good evening because the host is in Virginia.
+ * The date follows the warehouse's own calendar, not the server's — Guangzhou
+ * is five hours ahead of Dar and already on tomorrow for part of every night.
  *
  * The chips and the call to action are passed in rather than derived here: the
  * two warehouses do different work, and a Dar desk being shown China's
@@ -39,15 +39,15 @@ export type HeroChip = {
  * a nice box.
  */
 export async function WarehouseHero({
-  firstName,
   warehouseName,
+  emphasis,
   action,
   search,
-  hourOfDay,
 }: {
-  firstName: string;
   /** Already translated, and short enough for the banner's wide letters. */
   warehouseName: string;
+  /** The warehouse you are standing in: its calendar, and its clock first. */
+  emphasis: "CN" | "TZ";
   /** The one thing this desk starts its day with, when the row of actions
       under the banner does not already carry it — the same button twice,
       one above the other, is what the owner asked to be rid of. */
@@ -61,20 +61,19 @@ export async function WarehouseHero({
    * should not have to find a page first.
    */
   search?: { action: string };
-  /** Local hour at the warehouse, computed on the server for that zone. */
-  hourOfDay: number;
 }) {
   const locale = await viewerLocale();
-  const greeting = t(
-    locale,
-    hourOfDay < 12 ? "Good morning" : hourOfDay < 17 ? "Good afternoon" : "Good evening"
-  );
 
   return (
     <>
-      {/* The small banner every desk opens on (components/app/page-banner);
-          the two cities' clocks are in the top bar now. */}
-      <PageBanner title={warehouseName} line={`${greeting}, ${firstName}`} />
+      {/* The small banner every desk opens on (components/app/page-banner),
+          with both cities' clocks under the date: cargo on every desk starts
+          in Guangzhou and ends in Dar es Salaam. */}
+      <PageBanner
+        title={warehouseName}
+        line={bannerDate(locale, emphasis === "CN" ? "Asia/Shanghai" : "Africa/Dar_es_Salaam")}
+        extra={<DualClock inline emphasis={emphasis} />}
+      />
       {search || action ? (
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
           {search ? (

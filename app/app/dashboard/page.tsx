@@ -131,17 +131,6 @@ function startOfToday() {
 }
 
 /** Percentage change, guarding the divide-by-zero that makes dashboards lie. */
-/** The hour where the warehouse is standing, not where the server is. */
-function localHour(side: "CN" | "TZ") {
-  const hour = Number(
-    new Date().toLocaleString("en-GB", {
-      timeZone: side === "CN" ? "Asia/Shanghai" : "Africa/Dar_es_Salaam",
-      hour: "2-digit",
-      hour12: false,
-    })
-  );
-  return Number.isNaN(hour) ? 9 : hour;
-}
 
 /** China's banner numbers: what the registration desk booked in today. */
 async function chinaHeroChips(): Promise<HeroChip[]> {
@@ -261,14 +250,6 @@ export default async function DashboardPage() {
      around running the company and would show them money they cannot touch. */
   if (user.role === "DEVELOPER") redirect("/app/developer");
 
-  // Read the name from the record, not the session. The session token carries
-  // whatever the name was at sign-in, so someone who renames themselves would
-  // be greeted by their old name until they signed out and back in.
-  const me = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { name: true },
-  });
-  const firstName = (me?.name ?? user.name).split(" ")[0];
 
 
   const warehouse =
@@ -297,12 +278,12 @@ export default async function DashboardPage() {
           clocks on one short line. */}
       {warehouse ? (
         <WarehouseHero
-          firstName={firstName}
           warehouseName={
             inChina
               ? t(locale, "China Warehouse")
               : t(locale, "Dar Warehouse")
           }
+          emphasis={inChina ? "CN" : "TZ"}
           /*
             WHERE THIS DESK'S DAY STARTS.
 
@@ -330,11 +311,9 @@ export default async function DashboardPage() {
           // The same box the money and support desks open on. The floor is
           // asked "where is my cargo" all day too.
           search={{ action: "/app/search" }}
-          hourOfDay={localHour(inChina ? "CN" : "TZ")}
         />
       ) : user.role === "ADMIN" ? null : (
       <DeskHero
-        firstName={firstName}
         role={user.role}
         // The same box the support desk opens on. Every desk that is not
         // holding the box finds one this way — a customer reads out a number
@@ -356,7 +335,7 @@ export default async function DashboardPage() {
       ) : null}
       {/* The owner's banner is the money, drawn inside his dashboard. */}
       {user.role === "ADMIN" ? (
-        <ExecutiveDashboard role={user.role} firstName={firstName} />
+        <ExecutiveDashboard role={user.role} />
       ) : null}
     </>
   );

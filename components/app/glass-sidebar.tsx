@@ -16,7 +16,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronsUpDown,
   ClipboardCheck,
   FileText,
   FlaskConical,
@@ -25,7 +24,6 @@ import {
   History,
   Inbox,
   Landmark,
-  Languages,
   Layers,
   LayoutDashboard,
   LogOut,
@@ -60,7 +58,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { LanguageSwitch } from "@/components/app/language-switch";
 import { useT } from "@/components/app/locale-provider";
 import { BrandMark } from "@/components/brand-mark";
 import {
@@ -328,17 +325,16 @@ export function GlassSidebar({
     >
       <span
         className={cn(
-          "grid shrink-0 place-items-center rounded-full bg-white ring-2 ring-[#fdc400]/45",
-          compact ? "size-10" : "size-11",
+          "grid size-10 shrink-0 place-items-center rounded-full bg-white ring-2 ring-[#fdc400]/45",
         )}
       >
-        <BrandMark tone="paper" className={cn("w-auto translate-x-px", compact ? "h-[18px]" : "h-5")} />
+        <BrandMark tone="paper" className="h-[18px] w-auto translate-x-px" />
       </span>
       {compact ? null : (
         /* The company's name, left in English on a Chinese screen like the
            wordmark it is — see BrandLockup. */
         <span className="min-w-0 leading-tight">
-          <span className="block truncate text-[15px] font-semibold tracking-tight g-strong">Target Express</span>
+          <span className="block truncate text-sm font-semibold tracking-tight g-strong">Target Express</span>
           <span className="mt-0.5 block truncate text-xs g-soft">Air Cargo</span>
         </span>
       )}
@@ -357,7 +353,7 @@ export function GlassSidebar({
           className={cn(
             "relative flex items-center gap-3 rounded-lg",
             FOCUS,
-            child ? "px-3 py-1.5 text-[13px]" : "px-3.5 py-2 text-[13.5px]",
+            child ? "px-3 py-1.5 text-[13px]" : "px-3 py-2 text-[13px]",
             // 44px on a phone: the menu is used one-handed on a warehouse floor.
             mode === "sheet" && "min-h-11",
             active ? "glass-active font-medium g-strong" : "glass-row g-text g-hover",
@@ -433,7 +429,7 @@ export function GlassSidebar({
 
       <nav
         aria-label={t("Navigation")}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 pb-2 [scrollbar-width:thin]"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2 [scrollbar-width:thin]"
       >
         {results ? (
           results.length ? (
@@ -471,7 +467,7 @@ export function GlassSidebar({
                   onClick={() => folds.set(section.title, !isOpen)}
                   aria-expanded={isOpen}
                   className={cn(
-                    "glass-row g-hover flex w-full items-center gap-3 rounded-lg px-3.5 py-2 text-left text-[13.5px] font-medium",
+                    "glass-row g-hover flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium",
                     FOCUS,
                     mode === "sheet" && "min-h-11",
                     here ? "g-strong" : "g-text",
@@ -570,7 +566,7 @@ export function GlassSidebar({
       onBlurCapture={() => setHint(null)}
       className={cn(
         "fixed left-3 top-3 z-30 hidden lg:block print:hidden",
-        rail ? "w-[4.5rem]" : "bottom-3 w-64",
+        rail ? "w-[4.5rem]" : "bottom-3 w-56",
       )}
     >
       <div className={cn("glass-panel flex flex-col", rail ? "max-h-[calc(100dvh-1.5rem)]" : "h-full")}>
@@ -612,9 +608,11 @@ export function GlassSidebar({
 }
 
 /**
- * The bottom of the panel: Night mode, the language, then the signed-in person
- * (avatar with a green dot, name and role) who opens a small menu. In the rail
- * only the icons and the avatar show.
+ * The bottom of the panel, as on Super Drive: small icons with no words — the
+ * bell with the unread count, the night or day look, and the other language
+ * written in itself — then the signed-in person as initials and the first
+ * name. A small menu opens from it: the full name and role, My profile, Main
+ * site, Sign out. In the rail the icons stand in a column.
  */
 function Footer({
   mode,
@@ -634,34 +632,14 @@ function Footer({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const dark = mounted && resolvedTheme === "dark";
-  const toggleTheme = () => setTheme(dark ? "light" : "dark");
 
   const [pending, start] = useTransition();
   const other: Locale = user.locale === "zh" ? "en" : "zh";
   const logoutForm = useRef<HTMLFormElement>(null);
   const role = t(ROLE_LABELS[user.role]);
-  const item = "gap-2.5 rounded-xl px-3 py-2.5 text-sm";
-
-  const avatar = (
-    <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#1f4e8c] to-[#0e2a52] text-xs font-semibold text-white ring-1 ring-white/25">
-      {user.photoUrl ? (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img src={user.photoUrl} alt="" className="size-10 rounded-full object-cover" />
-      ) : (
-        initials(user.name)
-      )}
-      {/* Online: this person is the one using the screen. */}
-      <span aria-hidden className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-emerald-500 ring-2 ring-[#0f1c33]" />
-      {unread > 0 ? (
-        <span
-          title={`${unread} unread notification(s)`}
-          className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-signal px-1 text-[10px] font-bold text-white"
-        >
-          {unread > 9 ? "9+" : unread}
-        </span>
-      ) : null}
-    </span>
-  );
+  const firstName = user.name.trim().split(/\s+/)[0] ?? user.name;
+  const iconButton = cn("glass-row g-text g-hover relative grid size-10 shrink-0 place-items-center rounded-full", FOCUS);
+  const item = "gap-2 rounded-lg px-2.5 py-1.5 text-[13px]";
 
   return (
     <div
@@ -673,93 +651,74 @@ function Footer({
     >
       <div aria-hidden className="glass-divider mb-2 w-full" />
 
-      {rail ? (
-        <>
-          <button
-            type="button"
-            onClick={toggleTheme}
-            role="switch"
-            aria-checked={dark}
-            data-hint={t("Night mode")}
-            className={cn("glass-row g-text g-hover mb-1 grid size-11 place-items-center rounded-full", FOCUS)}
-          >
-            {dark ? <Moon className="size-[18px]" /> : <Sun className="size-[18px]" />}
-            <span className="sr-only">{t("Night mode")}</span>
-          </button>
-          {/* Two languages: the rail offers the other one, written in itself. */}
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => start(() => void setLanguage(other))}
-            data-hint={LOCALE_LABELS[other]}
-            className={cn(
-              "glass-row g-text g-hover mb-1 grid size-11 place-items-center rounded-full text-[13px] font-semibold disabled:opacity-50",
-              FOCUS,
-            )}
-          >
-            {other === "zh" ? "中" : "EN"}
-            <span className="sr-only">{LOCALE_LABELS[other]}</span>
-          </button>
-        </>
-      ) : (
-        <>
-          <div className="flex items-center justify-between gap-3 rounded-full px-3.5 py-2">
-            <span className="g-text flex items-center gap-3 text-[13.5px] font-medium">
-              {dark ? <Moon className="g-soft size-[18px]" /> : <Sun className="g-soft size-[18px]" />}
-              {t("Night mode")}
+      <div className={rail ? "mb-1 flex flex-col items-center gap-0.5" : "mb-1 flex items-center gap-1 px-1"}>
+        <Link
+          href="/app/notifications"
+          onClick={onNavigate}
+          title={t("Notifications")}
+          data-hint={t("Notifications")}
+          className={iconButton}
+        >
+          <Bell className="size-[18px]" />
+          <span className="sr-only">{t("Notifications")}</span>
+          {unread > 0 ? (
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-signal px-1 text-[10px] font-bold leading-none text-white">
+              {unread > 9 ? "9+" : unread}
             </span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={dark}
-              aria-label={t("Night mode")}
-              onClick={toggleTheme}
-              className={cn("glass-switch relative h-6 w-11 shrink-0 rounded-full transition", FOCUS)}
-            >
-              <span
-                className={cn(
-                  "glass-chip absolute top-0.5 size-5 rounded-full shadow transition-all",
-                  dark ? "left-[1.4rem]" : "left-0.5",
-                )}
-              />
-            </button>
-          </div>
-          {/* Offered to everyone: the Guangzhou desk reads this in Chinese. */}
-          <div className="flex items-center justify-between gap-3 rounded-full py-1 pl-3.5 pr-2">
-            <span className="g-text flex items-center gap-3 text-[13.5px] font-medium">
-              <Languages className="g-soft size-[18px]" />
-              {t("Language")}
-            </span>
-            <LanguageSwitch current={user.locale} />
-          </div>
-        </>
-      )}
+          ) : null}
+        </Link>
+        <button
+          type="button"
+          onClick={() => setTheme(dark ? "light" : "dark")}
+          aria-pressed={dark}
+          title={t("Night mode")}
+          data-hint={t("Night mode")}
+          className={iconButton}
+        >
+          {dark ? <Moon className="size-[18px]" /> : <Sun className="size-[18px]" />}
+          <span className="sr-only">{t("Night mode")}</span>
+        </button>
+        {/* Two languages: the other one, written in itself, so the person who
+            cannot read the screen yet can still find it. */}
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => start(() => void setLanguage(other))}
+          title={LOCALE_LABELS[other]}
+          data-hint={LOCALE_LABELS[other]}
+          className={cn(iconButton, "text-[13px] font-semibold disabled:opacity-50")}
+        >
+          {other === "zh" ? "中" : "EN"}
+          <span className="sr-only">{LOCALE_LABELS[other]}</span>
+        </button>
+      </div>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            data-hint={rail ? user.name : undefined}
+            title={user.name}
+            data-hint={user.name}
             className={cn(
               "glass-row flex w-full items-center gap-3 rounded-full text-left",
               FOCUS,
-              rail ? "justify-center p-1" : "mt-0.5 px-2 py-2",
+              rail ? "justify-center p-1" : "px-2 py-2",
             )}
           >
-            {avatar}
+            <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#1f4e8c] to-[#0e2a52] text-xs font-semibold text-white ring-1 ring-white/25">
+              {user.photoUrl ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={user.photoUrl} alt="" className="size-10 rounded-full object-cover" />
+              ) : (
+                initials(user.name)
+              )}
+            </span>
+            {/* Only the first name here; the full name and the role are in the
+                menu that opens from it. */}
             {rail ? (
               <span className="sr-only">{user.name}</span>
             ) : (
-              <>
-                <span className="min-w-0 flex-1 leading-tight">
-                  <span className="g-strong block truncate text-sm font-semibold">{user.name}</span>
-                  {/* The role sits under the name on every screen in the
-                      product, so an English one here undoes the Chinese
-                      everywhere else. */}
-                  <span className="g-soft mt-0.5 block truncate text-xs">{role}</span>
-                </span>
-                <ChevronsUpDown className="g-icon size-[15px] shrink-0" aria-hidden />
-              </>
+              <span className="g-strong min-w-0 flex-1 truncate text-sm font-semibold">{firstName}</span>
             )}
           </button>
         </DropdownMenuTrigger>
@@ -767,32 +726,24 @@ function Footer({
           side={rail ? "right" : "top"}
           align={rail ? "end" : "start"}
           sideOffset={rail ? 12 : 8}
-          className="w-56 rounded-2xl p-1.5 shadow-[0_16px_40px_-14px_rgba(0,0,0,0.55)]"
+          className="w-44 rounded-xl p-1 shadow-[0_12px_30px_-12px_rgba(0,0,0,0.55)]"
         >
-          <DropdownMenuLabel className="px-3 py-2 font-normal">
-            <span className="block truncate text-sm font-semibold">{user.name}</span>
-            <span className="block truncate text-xs text-muted-foreground">{role}</span>
+          <DropdownMenuLabel className="px-2.5 pb-1.5 pt-1 font-normal">
+            <span className="block break-words text-[13px] font-semibold leading-snug">{user.name}</span>
+            {/* The role sits under the name on every screen in the product, so
+                an English one here undoes the Chinese everywhere else. */}
+            <span className="block truncate text-[11px] text-muted-foreground">{role}</span>
           </DropdownMenuLabel>
           <DropdownMenuItem asChild className={item}>
             <Link href="/app/profile" onClick={onNavigate}>
-              <UserRound className="size-4" />
+              <UserRound className="size-3.5" />
               {t("My profile")}
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild className={item}>
-            <Link href="/app/notifications" onClick={onNavigate}>
-              <Bell className="size-4" />
-              <span className="flex-1">{t("Notifications")}</span>
-              {unread > 0 ? (
-                <span className="rounded-full bg-signal px-1.5 text-[11px] font-bold leading-[18px] text-white">
-                  {unread > 99 ? "99+" : unread}
-                </span>
-              ) : null}
-            </Link>
-          </DropdownMenuItem>
+          {/* The way out to the public site: a computer has no top bar now. */}
           <DropdownMenuItem asChild className={item}>
             <Link href="/" onClick={onNavigate}>
-              <Globe className="size-4" />
+              <Globe className="size-3.5" />
               {t("Main site")}
             </Link>
           </DropdownMenuItem>
@@ -801,7 +752,7 @@ function Footer({
             className={cn(item, "text-rose-600 focus:text-rose-600 dark:text-rose-400 dark:focus:text-rose-400")}
             onSelect={() => logoutForm.current?.requestSubmit()}
           >
-            <LogOut className="size-4" />
+            <LogOut className="size-3.5" />
             {t("Sign out")}
           </DropdownMenuItem>
         </DropdownMenuContent>

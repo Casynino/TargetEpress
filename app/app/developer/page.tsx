@@ -45,7 +45,7 @@ export const metadata: Metadata = { title: "Developer home" };
  * only way to act is through Access, where every action is recorded.
  */
 export default async function DeveloperHomePage() {
-  const me = await requirePermission("developer.access");
+  await requirePermission("developer.access");
   /* The speed probes first and alone — timed in a crowd they would measure the
      queue, not the database. Then everything else the Home needs, asked at once:
      the reads do not depend on each other, and run one after another they were
@@ -118,24 +118,10 @@ export default async function DeveloperHomePage() {
     .filter(([value]) => value !== "DEVELOPER")
     .map(([value, label]) => ({ value, label }));
 
-  const firstName = me.name.split(" ")[0] || "Developer";
-  const eatHour = Number(
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Africa/Dar_es_Salaam",
-      hour: "2-digit",
-      hour12: false,
-    }).format(new Date()),
-  );
-  const greeting =
-    eatHour >= 5 && eatHour < 12
-      ? "Good morning"
-      : eatHour >= 12 && eatHour < 17
-        ? "Good afternoon"
-        : "Good evening";
 
   return (
     <div className="space-y-6">
-      <DevHero greeting={`${greeting}, ${firstName}`} />
+      <DevHero />
 
       {/* What you press, in one row: the two things that act, then the two that look. */}
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">

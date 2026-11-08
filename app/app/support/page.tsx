@@ -22,7 +22,7 @@ import { BarChart } from "@/components/charts/bar-chart";
 import { Donut } from "@/components/charts/donut";
 import { FlowBars } from "@/components/charts/flow-bars";
 import { CargoSearch } from "@/components/app/cargo-search";
-import { PageBanner } from "@/components/app/page-banner";
+import { PageBanner, bannerDate } from "@/components/app/page-banner";
 import { QuickAction } from "@/components/app/support-forms";
 import { Badge } from "@/components/ui/badge";
 import { creditAlerts } from "@/lib/credit-queries";
@@ -97,14 +97,6 @@ export default async function SupportHome() {
   const canAskForCredit = can(user.role, "credit.request");
   const locale = await viewerLocale();
 
-  // Read the name from the record rather than the session token, which carries
-  // whatever it was at sign-in — somebody who renames themselves would be
-  // greeted by their old name until they signed out and back in.
-  const me = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { name: true },
-  });
-  const firstName = (me?.name ?? user.name).split(" ")[0];
 
   const [
     overview,
@@ -385,7 +377,7 @@ export default async function SupportHome() {
           phone is already ringing when the page loads, and the first thing
           wanted is the box on the other end of the call — so it sits right
           under the banner, before anything else. */}
-      <PageBanner title={t(locale, "Support desk")} line={`${t(locale, "Habari")}, ${firstName}`} />
+      <PageBanner title={t(locale, "Support desk")} line={bannerDate(locale)} />
       <div className="mb-4 max-w-xl">
         <CargoSearch action="/app/support/search" compact />
       </div>

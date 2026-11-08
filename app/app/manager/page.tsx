@@ -149,18 +149,10 @@ export default async function ManagerHome() {
   const locale = await viewerLocale();
   const now = new Date();
 
-  const [me, overview, rateRow] = await Promise.all([
-    // Read the name from the record, not the session. The session token carries
-    // whatever the name was at sign-in, so someone who renames themselves would
-    // be greeted by their old name until they signed out and back in.
-    prisma.user.findUnique({
-      where: { id: user.id },
-      select: { name: true },
-    }),
+  const [overview, rateRow] = await Promise.all([
     managerOverview(locale),
     currentRate(),
   ]);
-  const firstName = (me?.name ?? user.name).split(" ")[0];
   const liveRate = rateRow ? toNumber(rateRow.rate) : null;
 
   /*
@@ -337,7 +329,6 @@ export default async function ManagerHome() {
   return (
     <>
       <DeskHero
-        firstName={firstName}
         role={user.role}
         search={{ action: "/app/search" }}
       />

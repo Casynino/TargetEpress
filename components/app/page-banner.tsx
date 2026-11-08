@@ -1,22 +1,63 @@
 import Image from "next/image";
+import Link from "next/link";
+import { Bell } from "lucide-react";
 
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
+import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { viewerLocale } from "@/lib/viewer";
 
 /* The aircraft the public site opens on — the brand's own picture, already
    allowed in next.config. It stands where Super Drive shows its products. */
 const PHOTO =
   "https://images.unsplash.com/photo-1515780855147-aee414989c82?auto=format&fit=crop&w=900&q=70";
 
+/** Today, written out, on the desk's own calendar. */
+export function bannerDate(locale: Locale, zone = "Africa/Dar_es_Salaam") {
+  return new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: zone,
+  }).format(new Date());
+}
+
+/**
+ * The bell inside the banner, on a computer or a tablet. There is no top bar
+ * there any more — the date is the banner's own line — so the bell sits at the
+ * banner's left, as on Super Drive. A phone keeps its bell in its own bar.
+ */
+async function BannerBell() {
+  const [user, locale] = await Promise.all([requireUser(), viewerLocale()]);
+  const unread = await prisma.notification.count({ where: { userId: user.id, readAt: null } });
+  return (
+    <Link
+      href="/app/notifications"
+      title={t(locale, "Notifications")}
+      className="focus-ring absolute left-6 top-1/2 z-10 hidden size-8 -translate-y-1/2 place-items-center rounded-full text-white/65 transition hover:text-white lg:inline-grid"
+    >
+      <Bell className="size-[15px]" />
+      <span className="sr-only">{t(locale, "Notifications")}</span>
+      {unread > 0 ? (
+        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-signal px-1 text-[10px] font-bold leading-none text-white">
+          {unread > 9 ? "9+" : unread}
+        </span>
+      ) : null}
+    </Link>
+  );
+}
+
 /**
  * THE SMALL BANNER every desk opens on (owner, 8 Nov 2026).
  *
  * Copied from Super Drive's point-of-sale banner: deep navy, a blue glow on
  * the right and a little gold light from the top, the desk's name in wide
- * letters between two gold rules, "TARGET EXPRESS" in gold under it, and one
- * short line. The aircraft sits at the side on a wide screen. The banners
- * before it carried a greeting, two clocks, a search box and buttons; the
- * owner asked for them small and clean, so the clocks went to the top bar and
- * each desk's search box and button sit just under the banner instead.
+ * letters between two gold rules, "TARGET EXPRESS" in gold under it, and the
+ * date. The bell sits at the left and the aircraft at the right on a wide
+ * screen. Each desk's search box and first button sit just under it.
  *
  * Text comes in already translated: the Developer console is English only and
  * passes plain strings.
@@ -29,9 +70,9 @@ export function PageBanner({
 }: {
   /** The desk's name, drawn in wide capitals. */
   title: string;
-  /** One short line under the gold name — usually the greeting. */
+  /** One short line under the gold name — the date. */
   line?: React.ReactNode;
-  /** A second, smaller line, for the one desk whose banner carries figures. */
+  /** A second, smaller line: the owner's money, a warehouse's two clocks. */
   extra?: React.ReactNode;
   /** The gold line. The company's name, left in English like the wordmark. */
   kicker?: string;
@@ -55,6 +96,7 @@ export function PageBanner({
       >
         <Image src={PHOTO} alt="" fill sizes="30vw" className="object-cover opacity-75" />
       </div>
+      <BannerBell />
 
       <div className="relative flex min-h-[7.5rem] flex-col items-center justify-center px-5 py-5 text-center">
         <h1
@@ -75,7 +117,7 @@ export function PageBanner({
         </h1>
         <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-[#fdc400]">{kicker}</p>
         {line ? <p className="mt-1.5 text-sm text-white/65">{line}</p> : null}
-        {extra ? <p className="mt-1 text-xs leading-relaxed text-white/55 sm:text-[13px]">{extra}</p> : null}
+        {extra ? <div className="mt-1 text-xs leading-relaxed text-white/55 sm:text-[13px]">{extra}</div> : null}
       </div>
     </section>
   );

@@ -680,7 +680,7 @@ html:not(.dark) .glass-panel.glass-drawer { background-color: rgba(255, 255, 255
 /* the search: a plain line, no box */
 .glass-field { background: transparent; box-shadow: inset 0 -1px 0 var(--glass-line); }
 .glass-kbd { background: transparent; box-shadow: none; }
-/* the round fold button, its label, the names beside the rail and the switch's knob: white by day, the card's navy at night */
+/* the round fold button, its label and the names beside the rail: white by day, the card's navy at night */
 .glass-chip { background: #ffffff; color: #1e293b; }
 html.dark .glass-chip { background: #101a2d; color: #dce5f2; }
 /* a group's pages hang off a thin line with a curved elbow at each one, like branches */
@@ -688,6 +688,3 @@ html.dark .glass-chip { background: #101a2d; color: #dce5f2; }
 .glass-tree > li { position: relative; }
 .glass-tree > li::before { content: ""; position: absolute; left: -1.05rem; top: 50%; width: 0.8rem; height: 0.8rem; border-left: 1px solid var(--glass-line); border-bottom: 1px solid var(--glass-line); border-bottom-left-radius: 0.65rem; transform: translateY(-88%); pointer-events: none; }
 .glass-divider { height: 1px; background: linear-gradient(90deg, transparent, var(--glass-line), transparent); }
-.glass-switch { background: rgba(255, 255, 255, 0.16); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22); }
-html:not(.dark) .glass-switch { background: rgba(14, 61, 110, 0.14); box-shadow: inset 0 0 0 1px rgba(14, 61, 110, 0.2); }
-.glass-switch[aria-checked="true"] { background: #FDC400; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4); }
