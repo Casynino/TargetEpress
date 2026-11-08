@@ -484,13 +484,13 @@ async function ChinaDashboard({
     <div className="space-y-7">
       <ActionPills
         items={[
-          { href: "/app/cargo/new", label: t(locale, "Receive Cargo"), icon: PackagePlus, weight: "primary", tone: "brand" },
-          { href: "/app/batches", label: t(locale, "Load a batch"), icon: Plane, weight: "secondary", tone: "signal" },
+          { href: "/app/cargo/new", label: t(locale, "Receive Cargo"), short: t(locale, "Receive"), icon: PackagePlus, weight: "primary", tone: "brand" },
+          { href: "/app/batches", label: t(locale, "Load a batch"), short: t(locale, "Load"), icon: Plane, weight: "secondary", tone: "signal" },
           { href: "/app/shipments", label: t(locale, "Batches"), icon: Package, tone: "violet" },
           // Amber wherever it appears — on this desk, the Dar floor, the money
           // desk and the support desk. Colour is only a landmark while it means
           // the same thing twice.
-          { href: "/app/exceptions", label: t(locale, "Issues & Claims"), icon: AlertTriangle, tone: "warning" },
+          { href: "/app/exceptions", label: t(locale, "Issues & Claims"), short: t(locale, "Claims"), icon: AlertTriangle, tone: "warning" },
           // Customers is a sidebar row on this desk and is reached from any
           // consignment; it is not something Guangzhou starts a job from.
           // Reports goes last, read rather than started — same as the Dar floor.
@@ -902,12 +902,12 @@ async function darFloorStats() {
  * support desk. Colour is only a landmark while it means the same thing twice.
  */
 const DAR_QUICK_ACTIONS: ActionPill[] = [
-  { href: "/app/receive", label: "Receiving Dock", icon: PackagePlus, weight: "primary", tone: "brand" },
-  { href: "/app/pickup-queue", label: "Pickup list", icon: Truck, weight: "secondary", tone: "signal" },
+  { href: "/app/receive", label: "Receiving Dock", short: "Receive", icon: PackagePlus, weight: "primary", tone: "brand" },
+  { href: "/app/pickup-queue", label: "Pickup list", short: "Pickup", icon: Truck, weight: "secondary", tone: "signal" },
   // No Find cargo. The banner's own search box sits directly above this row,
   // and a pill pointing at the same page is a second control for one action.
-  { href: "/app/inventory", label: "Available Cargo", icon: Boxes, tone: "violet" },
-  { href: "/app/exceptions", label: "Issues & Claims", icon: AlertTriangle, tone: "warning" },
+  { href: "/app/inventory", label: "Available Cargo", short: "Cargo", icon: Boxes, tone: "violet" },
+  { href: "/app/exceptions", label: "Issues & Claims", short: "Claims", icon: AlertTriangle, tone: "warning" },
   // Last, because it is read rather than started — the row runs from the job
   // pressed most to the one opened least.
   { href: "/app/reports", label: "Reports", icon: ChartNoAxesCombined, tone: "info" },
@@ -1084,6 +1084,7 @@ async function DarDashboard({
         items={DAR_QUICK_ACTIONS.map((pill) => ({
           ...pill,
           label: t(locale, pill.label),
+          short: pill.short ? t(locale, pill.short) : undefined,
         }))}
       />
 
@@ -1883,17 +1884,17 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     // worth nothing until this desk agrees with them. The payments list is a
     // record to read, and it is not even in the Finance tab row; this is a
     // job with people waiting on it.
-    { href: "/app/finance/verify", label: t(locale, "Verify payments"), icon: ShieldCheck, tone: "info" },
+    { href: "/app/finance/verify", label: t(locale, "Verify payments"), short: t(locale, "Verify"), icon: ShieldCheck, tone: "info" },
     /* Money in. It opens the ledger with the panel already up rather than
        carrying a second copy of the form. */
-    { href: "/app/finance/transactions?income=1", label: t(locale, "Record Payment"), icon: Banknote, weight: "secondary", tone: "success" },
+    { href: "/app/finance/transactions?income=1", label: t(locale, "Record Payment"), short: t(locale, "Payment"), icon: Banknote, weight: "secondary", tone: "success" },
     /* The customer with three consignments and one M-Pesa message. It existed
        and was reachable only by typing the URL, which is the same as not
        existing — the desk starts on this screen, so the way in belongs on it. */
-    { href: "/app/finance/payments/new", label: t(locale, "Merge Payment"), icon: Layers, weight: "secondary", tone: "success" },
-    { href: "/app/collections/follow-up", label: t(locale, "Payment follow-up"), icon: Clock, tone: "warning" },
-    { href: "/app/finance/pickup-notes", label: t(locale, "Pickup notes"), icon: QrCode, tone: "success" },
-    { href: "/app/finance/transactions", label: t(locale, "Record a cost"), icon: Banknote, weight: "secondary", tone: "signal" },
+    { href: "/app/finance/payments/new", label: t(locale, "Merge Payment"), short: t(locale, "Merge"), icon: Layers, weight: "secondary", tone: "success" },
+    { href: "/app/collections/follow-up", label: t(locale, "Payment follow-up"), short: t(locale, "Follow-up"), icon: Clock, tone: "warning" },
+    { href: "/app/finance/pickup-notes", label: t(locale, "Pickup notes"), short: t(locale, "Pickup"), icon: QrCode, tone: "success" },
+    { href: "/app/finance/transactions", label: t(locale, "Record a cost"), short: t(locale, "Cost"), icon: Banknote, weight: "secondary", tone: "signal" },
   ];
 
   return (
@@ -1905,9 +1906,10 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       <ActionPills
         items={shortcuts}
         afterHref="/app/finance/payments/new"
+        afterTiles={canAskCredit ? 1 : 0}
         after={
           canAskCredit ? (
-            <AskForCredit rate={rate} canApprove={canGrantCredit} />
+            <AskForCredit rate={rate} canApprove={canGrantCredit} phoneTile />
           ) : null
         }
       />

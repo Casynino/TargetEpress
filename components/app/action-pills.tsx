@@ -24,6 +24,12 @@ export type ActionPill = {
    * six colours can sit together without any of them shouting.
    */
   tone?: "brand" | "signal" | "success" | "warning" | "info" | "violet";
+  /**
+   * One word for the phone tile, as an app's icons are named (owner, 8 Nov
+   * 2026: "The Ledger" is "Ledger", "Issues & Claims" is "Claims"). The full
+   * label stays on a computer and is what a screen reader hears.
+   */
+  short?: string;
 };
 
 /**
@@ -60,8 +66,9 @@ const TINT: Record<NonNullable<ActionPill["tone"]>, string> = {
  * Pills rather than cards: this sits between a banner and a wall of figures,
  * and a row of bordered cards there reads as a third grid of numbers.
  */
-/* Columns on the phone, chosen so every row is full: six make two rows of
-   three, not a row of four over a row of two with a hole beside it. */
+/* Columns on the phone, chosen so the rows come out as full as they can: up
+   to five in one row (one-word names fit five across), six as two rows of
+   three rather than four over two with a hole beside it. */
 const PHONE_COLUMNS: Record<number, string> = {
   1: "grid-cols-1",
   2: "grid-cols-2",
@@ -71,24 +78,57 @@ const PHONE_COLUMNS: Record<number, string> = {
   6: "grid-cols-3",
   7: "grid-cols-4",
   8: "grid-cols-4",
+  9: "grid-cols-5",
+  10: "grid-cols-5",
 };
 
-/* The phone tile's chip: a small glossy square in the pill's own colour with
-   a white glyph and a soft glow of the same colour under it — the premium
-   look the owner asked for (8 Nov 2026), instead of a pale tint. */
-const CHIP: Record<NonNullable<ActionPill["tone"]>, string> = {
-  brand: "from-brand to-brand/75 shadow-brand/30",
-  signal: "from-signal to-signal/75 shadow-signal/30",
-  success: "from-success to-success/75 shadow-success/30",
-  warning: "from-warning to-warning/75 shadow-warning/30",
-  info: "from-info to-info/75 shadow-info/30",
-  violet: "from-chart-6 to-chart-6/75 shadow-chart-6/30",
+/* The phone icon: a rounded square in the pill's own colour with a white
+   glyph, like a shopping app's icons — clean, no glow and no box around it
+   (owner, 8 Nov 2026). */
+export const CHIP: Record<NonNullable<ActionPill["tone"]>, string> = {
+  brand: "from-brand to-brand/80",
+  signal: "from-signal to-signal/80",
+  success: "from-success to-success/80",
+  warning: "from-warning to-warning/80",
+  info: "from-info to-info/80",
+  violet: "from-chart-6 to-chart-6/80",
 };
+
+/** The phone tile's frame. Shared with the actions that sit in the same row. */
+export const PHONE_TILE =
+  "focus-ring flex min-w-0 flex-col items-center gap-1.5 rounded-xl px-0.5 py-1 text-center transition-transform active:scale-95 sm:hidden";
+
+/** The inside of a phone tile: the glossy chip and one word under it. */
+export function PhoneTileFace({
+  icon: Icon,
+  label,
+  tone = "brand",
+}: {
+  icon: LucideIcon;
+  label: string;
+  tone?: NonNullable<ActionPill["tone"]>;
+}) {
+  return (
+    <>
+      <span
+        className={`relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br text-white ring-1 ring-inset ring-white/15 ${CHIP[tone]}`}
+      >
+        {/* a faint sheen across the top */}
+        <span aria-hidden className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent" />
+        <Icon className="relative h-5 w-5" strokeWidth={2} />
+      </span>
+      <span className="w-full truncate px-0.5 text-xs font-medium leading-tight text-foreground/80">
+        {label}
+      </span>
+    </>
+  );
+}
 
 export function ActionPills({
   items,
   after,
   afterHref,
+  afterTiles = 0,
   label = "Quick actions",
 }: {
   items: ActionPill[];
@@ -102,9 +142,12 @@ export function ActionPills({
   after?: React.ReactNode;
   /** Which pill it sits beside. Falls to the end of the row if unmatched. */
   afterHref?: string;
+  /** How many tiles `after` draws on a phone, so the rows can be counted. */
+  afterTiles?: number;
   label?: string;
 }) {
   if (items.length === 0) return null;
+  const tiles = items.length + (after ? afterTiles : 0);
 
   return (
     <nav
@@ -113,7 +156,7 @@ export function ActionPills({
          tile the same size, the way a banking app lays its actions out. As
          pills they wrapped by their own width into a staircase with an orphan
          on the last line. From sm up they are the pills they always were. */
-      className={`grid ${PHONE_COLUMNS[Math.min(items.length, 8)] ?? "grid-cols-4"} gap-2 sm:flex sm:flex-wrap`}
+      className={`grid ${PHONE_COLUMNS[Math.min(tiles, 10)] ?? "grid-cols-5"} gap-2 sm:flex sm:flex-wrap`}
     >
       {/*
         Keyed by where it goes, not by what it says.
@@ -127,20 +170,8 @@ export function ActionPills({
       */}
       {items.map((item) => (
         <Fragment key={item.href}>
-        <Link
-          href={item.href}
-          className="focus-ring flex min-w-0 flex-col items-center gap-2 rounded-2xl border border-border/60 bg-card px-1 pb-2.5 pt-3 text-center shadow-sm transition-transform active:scale-95 sm:hidden"
-        >
-          <span
-            className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-[0.9rem] bg-gradient-to-br text-white shadow-lg ring-1 ring-inset ring-white/20 ${CHIP[item.tone ?? "brand"]}`}
-          >
-            {/* the gloss across the top half */}
-            <span aria-hidden className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/30 to-transparent" />
-            <item.icon className="relative h-[18px] w-[18px]" strokeWidth={2.1} />
-          </span>
-          <span className="line-clamp-2 w-full px-0.5 text-[11px] font-medium leading-tight text-foreground/85">
-            {item.label}
-          </span>
+        <Link href={item.href} aria-label={item.label} title={item.label} className={PHONE_TILE}>
+          <PhoneTileFace icon={item.icon} label={item.short ?? item.label} tone={item.tone ?? "brand"} />
         </Link>
         <Link
           href={item.href}
@@ -155,14 +186,13 @@ export function ActionPills({
           <item.icon className="h-3.5 w-3.5" />
           {item.label}
         </Link>
-        {/* A full row of its own on the phone grid — it is a button with its
-            own words, not a tile, and in a quarter-width cell it ran off the
-            screen. Inline again from sm up. */}
-        {after && afterHref === item.href ? <div className="col-span-full min-w-0 sm:contents">{after}</div> : null}
+        {/* The actions draw their own phone tile (their `phoneTile` prop), so
+            they sit in the grid like any other icon; inline pills from sm up. */}
+        {after && afterHref === item.href ? <div className="contents">{after}</div> : null}
         </Fragment>
       ))}
       {/* Unmatched href, or none given: the action still belongs in the row. */}
-      {after && !items.some((i) => i.href === afterHref) ? <div className="col-span-full min-w-0 sm:contents">{after}</div> : null}
+      {after && !items.some((i) => i.href === afterHref) ? <div className="contents">{after}</div> : null}
     </nav>
   );
 }

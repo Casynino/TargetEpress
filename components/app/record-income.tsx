@@ -1,7 +1,9 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
-import { Check, Plus, Search, X } from "lucide-react";
+import { Banknote, Check, Plus, Search, X } from "lucide-react";
+
+import { PHONE_TILE, PhoneTileFace } from "@/components/app/action-pills";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import {
@@ -85,6 +87,7 @@ export function RecordIncome({
   canChangeRate = false,
   canWaiveStorage = false,
   compact = false,
+  phoneTile = false,
 }: {
   accounts: ExpenseAccount[];
   /** Today's USD→TZS, shown so nobody has to guess what a dollar bill is worth. */
@@ -128,6 +131,8 @@ export function RecordIncome({
    * full words for anybody who wants them.
    */
   compact?: boolean;
+  /** Sitting in a row of shortcuts: on a phone it is one of the icons. */
+  phoneTile?: boolean;
 }) {
   /* A customer's money never lands in a lender's loan — whatever list this
      form is handed, the loan is not offered. */
@@ -435,17 +440,24 @@ export function RecordIncome({
 
   if (!open) {
     return (
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-9 rounded-lg"
-        title={t("Record Payment")}
-        onClick={() => setOpen(true)}
-      >
-        <Plus className="mr-1.5 h-4 w-4" />
-        {compact ? t("Payment") : t("Record Payment")}
-      </Button>
+      <>
+        {phoneTile ? (
+          <button type="button" onClick={() => setOpen(true)} aria-label={t("Record Payment")} className={PHONE_TILE}>
+            <PhoneTileFace icon={Banknote} label={t("Payment")} tone="success" />
+          </button>
+        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={phoneTile ? "hidden h-9 rounded-lg sm:inline-flex" : "h-9 rounded-lg"}
+          title={t("Record Payment")}
+          onClick={() => setOpen(true)}
+        >
+          <Plus className="mr-1.5 h-4 w-4" />
+          {compact ? t("Payment") : t("Record Payment")}
+        </Button>
+      </>
     );
   }
 

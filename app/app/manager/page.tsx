@@ -364,7 +364,7 @@ export default async function ManagerHome() {
             // Every queue in the business empties through this screen.
             {
               href: "/app/manager/approvals",
-              label: t(locale, "Pending approvals"),
+              label: t(locale, "Pending approvals"), short: t(locale, "Approvals"),
               icon: BadgeCheck,
               weight: "primary",
               tone: "brand",
@@ -373,7 +373,7 @@ export default async function ManagerHome() {
             // it off, that flight's books stay open.
             {
               href: "/app/manager/reconciliation",
-              label: t(locale, "Reconciliation"),
+              label: t(locale, "Reconciliation"), short: t(locale, "Reconcile"),
               icon: Scale,
               weight: "secondary",
               tone: "signal",
@@ -399,7 +399,7 @@ export default async function ManagerHome() {
               ? [
                   {
                     href: "/app/exceptions",
-                    label: t(locale, "Issues & Claims"),
+                    label: t(locale, "Issues & Claims"), short: t(locale, "Claims"),
                     icon: AlertTriangle,
                     tone: "warning" as const,
                   },
@@ -408,7 +408,7 @@ export default async function ManagerHome() {
             // Last, because it is read rather than started.
             {
               href: "/app/manager/reports",
-              label: t(locale, "Management report"),
+              label: t(locale, "Management report"), short: t(locale, "Report"),
               icon: FileText,
               tone: "info",
             },

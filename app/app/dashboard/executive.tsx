@@ -288,12 +288,12 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
       <ActionPills
         items={(
           [
-            { href: "/app/finance/transactions", label: t(locale, "The Ledger"), icon: Landmark, weight: "primary", tone: "signal" },
+            { href: "/app/finance/transactions", label: t(locale, "The Ledger"), short: t(locale, "Ledger"), icon: Landmark, weight: "primary", tone: "signal" },
             { href: "/app/finance/accounts", label: t(locale, "Accounts"), icon: Wallet, weight: "secondary", tone: "info" },
-            { href: "/app/finance/reports", label: t(locale, "Profit & loss"), icon: TrendingUp, tone: "success" },
+            { href: "/app/finance/reports", label: t(locale, "Profit & loss"), short: t(locale, "Profit"), icon: TrendingUp, tone: "success" },
             { href: linkFor(role, "/app/manager/approvals"), label: t(locale, "Approvals"), icon: ShieldCheck, tone: "brand" },
-            { href: "/app/exceptions", label: t(locale, "Issues & Claims"), icon: AlertTriangle, tone: "warning" },
-            { href: "/app/admin/deleted", label: t(locale, "Deleted records"), icon: Trash2, tone: "violet" },
+            { href: "/app/exceptions", label: t(locale, "Issues & Claims"), short: t(locale, "Claims"), icon: AlertTriangle, tone: "warning" },
+            { href: "/app/admin/deleted", label: t(locale, "Deleted records"), short: t(locale, "Deleted"), icon: Trash2, tone: "violet" },
           ] satisfies (Omit<ActionPill, "href"> & { href: string | undefined })[]
         ).flatMap((pill) => (pill.href ? [{ ...pill, href: pill.href }] : []))}
       />

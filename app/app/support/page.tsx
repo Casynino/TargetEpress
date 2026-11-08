@@ -388,6 +388,7 @@ export default async function SupportHome() {
              recording an income is the thing you do from it. It is an action,
              not a destination, so it cannot be a pill of its own. */
           afterHref="/app/collections"
+          afterTiles={(canTakePayments ? 1 : 0) + (canAskForCredit ? 1 : 0)}
           after={
             <>
               {canTakePayments ? (
@@ -399,13 +400,14 @@ export default async function SupportHome() {
                   canDiscount={can(user.role, "invoice.discount")}
                   canChangeRate={can(user.role, "invoice.rate")}
                   canWaiveStorage={can(user.role, "invoice.storage.waive")}
+                  phoneTile
                 />
               ) : null}
               {/* Asking for credit is an action too, and it was the one thing
                   in this row that walked you somewhere to press a second
                   button. The customer asking for time is on the phone now. */}
               {canAskForCredit ? (
-                <AskForCredit rate={rate} canApprove={false} />
+                <AskForCredit rate={rate} canApprove={false} phoneTile />
               ) : null}
             </>
           }
@@ -429,7 +431,7 @@ export default async function SupportHome() {
               ? [
                   {
                     href: "/app/finance/payments/new",
-                    label: t(locale, "Merge Payment"),
+                    label: t(locale, "Merge Payment"), short: t(locale, "Merge"),
                     icon: Layers,
                     tone: "success" as const,
                   },
@@ -449,13 +451,13 @@ export default async function SupportHome() {
             /* The two counter jobs, side by side: what landed, and the note that
                lets it leave. Somebody at the desk with a customer in front of
                them moves between exactly these two. */
-            { href: "/app/shipments", label: t(locale, "Arrived batches"), icon: PlaneTakeoff, tone: "brand" },
-            { href: "/app/finance/pickup-notes", label: t(locale, "Pickup notes"), icon: QrCode, tone: "success" },
+            { href: "/app/shipments", label: t(locale, "Arrived batches"), short: t(locale, "Arrived"), icon: PlaneTakeoff, tone: "brand" },
+            { href: "/app/finance/pickup-notes", label: t(locale, "Pickup notes"), short: t(locale, "Pickup"), icon: QrCode, tone: "success" },
             /* Issues & Claims last. It is the rarest of these and the one that
                starts a long job rather than answers a question — the row is
                ordered by how often a hand reaches for it mid-call, not by how
                serious the thing is when it happens. */
-            { href: "/app/exceptions", label: t(locale, "Issues & Claims"), icon: TriangleAlert, tone: "warning" },
+            { href: "/app/exceptions", label: t(locale, "Issues & Claims"), short: t(locale, "Claims"), icon: TriangleAlert, tone: "warning" },
           ]}
         />
       </div>

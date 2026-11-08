@@ -3,6 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 import { CalendarClock, Search, X } from "lucide-react";
 
+import { PHONE_TILE, PhoneTileFace } from "@/components/app/action-pills";
+
 import { CreditRequest } from "@/components/app/credit-request";
 import { IconHint } from "@/components/app/icon-hint";
 import { useT } from "@/components/app/locale-provider";
@@ -50,6 +52,7 @@ export function AskForCredit({
   rate,
   canApprove,
   compact = false,
+  phoneTile = false,
 }: {
   /** Today's USD→TZS, for bills that carry no frozen rate of their own. */
   rate: number | null;
@@ -63,6 +66,8 @@ export function AskForCredit({
   canApprove: boolean;
   /** One word instead of three — see RecordIncome's own compact mode. */
   compact?: boolean;
+  /** Sitting in a row of shortcuts: on a phone it is one of the icons. */
+  phoneTile?: boolean;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -95,11 +100,22 @@ export function AskForCredit({
 
   if (!open) {
     return (
+      <>
+      {phoneTile ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={canApprove ? t("Release on credit") : t("Ask for credit")}
+          className={PHONE_TILE}
+        >
+          <PhoneTileFace icon={CalendarClock} label={t("Credit")} tone="warning" />
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={() => setOpen(true)}
         title={canApprove ? t("Release on credit") : t("Ask for credit")}
-        className="focus-ring inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-lg border px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-warning"
+        className={`focus-ring ${phoneTile ? "hidden sm:inline-flex" : "inline-flex"} h-9 items-center gap-2 whitespace-nowrap rounded-lg border px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-warning`}
       >
         <CalendarClock className="h-4 w-4" />
         {compact
@@ -108,6 +124,7 @@ export function AskForCredit({
             ? t("Release on credit")
             : t("Ask for credit")}
       </button>
+      </>
     );
   }
 

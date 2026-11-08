@@ -6725,6 +6725,11 @@ const ZH: Record<string, string> = {
   "CEO": "首席执行官",
   "Director": "总监",
   "Developer": "开发者",
+  // One-word names under the phone shortcut icons.
+  "Claims": "索赔",
+  "Deleted": "已删除",
+  "Load": "装货",
+  "Follow-up": "跟进",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {
