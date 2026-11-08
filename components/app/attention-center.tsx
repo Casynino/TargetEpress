@@ -1,11 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { AlertTriangle, ChevronDown, ChevronRight, Info } from "lucide-react";
+import { AlertTriangle, ArrowRight, ChevronDown, ChevronRight, ChevronUp, Info } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
-import { SectionLabel } from "@/components/app/section-label";
 import { cn } from "@/lib/utils";
 
 export type AttnSeverity = "critical" | "warning" | "info";
@@ -88,122 +87,197 @@ export function AttentionCenter({
     return [...filtered].sort((a, b) => RANK[a.severity] - RANK[b.severity]);
   }, [items, active]);
 
-  const hidden = Math.max(0, shown.length - VISIBLE_ROWS);
-
   return (
     <div>
-      {/* The name lives in the rule above the panel, never inside it as well —
-          "NEEDS YOUR ATTENTION" over a card headed the same thing is one
-          heading printed twice, and it costs a whole row of height. See
-          SectionLabel. */}
-      <SectionLabel
-        count={items.length}
-        action={
-          reviewAll && items.length > 0
-            ? { href: reviewAll.href, label: reviewAll.label ?? t("Review all") }
-            : undefined
-        }
-      >
-        {t("Needs your attention")}
-      </SectionLabel>
+      {/* The heading, sized as on Super Drive (owner, 8 Nov 2026): small
+          spaced capitals and a cream count bubble, with this desk's own way
+          into the full list on the right. */}
+      <div className="mb-2.5 flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          {t("Needs your attention")}
+          {items.length > 0 ? (
+            <span className="rounded-full bg-[#fdebc4] px-2 py-0.5 text-[11px] font-bold tracking-normal text-[#3a2a00]">
+              {items.length}
+            </span>
+          ) : null}
+        </h2>
+        {reviewAll && items.length > 0 ? (
+          <Link
+            href={reviewAll.href}
+            className="focus-ring inline-flex shrink-0 items-center gap-1 rounded text-xs font-semibold text-brand hover:underline"
+          >
+            {reviewAll.label ?? t("Review all")}
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        ) : null}
+      </div>
 
-      <section className="panel overflow-hidden">
-      {items.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-muted-foreground">{empty}</p>
-      ) : (
-        <>
-          {/* Pills only earn their place once there is more than one kind of
-              problem — a single "All" pill is a label pretending to be a
-              control. */}
-          {groups.length > 1 ? (
-            <div className="flex flex-wrap gap-1.5 border-b px-3 py-1.5 sm:px-4">
-              {[["All", items.length] as [string, number], ...groups].map(
-                ([group, count]) => (
-                  <button
-                    key={group}
-                    type="button"
-                    onClick={() => setActive(group)}
-                    aria-pressed={active === group}
-                    className={cn(
-                      "focus-ring inline-flex h-6 items-center gap-1 rounded-full border px-2 text-[11px] font-medium transition-colors",
-                      active === group
-                        ? "border-brand bg-brand text-brand-foreground"
-                        : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
-                    )}
-                  >
-                    {t(group)}
-                    <span className="tabular-nums opacity-75">{count}</span>
-                  </button>
-                )
+      {/* Chips above the box, not inside it, and only once there is more
+          than one kind of problem — a single "All" chip is a label pretending
+          to be a control. */}
+      {items.length > 0 && groups.length > 1 ? (
+        <div className="mb-2 flex flex-wrap gap-1.5" role="tablist" aria-label={t("Filter")}>
+          {[["All", items.length] as [string, number], ...groups].map(([group, count]) => (
+            <button
+              key={group}
+              type="button"
+              role="tab"
+              aria-selected={active === group}
+              onClick={() => setActive(group)}
+              className={cn(
+                "focus-ring rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors",
+                active === group
+                  ? "bg-sky-500 text-white"
+                  : "bg-muted text-muted-foreground hover:text-foreground",
               )}
-            </div>
-          ) : null}
+            >
+              {t(group)} <span className="opacity-60">{count}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
 
-          {/* Fixed height, internal scroll. The panel is the same size whether
-              this desk has three problems or thirty — and small (owner, 8 Nov
-              2026): every row is 2.75rem, and the box shows exactly three of
-              them, so a fourth never peeks in half cut. */}
-          <ul className="max-h-[calc(3*2.75rem+2px)] divide-y overflow-y-auto overscroll-contain">
-            {shown.map((item) => {
-              const meta = SEVERITY[item.severity];
-              const Icon = meta.icon;
-              return (
-                <li key={item.id}>
-                  <Link
-                    href={item.href}
-                    className="focus-ring flex h-11 items-center gap-2.5 px-3 transition-colors hover:bg-muted/40 sm:px-4"
-                  >
-                    <span
-                      aria-hidden
-                      className={cn("h-6 w-0.5 shrink-0 rounded-full", meta.bar)}
-                    />
-                    <Icon className={cn("h-3.5 w-3.5 shrink-0", meta.text)} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-semibold leading-4">
-                        {item.label}
-                      </span>
-                      <span className="block truncate text-[11.5px] leading-4 text-muted-foreground">
-                        {item.detail}
-                      </span>
-                    </span>
-                    {item.value ? (
-                      /* Plain figures, not a typewriter face: on a phone the
-                         wide mono pushed the title down to a few letters. The
-                         second line (the dollars) waits for a wider screen. */
-                      <span className="max-w-[45%] shrink-0 text-right leading-4">
-                        <span className="block truncate text-xs font-semibold tabular-nums">
-                          {item.value}
+      <section className="panel overflow-hidden rounded-xl">
+        {items.length === 0 ? (
+          <p className="px-3.5 py-3 text-[13px] text-muted-foreground">{empty}</p>
+        ) : shown.length === 0 ? (
+          <p className="px-3.5 py-3 text-[13px] text-muted-foreground">
+            {t("Nothing under")} {t(active)}.
+          </p>
+        ) : (
+          <ShowRows key={active} total={shown.length}>
+            <ul className="divide-y">
+              {shown.map((item) => {
+                const meta = SEVERITY[item.severity];
+                const Icon = meta.icon;
+                return (
+                  <li key={item.id} data-row>
+                    <Link
+                      href={item.href}
+                      className="group flex items-center gap-2.5 px-3.5 py-2.5 transition-colors hover:bg-muted/40"
+                    >
+                      <span aria-hidden className={cn("h-7 w-[3px] shrink-0 rounded-full", meta.bar)} />
+                      <Icon className={cn("size-4 shrink-0", meta.text)} />
+                      <span className="min-w-0 flex-1">
+                        <span className="line-clamp-2 text-[13px] font-semibold leading-tight sm:line-clamp-1">
+                          {item.label}
                         </span>
-                        {item.valueSub ? (
-                          <span className="hidden truncate text-[11px] tabular-nums text-muted-foreground sm:block">
-                            {item.valueSub}
-                          </span>
-                        ) : null}
+                        <span className="block truncate text-[11px] leading-tight text-muted-foreground">
+                          {/* On a phone the figure rides in this line, so the
+                              title keeps the whole width. */}
+                          {item.value ? (
+                            <span className="font-medium text-foreground/80 sm:hidden">{item.value} · </span>
+                          ) : null}
+                          {item.detail}
+                        </span>
                       </span>
-                    ) : null}
-                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  </Link>
-                </li>
-              );
-            })}
-            {shown.length === 0 ? (
-              <li className="px-4 py-6 text-center text-sm text-muted-foreground">
-                {t("Nothing under")} {active}.
-              </li>
-            ) : null}
-          </ul>
-
-          {/* Said out loud, because a scroll area with no edge showing looks
-              like the whole list. */}
-          {hidden > 0 ? (
-            <p className="flex items-center justify-center gap-1.5 border-t px-4 py-1 text-[11px] text-muted-foreground">
-              <ChevronDown className="h-3 w-3" />
-              {t("scroll for")} {hidden} {t("more")}
-            </p>
-          ) : null}
-        </>
-      )}
+                      {item.value || item.valueSub ? (
+                        <span className="hidden shrink-0 text-right leading-tight sm:block">
+                          {item.value ? (
+                            <span className="block text-[13px] font-bold tabular-nums">{item.value}</span>
+                          ) : null}
+                          {item.valueSub ? (
+                            <span className="block text-[11px] tabular-nums text-muted-foreground">{item.valueSub}</span>
+                          ) : null}
+                        </span>
+                      ) : null}
+                      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </ShowRows>
+        )}
       </section>
+    </div>
+  );
+}
+
+/** Until the rows are measured (first paint) only the first three show, so nothing jumps. */
+const HIDE_AFTER_3 = "[&_[data-row]:nth-child(n+4)]:hidden";
+
+/**
+ * Shows the first three rows (elements marked `data-row`); the rest are a
+ * scroll away. The height is measured from the real rows, so exactly three fit
+ * on every screen even when a title wraps on a phone. The bar underneath says
+ * how many more there are and brings the next one up when pressed; at the end
+ * it says "Back to the top". A soft edge says the list goes on. Copied from
+ * Super Drive's panel (owner, 8 Nov 2026).
+ */
+function ShowRows({ total, children }: { total: number; children: ReactNode }) {
+  const t = useT();
+  const box = useRef<HTMLDivElement>(null);
+  const [max, setMax] = useState<number | null>(null);
+  const [below, setBelow] = useState(total - VISIBLE_ROWS);
+  const extra = total - VISIBLE_ROWS;
+  const parts = useCallback(() => {
+    const el = box.current!;
+    const rect = el.getBoundingClientRect();
+    const rows = [...el.querySelectorAll<HTMLElement>("[data-row]")];
+    const visibleBottom = rect.top + el.clientHeight;
+    return { el, rect, rows, hidden: rows.filter((r) => r.getBoundingClientRect().bottom > visibleBottom + 1) };
+  }, []);
+  useLayoutEffect(() => {
+    if (!box.current || extra <= 0) return;
+    const measure = () => {
+      const { el, rect, rows } = parts();
+      const last = rows[VISIBLE_ROWS - 1];
+      if (!last) return;
+      setMax(Math.ceil(last.getBoundingClientRect().bottom - (rect.top - el.scrollTop)));
+      requestAnimationFrame(() => box.current && setBelow(parts().hidden.length));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(box.current);
+    return () => ro.disconnect();
+  }, [extra, parts]);
+
+  if (extra <= 0) return <div>{children}</div>;
+  const step = () => {
+    const { el, rect, hidden } = parts();
+    if (!hidden.length) {
+      el.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    el.scrollTo({ top: el.scrollTop + hidden[0].getBoundingClientRect().top - rect.top, behavior: "smooth" });
+  };
+  return (
+    <div>
+      <div className="relative">
+        <div
+          ref={box}
+          className={cn("relative overflow-auto overscroll-contain [scrollbar-width:thin]", max === null && HIDE_AFTER_3)}
+          style={max === null ? undefined : { maxHeight: max }}
+          onScroll={() => setBelow(parts().hidden.length)}
+        >
+          {children}
+        </div>
+        <div
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute inset-x-0 bottom-0 h-3 bg-gradient-to-t from-black/25 to-transparent transition-opacity dark:from-black/50",
+            !below && "opacity-0",
+          )}
+        />
+      </div>
+      <button
+        type="button"
+        onClick={step}
+        className="flex w-full items-center justify-center gap-1 border-t py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+      >
+        {below ? (
+          <>
+            <ChevronDown className="size-3" />
+            {t("Scroll for")} {below} {t("more")}
+          </>
+        ) : (
+          <>
+            <ChevronUp className="size-3" />
+            {t("Back to the top")}
+          </>
+        )}
+      </button>
     </div>
   );
 }

@@ -6734,6 +6734,8 @@ const ZH: Record<string, string> = {
   "Dark": "深色",
   "Website": "网站",
   "Logout": "退出",
+  "Scroll for": "向下滚动查看",
+  "Back to the top": "回到顶部",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {
