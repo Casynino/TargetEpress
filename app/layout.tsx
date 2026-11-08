@@ -20,6 +20,14 @@ const sora = Sora({
   display: "swap",
 });
 
+// iPhone screens (points wide, high, pixel ratio) with a launch picture in
+// public/brand/splash: the home-screen app opens on the night ground and the
+// app tile instead of a white flash.
+const SPLASH = [
+  [440, 956, 3], [430, 932, 3], [428, 926, 3], [420, 912, 3], [414, 896, 3], [414, 896, 2], [414, 736, 3],
+  [402, 874, 3], [393, 852, 3], [390, 844, 3], [375, 812, 3], [375, 667, 2], [320, 568, 2],
+] as const;
+
 const mono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
@@ -50,6 +58,10 @@ export const metadata: Metadata = {
     capable: true,
     title: COMPANY.shortName,
     statusBarStyle: "black-translucent",
+    startupImage: SPLASH.map(([w, h, r]) => ({
+      url: `/brand/splash/${w}x${h}@${r}.png`,
+      media: `screen and (device-width: ${w}px) and (device-height: ${h}px) and (-webkit-device-pixel-ratio: ${r}) and (orientation: portrait)`,
+    })),
   },
   formatDetection: { telephone: false },
 };
@@ -65,6 +77,9 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: "#0f131c",
+  // Says the app draws its own night and day, so Samsung Internet, Huawei's
+  // browser and Chrome's "darken websites" leave its colours alone.
+  colorScheme: "dark light",
 };
 
 export default function RootLayout({

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Download, EllipsisVertical, Share, Smartphone, SquarePlus } from "lucide-react";
+import { Download, EllipsisVertical, Menu, Share, Smartphone, SquarePlus } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -39,8 +39,25 @@ if (typeof window !== "undefined") {
 
 const SEEN = "tx.installSeen";
 
+/**
+ * Which phone browser this is, because the way to the home screen differs:
+ * Safari's Share sheet, Chrome's ⋮ menu, Samsung Internet's and Huawei's ☰
+ * menu at the bottom, and WeChat or WhatsApp, whose own browser cannot add
+ * anything to the home screen at all (Guangzhou opens links in WeChat).
+ */
+type Browser = "safari" | "ios-other" | "chrome" | "samsung" | "huawei" | "android-other" | "in-app";
+
+function browserOf(ua: string, ios: boolean): Browser {
+  if (/MicroMessenger|WhatsApp|FBAN|FBAV|Instagram|Line\//i.test(ua)) return "in-app";
+  if (ios) return /CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua) ? "ios-other" : "safari";
+  if (/SamsungBrowser/i.test(ua)) return "samsung";
+  if (/HuaweiBrowser|HBPC|HarmonyOS|OpenHarmony|ArkWeb/i.test(ua)) return "huawei";
+  if (/Chrome\//i.test(ua) && !/EdgA|OPR|Firefox|YaBrowser|UCBrowser|MiuiBrowser|HeyTapBrowser/i.test(ua)) return "chrome";
+  return "android-other";
+}
+
 function useInstall() {
-  const [state, setState] = useState({ ready: false, phone: false, installed: false, ios: false, canPrompt: false });
+  const [state, setState] = useState({ ready: false, phone: false, installed: false, ios: false, browser: "chrome" as Browser, canPrompt: false });
   useEffect(() => {
     const check = () => {
       const standalone =
@@ -50,7 +67,7 @@ function useInstall() {
       const phone = window.matchMedia("(max-width: 1023px)").matches && window.matchMedia("(pointer: coarse)").matches;
       const ios =
         /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-      setState({ ready: true, phone, installed: standalone, ios, canPrompt: !!deferred });
+      setState({ ready: true, phone, installed: standalone, ios, browser: browserOf(navigator.userAgent, ios), canPrompt: !!deferred });
     };
     check();
     listeners.add(check);
@@ -81,7 +98,7 @@ function Step({ n, icon: Icon, children }: { n: number; icon?: typeof Share; chi
 
 function InstallSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useT();
-  const { ios, canPrompt, install } = useInstall();
+  const { ios, browser, canPrompt, install } = useInstall();
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="w-[calc(100%-2rem)] max-w-sm gap-0 rounded-2xl p-5">
@@ -108,27 +125,48 @@ function InstallSheet({ open, onClose }: { open: boolean; onClose: () => void })
         ) : (
           <>
             <ol className="mt-4 space-y-2">
-              {ios ? (
+              {browser === "in-app" ? (
                 <>
-                  <Step n={1} icon={Share}>{t("Tap Share at the bottom of Safari.")}</Step>
+                  <Step n={1} icon={EllipsisVertical}>{t("Tap ··· at the top right, then Open in browser.")}</Step>
+                  <Step n={2}>{ios ? t("In Safari, sign in and tap Get the full-screen app again.") : t("In the browser, sign in and tap Get the full-screen app again.")}</Step>
+                </>
+              ) : ios ? (
+                <>
+                  <Step n={1} icon={Share}>
+                    {browser === "safari" ? t("Tap Share at the bottom of Safari.") : t("Tap Share in the address bar or the menu.")}
+                  </Step>
                   <Step n={2} icon={SquarePlus}>{t("Scroll down and tap Add to Home Screen.")}</Step>
                   <Step n={3}>{t("Tap Add, then open Target Express from your home screen.")}</Step>
                 </>
+              ) : browser === "samsung" ? (
+                <>
+                  <Step n={1} icon={Menu}>{t("Tap the menu at the bottom right.")}</Step>
+                  <Step n={2}>{t("Tap Add page to, then Home screen.")}</Step>
+                  <Step n={3}>{t("Open Target Express from your home screen.")}</Step>
+                </>
+              ) : browser === "huawei" ? (
+                <>
+                  <Step n={1} icon={Menu}>{t("Tap the menu at the bottom of the browser.")}</Step>
+                  <Step n={2}>{t("Tap Add to home screen (it may be under Add to).")}</Step>
+                  <Step n={3}>{t("Open Target Express from your home screen.")}</Step>
+                </>
               ) : (
                 <>
-                  <Step n={1} icon={EllipsisVertical}>{t("Open the browser menu at the top right.")}</Step>
+                  <Step n={1} icon={browser === "chrome" ? EllipsisVertical : Menu}>
+                    {browser === "chrome" ? t("Open the browser menu at the top right.") : t("Open the browser menu.")}
+                  </Step>
                   <Step n={2}>{t("Tap Install app or Add to Home screen.")}</Step>
                   <Step n={3}>{t("Open Target Express from your home screen.")}</Step>
                 </>
               )}
             </ol>
-            {/* WeChat and WhatsApp open links in their own browser, which cannot
-                put anything on the home screen — Guangzhou opens it in WeChat. */}
-            <p className="mt-3 text-[12px] text-muted-foreground">
-              {ios
-                ? t("If this page opened inside WeChat or WhatsApp, open it in Safari first.")
-                : t("If this page opened inside WeChat or WhatsApp, open it in Chrome first.")}
-            </p>
+            {browser !== "in-app" ? (
+              <p className="mt-3 text-[12px] text-muted-foreground">
+                {ios
+                  ? t("If this page opened inside WeChat or WhatsApp, open it in Safari first.")
+                  : t("If this page opened inside WeChat or WhatsApp, open it in Chrome first.")}
+              </p>
+            ) : null}
             <Button variant="outline" className="mt-4 w-full" onClick={onClose}>
               {t("Got it")}
             </Button>

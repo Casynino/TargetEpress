@@ -15,24 +15,29 @@ import { COMPANY } from "@/lib/constants";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    id: "/app/dashboard",
     name: COMPANY.name,
     short_name: COMPANY.shortName,
     description: "Air freight from Guangzhou and Hong Kong to Dar es Salaam.",
     start_url: "/app/dashboard",
+    scope: "/",
     display: "standalone",
+    display_override: ["standalone"],
+    orientation: "any",
+    lang: "en",
+    categories: ["business", "productivity"],
     // Night, the app's default look: the launch screen and the status bar
     // match the first page instead of flashing white (owner, 9 Nov 2026).
     background_color: "#0f131c",
     theme_color: "#0f131c",
     icons: [
-      { src: "/brand/icon-192.png", sizes: "192x192", type: "image/png" },
-      { src: "/brand/icon-512.png", sizes: "512x512", type: "image/png" },
-      {
-        src: "/brand/icon-512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "maskable",
-      },
+      { src: "/brand/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/brand/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      // Android, Samsung and Huawei cut the home-screen icon to their own
+      // shape: a solid white square with the mark inside the safe circle, so
+      // nothing is clipped and the navy globe never lands on black.
+      { src: "/brand/icon-maskable-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+      { src: "/brand/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }
