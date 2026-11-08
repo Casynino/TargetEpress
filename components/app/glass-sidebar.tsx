@@ -698,7 +698,7 @@ function Footer({
           <DropdownMenuItem asChild className={item}>
             <Link href="/app/profile" onClick={onNavigate}>
               <UserRound className="size-3.5" />
-              {t("My profile")}
+              {t("Profile")}
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild className={item}>
@@ -712,9 +712,15 @@ function Footer({
               ) : null}
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem className={item} onSelect={() => setTheme(dark ? "light" : "dark")}>
+          {/* One word each in this menu (owner, 8 Nov 2026): the look it
+              switches TO, the language it switches TO. */}
+          <DropdownMenuItem
+            className={item}
+            aria-label={dark ? t("Switch to light mode") : t("Switch to dark mode")}
+            onSelect={() => setTheme(dark ? "light" : "dark")}
+          >
             {dark ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
-            {dark ? t("Switch to light mode") : t("Switch to dark mode")}
+            {dark ? t("Light") : t("Dark")}
           </DropdownMenuItem>
           {/* The other language, written in itself, so the person who cannot
               read the screen yet can still find it. */}
@@ -726,7 +732,7 @@ function Footer({
           <DropdownMenuItem asChild className={item}>
             <Link href="/" onClick={onNavigate}>
               <Globe className="size-3.5" />
-              {t("Main site")}
+              {t("Website")}
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
@@ -735,7 +741,7 @@ function Footer({
             onSelect={() => logoutForm.current?.requestSubmit()}
           >
             <LogOut className="size-3.5" />
-            {t("Sign out")}
+            {t("Logout")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

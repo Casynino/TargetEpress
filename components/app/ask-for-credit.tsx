@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { CalendarClock, Search, X } from "lucide-react";
 
-import { PHONE_TILE, PhoneTileFace } from "@/components/app/action-pills";
+import { PHONE_TILE, PILL, PhoneTileFace } from "@/components/app/action-pills";
 
 import { CreditRequest } from "@/components/app/credit-request";
 import { IconHint } from "@/components/app/icon-hint";
@@ -115,9 +115,13 @@ export function AskForCredit({
         type="button"
         onClick={() => setOpen(true)}
         title={canApprove ? t("Release on credit") : t("Ask for credit")}
-        className={`focus-ring ${phoneTile ? "hidden sm:inline-flex" : "inline-flex"} h-9 items-center gap-2 whitespace-nowrap rounded-lg border px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-warning`}
+        className={
+          phoneTile
+            ? `hidden whitespace-nowrap sm:inline-flex ${PILL}`
+            : "focus-ring inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-lg border px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-warning"
+        }
       >
-        <CalendarClock className="h-4 w-4" />
+        <CalendarClock className={phoneTile ? "h-4 w-4 text-warning" : "h-4 w-4"} strokeWidth={phoneTile ? 1.75 : 2} />
         {compact
           ? t("Credit")
           : canApprove

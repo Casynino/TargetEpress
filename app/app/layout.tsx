@@ -26,7 +26,9 @@ export default async function AppLayout({
   const user = await requireUser();
   const sections = navForRole(user.role);
 
-  const sidebarCollapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "rail";
+  // Folded to its rail of icons unless this person opened it themselves
+  // (owner, 8 Nov 2026): every desk first meets the page at full width.
+  const sidebarCollapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value !== "open";
 
   const [me, unread] = await Promise.all([
     prisma.user.findUnique({

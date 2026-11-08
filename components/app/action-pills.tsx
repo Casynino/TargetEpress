@@ -7,9 +7,9 @@ export type ActionPill = {
   label: string;
   icon: LucideIcon;
   /**
-   * "primary" and "secondary" are the two things this desk *does* — solid,
-   * unmissable. Everything else is a place it looks and gets a soft tint of
-   * its own colour instead.
+   * "primary" and "secondary" are the two things this desk *does*. They lead
+   * the row; since 8 Nov 2026 they are drawn like every other pill (the owner
+   * asked for one clean style), so this now only records the intent.
    */
   weight?: "primary" | "secondary" | "quiet";
   /**
@@ -20,8 +20,8 @@ export type ActionPill = {
    * own colour and keeps it everywhere — so the tone belongs to the
    * destination, not to the position in the row.
    *
-   * The two solid pills still lead. The rest are tinted rather than filled, so
-   * six colours can sit together without any of them shouting.
+   * It colours the glyph only — never a filled block — so six colours sit
+   * together without any of them shouting.
    */
   tone?: "brand" | "signal" | "success" | "warning" | "info" | "violet";
   /**
@@ -33,26 +33,15 @@ export type ActionPill = {
 };
 
 /**
- * Written out in full, never interpolated — Tailwind generates classes by
- * scanning source text, so `bg-${tone}` is a class that never exists.
+ * The pill on a computer: one calm style for every shortcut — a light surface,
+ * a fine neutral edge, the glyph in its own colour and plain text (owner, 8 Nov
+ * 2026: the solid red and blue blocks and the coloured outlines looked forced;
+ * the computer row should be as clean as the phone's icons). Colour lives in
+ * the glyph only, so it still marks the place without shouting.
  */
-const SOLID: Record<NonNullable<ActionPill["tone"]>, string> = {
-  brand: "bg-brand text-brand-foreground hover:bg-brand/90",
-  signal: "bg-signal text-signal-foreground hover:bg-signal/90",
-  success: "bg-success text-success-foreground hover:bg-success/90",
-  warning: "bg-warning text-warning-foreground hover:bg-warning/90",
-  info: "bg-info text-info-foreground hover:bg-info/90",
-  violet: "bg-chart-6 text-white hover:bg-chart-6/90",
-};
+export const PILL =
+  "focus-ring items-center gap-2 rounded-full border border-border/70 bg-card/60 px-3.5 py-1.5 text-sm font-medium text-foreground/85 shadow-sm transition-colors hover:border-border hover:bg-accent hover:text-foreground";
 
-const TINT: Record<NonNullable<ActionPill["tone"]>, string> = {
-  brand: "border-brand/30 bg-brand/10 text-brand hover:bg-brand/15",
-  signal: "border-signal/30 bg-signal/10 text-signal hover:bg-signal/15",
-  success: "border-success/30 bg-success/10 text-success hover:bg-success/15",
-  warning: "border-warning/30 bg-warning/10 text-warning hover:bg-warning/15",
-  info: "border-info/30 bg-info/10 text-info hover:bg-info/15",
-  violet: "border-chart-6/30 bg-chart-6/10 text-chart-6 hover:bg-chart-6/15",
-};
 
 /**
  * The handful of things a desk starts many times a day.
@@ -162,15 +151,9 @@ export function ActionPills({
         </Link>
         <Link
           href={item.href}
-          className={`focus-ring hidden items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors sm:inline-flex sm:text-sm ${
-            item.weight === "primary"
-              ? `border-transparent ${SOLID[item.tone ?? "brand"]}`
-              : item.weight === "secondary"
-                ? `border-transparent ${SOLID[item.tone ?? "signal"]}`
-                : TINT[item.tone ?? "brand"]
-          }`}
+          className={`hidden sm:inline-flex ${PILL}`}
         >
-          <item.icon className="h-3.5 w-3.5" />
+          <item.icon className={`h-4 w-4 ${GLYPH[item.tone ?? "brand"]}`} strokeWidth={1.75} />
           {item.label}
         </Link>
         {/* The actions draw their own phone tile (their `phoneTile` prop), so

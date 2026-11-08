@@ -18,7 +18,7 @@ import {
   formatShillingTotal,
   formatUsd,
 } from "@/lib/fx";
-import { figureSize, figureSizeSmall } from "@/lib/figure-size";
+import { figureSize, figureSizeSmall, fitFigure } from "@/lib/figure-size";
 import { t } from "@/lib/i18n";
 import { financeDashboard } from "@/lib/finance-dashboard";
 import { profitAndLoss, profitByDispatch, windowFor } from "@/lib/profit";
@@ -1151,11 +1151,16 @@ export default async function FinanceReportsPage({
                 tone: "text-destructive",
               },
             ].map((cell) => (
-              <div key={cell.k} className="bg-card px-4 py-3">
+              <div key={cell.k} className="bg-card px-4 py-3 [container-type:inline-size]">
                 <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {t(locale, cell.k)}
                 </dt>
-                <dd className={`mt-0.5 font-display text-base font-bold tabular-nums ${cell.tone}`}>
+                {/* Sized to its own box: a ten-digit shilling figure in a phone's
+                    half-width cell ran past the edge at a fixed size. */}
+                <dd
+                  className={`mt-0.5 whitespace-nowrap font-display font-bold tabular-nums ${cell.tone}`}
+                  style={{ fontSize: fitFigure(String(cell.v), 16) }}
+                >
                   {cell.v}
                 </dd>
               </div>
@@ -1206,11 +1211,14 @@ export default async function FinanceReportsPage({
               { k: "Office costs", v: exact(dash.expenses.officeLocal, dash.expenses.officeUsd) },
               { k: "Special", v: exact(dash.expenses.specialLocal, dash.expenses.specialUsd) },
             ].map((cell) => (
-              <div key={cell.k} className="bg-card px-4 py-3">
+              <div key={cell.k} className="bg-card px-4 py-3 [container-type:inline-size]">
                 <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {t(locale, cell.k)}
                 </dt>
-                <dd className="mt-0.5 font-display text-base font-bold tabular-nums text-destructive">
+                <dd
+                  className="mt-0.5 whitespace-nowrap font-display font-bold tabular-nums text-destructive"
+                  style={{ fontSize: fitFigure(String(cell.v), 16) }}
+                >
                   {cell.v}
                 </dd>
               </div>
@@ -1284,11 +1292,16 @@ export default async function FinanceReportsPage({
                 tone: dash.position.netUsd < 0 ? "text-destructive" : "text-success",
               },
             ].map((cell) => (
-              <div key={cell.k} className="bg-card px-4 py-3">
+              <div key={cell.k} className="bg-card px-4 py-3 [container-type:inline-size]">
                 <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {t(locale, cell.k)}
                 </dt>
-                <dd className={`mt-0.5 font-display text-base font-bold tabular-nums ${cell.tone}`}>
+                {/* Sized to its own box: a ten-digit shilling figure in a phone's
+                    half-width cell ran past the edge at a fixed size. */}
+                <dd
+                  className={`mt-0.5 whitespace-nowrap font-display font-bold tabular-nums ${cell.tone}`}
+                  style={{ fontSize: fitFigure(String(cell.v), 16) }}
+                >
                   {cell.v}
                 </dd>
               </div>

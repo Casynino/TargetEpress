@@ -184,13 +184,6 @@ export default async function PickupNotesPage({
         )}
       />
 
-      {/* What THIS tab is for. The department's name and its
-          actions are in the shared header above; this is the one
-          sentence that belongs to the list below. */}
-      <p className="mb-4 -mt-2 max-w-3xl text-sm text-muted-foreground">
-        {t(locale, "The warehouse's authority to hand cargo over. Issued by Finance the moment a bill is settled — everyone else prints it and rings the customer.")}
-      </p>
-
       {/* Answering "what is still waiting" without pressing anything. */}
       <div className="mb-4 flex flex-wrap gap-2">
         {/* Filters, drawn as filters — see FilterChip. These used to wear the
@@ -255,8 +248,10 @@ export default async function PickupNotesPage({
       </div>
 
       {active === "ACTIVE" && oldest ? (
-        <p className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
-          <Clock className="h-3.5 w-3.5 text-warning" />
+        /* One sentence that wraps as a sentence. As a flex row each piece
+           became its own narrow column on a phone. */
+        <p className="mb-4 text-xs text-muted-foreground">
+          <Clock className="mr-1.5 inline h-3.5 w-3.5 -translate-y-px text-warning" />
           {t(locale, "Oldest has been waiting")}{" "}
           <span className="font-medium text-foreground">
             {formatRelative(oldest, locale)}
@@ -345,7 +340,7 @@ export default async function PickupNotesPage({
                       <span className="flex items-center gap-1.5">
                         <Badge
                           variant={TONE[note.status]}
-                          className="text-xs font-normal"
+                          className="shrink-0 whitespace-nowrap text-xs font-normal"
                         >
                           {note.status === "ACTIVE"
                             ? t(locale, "not collected")

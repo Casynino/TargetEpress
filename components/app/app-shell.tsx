@@ -49,7 +49,7 @@ export function AppShell({
   } | null;
   /** Drives the count on the bell, and the dot on your own name. */
   unreadNotifications?: number;
-  /** The desktop sidebar folded to its rail, as this person last left it. */
+  /** The desktop sidebar folded to its rail: the default, until this person opens it. */
   sidebarCollapsed?: boolean;
   children: React.ReactNode;
 }) {

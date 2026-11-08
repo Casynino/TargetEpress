@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { Banknote, Check, Plus, Search, X } from "lucide-react";
 
-import { PHONE_TILE, PhoneTileFace } from "@/components/app/action-pills";
+import { PHONE_TILE, PILL, PhoneTileFace } from "@/components/app/action-pills";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import {
@@ -446,17 +446,24 @@ export function RecordIncome({
             <PhoneTileFace icon={Banknote} label={t("Payment")} tone="success" />
           </button>
         ) : null}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className={phoneTile ? "hidden h-9 rounded-lg sm:inline-flex" : "h-9 rounded-lg"}
-          title={t("Record Payment")}
-          onClick={() => setOpen(true)}
-        >
-          <Plus className="mr-1.5 h-4 w-4" />
-          {compact ? t("Payment") : t("Record Payment")}
-        </Button>
+        {phoneTile ? (
+          <button type="button" title={t("Record Payment")} onClick={() => setOpen(true)} className={`hidden sm:inline-flex ${PILL}`}>
+            <Banknote className="h-4 w-4 text-success" strokeWidth={1.75} />
+            {compact ? t("Payment") : t("Record Payment")}
+          </button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 rounded-lg"
+            title={t("Record Payment")}
+            onClick={() => setOpen(true)}
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            {compact ? t("Payment") : t("Record Payment")}
+          </Button>
+        )}
       </>
     );
   }

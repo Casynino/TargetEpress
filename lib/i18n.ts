@@ -6729,6 +6729,11 @@ const ZH: Record<string, string> = {
   "Claims": "索赔",
   "Deleted": "已删除",
   "Load": "装货",
+  // One-word items in the person's menu.
+  "Light": "浅色",
+  "Dark": "深色",
+  "Website": "网站",
+  "Logout": "退出",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

@@ -1542,7 +1542,12 @@ export default async function LedgerPage({
                         phone anyway, so squeezing this column there buys nothing
                         and costs the codes, which is what somebody standing at the
                         counter with a label in their hand is reading. */}
-                    <TableCell className="min-w-[17rem] max-w-[30rem] py-2.5">
+                    {/* `max-w-0` with `w-full`: the column takes the room the
+                        others leave and its title truncates as it says it
+                        should. Without it the one-line title set the column's
+                        least width at 30rem and pushed the money columns off
+                        a laptop's screen. */}
+                    <TableCell className="w-full min-w-[14rem] max-w-0 py-2.5">
                       {/* Stretched over the whole row: a ledger line is one
                           thing, so anywhere on it opens it. Still a single
                           real link, so it is keyboard-reachable and can be
