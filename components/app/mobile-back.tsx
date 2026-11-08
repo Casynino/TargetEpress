@@ -67,6 +67,9 @@ const ROOTS = new Set([
   "/app",
   "/app/dashboard",
   "/app/manager",
+  // The Developer's own home: "back to Home" from it only bounced off the
+  // dashboard's redirect and landed on the same page.
+  "/app/developer",
   "/app/support",
   "/app/receive",
   "/app/release",
