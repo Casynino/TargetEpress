@@ -2,7 +2,7 @@
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, ChevronDown, ChevronRight, ChevronUp, Info } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, ChevronUp, Info } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
 import { cn } from "@/lib/utils";
@@ -104,10 +104,9 @@ export function AttentionCenter({
         {reviewAll && items.length > 0 ? (
           <Link
             href={reviewAll.href}
-            className="focus-ring inline-flex shrink-0 items-center gap-1 rounded text-xs font-semibold text-brand hover:underline"
+            className="focus-ring shrink-0 rounded text-[11px] font-medium text-brand transition-colors hover:text-brand/80"
           >
             {reviewAll.label ?? t("Review all")}
-            <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         ) : null}
       </div>
@@ -137,7 +136,8 @@ export function AttentionCenter({
         </div>
       ) : null}
 
-      <section className="panel overflow-hidden rounded-xl">
+      {/* Flat, as on ORA and Super Drive: a hairline shadow, not a raised card. */}
+      <section className="overflow-hidden rounded-xl border bg-card shadow-[0_1px_2px_rgba(15,27,45,0.04)]">
         {items.length === 0 ? (
           <p className="px-3.5 py-3 text-[13px] text-muted-foreground">{empty}</p>
         ) : shown.length === 0 ? (
@@ -146,7 +146,7 @@ export function AttentionCenter({
           </p>
         ) : (
           <ShowRows key={active} total={shown.length}>
-            <ul className="divide-y">
+            <ul className="divide-y divide-border/60">
               {shown.map((item) => {
                 const meta = SEVERITY[item.severity];
                 const Icon = meta.icon;
@@ -171,17 +171,19 @@ export function AttentionCenter({
                           {item.detail}
                         </span>
                       </span>
+                      {/* One line, as on ORA: the figure, and its quieter partner
+                          (dollars, or how old) beside it rather than under it. */}
                       {item.value || item.valueSub ? (
-                        <span className="hidden shrink-0 text-right leading-tight sm:block">
+                        <span className="hidden shrink-0 whitespace-nowrap text-right leading-tight sm:block">
                           {item.value ? (
-                            <span className="block text-[13px] font-bold tabular-nums">{item.value}</span>
+                            <span className="text-[13px] font-bold tabular-nums">{item.value}</span>
                           ) : null}
                           {item.valueSub ? (
-                            <span className="block text-[11px] tabular-nums text-muted-foreground">{item.valueSub}</span>
+                            <span className="ml-1.5 text-[11px] tabular-nums text-muted-foreground">{item.valueSub}</span>
                           ) : null}
                         </span>
                       ) : null}
-                      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5" />
                     </Link>
                   </li>
                 );
@@ -264,7 +266,7 @@ function ShowRows({ total, children }: { total: number; children: ReactNode }) {
       <button
         type="button"
         onClick={step}
-        className="flex w-full items-center justify-center gap-1 border-t py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+        className="flex w-full items-center justify-center gap-1 border-t border-border/60 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
       >
         {below ? (
           <>
