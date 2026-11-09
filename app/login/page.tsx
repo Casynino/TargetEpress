@@ -153,21 +153,23 @@ export default async function LoginPage({
               </div>
 
               <LoginGate startOpen={revoked === "1"}>
-              <div className="relative w-full max-md:max-w-sm max-md:text-left md:mx-0">
+              <div className="relative w-full max-md:max-w-[19rem] max-md:text-left md:mx-0">
               <div
                 aria-hidden
-                className="absolute -inset-px rounded-3xl bg-gradient-to-b from-white/25 via-white/5 to-transparent"
+                className="absolute -inset-px rounded-3xl bg-gradient-to-b from-white/25 via-white/5 to-transparent max-md:hidden"
               />
-              <div className="relative rounded-3xl border border-white/10 bg-white/[0.06] p-7 max-md:bg-[#0c1222]/90 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:p-8">
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white/55">
+              {/* On a phone the pop-up is the same quiet frosted card as "Use it like an app": small, frosted night navy
+                  (solid enough that the logo behind never shows through the fields), a title and the form (owner, 9 Nov 2026: "clean, small, nice and well in size"). */}
+              <div className="relative rounded-3xl border border-white/10 bg-white/[0.06] p-7 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:p-8 max-md:rounded-2xl max-md:border-white/[0.09] max-md:bg-[#070b16]/85 max-md:px-4 max-md:pb-4 max-md:pt-3.5 max-md:shadow-[0_18px_44px_-22px_rgba(0,0,0,0.75)] max-md:backdrop-blur-2xl max-md:backdrop-saturate-150">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white/55 max-md:hidden">
                   <Lock className="h-3 w-3" />
                   {t(locale, "Staff access only")}
                 </span>
 
-                <h2 className="mt-4 font-display text-3xl font-bold tracking-tight">
+                <h2 className="mt-4 font-display text-3xl font-bold tracking-tight max-md:mt-0 max-md:font-sans max-md:text-[14px] max-md:font-medium max-md:leading-7">
                   {t(locale, "Sign in")}
                 </h2>
-                <p className="mt-2 text-sm text-white/55">
+                <p className="mt-2 text-sm text-white/55 max-md:hidden">
                   {t(
                     locale,
                     "Your dashboard opens automatically based on your department."
@@ -179,7 +181,7 @@ export default async function LoginPage({
                     were working. Saying so is the difference between "sign in
                     again" and "the system is broken". */}
                 {revoked === "1" ? (
-                  <p className="mt-6 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-xs leading-relaxed text-amber-100">
+                  <p className="mt-6 max-md:mt-3 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-xs leading-relaxed text-amber-100">
                     {dev === "1"
                       ? t(
                           locale,
@@ -192,11 +194,11 @@ export default async function LoginPage({
                   </p>
                 ) : null}
 
-                <div className="mt-7">
+                <div className="mt-7 max-md:mt-3">
                   <LoginForm callbackUrl={callbackUrl} />
                 </div>
 
-                <p className="mt-6 flex items-start gap-2 border-t border-white/10 pt-5 text-xs leading-relaxed text-white/45">
+                <p className="mt-6 flex items-start gap-2 border-t border-white/10 pt-5 text-xs leading-relaxed text-white/45 max-md:mt-4 max-md:border-white/[0.06] max-md:pt-3 max-md:text-[11px] max-md:text-white/40">
                   <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/35" />
                   {t(
                     locale,

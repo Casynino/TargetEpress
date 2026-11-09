@@ -57,21 +57,21 @@ export function LoginGate({ startOpen = false, children }: { startOpen?: boolean
         className={cn(
           "md:contents",
           open
-            ? "max-md:fixed max-md:inset-0 max-md:z-50 max-md:flex max-md:items-start max-md:justify-center max-md:overflow-y-auto max-md:bg-[#02040a]/60 max-md:p-4 max-md:pt-[max(12vh,calc(env(safe-area-inset-top)+1rem))] max-md:backdrop-blur-[3px]"
+            ? "max-md:fixed max-md:inset-0 max-md:z-50 max-md:flex max-md:items-start max-md:justify-center max-md:overflow-y-auto max-md:bg-[#02040a]/45 max-md:p-5 max-md:backdrop-blur-[2px] max-md:pt-[max(14vh,calc(env(safe-area-inset-top)+1rem))]"
             : "max-md:hidden",
         )}
         onClick={(e) => e.target === e.currentTarget && setOpen(false)}
       >
-        <div className={cn("relative w-full", open && "login-pop md:animate-none")}>
+        <div className={cn("relative w-full max-md:max-w-[19rem]", open && "login-pop md:animate-none")}>
           {children}
           {open ? (
             <button
               type="button"
               onClick={() => setOpen(false)}
               aria-label={t("Close")}
-              className="absolute right-3 top-3 grid size-9 place-items-center rounded-full text-white/60 transition-colors hover:bg-white/10 hover:text-white md:hidden"
+              className="absolute right-2.5 top-2.5 grid size-7 place-items-center rounded-full text-white/40 transition-colors hover:bg-white/10 hover:text-white/80 md:hidden"
             >
-              <X className="size-4" />
+              <X className="size-3.5" />
             </button>
           ) : null}
         </div>
