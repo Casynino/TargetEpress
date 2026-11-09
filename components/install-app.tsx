@@ -88,7 +88,7 @@ function useInstall() {
 }
 
 /** One step: a plain line — a small red number, the words, the button it names drawn faint at the end. No box, no disc
-    (owner, 9 Nov 2026, holding up the Hao Labs card: "clean, small, and match the background"). */
+    (owner, 9 Nov 2026, holding up the ZELab card: "clean, small, and match the background"). */
 function Step({ n, icon: Icon, children }: { n: number; icon?: typeof Share; children: React.ReactNode }) {
   return (
     <li className="flex items-center gap-3 py-2.5 text-[13px] leading-snug text-white/75">

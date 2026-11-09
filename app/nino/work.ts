@@ -84,9 +84,9 @@ export const LIVE: Project[] = [
     tags: ["Brand site", "Orders & stock", "Credit control", "Partner portal"],
   },
   {
-    name: "Hao Labs", kind: "Stock, settlement & commission system",
-    line: "Every box that leaves the Lab is on the system — who took it, what came back, what is still owed, and what each rep has earned. We keep Tanzania stocked.",
-    url: "https://hao-stock.vercel.app", domain: "hao-stock.vercel.app", shot: "/nino/haolabs-1109.webp",
+    name: "ZELab", kind: "Stock, settlement & commission system",
+    line: "Every box that leaves ZELab is on the system — who took it, what came back, what is still owed, and what each rep has earned. We keep Tanzania stocked.",
+    url: "https://www.zelab.site", domain: "zelab.site", shot: "/nino/haolabs-1109.webp",
     tags: ["Stock control", "Settlements", "Commission", "Reports"],
   },
   {

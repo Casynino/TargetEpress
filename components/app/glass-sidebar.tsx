@@ -240,7 +240,7 @@ export function GlassSidebar({
   const activeHref = activeHrefFor(sections, pathname);
   const folds = useFolds(sections, activeHref);
   const rail = mode === "desktop" && collapsed;
-  // The phone's drawer, as on Hao Stock (owner, 8 Nov 2026): read close up
+  // The phone's drawer, as on ZELab (owner, 8 Nov 2026): read close up
   // with no room to spare, so it runs a size smaller and shows its pages.
   const sheet = mode === "sheet";
 

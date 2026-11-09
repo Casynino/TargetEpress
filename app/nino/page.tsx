@@ -37,7 +37,7 @@ const ext = { target: "_blank", rel: "noopener noreferrer" } as const;
  * the sign-in page, opening a full page of all the projects). Copied from Vegas's /nino. Dark, editorial, the work
  * first: every live project with a screenshot of its real home page, then what's coming and the code, what I do, what
  * I build with, and how to reach me. English only by design: it is Nino's own page, for people looking to hire him.
- * Owner, 9 Nov 2026 (as on the Lab OS): the inside wears the system's own colours, so the ground is the sign-in
+ * Owner, 9 Nov 2026 (as on ZELab): the inside wears the system's own colours, so the ground is the sign-in
  * scene's night navy, the accent Target's signal red, the solid pills the sign-in button's blue, headings in Sora.
  */
 export default function NinoPage() {

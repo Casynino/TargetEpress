@@ -284,7 +284,7 @@ export async function ExecutiveDashboard({ role }: { role: Role }) {
           owner's word. The money has its own card further down. */}
       <PageBanner />
 
-      {/* 2. The owner's own pages, straight under the banner as on Hao Stock. */}
+      {/* 2. The owner's own pages, straight under the banner as on ZELab. */}
       <ActionPills
         items={(
           [
