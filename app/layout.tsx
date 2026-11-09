@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Sora, JetBrains_Mono } from "next/font/google";
 
 import { ThemeColor } from "@/components/theme-color";
+import { RegisterSW } from "@/components/register-sw";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { COMPANY } from "@/lib/constants";
@@ -104,6 +105,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <ThemeColor />
+          <RegisterSW />
           <div aria-hidden className="status-strip" />
           <ToastProvider>{children}</ToastProvider>
         </ThemeProvider>
