@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Download, EllipsisVertical, Menu, Share, Smartphone, SquarePlus } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ArrowDown, Download, EllipsisVertical, Menu, Share, SquarePlus } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -13,8 +14,10 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
  * bars and no page can hide them; the only full-screen version is the one put
  * on the home screen. So a phone that has not done that gets a small sheet
  * saying how — one tap on Android, three steps on an iPhone. It opens by itself
- * once after sign-in, and any time from the sign-in page. Nothing shows once
- * the app is installed. Copied from Super Drive.
+ * after sign-in on every visit until the app is installed (owner: push people to
+ * install it), and any time from the sign-in page. Nothing shows once the app is
+ * installed. Copied from Super Drive. Kept small (owner, 9 Nov 2026, holding up
+ * the iPhone's: "it should be small and nice, don't make it big").
  */
 
 type InstallEvent = Event & {
@@ -37,7 +40,8 @@ if (typeof window !== "undefined") {
   });
 }
 
-const SEEN = "tx.installSeen";
+/* "Got it" is remembered for this visit only, so the next visit asks again until the app is installed. */
+const ASKED = "tx.installAsked";
 
 /**
  * Which phone browser this is, because the way to the home screen differs:
@@ -86,12 +90,12 @@ function useInstall() {
 
 function Step({ n, icon: Icon, children }: { n: number; icon?: typeof Share; children: React.ReactNode }) {
   return (
-    <li className="flex items-center gap-3 rounded-xl bg-muted/60 px-3 py-2.5 text-[13px] leading-snug">
-      <span className="grid size-5 shrink-0 place-items-center rounded-full bg-brand text-[11px] font-semibold text-brand-foreground">
+    <li className="flex items-center gap-2.5 rounded-lg bg-muted/60 px-2.5 py-2 text-[12.5px] leading-snug">
+      <span className="grid size-4 shrink-0 place-items-center rounded-full bg-brand text-[10px] font-bold text-brand-foreground">
         {n}
       </span>
       <span className="min-w-0 flex-1">{children}</span>
-      {Icon ? <Icon className="size-4 shrink-0 text-muted-foreground" /> : null}
+      {Icon ? <Icon className="size-3.5 shrink-0 text-muted-foreground" /> : null}
     </li>
   );
 }
@@ -101,30 +105,25 @@ function InstallSheet({ open, onClose }: { open: boolean; onClose: () => void })
   const { ios, browser, canPrompt, install } = useInstall();
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="w-[calc(100%-2rem)] max-w-sm gap-0 rounded-2xl p-5">
-        <div className="flex items-center gap-3 pr-6">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#0b1a33] text-white">
-            <Smartphone className="size-5" />
-          </span>
-          <div>
-            <DialogTitle className="text-base font-semibold">{t("Use it like an app")}</DialogTitle>
-            <DialogDescription className="text-[13px]">{t("Full screen, no browser bar, its own icon.")}</DialogDescription>
-          </div>
+      <DialogContent className="w-[calc(100%-2.5rem)] max-w-[19.5rem] gap-0 rounded-2xl p-4 [&>button:last-child]:right-3 [&>button:last-child]:top-3">
+        <div className="pr-6">
+          <DialogTitle className="text-[15px] font-semibold leading-tight">{t("Use it like an app")}</DialogTitle>
+          <DialogDescription className="mt-0.5 text-[12px]">{t("Full screen, no browser bar, its own icon.")}</DialogDescription>
         </div>
 
         {canPrompt ? (
-          <div className="mt-4 flex flex-col gap-2">
-            <Button variant="brand" onClick={async () => { if (await install()) onClose(); }}>
-              <Download className="mr-2 size-4" />
+          <div className="mt-3.5 flex flex-col gap-1.5">
+            <Button variant="brand" className="h-9 text-[13px]" onClick={async () => { if (await install()) onClose(); }}>
+              <Download className="mr-1.5 size-3.5" />
               {t("Install the app")}
             </Button>
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="outline" className="h-8 text-[12.5px]" onClick={onClose}>
               {t("Not now")}
             </Button>
           </div>
         ) : (
           <>
-            <ol className="mt-4 space-y-2">
+            <ol className="mt-3 space-y-1.5">
               {browser === "in-app" ? (
                 <>
                   <Step n={1} icon={EllipsisVertical}>{t("Tap ··· at the top right, then Open in browser.")}</Step>
@@ -161,30 +160,44 @@ function InstallSheet({ open, onClose }: { open: boolean; onClose: () => void })
               )}
             </ol>
             {browser !== "in-app" ? (
-              <p className="mt-3 text-[12px] text-muted-foreground">
+              <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
                 {ios
                   ? t("If this page opened inside WeChat or WhatsApp, open it in Safari first.")
                   : t("If this page opened inside WeChat or WhatsApp, open it in Chrome first.")}
               </p>
             ) : null}
-            <Button variant="outline" className="mt-4 w-full" onClick={onClose}>
+            <Button variant="outline" className="mt-3 h-8 w-full text-[12.5px]" onClick={onClose}>
               {t("Got it")}
             </Button>
           </>
         )}
       </DialogContent>
+      {/* No iPhone can install in one tap, so the next best thing: while the card is open in Safari, a small arrow
+          bounces over the toolbar where Share actually is, so nobody hunts for it. Drawn outside the card (whose
+          centring transform would carry a fixed child with it) and above the dialog's dimmed backdrop. */}
+      {open && ios && browser === "safari" && !canPrompt && typeof document !== "undefined"
+        ? createPortal(
+            <div aria-hidden className="pointer-events-none fixed inset-x-0 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-[60] flex justify-center">
+              <span className="flex animate-bounce flex-col items-center gap-0.5 text-[10px] font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] motion-reduce:animate-none">
+                {t("Share")}
+                <ArrowDown className="size-3.5 text-signal" />
+              </span>
+            </div>,
+            document.body,
+          )
+        : null}
     </Dialog>
   );
 }
 
-/** Opens by itself once, a moment after a phone's browser opens the app (never when it is installed); closing it is remembered. */
+/** Opens by itself a moment after a phone's browser opens the app, on every visit until it is installed; "Got it" holds for this visit. */
 export function InstallPrompt() {
   const { ready, phone, installed } = useInstall();
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!ready || !phone || installed) return;
     try {
-      if (window.localStorage.getItem(SEEN)) return;
+      if (window.sessionStorage.getItem(ASKED)) return;
     } catch {
       return;
     }
@@ -194,7 +207,7 @@ export function InstallPrompt() {
   const close = () => {
     setOpen(false);
     try {
-      window.localStorage.setItem(SEEN, "1");
+      window.sessionStorage.setItem(ASKED, "1");
     } catch {
       /* private window: it simply asks again next time */
     }
