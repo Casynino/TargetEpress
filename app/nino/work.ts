@@ -9,13 +9,14 @@ export type Project = {
   /** What it is, in a few words. */
   kind: string;
   line: string;
-  url: string;
+  /** Missing for a private project: the card is not a link. */
+  url?: string;
   /** Shown on the card: the address without https:// and www. */
   domain: string;
   shot?: string;
   tags: string[];
   code?: string;
-  status?: "soon";
+  status?: "soon" | "private";
 };
 
 const GH = "https://github.com/Casynino";
@@ -29,10 +30,10 @@ export const LIVE: Project[] = [
     tags: ["Tracking", "Bookings", "Staff system", "Two warehouses"],
   },
   {
-    name: "Super Drive Oil", kind: "Sales, stock & credit system",
-    line: "Sales, stock and credit in one place. Every sale, payment and stock movement is recorded against the person who made it.",
+    name: "Super Drive Oil", kind: "Lubricants · sales & distribution",
+    line: "Sales, stock and credit in one place — counter sales, cash and daily closing, credit control, and every movement recorded against the person who made it.",
     url: "https://super-drive-os.vercel.app", domain: "super-drive-os.vercel.app", shot: "/nino/superdrive.webp",
-    tags: ["Live stock", "Cash and daily closing", "Credit control"],
+    tags: ["Point of sale", "Credit control", "Stock", "Daily closing"],
   },
   {
     name: "Vegas Luxury Hotel", kind: "Hotel website & operations system",
@@ -99,25 +100,65 @@ export const LIVE: Project[] = [
 /** Launching soon, and the code on GitHub. */
 export const MORE: Project[] = [
   {
-    name: "BlueWave Cargo", kind: "Sourcing & cargo · China → Tanzania", status: "soon",
+    name: 'BlueWave Cargo', kind: 'Sourcing & cargo · China → Tanzania', status: 'soon',
     line: "Explore China's markets and factories, source products, plan a business visit and ship home from the Foshan warehouse.",
-    url: "https://bluewave-cargo.vercel.app", domain: "bluewave-cargo.vercel.app", shot: "/nino/bluewave.webp",
-    tags: ["Sourcing", "Cargo"],
+    url: 'https://bluewave-cargo.vercel.app', domain: 'bluewave-cargo.vercel.app', shot: '/nino/bluewave.webp',
+    tags: ['Sourcing', 'Cargo'],
   },
   {
-    name: "Budgeta", kind: "Personal & business finance app",
-    line: "Income, expenses, budgets, savings and debts in one place, with a financial health score. Mambo ya pesa.",
-    url: `${GH}/Budgeta-App`, domain: "github.com/Casynino/Budgeta-App", tags: ["React", "Charts"], code: `${GH}/Budgeta-App`,
+    name: 'Swift Cargo OS', kind: 'Sea freight system · China → Tanzania',
+    line: 'The next Swift Cargo: public website, customer portal and the internal operations system for loose cargo and full containers, in one Next.js application.',
+    url: `${GH}/swiftcargo`, domain: 'github.com/Casynino/swiftcargo', tags: ['Next.js', 'Customer portal', 'Operations'], code: `${GH}/swiftcargo`,
   },
   {
-    name: "Power Popote", kind: "Powerbank rental platform",
-    line: "Rent and return a powerbank by scanning a QR code — live rentals, M-Pesa payments, fees worked out automatically, an admin dashboard.",
-    url: `${GH}/PowerPopote`, domain: "github.com/Casynino/PowerPopote", tags: ["QR", "M-Pesa", "Dashboard"], code: `${GH}/PowerPopote`,
+    name: 'ORA OS', kind: 'Distribution & impact platform · Ora Pads',
+    line: 'One login for four roles — admin, warehouse, partner and sales rep. Every stock movement is an immutable ledger entry, and orders are request-based: no cart, no public prices.',
+    url: `${GH}/ORA-OS`, domain: 'github.com/Casynino/ORA-OS', tags: ['Inventory ledger', 'Roles', 'Next.js'], code: `${GH}/ORA-OS`,
   },
   {
-    name: "OBTC", kind: "Procurement & logistics · China → Africa",
+    name: 'Ora Pads TZ store', kind: 'E-commerce & inventory · Ora Pads', status: 'private',
+    line: 'An online marketplace with retail and wholesale buying, cart, checkout and order tracking, and an admin dashboard for stock, orders and sales reports.',
+    domain: '', tags: ['React', 'Node.js', 'MongoDB'],
+  },
+  {
+    name: 'St Anne Marie Schools OS', kind: 'School management system · Tanzania', status: 'private',
+    line: 'The day-to-day running of a school: students, payments, marks, attendance and reports, built for St Anne Marie Schools.',
+    domain: '', tags: ['Next.js', 'PostgreSQL', 'Reports'],
+  },
+  {
+    name: 'IPATE', kind: 'School app · parents, teachers & administrators', status: 'private',
+    line: "A mobile app where parents follow their children's progress, attendance, homework and notices, and meet teachers without having to be at school.",
+    domain: '', tags: ['Mobile app', 'Education'],
+  },
+  {
+    name: 'Inino', kind: 'Apple devices supplier · mobile app', status: 'private',
+    line: 'A mobile app for an Apple devices supplier, with its own Laravel back end.',
+    domain: '', tags: ['Flutter', 'Laravel', 'Mobile app'],
+  },
+  {
+    name: 'Civlily', kind: 'Stock management', status: 'private',
+    line: 'A stock management web app: a React front end on Vercel with its own API and cookie sign-in.',
+    domain: '', tags: ['React', 'Stock'],
+  },
+  {
+    name: 'Nexlume', kind: 'Studio website', status: 'private',
+    line: 'A studio website for web development, graphics and UX design work.',
+    domain: '', tags: ['Web', 'Graphics', 'UX'],
+  },
+  {
+    name: 'Budgeta', kind: 'Personal & business finance app',
+    line: 'Income, expenses, budgets, savings and debts in one place, with a financial health score. Mambo ya pesa.',
+    url: 'https://budgeta-app.vercel.app', domain: 'budgeta-app.vercel.app', tags: ['React', 'Charts'], code: `${GH}/Budgeta-App`,
+  },
+  {
+    name: 'Power Popote', kind: 'Powerbank rental platform',
+    line: 'Rent and return a powerbank by scanning a QR code — live rentals, M-Pesa payments, fees worked out automatically, an admin dashboard.',
+    url: `${GH}/PowerPopote`, domain: 'github.com/Casynino/PowerPopote', tags: ['QR', 'M-Pesa', 'Dashboard'], code: `${GH}/PowerPopote`,
+  },
+  {
+    name: 'OBTC', kind: 'Procurement & logistics · China → Africa',
     line: "Wuhan OBTC's site: end-to-end sourcing, procurement and shipping for businesses in Africa.",
-    url: `${GH}/OBTC-site`, domain: "github.com/Casynino/OBTC-site", tags: ["Company site"], code: `${GH}/OBTC-site`,
+    url: 'https://obtc-site.vercel.app', domain: 'obtc-site.vercel.app', tags: ['Company site'], code: `${GH}/OBTC-site`,
   },
 ];
 

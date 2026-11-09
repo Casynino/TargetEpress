@@ -8,7 +8,9 @@
   --card: rgb(255 255 255 / 0.03);
   --accent: #e74049;
   --accent-ink: #fff5f3;
-  background: #0a0a0b;
+  --fill: #5694e6; /* the sign-in button's blue — solid pills */
+  --fill-ink: #06101f;
+  background: #05070f;
   color: var(--ink);
   color-scheme: dark;
 }
@@ -21,7 +23,7 @@
   pointer-events: none;
   background:
     radial-gradient(60rem 36rem at 12% -8%, rgb(231 64 73 / 0.11), transparent 60%),
-    radial-gradient(50rem 30rem at 100% 0%, rgb(74 144 226 / 0.08), transparent 60%);
+    radial-gradient(50rem 30rem at 100% 0%, rgb(86 148 230 / 0.10), transparent 60%);
   z-index: 0;
 }
 .page::after {
@@ -34,11 +36,19 @@
   z-index: 0;
 }
 
+/* Headings in Target's own display face, as on the sign-in page. */
+.page h1,
+.page h2,
+.page h3,
+.wordmark {
+  font-family: var(--font-display), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
 .wordmark {
   font-weight: 900;
-  letter-spacing: -0.075em;
+  letter-spacing: -0.06em;
   line-height: 0.78;
-  font-size: clamp(5rem, 22vw, 11rem);
+  font-size: clamp(4.5rem, 20vw, 11rem); /* Sora is wider than the original face: keep NINO. inside a phone's gutters */
   margin-left: -0.04em;
 }
 
@@ -75,7 +85,7 @@
   transition: border-color 0.3s ease, background-color 0.3s ease, transform 0.5s cubic-bezier(0.2, 0.7, 0.1, 1);
 }
 .card:hover {
-  border-color: rgb(244 244 241 / 0.22);
+  border-color: rgb(231 64 73 / 0.32);
   background-color: rgb(255 255 255 / 0.05);
 }
 .arrow {
@@ -89,4 +99,10 @@
   .rise, .pulse { animation: none; }
   .shot img, .card, .arrow { transition: none; }
   .card:hover .shot img { transform: none; }
+}
+
+/* the solid pills and the main button: the sign-in button's blue */
+.fill {
+  background: var(--fill);
+  color: var(--fill-ink);
 }

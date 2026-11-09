@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  ArrowDown, ArrowLeft, ArrowUpRight, Bot, CreditCard, Database, FolderGit2, Globe, LayoutDashboard, Mail, MapPin, MessageCircle,
+  ArrowDown, ArrowLeft, ArrowUpRight, Bot, CreditCard, Database, FolderGit2, Globe, LayoutDashboard, Lock, Mail, MapPin, MessageCircle,
   PenTool, Plug, Smartphone, TrendingUp, Workflow, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: { type: "profile", title: TITLE, description: DESCRIPTION, images: [{ url: "/nino/og.jpg", width: 1200, height: 630, alt: "NINO. — Systems scientist & developer", type: "image/jpeg" }] },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: ["/nino/og.jpg"] },
 };
-export const viewport: Viewport = { themeColor: "#0a0a0b" };
+export const viewport: Viewport = { themeColor: "#05070f" };
 
 const ICONS: Record<(typeof EXPERTISE)[number]["icon"], LucideIcon> = {
   Smartphone, Globe, PenTool, LayoutDashboard, Plug, CreditCard, MapPin, Bot, Database, Workflow, TrendingUp,
@@ -29,7 +29,7 @@ const wa = (digits: string) => `https://wa.me/${digits}?text=${HELLO}`;
 
 const wrap = "relative z-10 mx-auto w-full max-w-[1320px] px-4 sm:px-8";
 const eyebrow = "font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--faint)]";
-const focus = "outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0b]";
+const focus = "outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#05070f]";
 const ext = { target: "_blank", rel: "noopener noreferrer" } as const;
 
 /**
@@ -37,12 +37,14 @@ const ext = { target: "_blank", rel: "noopener noreferrer" } as const;
  * the sign-in page, opening a full page of all the projects). Copied from Vegas's /nino. Dark, editorial, the work
  * first: every live project with a screenshot of its real home page, then what's coming and the code, what I do, what
  * I build with, and how to reach me. English only by design: it is Nino's own page, for people looking to hire him.
+ * Owner, 9 Nov 2026 (as on the Lab OS): the inside wears the system's own colours, so the ground is the sign-in
+ * scene's night navy, the accent Target's signal red, the solid pills the sign-in button's blue, headings in Sora.
  */
 export default function NinoPage() {
   return (
     <div data-nino-page className={cn(s.page, "relative min-h-svh flex-1 overflow-x-clip font-sans antialiased")}>
       {/* ── Top bar ── */}
-      <header className="sticky top-0 z-30 border-b border-[var(--rule)] bg-[#0a0a0b]/75 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-[var(--rule)] bg-[#05070f]/75 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
         <div className={cn(wrap, "flex h-14 items-center justify-between gap-4")}>
           <a href="#top" className={cn("text-lg font-black tracking-[-0.06em]", focus)}>NINO<span className="text-[var(--accent)]">.</span></a>
           <nav aria-label="Page" className="flex items-center gap-1 sm:gap-2">
@@ -50,7 +52,7 @@ export default function NinoPage() {
               <ArrowLeft className="size-3.5" aria-hidden="true" />Target Express
             </Link>
             <a href="#work" className={cn("hidden h-9 items-center rounded-full px-3 text-[13px] text-[var(--muted)] transition-colors hover:text-[var(--ink)] md:inline-flex", focus)}>Work</a>
-            <a href="#contact" className={cn("inline-flex h-9 items-center rounded-full bg-[var(--accent)] px-4 text-[13px] font-semibold text-[var(--accent-ink)] transition hover:brightness-110", focus)}>Work with me</a>
+            <a href="#contact" className={cn("inline-flex h-9 items-center rounded-full px-4 text-[13px] font-semibold transition hover:brightness-110", s.fill, focus)}>Work with me</a>
           </nav>
         </div>
       </header>
@@ -71,7 +73,7 @@ export default function NinoPage() {
                 <span className="text-[var(--muted)]"> Then I design the system and build it around that.</span>
               </p>
               <div className="mt-6 flex flex-wrap items-center gap-2.5">
-                <a href="#work" className={cn("inline-flex h-11 items-center gap-2 rounded-full bg-[var(--ink)] px-5 text-sm font-semibold text-[#0a0a0b] transition hover:bg-white", focus)}>
+                <a href="#work" className={cn("inline-flex h-11 items-center gap-2 rounded-full bg-[var(--ink)] px-5 text-sm font-semibold text-[#05070f] transition hover:bg-white", focus)}>
                   See the work<ArrowDown className="size-4" aria-hidden="true" />
                 </a>
                 <a href={wa(CONTACT.whatsapp[0].digits)} {...ext} className={cn("inline-flex h-11 items-center gap-2 rounded-full border border-[var(--rule)] px-5 text-sm font-semibold transition-colors hover:border-[var(--muted)]", focus)}>
@@ -108,7 +110,7 @@ export default function NinoPage() {
 
         {/* ── Coming next & on GitHub ── */}
         <section aria-labelledby="more-title" className={cn(wrap, "py-10 sm:py-16")}>
-          <SectionHead id="more-title" index="02" title="Coming next & on GitHub" note="Launching soon, and code you can read." />
+          <SectionHead id="more-title" index="02" title="More work" note="Launching soon, code you can read, and private projects." />
           <ul className="mt-10 grid gap-4 sm:gap-5 md:grid-cols-2">
             {MORE.map((p) => <MoreCard key={p.name} p={p} />)}
           </ul>
@@ -152,7 +154,7 @@ export default function NinoPage() {
 
         {/* ── Work with me ── */}
         <section id="contact" aria-labelledby="contact-title" className={cn(wrap, "scroll-mt-20 pb-16 pt-10 sm:pb-24 sm:pt-16")}>
-          <div className="relative overflow-hidden rounded-[2rem] border border-[var(--rule)] bg-[linear-gradient(140deg,rgb(198_244_50/0.10),rgb(255_255_255/0.02)_45%)] p-6 sm:p-12">
+          <div className="relative overflow-hidden rounded-[2rem] border border-[var(--rule)] bg-[linear-gradient(140deg,rgb(231_64_73/0.15),rgb(86_148_230/0.08)_45%,rgb(255_255_255/0.02))] p-6 sm:p-12">
             <p className={eyebrow}>04 — Work with me</p>
             <h2 id="contact-title" className="mt-4 max-w-3xl text-balance text-4xl font-black leading-[0.95] tracking-[-0.045em] sm:text-6xl">
               Have something to build? Let&apos;s talk<span className="text-[var(--accent)]">.</span>
@@ -163,8 +165,8 @@ export default function NinoPage() {
             </p>
             <ul className="mt-9 grid gap-3 md:grid-cols-3">
               <li>
-                <a href={`mailto:${CONTACT.email}?subject=${encodeURIComponent("A project for Nino")}`} className={cn(s.card, "group flex h-full items-center gap-4 rounded-2xl border border-[var(--rule)] bg-[#0a0a0b]/60 p-4 sm:p-5", focus)}>
-                  <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[var(--ink)] text-[#0a0a0b]"><Mail className="size-[18px]" aria-hidden="true" /></span>
+                <a href={`mailto:${CONTACT.email}?subject=${encodeURIComponent("A project for Nino")}`} className={cn(s.card, "group flex h-full items-center gap-4 rounded-2xl border border-[var(--rule)] bg-[#05070f]/60 p-4 sm:p-5", focus)}>
+                  <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[var(--ink)] text-[#05070f]"><Mail className="size-[18px]" aria-hidden="true" /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-xs text-[var(--faint)]">Email</span>
                     <span className="block truncate text-[15px] font-semibold">{CONTACT.email}</span>
@@ -174,7 +176,7 @@ export default function NinoPage() {
               </li>
               {CONTACT.whatsapp.map((w) => (
                 <li key={w.place}>
-                  <a href={wa(w.digits)} {...ext} className={cn(s.card, "group flex h-full items-center gap-4 rounded-2xl border border-[var(--rule)] bg-[#0a0a0b]/60 p-4 sm:p-5", focus)}>
+                  <a href={wa(w.digits)} {...ext} className={cn(s.card, "group flex h-full items-center gap-4 rounded-2xl border border-[var(--rule)] bg-[#05070f]/60 p-4 sm:p-5", focus)}>
                     <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#25D366] text-[#06351b]"><MessageCircle className="size-[18px]" aria-hidden="true" /></span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-xs text-[var(--faint)]">WhatsApp · {w.place}</span>
@@ -237,7 +239,7 @@ function ProjectCard({ p, featured, priority }: { p: Project; featured?: boolean
         </div>
         <div className={cn("flex flex-1 flex-col px-1.5 pb-1.5", featured && "xl:justify-between xl:py-2 xl:pr-3")}>
           <div>
-            {featured && <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-[var(--accent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent-ink)]"><MapPin className="size-3" aria-hidden="true" />You are here</p>}
+            {featured && <p className={cn(s.fill, "mb-3 inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[11px] font-semibold")}><MapPin className="size-3" aria-hidden="true" />You are here</p>}
             <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-[var(--faint)]">{p.kind}</p>
             <h3 className={cn("mt-2 flex items-start justify-between gap-3 font-bold tracking-[-0.03em]", featured ? "text-3xl sm:text-4xl" : "text-xl")}>
               {p.name}
@@ -257,30 +259,48 @@ function ProjectCard({ p, featured, priority }: { p: Project; featured?: boolean
 
 function MoreCard({ p }: { p: Project }) {
   const soon = p.status === "soon";
+  const priv = !p.url;
+  const box = cn(s.card, "group flex h-full gap-4 rounded-3xl border border-[var(--rule)] bg-[var(--card)] p-5 sm:items-center sm:gap-5 sm:p-6", p.shot ? "flex-col sm:flex-row" : "flex-row items-start");
+  const inner = (
+    <>
+      {p.shot ? (
+        <div className="sm:w-[44%] sm:shrink-0"><Shot p={p} sizes="(min-width: 768px) 260px, 100vw" /></div>
+      ) : (
+        <span className="grid size-12 shrink-0 place-items-center rounded-2xl border border-[var(--rule)] bg-white/[0.04]">
+          {priv
+            ? <Lock className="size-5 text-[var(--accent)]" strokeWidth={1.6} aria-hidden="true" />
+            : <FolderGit2 className="size-5 text-[var(--accent)]" strokeWidth={1.6} aria-hidden="true" />}
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="flex flex-wrap items-center gap-2 font-mono text-[10.5px] uppercase tracking-[0.18em] text-[var(--faint)]">
+          {soon && <span className={cn(s.fill, "rounded-full px-2 py-0.5 font-sans text-[10.5px] font-semibold normal-case tracking-normal")}>Launching soon</span>}
+          {p.kind}
+        </p>
+        <h3 className="mt-2 flex items-start justify-between gap-3 text-xl font-bold tracking-[-0.03em]">
+          {p.name}
+          {!priv && <ArrowUpRight className={cn(s.arrow, "mt-1 size-5 shrink-0 text-[var(--faint)] group-hover:text-[var(--accent)]")} aria-hidden="true" />}
+        </h3>
+        <p className="mt-2 text-pretty text-[14.5px] leading-relaxed text-[var(--muted)]">{p.line}</p>
+        {priv && p.tags.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            {p.tags.map((t) => <span key={t} className="rounded-full border border-[var(--rule)] px-2.5 py-1 text-[11.5px] text-[var(--muted)]">{t}</span>)}
+          </div>
+        )}
+        <p className="mt-3 truncate font-mono text-[11px] text-[var(--faint)]">{priv ? "Private project" : soon ? `Preview · ${p.domain}` : p.domain}</p>
+      </div>
+    </>
+  );
   return (
     <li>
-      <a href={p.url} {...ext} className={cn(s.card, "group flex h-full gap-4 rounded-3xl border border-[var(--rule)] bg-[var(--card)] p-5 sm:items-center sm:gap-5 sm:p-6", p.shot ? "flex-col sm:flex-row" : "flex-row items-start", focus)}>
-        {p.shot ? (
-          <div className="sm:w-[44%] sm:shrink-0"><Shot p={p} sizes="(min-width: 768px) 260px, 100vw" /></div>
-        ) : (
-          <span className="grid size-12 shrink-0 place-items-center rounded-2xl border border-[var(--rule)] bg-white/[0.04]">
-            <FolderGit2 className="size-5 text-[var(--accent)]" strokeWidth={1.6} aria-hidden="true" />
-          </span>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="flex flex-wrap items-center gap-2 font-mono text-[10.5px] uppercase tracking-[0.18em] text-[var(--faint)]">
-            {soon && <span className="rounded-full bg-[var(--accent)] px-2 py-0.5 font-sans text-[10.5px] font-semibold normal-case tracking-normal text-[var(--accent-ink)]">Launching soon</span>}
-            {p.kind}
-          </p>
-          <h3 className="mt-2 flex items-start justify-between gap-3 text-xl font-bold tracking-[-0.03em]">
-            {p.name}
-            <ArrowUpRight className={cn(s.arrow, "mt-1 size-5 shrink-0 text-[var(--faint)] group-hover:text-[var(--accent)]")} aria-hidden="true" />
-          </h3>
-          <p className="mt-2 text-pretty text-[14.5px] leading-relaxed text-[var(--muted)]">{p.line}</p>
-          <p className="mt-3 truncate font-mono text-[11px] text-[var(--faint)]">{soon ? `Preview · ${p.domain}` : p.domain}</p>
-        </div>
-        <span className="sr-only"> (opens in a new tab)</span>
-      </a>
+      {priv ? (
+        <div className={box}>{inner}</div>
+      ) : (
+        <a href={p.url} {...ext} className={cn(box, focus)}>
+          {inner}
+          <span className="sr-only"> (opens in a new tab)</span>
+        </a>
+      )}
     </li>
   );
 }
