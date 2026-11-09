@@ -210,18 +210,16 @@ export default async function LoginPage({
           </div>
         </main>
 
-        {/* A phone keeps two quiet lines at the foot of the scene. */}
+        {/* A phone keeps two quiet lines at the foot of the scene: the motto, then the system and who built it. The
+            company's name is already the logo above, so it is not said again here (owner, 9 Nov 2026). */}
         <div className="fixed inset-x-0 bottom-[max(0.5rem,env(safe-area-inset-bottom))] flex flex-col items-center md:hidden">
-          <p className="text-center text-[11px] tracking-wide text-white/45">
-            {COMPANY.name} · <span className="font-semibold text-signal/80">KWETU MUDA NI MALI</span>
-          </p>
-          <DevelopedBy label={t(locale, "Developed by")} />
+          <p className="text-center text-[11px] font-semibold tracking-wide text-signal/80">KWETU MUDA NI MALI</p>
+          <SystemBy system={t(locale, "Air Cargo System")} by={t(locale, "by")} />
         </div>
 
         <footer className="hidden flex-wrap items-end justify-between gap-x-10 gap-y-4 p-6 text-xs leading-relaxed text-white/35 sm:px-10 md:flex">
           <div className="flex flex-wrap items-center gap-x-5">
-            <p className="font-medium text-white/60">{COMPANY.name}</p>
-            <DevelopedBy label={t(locale, "Developed by")} />
+            <SystemBy system={t(locale, "Air Cargo System")} by={t(locale, "by")} />
           </div>
           <div className="flex flex-wrap gap-x-8 gap-y-1">
             <p>🇨🇳 {COMPANY.chinaAddress}</p>
@@ -235,18 +233,22 @@ export default async function LoginPage({
 }
 
 /**
- * Who built the system — one quiet line to Nino's page and work, as on the Vegas site. Plain words, no pill or
- * badge around them (owner, 9 Nov 2026: "clean like before").
+ * Who built the system — the system's name and "by Nino", one quiet line to Nino's page and work, worded like the other
+ * systems' sign-in pages ("The Distribution Chain by Nino", "Pad Distribution Chain by Nino", "Sea Freight System by
+ * Nino"). Plain text, no pill or badge around it, and never "Developed by" (owner, 9 Nov 2026).
  */
-function DevelopedBy({ label }: { label: string }) {
+function SystemBy({ system, by }: { system: string; by: string }) {
   return (
-    <Link
-      href="/nino"
-      className="focus-ring group inline-flex min-h-9 items-center gap-1 rounded text-xs text-white/45 transition-colors hover:text-white"
-    >
-      {label}{" "}
-      <span className="font-semibold text-white/75 transition-colors group-hover:text-[#e74049]">Nino</span>
-      <ArrowUpRight className="size-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
-    </Link>
+    <p className="flex flex-wrap items-center justify-center gap-x-1.5 text-xs text-white/45">
+      <span>{system}</span>
+      <Link
+        href="/nino"
+        aria-label={`${system} ${by} Nino`}
+        className="focus-ring group inline-flex min-h-9 items-center gap-1 rounded transition-colors hover:text-white"
+      >
+        {by} <span className="font-semibold text-white/75 transition-colors group-hover:text-[#e74049]">Nino</span>
+        <ArrowUpRight className="size-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
+      </Link>
+    </p>
   );
 }

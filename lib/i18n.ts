@@ -6758,7 +6758,7 @@ const ZH: Record<string, string> = {
   "Tap the menu at the bottom of the browser.": "点按浏览器底部的菜单。",
   "Tap Add to home screen (it may be under Add to).": "点按“添加到桌面”（可能在“添加到”里面）。",
   "Open the browser menu.": "打开浏览器菜单。",
-  "Developed by": "开发者",
+  "Air Cargo System": "航空货运系统",
   "Scroll for": "向下滚动查看",
   "Back to the top": "回到顶部",
 };
