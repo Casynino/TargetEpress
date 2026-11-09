@@ -32,7 +32,7 @@ export const LIVE: Project[] = [
   {
     name: "Super Drive Oil", kind: "Oil distribution · sales, stock & credit",
     line: "Every carton that comes in, goes out or is still owed is on the system — counter sales, the warehouse and pickup notes, cash and daily closing, Winga and credit — each one recorded against the person who made it.",
-    url: "https://super-drive-os.vercel.app", domain: "super-drive-os.vercel.app", shot: "/nino/superdrive.webp",
+    url: "https://super-drive-os.vercel.app", domain: "super-drive-os.vercel.app", shot: "/nino/superdrive-1109.webp",
     tags: ["Point of sale", "Warehouse pickups", "Daily closing", "Credit & Winga"],
   },
   {
@@ -44,19 +44,19 @@ export const LIVE: Project[] = [
   {
     name: "Swift Cargo", kind: "Sea freight · China → Tanzania",
     line: "Loose cargo and full containers from Guangzhou to Dar es Salaam — track a shipment, work out the CBM and see the price.",
-    url: "https://www.swiftcargotz.com", domain: "swiftcargotz.com", shot: "/nino/swiftcargo.webp",
+    url: "https://www.swiftcargotz.com", domain: "swiftcargotz.com", shot: "/nino/swiftcargo-1109.webp",
     tags: ["Tracking", "Price calculator"],
   },
   {
     name: "AiTransit Cargo", kind: "Air cargo · China → Zambia",
     line: "Air cargo to Lusaka with duty included, supplier payments in RMB and money exchange — one team on both ends of the route.",
-    url: "https://ai-transit-rouge.vercel.app", domain: "ai-transit-rouge.vercel.app", shot: "/nino/aitransit.webp",
+    url: "https://ai-transit-rouge.vercel.app", domain: "ai-transit-rouge.vercel.app", shot: "/nino/aitransit-1109.webp",
     tags: ["Tracking", "Payments"], code: `${GH}/AiTransit`,
   },
   {
     name: "EA Trade Link SIS", kind: "Education & business · China ↔ Tanzania",
     line: "Scholarships, visas, sourcing, factory visits and currency exchange — one platform for studying and doing business in China.",
-    url: "https://www.eatradelink.com", domain: "eatradelink.com", shot: "/nino/eatradelink.webp",
+    url: "https://www.eatradelink.com", domain: "eatradelink.com", shot: "/nino/eatradelink-1109.webp",
     tags: ["Platform", "Accounts"], code: `${GH}/EA-Trade-link-SIS-`,
   },
   {
@@ -78,21 +78,21 @@ export const LIVE: Project[] = [
     tags: ["Company site"],
   },
   {
-    name: "ORA Pads", kind: "Social-impact brand",
-    line: "Menstrual health, education and period dignity for every girl and woman across Tanzania.",
-    url: "https://www.ora.co.tz", domain: "ora.co.tz", shot: "/nino/ora.webp",
-    tags: ["Brand site", "Community"],
+    name: "ORA Pads", kind: "Social-impact brand · website & system",
+    line: "Menstrual health, education and period dignity for every girl and woman across Tanzania — the brand's website, and the system behind it: orders, stock, sales reps, finance and credit for the team and its partners.",
+    url: "https://www.ora.co.tz", domain: "ora.co.tz", shot: "/nino/ora-1109.webp",
+    tags: ["Brand site", "Orders & stock", "Credit control", "Partner portal"],
   },
   {
     name: "Hao Labs", kind: "Stock, settlement & commission system",
     line: "Every box that leaves the Lab is on the system — who took it, what came back, what is still owed, and what each rep has earned. We keep Tanzania stocked.",
-    url: "https://hao-stock.vercel.app", domain: "hao-stock.vercel.app", shot: "/nino/haolabs.webp",
+    url: "https://hao-stock.vercel.app", domain: "hao-stock.vercel.app", shot: "/nino/haolabs-1109.webp",
     tags: ["Stock control", "Settlements", "Commission", "Reports"],
   },
   {
     name: "Reckless Lab", kind: "Fashion label & store",
     line: "A laboratory where fashion rules are broken to make something alive.",
-    url: "https://www.recklesslab.shop", domain: "recklesslab.shop", shot: "/nino/reckless.webp",
+    url: "https://www.recklesslab.shop", domain: "recklesslab.shop", shot: "/nino/reckless-1109.webp",
     tags: ["Store", "Brand"],
   },
 ];
