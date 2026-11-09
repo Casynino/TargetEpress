@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Lock, Plane, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Lock, Plane, ShieldCheck } from "lucide-react";
 import type { Metadata, Viewport } from "next";
 
 import { LocaleProvider } from "@/components/app/locale-provider";
@@ -71,7 +71,9 @@ export default async function LoginPage({
           </Link>
         </header>
 
-        <main className="flex flex-1 px-6 pb-16 pt-[6vh] sm:px-10 md:items-center md:py-10">
+        {/* svh, not vh: on a phone vh is the screen with the browser's bars
+            hidden, so vh spacing pushed the words down onto the routes. */}
+        <main className="flex flex-1 px-6 pb-24 pt-[3svh] sm:px-10 md:items-center md:py-10">
           <div className="mx-auto grid grid-cols-1 w-full max-w-6xl items-start gap-12 md:items-center lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
             {/* The claim, on the side the routes are flying through. Hidden on
                 a phone: the form is why anybody opened this page, and it should
@@ -142,7 +144,7 @@ export default async function LoginPage({
                 <p className="login-up mt-1.5 text-[13px] font-bold uppercase tracking-[0.22em] text-brand" style={{ "--rd": "0.12s" } as React.CSSProperties}>
                   Express Air Cargo
                 </p>
-                <p className="login-up mt-[14vh] font-display text-[22px] font-semibold tracking-tight" style={{ "--rd": "0.25s" } as React.CSSProperties}>
+                <p className="login-up mt-[10svh] font-display text-[22px] font-semibold tracking-tight" style={{ "--rd": "0.25s" } as React.CSSProperties}>
                   {t(locale, "Welcome on board")}
                 </p>
                 <p className="login-up mb-6 mt-1.5 max-w-[17rem] text-balance text-sm text-white/65" style={{ "--rd": "0.32s" } as React.CSSProperties}>
@@ -208,13 +210,19 @@ export default async function LoginPage({
           </div>
         </main>
 
-        {/* A phone keeps one quiet line at the foot of the scene. */}
-        <p className="fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] text-center text-[11px] tracking-wide text-white/45 md:hidden">
-          {COMPANY.name} · <span className="font-semibold text-signal/80">KWETU MUDA NI MALI</span>
-        </p>
+        {/* A phone keeps two quiet lines at the foot of the scene. */}
+        <div className="fixed inset-x-0 bottom-[max(0.5rem,env(safe-area-inset-bottom))] flex flex-col items-center md:hidden">
+          <p className="text-center text-[11px] tracking-wide text-white/45">
+            {COMPANY.name} · <span className="font-semibold text-signal/80">KWETU MUDA NI MALI</span>
+          </p>
+          <DevelopedBy label={t(locale, "Developed by")} />
+        </div>
 
         <footer className="hidden flex-wrap items-end justify-between gap-x-10 gap-y-4 p-6 text-xs leading-relaxed text-white/35 sm:px-10 md:flex">
-          <p className="font-medium text-white/60">{COMPANY.name}</p>
+          <div className="flex flex-wrap items-center gap-x-5">
+            <p className="font-medium text-white/60">{COMPANY.name}</p>
+            <DevelopedBy label={t(locale, "Developed by")} />
+          </div>
           <div className="flex flex-wrap gap-x-8 gap-y-1">
             <p>🇨🇳 {COMPANY.chinaAddress}</p>
             <p>🇹🇿 {COMPANY.darAddress}</p>
@@ -223,5 +231,19 @@ export default async function LoginPage({
       </div>
       </LocaleProvider>
     </div>
+  );
+}
+
+/** Who built the system — one quiet line to Nino's page and work, as on the Vegas site. */
+function DevelopedBy({ label }: { label: string }) {
+  return (
+    <Link
+      href="/nino"
+      className="focus-ring group inline-flex min-h-9 items-center gap-1 rounded text-xs text-white/45 transition-colors hover:text-white"
+    >
+      {label}{" "}
+      <span className="font-semibold text-white/75 transition-colors group-hover:text-[#c6f432]">Nino</span>
+      <ArrowUpRight className="size-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
+    </Link>
   );
 }

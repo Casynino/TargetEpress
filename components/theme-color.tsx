@@ -14,7 +14,7 @@ import { useTheme } from "next-themes";
  * app is exactly the "forced" look the owner flagged (9 Nov 2026). The sign-in
  * scene is always night. Keep these in step with globals.css.
  */
-export const BAR_COLOR = { dark: "#0f131c", light: "#fbfcfd", scene: "#05070f" } as const;
+export const BAR_COLOR = { dark: "#0f131c", light: "#fbfcfd", scene: "#05070f", nino: "#0a0a0b" } as const;
 
 export function ThemeColor() {
   const { resolvedTheme } = useTheme();
@@ -23,7 +23,9 @@ export function ThemeColor() {
     if (!resolvedTheme) return;
     const color = pathname?.startsWith("/login")
       ? BAR_COLOR.scene
-      : resolvedTheme === "light"
+      : pathname?.startsWith("/nino")
+        ? BAR_COLOR.nino
+        : resolvedTheme === "light"
         ? BAR_COLOR.light
         : BAR_COLOR.dark;
     const metas = document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]');

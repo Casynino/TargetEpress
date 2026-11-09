@@ -703,6 +703,8 @@ html.dark .glass-chip { background: #101a2d; color: #dce5f2; }
 html.dark .status-strip { background: #0f131c; }
 body:has([data-login-scene]) .status-strip { display: none; }
 body:has([data-login-scene]) { background-color: #05070f; }
+body:has([data-nino-page]) { background-color: #0a0a0b; }
+body:has([data-nino-page]) .status-strip { background: #0a0a0b; }
 @media print { .status-strip { display: none; } }
 /* a phone turned sideways keeps the page clear of the notch */
 body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }

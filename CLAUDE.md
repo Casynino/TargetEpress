@@ -60,6 +60,10 @@ A separate `Role.DEVELOPER` row with its own email and password — never a flag
 - Bottom tabs carry one word each; the long names live in the drawer.
 - Every phone, not only the iPhone: the install steps follow the browser (Safari, Chrome, Samsung Internet, Huawei, and WeChat/WhatsApp, which must open it in a real browser first). Home-screen icons are solid white (`app/apple-icon.png`, `public/brand/icon-maskable-*.png`) — a transparent icon turns black there and hides the navy globe. iPhone launch screens are `public/brand/splash/` (listed in `app/layout.tsx`). Test new phone screens at 360, 375×667 and 412 wide as well as 390.
 
+## Developed by Nino
+
+"Developed by Nino" at the foot of the sign-in page opens `/nino`, Nino's own page of every live project (copied from the Vegas project's `/nino`, owner 9 Nov 2026). The list is `app/nino/work.ts` — every line from the project's own live site or from Nino, nothing invented; screenshots in `public/nino`. English only by design. Keep it in step with the Vegas copy when a project is added.
+
 ## Language
 
 Every user-facing string goes through i18n: `t(locale, "English")` on the server, `useT()` in client components. English is the key; Chinese is the translation. Run `node scripts/check-i18n.mjs` — it must report zero missing. The China warehouse uses the app in Chinese, so test with `china@` to see what they see.

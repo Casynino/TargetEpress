@@ -1,0 +1,92 @@
+/* /nino — Nino's page. Dark by design (the work's screenshots carry the colour); one acid accent. */
+
+.page {
+  --ink: #f4f4f1;
+  --muted: rgb(244 244 241 / 0.58);
+  --faint: rgb(244 244 241 / 0.38);
+  --rule: rgb(244 244 241 / 0.1);
+  --card: rgb(255 255 255 / 0.03);
+  --accent: #c6f432;
+  --accent-ink: #10130a;
+  background: #0a0a0b;
+  color: var(--ink);
+  color-scheme: dark;
+}
+
+/* A faint glow at the top and a film of grain — depth without decoration. */
+.page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(60rem 36rem at 12% -8%, rgb(198 244 50 / 0.07), transparent 60%),
+    radial-gradient(50rem 30rem at 100% 0%, rgb(120 140 255 / 0.05), transparent 60%);
+  z-index: 0;
+}
+.page::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  z-index: 0;
+}
+
+.wordmark {
+  font-weight: 900;
+  letter-spacing: -0.075em;
+  line-height: 0.78;
+  font-size: clamp(5rem, 22vw, 11rem);
+  margin-left: -0.04em;
+}
+
+.rise {
+  animation: rise 0.9s cubic-bezier(0.2, 0.7, 0.1, 1) both;
+}
+.rise2 { animation-delay: 0.12s; }
+.rise3 { animation-delay: 0.24s; }
+@keyframes rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+.pulse {
+  box-shadow: 0 0 0 0 rgb(198 244 50 / 0.6);
+  animation: pulse 2.2s ease-out infinite;
+}
+@keyframes pulse {
+  70% { box-shadow: 0 0 0 9px rgb(198 244 50 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(198 244 50 / 0); }
+}
+
+/* The screenshot in its browser frame lifts a little and comes into focus on hover. */
+.shot img {
+  transition: transform 0.9s cubic-bezier(0.2, 0.7, 0.1, 1), filter 0.6s ease;
+  filter: saturate(0.92);
+}
+.card:hover .shot img,
+.card:focus-visible .shot img {
+  transform: scale(1.035);
+  filter: saturate(1.05);
+}
+.card {
+  transition: border-color 0.3s ease, background-color 0.3s ease, transform 0.5s cubic-bezier(0.2, 0.7, 0.1, 1);
+}
+.card:hover {
+  border-color: rgb(244 244 241 / 0.22);
+  background-color: rgb(255 255 255 / 0.05);
+}
+.arrow {
+  transition: transform 0.3s ease;
+}
+.card:hover .arrow {
+  transform: translate(2px, -2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise, .pulse { animation: none; }
+  .shot img, .card, .arrow { transition: none; }
+  .card:hover .shot img { transform: none; }
+}
