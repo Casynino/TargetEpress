@@ -125,7 +125,8 @@ export async function PageBanner() {
         <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.32em] text-[#fdc400] sm:mt-2 sm:text-[11px]">
           {t(locale, jobTitle(user.role))}
         </p>
-        <p className="mt-1 text-xs text-white/65 sm:mt-1.5 sm:text-sm">{bannerDate(locale, zone)}</p>
+        {/* Below lg the top bar already carries the date, so it is shown once. */}
+        <p className="mt-1.5 hidden text-sm text-white/65 lg:block">{bannerDate(locale, zone)}</p>
       </div>
     </section>
   );
