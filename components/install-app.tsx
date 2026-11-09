@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, Download, EllipsisVertical, Menu, Share, SquarePlus } from "lucide-react";
+import { ArrowDown, Download, EllipsisVertical, Menu, Share, SquarePlus, X } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 /**
  * Use it as an app (owner, 9 Nov 2026: the screen should be full, like an app,
@@ -88,14 +87,14 @@ function useInstall() {
   return { ...state, install };
 }
 
+/** One step: a plain line — a small red number, the words, the button it names drawn faint at the end. No box, no disc
+    (owner, 9 Nov 2026, holding up the Hao Labs card: "clean, small, and match the background"). */
 function Step({ n, icon: Icon, children }: { n: number; icon?: typeof Share; children: React.ReactNode }) {
   return (
-    <li className="flex items-center gap-2.5 rounded-lg bg-muted/60 px-2.5 py-2 text-[12.5px] leading-snug">
-      <span className="grid size-4 shrink-0 place-items-center rounded-full bg-brand text-[10px] font-bold text-brand-foreground">
-        {n}
-      </span>
+    <li className="flex items-center gap-3 py-2.5 text-[13px] leading-snug text-white/75">
+      <span className="w-2.5 shrink-0 text-center font-mono text-[11px] text-[#e74049]">{n}</span>
       <span className="min-w-0 flex-1">{children}</span>
-      {Icon ? <Icon className="size-3.5 shrink-0 text-muted-foreground" /> : null}
+      {Icon ? <Icon className="size-3.5 shrink-0 text-white/30" /> : null}
     </li>
   );
 }
@@ -103,90 +102,118 @@ function Step({ n, icon: Icon, children }: { n: number; icon?: typeof Share; chi
 function InstallSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useT();
   const { ios, browser, canPrompt, install } = useInstall();
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="w-[calc(100%-2.5rem)] max-w-[19.5rem] gap-0 rounded-2xl p-4 [&>button:last-child]:right-3 [&>button:last-child]:top-3">
-        <div className="pr-6">
-          <DialogTitle className="text-[15px] font-semibold leading-tight">{t("Use it like an app")}</DialogTitle>
-          <DialogDescription className="mt-0.5 text-[12px]">{t("Full screen, no browser bar, its own icon.")}</DialogDescription>
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open || typeof document === "undefined") return null;
+
+  // On an iPhone in Safari a small arrow points at the Share button.
+  const hint = ios && browser === "safari" && !canPrompt;
+
+  /* Frosted glass that belongs to the page: it sits low, clear of the sign-in page's two foot lines and the app's
+     bottom tabs (both about 4 rem tall), and leaves
+     the logo and Sign in alone; the dim behind it is barely there, and the card is see-through night navy, blurring
+     what is under it instead of covering it. Only a title and the steps. Closing is the X, a tap outside, or Escape.
+     Always dark, so it reads the same over the night scene and over the app in day mode. */
+  return createPortal(
+    <div
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+      className={cn(
+        "fixed inset-0 z-50 flex items-end justify-center bg-black/15 p-5",
+        hint
+          ? "pb-[calc(max(0.5rem,env(safe-area-inset-bottom))+7rem)]"
+          : "pb-[calc(max(0.5rem,env(safe-area-inset-bottom))+4.5rem)]",
+      )}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("Use it like an app")}
+        className="w-full max-w-[17.5rem] rounded-2xl border border-white/[0.09] bg-[#070b16]/60 px-4 pb-1.5 pt-3.5 shadow-[0_18px_44px_-22px_rgba(0,0,0,0.75)] backdrop-blur-2xl backdrop-saturate-150"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-[14px] font-medium tracking-tight text-white">{t("Use it like an app")}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("Close")}
+            className="-mr-1.5 grid size-7 shrink-0 place-items-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white/80"
+          >
+            <X className="size-3.5" />
+          </button>
         </div>
 
         {canPrompt ? (
-          <div className="mt-3.5 flex flex-col gap-1.5">
-            <Button variant="brand" className="h-9 text-[13px]" onClick={async () => { if (await install()) onClose(); }}>
-              <Download className="mr-1.5 size-3.5" />
+          <div className="mb-1.5 mt-3 flex flex-col items-stretch">
+            <button
+              type="button"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white/10 text-[13px] font-medium text-white ring-1 ring-inset ring-white/15 transition hover:bg-white/15"
+              onClick={async () => { if (await install()) onClose(); }}
+            >
+              <Download className="size-3.5" />
               {t("Install the app")}
-            </Button>
-            <Button variant="outline" className="h-8 text-[12.5px]" onClick={onClose}>
+            </button>
+            <button type="button" className="h-8 text-[12px] text-white/45 transition hover:text-white/75" onClick={onClose}>
               {t("Not now")}
-            </Button>
+            </button>
           </div>
         ) : (
-          <>
-            <ol className="mt-3 space-y-1.5">
-              {browser === "in-app" ? (
-                <>
-                  <Step n={1} icon={EllipsisVertical}>{t("Tap ··· at the top right, then Open in browser.")}</Step>
-                  <Step n={2}>{ios ? t("In Safari, sign in and tap Get the full-screen app again.") : t("In the browser, sign in and tap Get the full-screen app again.")}</Step>
-                </>
-              ) : ios ? (
-                <>
-                  <Step n={1} icon={Share}>
-                    {browser === "safari" ? t("Tap Share at the bottom of Safari.") : t("Tap Share in the address bar or the menu.")}
-                  </Step>
-                  <Step n={2} icon={SquarePlus}>{t("Scroll down and tap Add to Home Screen.")}</Step>
-                  <Step n={3}>{t("Tap Add, then open Target Express from your home screen.")}</Step>
-                </>
-              ) : browser === "samsung" ? (
-                <>
-                  <Step n={1} icon={Menu}>{t("Tap the menu at the bottom right.")}</Step>
-                  <Step n={2}>{t("Tap Add page to, then Home screen.")}</Step>
-                  <Step n={3}>{t("Open Target Express from your home screen.")}</Step>
-                </>
-              ) : browser === "huawei" ? (
-                <>
-                  <Step n={1} icon={Menu}>{t("Tap the menu at the bottom of the browser.")}</Step>
-                  <Step n={2}>{t("Tap Add to home screen (it may be under Add to).")}</Step>
-                  <Step n={3}>{t("Open Target Express from your home screen.")}</Step>
-                </>
-              ) : (
-                <>
-                  <Step n={1} icon={browser === "chrome" ? EllipsisVertical : Menu}>
-                    {browser === "chrome" ? t("Open the browser menu at the top right.") : t("Open the browser menu.")}
-                  </Step>
-                  <Step n={2}>{t("Tap Install app or Add to Home screen.")}</Step>
-                  <Step n={3}>{t("Open Target Express from your home screen.")}</Step>
-                </>
-              )}
-            </ol>
-            {browser !== "in-app" ? (
-              <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-                {ios
-                  ? t("If this page opened inside WeChat or WhatsApp, open it in Safari first.")
-                  : t("If this page opened inside WeChat or WhatsApp, open it in Chrome first.")}
-              </p>
-            ) : null}
-            <Button variant="outline" className="mt-3 h-8 w-full text-[12.5px]" onClick={onClose}>
-              {t("Got it")}
-            </Button>
-          </>
+          <ol className="mt-1.5 divide-y divide-white/[0.06]">
+            {browser === "in-app" ? (
+              <>
+                <Step n={1} icon={EllipsisVertical}>{t("Tap ··· at the top right, then Open in browser.")}</Step>
+                <Step n={2}>{ios ? t("In Safari, sign in and tap Get the full-screen app again.") : t("In the browser, sign in and tap Get the full-screen app again.")}</Step>
+              </>
+            ) : ios ? (
+              <>
+                <Step n={1} icon={Share}>
+                  {browser === "safari" ? t("Tap Share (bottom bar, or ···).") : t("Tap Share in the address bar or the menu.")}
+                </Step>
+                <Step n={2} icon={SquarePlus}>{t("Tap Add to Home Screen.")}</Step>
+                <Step n={3}>{t("Tap Add, then open Target Express.")}</Step>
+              </>
+            ) : browser === "samsung" ? (
+              <>
+                <Step n={1} icon={Menu}>{t("Tap the menu at the bottom right.")}</Step>
+                <Step n={2}>{t("Tap Add page to, then Home screen.")}</Step>
+                <Step n={3}>{t("Open Target Express from your home screen.")}</Step>
+              </>
+            ) : browser === "huawei" ? (
+              <>
+                <Step n={1} icon={Menu}>{t("Tap the menu at the bottom of the browser.")}</Step>
+                <Step n={2}>{t("Tap Add to home screen (it may be under Add to).")}</Step>
+                <Step n={3}>{t("Open Target Express from your home screen.")}</Step>
+              </>
+            ) : (
+              <>
+                <Step n={1} icon={browser === "chrome" ? EllipsisVertical : Menu}>
+                  {browser === "chrome" ? t("Open the browser menu at the top right.") : t("Open the browser menu.")}
+                </Step>
+                <Step n={2}>{t("Tap Install app or Add to Home screen.")}</Step>
+                <Step n={3}>{t("Open Target Express from your home screen.")}</Step>
+              </>
+            )}
+          </ol>
         )}
-      </DialogContent>
+      </div>
+
       {/* No iPhone can install in one tap, so the next best thing: while the card is open in Safari, a small arrow
-          bounces over the toolbar where Share actually is, so nobody hunts for it. Drawn outside the card (whose
-          centring transform would carry a fixed child with it) and above the dialog's dimmed backdrop. */}
-      {open && ios && browser === "safari" && !canPrompt && typeof document !== "undefined"
-        ? createPortal(
-            <div aria-hidden className="pointer-events-none fixed inset-x-0 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-[60] flex justify-center">
-              <span className="flex animate-bounce flex-col items-center gap-0.5 text-[10px] font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] motion-reduce:animate-none">
-                {t("Share")}
-                <ArrowDown className="size-3.5 text-signal" />
-              </span>
-            </div>,
-            document.body,
-          )
-        : null}
-    </Dialog>
+          bounces over the toolbar where Share actually is, so nobody hunts for it. */}
+      {hint ? (
+        <div aria-hidden className="pointer-events-none fixed inset-x-0 bottom-[calc(max(0.5rem,env(safe-area-inset-bottom))+3.5rem)] z-[60] flex justify-center">
+          <span className="flex animate-bounce flex-col items-center gap-0.5 text-[10px] font-medium text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] motion-reduce:animate-none">
+            {t("Share")}
+            <ArrowDown className="size-3.5 text-[#e74049]" />
+          </span>
+        </div>
+      ) : null}
+    </div>,
+    document.body,
   );
 }
 
