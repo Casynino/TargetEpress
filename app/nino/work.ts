@@ -83,10 +83,10 @@ export const LIVE: Project[] = [
     tags: ["Brand site", "Community"],
   },
   {
-    name: "The Lab", kind: "Stock & commission dashboard",
-    line: "Request stock, track commission and watch performance. Take stock, make moves, earn more.",
-    url: "https://hao-stock.vercel.app", domain: "hao-stock.vercel.app", shot: "/nino/thelab.webp",
-    tags: ["Dashboard", "Accounts"],
+    name: "Hao Labs", kind: "Stock, settlement & commission system",
+    line: "Every box that leaves the Lab is on the system — who took it, what came back, what is still owed, and what each rep has earned. We keep Tanzania stocked.",
+    url: "https://hao-stock.vercel.app", domain: "hao-stock.vercel.app", shot: "/nino/haolabs.webp",
+    tags: ["Stock control", "Settlements", "Commission", "Reports"],
   },
   {
     name: "Reckless Lab", kind: "Fashion label & store",

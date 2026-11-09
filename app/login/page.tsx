@@ -242,7 +242,7 @@ function DevelopedBy({ label }: { label: string }) {
       className="focus-ring group inline-flex min-h-9 items-center gap-1 rounded text-xs text-white/45 transition-colors hover:text-white"
     >
       {label}{" "}
-      <span className="font-semibold text-white/75 transition-colors group-hover:text-[#c6f432]">Nino</span>
+      <span className="font-semibold text-white/75 transition-colors group-hover:text-[#e74049]">Nino</span>
       <ArrowUpRight className="size-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
     </Link>
   );

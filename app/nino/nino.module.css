@@ -1,4 +1,4 @@
-/* /nino — Nino's page. Dark by design (the work's screenshots carry the colour); one acid accent. */
+/* /nino — Nino's page. Dark by design (the work's screenshots carry the colour); one accent: Target's signal red, so the page reached from this sign-in feels like the same house (Nino, 9 Nov 2026). */
 
 .page {
   --ink: #f4f4f1;
@@ -6,8 +6,8 @@
   --faint: rgb(244 244 241 / 0.38);
   --rule: rgb(244 244 241 / 0.1);
   --card: rgb(255 255 255 / 0.03);
-  --accent: #c6f432;
-  --accent-ink: #10130a;
+  --accent: #e74049;
+  --accent-ink: #fff5f3;
   background: #0a0a0b;
   color: var(--ink);
   color-scheme: dark;
@@ -20,8 +20,8 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(60rem 36rem at 12% -8%, rgb(198 244 50 / 0.07), transparent 60%),
-    radial-gradient(50rem 30rem at 100% 0%, rgb(120 140 255 / 0.05), transparent 60%);
+    radial-gradient(60rem 36rem at 12% -8%, rgb(231 64 73 / 0.11), transparent 60%),
+    radial-gradient(50rem 30rem at 100% 0%, rgb(74 144 226 / 0.08), transparent 60%);
   z-index: 0;
 }
 .page::after {
@@ -53,12 +53,12 @@
 }
 
 .pulse {
-  box-shadow: 0 0 0 0 rgb(198 244 50 / 0.6);
+  box-shadow: 0 0 0 0 rgb(231 64 73 / 0.6);
   animation: pulse 2.2s ease-out infinite;
 }
 @keyframes pulse {
-  70% { box-shadow: 0 0 0 9px rgb(198 244 50 / 0); }
-  100% { box-shadow: 0 0 0 0 rgb(198 244 50 / 0); }
+  70% { box-shadow: 0 0 0 9px rgb(231 64 73 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(231 64 73 / 0); }
 }
 
 /* The screenshot in its browser frame lifts a little and comes into focus on hover. */
