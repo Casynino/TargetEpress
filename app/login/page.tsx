@@ -235,25 +235,18 @@ export default async function LoginPage({
 }
 
 /**
- * Who built the system — one small glass pill to Nino's page and work, as on the Vegas site. Owner, 9 Nov 2026 ("make
- * it nicer", as on the Lab OS): the same glass as the scene's other pills, with Target's signal red on the monogram.
+ * Who built the system — one quiet line to Nino's page and work, as on the Vegas site. Plain words, no pill or
+ * badge around them (owner, 9 Nov 2026: "clean like before").
  */
 function DevelopedBy({ label }: { label: string }) {
   return (
     <Link
       href="/nino"
-      className="focus-ring group inline-flex h-9 items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] pl-1 pr-3 text-xs text-white/65 backdrop-blur-md transition-colors hover:border-[#e74049]/50 hover:bg-white/10 hover:text-white"
+      className="focus-ring group inline-flex min-h-9 items-center gap-1 rounded text-xs text-white/45 transition-colors hover:text-white"
     >
-      <span
-        aria-hidden="true"
-        className="grid size-7 place-items-center rounded-full bg-[#e74049] font-display text-[11px] font-extrabold text-white shadow-[0_4px_14px_-4px_rgb(231_64_73/0.7)]"
-      >
-        N
-      </span>
-      <span>
-        {label} <span className="font-semibold text-white">Nino</span>
-      </span>
-      <ArrowUpRight className="size-3.5 text-white/70 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-white motion-reduce:transition-none" aria-hidden="true" />
+      {label}{" "}
+      <span className="font-semibold text-white/75 transition-colors group-hover:text-[#e74049]">Nino</span>
+      <ArrowUpRight className="size-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
     </Link>
   );
 }
