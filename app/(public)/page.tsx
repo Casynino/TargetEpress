@@ -50,6 +50,9 @@ const TITLE = "text-balance font-display text-[1.7rem] font-semibold leading-[1.
 const MORE = "inline-flex items-center gap-1.5 text-sm font-semibold text-brand underline-offset-4 hover:underline";
 const RED_BUTTON =
   "inline-flex h-11 items-center gap-2 rounded-full bg-[#D81E2A] px-5 text-sm font-semibold text-white shadow-[0_10px_24px_-10px_rgba(216,30,42,0.8)] transition-[filter] hover:brightness-110";
+/** How far off a flight is: red when its cargo deadline is close, grey when it has passed. */
+const badge = (tone: "closed" | "urgent" | "open") =>
+  cn("rounded-full px-2.5 py-0.5 text-[11px] font-semibold", tone === "closed" ? "bg-muted text-muted-foreground" : tone === "urgent" ? "bg-signal/10 text-signal" : "bg-brand/10 text-brand");
 /** Where `.container` starts, for a row that runs off the screen's edge but begins in line with the page. */
 const EDGE = "px-4 sm:px-6 lg:px-8 2xl:px-[calc((100vw-82.5rem)/2+2rem)]";
 
@@ -76,11 +79,60 @@ export default async function HomePage() {
     <>
       <Hero />
 
-      {/* What the company has actually done, counted from the records. */}
-      <LiveStats />
+      {/* ---- The next planes, straight under the scene (owner, 16 Nov 2026: "the schedule should be
+          here"): when the next flight leaves is the first thing a customer with goods in China asks. ---- */}
+      <section className="relative pb-14 pt-8 md:pb-20 md:pt-14">
+        <div className="container">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <RevealWords text="Ndege zinazofuata." className={TITLE} />
+            <Link href="/schedule" className={MORE}>
+              Ratiba <ArrowRight className="size-4" />
+            </Link>
+          </div>
+
+          {/* The day the plane leaves, and the day the cargo must be in
+              Guangzhou — the deadline a customer can still miss. */}
+          <ul className="mt-5 grid gap-2.5 md:mt-9 md:grid-cols-3 md:gap-5">
+            {flights.map((f, i) => {
+              const tone = flightTone(f);
+              return (
+                <Reveal
+                  as="li"
+                  key={f.departsAt.toISOString()}
+                  delay={i * 90}
+                  className={cn("flex items-center gap-3.5 rounded-2xl border bg-card p-4 md:block md:p-5", tone === "urgent" && "border-signal/50")}
+                >
+                  <div className="flex shrink-0 items-center justify-between gap-3">
+                    <span className={cn("grid size-10 place-items-center rounded-full md:size-9", tone === "urgent" ? "bg-signal text-signal-foreground" : "bg-brand/10 text-brand")}>
+                      <Plane className="size-4" />
+                    </span>
+                    <span className={cn("max-md:hidden", badge(tone))}>{daysAwaySwahili(f.daysAway)}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-display text-lg font-semibold leading-tight tracking-tight md:mt-4 md:text-2xl">
+                      {SWAHILI_DAYS[f.departsAt.getDay()]} <span className="text-muted-foreground">{date(f.departsAt)}</span>
+                    </p>
+                    <p className="mt-0.5 text-[13px] text-muted-foreground md:mt-1 md:text-sm">
+                      Lete mzigo kabla ya {SWAHILI_DAYS[f.cutOffAt.getDay()]} {date(f.cutOffAt)}
+                    </p>
+                  </div>
+                  <span className={cn("shrink-0 md:hidden", badge(tone))}>{daysAwaySwahili(f.daysAway)}</span>
+                </Reveal>
+              );
+            })}
+          </ul>
+
+          <Reveal delay={120}>
+            <Link href="/book" className={cn(RED_BUTTON, "mt-6 md:mt-8")}>
+              Book mzigo
+              <ArrowRight className="size-4" />
+            </Link>
+          </Reveal>
+        </div>
+      </section>
 
       {/* ---- The route: four stops on one line, and a plane that flies it as the page is scrolled ---- */}
-      <section className="section relative">
+      <section className="section relative pt-4 md:pt-6">
         <div className="container">
           <RevealWords text="Kutoka sokoni China, hadi mkononi mwako." className={cn(TITLE, "max-w-xl")} />
 
@@ -251,55 +303,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ---- The next planes ---- */}
-      <section className="section relative">
-        <div className="container">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <RevealWords text="Ndege zinazofuata." className={TITLE} />
-            <Link href="/schedule" className={MORE}>
-              Ratiba <ArrowRight className="size-4" />
-            </Link>
-          </div>
-
-          {/* The day the plane leaves, and the day the cargo must be in
-              Guangzhou — the deadline a customer can still miss. */}
-          <ul className="mt-7 grid gap-3 md:mt-9 md:grid-cols-3 md:gap-5">
-            {flights.map((f, i) => {
-              const tone = flightTone(f);
-              return (
-                <Reveal as="li" key={f.departsAt.toISOString()} delay={i * 90} className={cn("rounded-2xl border bg-card p-5", tone === "urgent" && "border-signal/50")}>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className={cn("grid size-9 place-items-center rounded-full", tone === "urgent" ? "bg-signal text-signal-foreground" : "bg-brand/10 text-brand")}>
-                      <Plane className="size-4" />
-                    </span>
-                    <span
-                      className={cn(
-                        "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
-                        tone === "closed" ? "bg-muted text-muted-foreground" : tone === "urgent" ? "bg-signal/10 text-signal" : "bg-brand/10 text-brand",
-                      )}
-                    >
-                      {daysAwaySwahili(f.daysAway)}
-                    </span>
-                  </div>
-                  <p className="mt-4 font-display text-2xl font-semibold tracking-tight">
-                    {SWAHILI_DAYS[f.departsAt.getDay()]} <span className="text-muted-foreground">{date(f.departsAt)}</span>
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Lete mzigo kabla ya {SWAHILI_DAYS[f.cutOffAt.getDay()]} {date(f.cutOffAt)}
-                  </p>
-                </Reveal>
-              );
-            })}
-          </ul>
-
-          <Reveal delay={120}>
-            <Link href="/book" className={cn(RED_BUTTON, "mt-8")}>
-              Book mzigo
-              <ArrowRight className="size-4" />
-            </Link>
-          </Reveal>
-        </div>
-      </section>
+      {/* What the company has actually done, counted from the records. */}
+      <LiveStats />
 
       {/* ---- One last line: a Target red band, the wing faint in it ---- */}
       <section className="relative isolate -mb-20 overflow-hidden bg-[#D81E2A] py-16 text-white md:py-24">

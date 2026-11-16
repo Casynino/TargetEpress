@@ -70,7 +70,7 @@ A separate `Role.DEVELOPER` row with its own email and password — never a flag
 - **Glass**: every `.bg-card` inside `.site` is a pane over that sky (blurred on a computer, nearly solid and unblurred on a phone). Small text always sits on a card, never straight on the cloud.
 - **Day/night switch must work on every public page.** `.site` (the public layout) scopes the page colours, so the staff app is untouched. Use theme tokens; the fixed colours are Target navy `#182A48` and red `#D81E2A`.
 - **Words customers use**: Warehouse, Supplier, Address, Sourcing, Book, Track. Not dictionary Swahili ("ghala"). **Very few words**: one heading a section, no line under it, pictures instead. Headings are Sora semibold, tight.
-- **Home page order**: hero, the real numbers, the route (four stops on one line; a plane flies it as the page scrolls), sourcing, China markets (read from `ChinaMarket`, one card per photograph), the China address, next flights, call to action. Sourcing and the markets lead because buying in China is what fills the planes.
+- **Home page order**: hero, next flights straight under it (owner: "the schedule should be here"), the route (four stops on one line; a plane flies it as the page scrolls), sourcing, China markets (read from `ChinaMarket`, one card per photograph), the China address, the real numbers, call to action. Sourcing and the markets lead because buying in China is what fills the planes.
 - Check at 360, 375x667, 390, 820, 1024, 1366 and 1728 wide, in day and night.
 
 ## Developed by Nino
