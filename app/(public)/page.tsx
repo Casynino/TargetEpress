@@ -39,11 +39,14 @@ const MARKET_PICKS = [
   .filter((m): m is (typeof MARKETS)[number] => Boolean(m));
 
 const WHATSAPP = `https://wa.me/${COMPANY.whatsapp}`;
-const SOFT = "bg-[hsl(210_60%_97%)]"; // the pale sky the light sections sit on
+/* Target's colours, from the logo: navy #182A48, red #D81E2A, white. The light
+   sections alternate white and a navy-tinted grey; the bands are navy and red. */
+const NAVY = "#182A48";
+const SOFT = "bg-[#f3f5f9]";
 
 function Eyebrow({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <p className={cn("text-[11px] font-semibold uppercase tracking-[0.26em] text-signal", className)}>{children}</p>
+    <p className={cn("text-[11px] font-semibold uppercase tracking-[0.26em] text-[#D81E2A]", className)}>{children}</p>
   );
 }
 
@@ -62,7 +65,7 @@ export default function HomePage() {
       <section className="relative isolate overflow-hidden py-16 md:py-24">
         <div className="container">
           <Eyebrow className="text-center">Tunafanya nini</Eyebrow>
-          <h2 className="mx-auto mt-3 max-w-xl text-balance text-center font-display text-3xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
+          <h2 className="mx-auto mt-3 max-w-xl text-balance text-center font-display text-3xl font-bold leading-[1.05] tracking-tight text-[#182A48] sm:text-5xl">
             Kutoka sokoni China, hadi mkononi mwako.
           </h2>
 
@@ -97,7 +100,7 @@ export default function HomePage() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <Eyebrow>Nunua China</Eyebrow>
-              <h2 className="mt-3 font-display text-3xl font-bold leading-[1.05] tracking-tight sm:text-5xl">Masoko ya China.</h2>
+              <h2 className="mt-3 font-display text-3xl font-bold leading-[1.05] tracking-tight text-[#182A48] sm:text-5xl">Masoko ya China.</h2>
             </div>
             <Link href="/china/markets" className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand underline-offset-4 hover:underline">
               Masoko yote <ArrowRight className="size-4" />
@@ -130,18 +133,18 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ---- The China address, over the clouds ---- */}
-      <section id="china" className="relative isolate overflow-hidden py-20 md:py-28">
-        <Image src={img(IMAGES.cloudSea, 2000)} alt="" fill sizes="100vw" className="ken-burns -z-20 object-cover" />
-        <div aria-hidden className="absolute inset-0 -z-10 bg-white/25" />
+      {/* ---- The China address: a Target navy band, the warehouse faint behind it ---- */}
+      <section id="china" className="relative isolate overflow-hidden py-20 text-white md:py-28" style={{ backgroundColor: NAVY }}>
+        <Image src={img(IMAGES.warehouseAisle, 2000)} alt="" fill sizes="100vw" className="ken-burns -z-20 object-cover opacity-25 mix-blend-luminosity" />
+        <div aria-hidden className="absolute inset-0 -z-10" style={{ background: `radial-gradient(ellipse 60% 70% at 50% 50%, transparent, ${NAVY})` }} />
         <div className="container">
-          <div className="mx-auto max-w-xl rounded-3xl border border-white/70 bg-white/85 p-6 text-center shadow-[0_30px_60px_-30px_rgba(15,30,60,0.45)] backdrop-blur-xl sm:p-10">
-            <Eyebrow>Address ya China</Eyebrow>
+          <div className="mx-auto max-w-xl text-center">
+            <Eyebrow className="text-white/70">Address ya China</Eyebrow>
             <h2 className="mt-3 text-balance font-display text-2xl font-bold leading-tight tracking-tight sm:text-4xl">
               Mpe Supplier wako address hii.
             </h2>
-            <p className="mt-6 text-lg font-semibold leading-relaxed">{COMPANY.chinaOffice.addressCn}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{COMPANY.chinaOffice.rooms}</p>
+            <p className="mt-6 rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-4 text-lg font-semibold leading-relaxed backdrop-blur-md">{COMPANY.chinaOffice.addressCn}</p>
+            <p className="mt-2 text-sm text-white/60">{COMPANY.chinaOffice.rooms}</p>
             <Link
               href="/china"
               className="mt-7 inline-flex h-11 items-center gap-2 rounded-xl bg-signal px-5 text-sm font-semibold text-signal-foreground shadow-[0_10px_24px_-10px_hsl(357_78%_45%/0.7)] transition-[filter] hover:brightness-110"
@@ -159,7 +162,7 @@ export default function HomePage() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <Eyebrow>Ratiba</Eyebrow>
-              <h2 className="mt-3 font-display text-3xl font-bold leading-[1.05] tracking-tight sm:text-5xl">Ndege zinazofuata.</h2>
+              <h2 className="mt-3 font-display text-3xl font-bold leading-[1.05] tracking-tight text-[#182A48] sm:text-5xl">Ndege zinazofuata.</h2>
             </div>
             <Link href="/schedule" className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand underline-offset-4 hover:underline">
               Ratiba kamili <ArrowRight className="size-4" />
@@ -175,18 +178,18 @@ export default function HomePage() {
                 <li
                   key={f.departsAt.toISOString()}
                   className={cn(
-                    "rounded-2xl border bg-white p-5 shadow-[0_14px_30px_-20px_rgba(15,30,60,0.4)]",
-                    tone === "urgent" ? "border-signal/50" : "border-[hsl(214_30%_88%)]",
+                    "rounded-2xl border bg-white p-5 shadow-[0_14px_30px_-20px_rgba(24,42,72,0.4)]",
+                    tone === "urgent" ? "border-signal/50" : "border-[#182A48]/10",
                   )}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className={cn("grid size-9 place-items-center rounded-full", tone === "urgent" ? "bg-signal text-signal-foreground" : "bg-[hsl(214_60%_95%)] text-brand")}>
+                    <span className={cn("grid size-9 place-items-center rounded-full", tone === "urgent" ? "bg-signal text-signal-foreground" : "bg-[#182A48] text-white")}>
                       <Plane className="size-4" />
                     </span>
                     <span
                       className={cn(
                         "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
-                        tone === "closed" ? "bg-muted text-muted-foreground" : tone === "urgent" ? "bg-signal/10 text-signal" : "bg-[hsl(214_60%_95%)] text-brand",
+                        tone === "closed" ? "bg-muted text-muted-foreground" : tone === "urgent" ? "bg-signal/10 text-signal" : "bg-[#182A48]/[0.07] text-[#182A48]",
                       )}
                     >
                       {countdownLabel(f)}
@@ -203,7 +206,7 @@ export default function HomePage() {
 
           <Link
             href="/book"
-            className="mt-8 inline-flex h-11 items-center gap-2 rounded-xl bg-brand px-5 text-sm font-semibold text-brand-foreground transition-[filter] hover:brightness-110"
+            className="mt-8 inline-flex h-11 items-center gap-2 rounded-xl bg-[#182A48] px-5 text-sm font-semibold text-white transition-[filter] hover:brightness-125"
           >
             Book mzigo wako
             <ArrowRight className="size-4" />
@@ -211,10 +214,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ---- One last line, over the wing ---- */}
-      <section className="relative isolate overflow-hidden py-20 md:py-28">
-        <Image src={img(IMAGES.wingClouds, 2000)} alt="" fill sizes="100vw" className="ken-burns -z-20 object-cover" />
-        <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-white/95 via-white/70 to-white/0" />
+      {/* ---- One last line: a Target red band, the wing faint in it ---- */}
+      <section className="relative isolate overflow-hidden bg-[#D81E2A] py-20 text-white md:py-28">
+        <Image src={img(IMAGES.wingClouds, 2000)} alt="" fill sizes="100vw" className="ken-burns -z-20 object-cover opacity-30 mix-blend-multiply" />
+        <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-[#D81E2A] via-[#D81E2A]/80 to-transparent" />
         <div className="container">
           <h2 className="max-w-lg text-balance font-display text-3xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
             Unatuma mzigo mwezi huu?
@@ -224,12 +227,12 @@ export default function HomePage() {
               href={WHATSAPP}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-11 items-center gap-2 rounded-xl bg-signal px-5 text-sm font-semibold text-signal-foreground shadow-[0_10px_24px_-10px_hsl(357_78%_45%/0.7)] transition-[filter] hover:brightness-110"
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#D81E2A] shadow-[0_10px_24px_-12px_rgba(0,0,0,0.45)] transition-colors hover:bg-white/90"
             >
               <MessageCircle className="size-4" />
               WhatsApp
             </a>
-            <Link href="/contact" className="inline-flex h-11 items-center rounded-xl border border-[hsl(214_30%_80%)] bg-white/80 px-5 text-sm font-semibold backdrop-blur-md transition-colors hover:bg-white">
+            <Link href="/contact" className="inline-flex h-11 items-center rounded-xl border border-white/50 px-5 text-sm font-semibold transition-colors hover:bg-white/10">
               Ofisi zetu
             </Link>
           </div>

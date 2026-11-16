@@ -33,11 +33,11 @@ export async function LiveStats() {
   ];
 
   return (
-    <section aria-label="Target Express kwa namba" className="relative isolate overflow-hidden bg-gradient-to-b from-white to-[hsl(210_60%_97%)] py-14 md:py-20">
+    <section aria-label="Target Express kwa namba" className="relative isolate overflow-hidden bg-white py-14 md:py-20">
       <div
         aria-hidden
         className="absolute inset-0 -z-10"
-        style={{ background: "radial-gradient(circle at 50% 50%, hsl(205 80% 75% / 0.35), transparent 55%)" }}
+        style={{ background: "radial-gradient(circle at 50% 50%, rgba(24, 42, 72, 0.08), transparent 55%)" }}
       />
       <div className="container">
         <div className="relative mx-auto max-w-[560px]">
@@ -54,7 +54,7 @@ export async function LiveStats() {
                 SPOTS[i],
               )}
             >
-              <p className="font-display text-xl font-bold leading-none tabular sm:text-2xl">{cell.value}</p>
+              <p className="font-display text-xl font-bold leading-none tabular text-[#182A48] sm:text-2xl">{cell.value}</p>
               <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{cell.label}</p>
             </div>
           ))}
