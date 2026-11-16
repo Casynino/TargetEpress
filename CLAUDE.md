@@ -62,6 +62,16 @@ A separate `Role.DEVELOPER` row with its own email and password — never a flag
 - **Service worker** (`public/sw.js`, registered by `RegisterSW` in production only), copied from Super Drive: it stores NOTHING and touches only page navigations, showing "No internet" when a page cannot load. Android Chrome only offers the one-tap **Install the app** button to a site with a service worker that has a fetch handler; without it Android falls back to menu steps. Never add caching to it. iPhone has no one-tap install (Apple allows only Share → Add to Home Screen), so iPhones keep the steps.
 - Every phone, not only the iPhone: the install steps follow the browser (Safari, Chrome, Samsung Internet, Huawei, and WeChat/WhatsApp, which must open it in a real browser first). Home-screen icons are solid white (`app/apple-icon.png`, `public/brand/icon-maskable-*.png`) — a transparent icon turns black there and hides the navy globe. iPhone launch screens are `public/brand/splash/` (listed in `app/layout.tsx`). Test new phone screens at 360, 375×667 and 412 wide as well as 390.
 
+## Public website (owner, 16 Nov 2026)
+
+- **Its own look, never a copy** of ORA, Swift or BlueWave. The idea is the cargo's flight: the scene, the sky, the route.
+- **Hero** (`components/site/hero.tsx`, `hero-art.tsx`): the owner's own picture brought to life on one WebGL canvas (trucks on the road, planes from China to Tanzania, sea, cloud). `scripts/hero-art/bake.mjs` makes the three files in `public/brand/hero-*.webp` from `source.webp`. The whole scene shows in one screen on a phone, a tablet and a computer: never zoomed, never blurred, no flat block beside it. Few words: the promise, one line, one tracking field, the next plane.
+- **The sky** (`SiteSky`, `.site-sky` in `globals.css`) is one fixed layer behind every public page: faint cloud that drifts and far-off planes. It must stay quiet enough to read over; small text goes on a card, not straight on the sky. No plain white pages and no band of moving words.
+- **Day/night switch must work on every public page.** `.site` (the public layout) scopes the page colours, so the staff app is untouched. Use theme tokens; the fixed colours are Target navy `#182A48` and red `#D81E2A`.
+- **Words customers use**: Warehouse, Supplier, Address, Sourcing, Book, Track. Not dictionary Swahili ("ghala"). Short lines, more pictures.
+- **Home page order**: hero, the real numbers, the route (a plane flies it as the page scrolls), sourcing, China markets (read from `ChinaMarket`, one card per photograph), the China address, next flights, guides, call to action. Sourcing and the markets lead because buying in China is what fills the planes.
+- Check at 360, 375x667, 390, 820, 1024, 1366 and 1728 wide, in day and night.
+
 ## Developed by Nino
 
 "Developed by Nino" at the foot of the sign-in page opens `/nino`, Nino's own page of every live project (copied from the Vegas project's `/nino`, owner 9 Nov 2026). The list is `app/nino/work.ts` — every line from the project's own live site or from Nino, nothing invented; screenshots in `public/nino`. English only by design. Keep it in step with the Vegas copy when a project is added.

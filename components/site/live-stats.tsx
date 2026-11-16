@@ -1,64 +1,44 @@
-import { CargoGlobe } from "@/components/ui/cargo-globe";
+import { CountUp, Reveal } from "@/components/site/reveal";
 import { siteStats } from "@/lib/site-stats";
 import { cn } from "@/lib/utils";
 
 /**
- * The globe, turning, with the company's real numbers floating round it like
- * instrument readouts (owner, 16 Nov 2026: "the globe must be there", and the
- * logistics key art he held up with figures orbiting an earth).
+ * The company in real numbers, straight under the scene: big figures that
+ * count up as they come into view, a red tick and a few words under each.
  *
  * Every figure is a count from the operational database — cargo actually
  * delivered, customers actually served, kilos actually flown. Figures at zero
  * drop out entirely: "0 shipments delivered" is the one number on a homepage
  * that actively costs you the customer. The flight rhythm is always true, so
- * it is always there. The globe takes no touches on a phone, so a finger on it
- * scrolls the page.
+ * it is always there.
  */
 export async function LiveStats() {
   const stats = await siteStats();
   const cells = [
-    { raw: stats.delivered, value: stats.delivered.toLocaleString(), label: "Mizigo imekabidhiwa" },
-    { raw: stats.customers, value: stats.customers.toLocaleString(), label: "Wateja" },
-    { raw: stats.weightFlownKg, value: `${stats.weightFlownKg.toLocaleString()} kg`, label: "Zimesafirishwa" },
+    { n: stats.delivered, suffix: "", label: "Mizigo imekabidhiwa" },
+    { n: stats.customers, suffix: "", label: "Wateja" },
+    { n: stats.weightFlownKg, suffix: " kg", label: "Zimesafirishwa" },
   ]
-    .filter((cell) => cell.raw > 0)
-    .concat([{ raw: 1, value: String(stats.weeklyFlights), label: "Ndege kila wiki" }]);
-
-  // Four places round the earth; the readouts take them in order.
-  const SPOTS = [
-    "left-0 top-[6%] sm:left-[4%]",
-    "right-0 top-[18%] sm:right-[4%]",
-    "left-0 bottom-[16%] sm:left-[2%]",
-    "right-0 bottom-[4%] sm:right-[6%]",
-  ];
+    .filter((cell) => cell.n > 0)
+    .concat([{ n: stats.weeklyFlights, suffix: "", label: "Ndege kila wiki" }]);
 
   return (
-    <section aria-label="Target Express kwa namba" className="relative isolate overflow-hidden bg-white py-14 md:py-20">
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10"
-        style={{ background: "radial-gradient(circle at 50% 50%, rgba(24, 42, 72, 0.08), transparent 55%)" }}
-      />
+    <section aria-label="Target Express kwa namba" className="relative pt-6 md:pt-10">
       <div className="container">
-        <div className="relative mx-auto max-w-[560px]">
-          <div className="mx-auto w-[78%] max-lg:pointer-events-none">
-            <CargoGlobe spin={0.2} />
-          </div>
+        {/* On a card of its own: the labels are small, and small type straight on the sky is hard to read. */}
+        <Reveal className="grid grid-cols-2 gap-y-8 rounded-2xl border bg-card px-5 py-7 shadow-soft md:grid-cols-4 md:px-4 md:py-9">
           {cells.map((cell, i) => (
-            <div
-              key={cell.label}
-              className={cn(
-                "float-y absolute rounded-2xl border border-[hsl(214_30%_88%)] bg-white/90 px-3.5 py-2.5 shadow-[0_14px_30px_-18px_rgba(15,30,60,0.45)] backdrop-blur-md",
-                i % 3 === 1 && "float-y-2",
-                i % 3 === 2 && "float-y-3",
-                SPOTS[i],
-              )}
-            >
-              <p className="font-display text-xl font-bold leading-none tabular text-[#182A48] sm:text-2xl">{cell.value}</p>
-              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{cell.label}</p>
+            <div key={cell.label} className={cn("md:px-7", i % 2 === 1 && "max-md:border-l max-md:pl-6", i > 0 && "md:border-l")}>
+              <p className="font-display text-[2.2rem] font-bold leading-none tracking-tight tabular md:text-5xl">
+                <CountUp value={cell.n} suffix={cell.suffix} />
+              </p>
+              <p className="mt-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                <span aria-hidden className="h-px w-5 shrink-0 bg-signal" />
+                {cell.label}
+              </p>
             </div>
           ))}
-        </div>
+        </Reveal>
       </div>
     </section>
   );

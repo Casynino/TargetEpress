@@ -4,11 +4,10 @@
 //   public/brand/hero-art.webp     the picture: route in Target red, the logo on the truck and the aircraft
 //   public/brand/hero-plane.webp   the aircraft's box, three panels side by side: sky without it | its outline | where to paint the sky
 //   public/brand/hero-truck.webp   the same for the truck: road without it | its outline | where to paint the road
-//   public/brand/hero-plate.webp   the picture carried on to the left in soft focus, for wide screens
 //
 //   node scripts/hero-art/bake.mjs [--check DIR]    (--check also writes pictures to look at)
 import path from "node:path";
-import { N, ROOT, HERE, sharp, loadSource, mask, poly, sample, smooth, saveRGB, ROUTE_MAIN, ROUTE_SECOND } from "./lib.mjs";
+import { N, ROOT, sharp, loadSource, mask, poly, smooth, saveRGB, ROUTE_MAIN, ROUTE_SECOND } from "./lib.mjs";
 import { cutPlane } from "./plane.mjs";
 import { cutTruck, CONTAINER_SIDE } from "./truck.mjs";
 
@@ -68,12 +67,35 @@ const logoAt = (u, v) => { // straight-alpha read, u and v in 0..1
   }
 }
 
-// ---- 3. The aircraft in Target's colours: a red fin, the logo on the fuselage
+// ---- 3. The aircraft: turned to fly from China towards Tanzania, in Target's colours ----
+// The picture has it heading right. It is cut out, the sky behind it rebuilt, and it is set back down
+// mirrored, nose to the left — the way the cargo flies. Then a red fin and the logo on the fuselage,
+// painted on after the turn so the name reads the right way round.
+const clamp = (v) => Math.max(0, Math.min(255, Math.round(v)));
+const plane = await cutPlane(art);
 {
-  const fin = await mask(poly([[964,150.3],[969.3,149.3],[981.7,173.3],[963.7,173.7]]), 0.6);
+  const { box: B, sky, alpha } = plane, W = B.w, H = B.h;
+  const turned = new Float32Array(W * H), rgb = new Float32Array(W * H * 3);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const q = y * W + x, m = y * W + (W - 1 - x), i = ((B.y + y) * N + B.x + W - 1 - x) * 3;
+    turned[q] = alpha[m];
+    for (let c = 0; c < 3; c++) rgb[q * 3 + c] = art[i + c];
+  }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const q = y * W + x, i = ((B.y + y) * N + B.x + x) * 3;
+    for (let c = 0; c < 3; c++) art[i + c] = sky[q * 3 + c] * (1 - turned[q]) + rgb[q * 3 + c] * turned[q];
+  }
+  plane.alpha = turned;
+  // where the sky is repainted when it flies off: its own outline, grown and feathered
+  const grown = new Float32Array(W * H);
+  for (let y = 4; y < H - 4; y++) for (let x = 4; x < W - 4; x++) { let m = 0; for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) m = Math.max(m, turned[(y + dy) * W + x + dx]); grown[y * W + x] = m; }
+  plane.hole = grown;
+
+  const flip = (x) => 2 * B.x + W - 1 - x; // a place on the aircraft, after the turn
+  const fin = await mask(poly([[964,150.3],[969.3,149.3],[981.7,173.3],[963.7,173.7]].map(([x, y]) => [flip(x), y])), 0.6);
   for (let p = 0, i = 0; p < N * N; p++, i += 3) { const k = fin[p] / 255; if (!k) continue; const L = lum(i); for (let c = 0; c < 3; c++) art[i + c] = art[i + c] * (1 - k) + k * Math.min(255, RED[c] * (0.5 + L / 150)); }
   // along the fuselage, below the windows; the paint is multiplied in, so the hull's shading stays
-  const cx = 1121, cy = 148, w = 82, h = w * (logo.info.height / logo.info.width) * 0.9, ang = Math.atan2(-118, 254), cos = Math.cos(ang), sin = Math.sin(ang);
+  const cx = flip(1121), cy = 148, w = 82, h = w * (logo.info.height / logo.info.width) * 0.9, ang = Math.atan2(118, 254), cos = Math.cos(ang), sin = Math.sin(ang);
   for (let y = Math.floor(cy - 60); y < cy + 60; y++) for (let x = Math.floor(cx - 60); x < cx + 60; x++) {
     let r = 0, g = 0, b = 0, al = 0;
     for (let sy = 0; sy < 3; sy++) for (let sx = 0; sx < 3; sx++) {
@@ -88,8 +110,7 @@ const logoAt = (u, v) => { // straight-alpha read, u and v in 0..1
 }
 await saveRGB(art, N, N, path.join(OUT, "hero-art.webp"), 86);
 
-// ---- 4. The aircraft and the truck, cut out; the sky and the road rebuilt --
-const clamp = (v) => Math.max(0, Math.min(255, Math.round(v)));
+// ---- 4. The cut-outs the page moves: each a file of three panels ----------
 async function atlas(cut, clean, file) {
   const { box: B, alpha, hole } = cut, W = B.w, H = B.h, out = new Uint8ClampedArray(W * 3 * H * 3);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -98,37 +119,9 @@ async function atlas(cut, clean, file) {
   }
   await saveRGB(out, W * 3, H, file, 90);
 }
-const plane = await cutPlane(art);
-{ // where the sky is repainted: the plane's own outline, grown and feathered
-  const { box: B, alpha, hole } = plane, W = B.w, H = B.h, grown = new Float32Array(W * H);
-  for (let y = 4; y < H - 4; y++) for (let x = 4; x < W - 4; x++) { let m = 0; for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) m = Math.max(m, alpha[(y + dy) * W + x + dx]); grown[y * W + x] = hole[y * W + x] ? m : 0; }
-  plane.hole = grown;
-}
 await atlas(plane, plane.sky, path.join(OUT, "hero-plane.webp"));
 const truck = await cutTruck(art);
 await atlas(truck, truck.patch, path.join(OUT, "hero-truck.webp"));
-
-// ---- 5. The plate: the picture carried on to the left, out of focus --------
-// Wide screens are wider than the picture is. Left of it the picture is
-// mirrored and blurred more the further it runs, so the sky, the glow of the
-// earth and the cloud continue to the edge of the screen in soft focus.
-const PLATE_W = 1500;
-{
-  const blurred = async (s) => new Uint8ClampedArray(await sharp(Buffer.from(art.buffer), { raw: { width: N, height: N, channels: 3 } }).blur(s).raw().toBuffer());
-  const levels = [art, await blurred(5), await blurred(16), await blurred(40)], at = [0, 50, 220, 620];
-  const plate = new Uint8ClampedArray(PLATE_W * N * 3), px = [0, 0, 0], py = [0, 0, 0];
-  for (let x = 0; x < PLATE_W; x++) {
-    const d = PLATE_W - x, sx = 520 * (1 - Math.exp(-d / 520)); // mirror about the picture's left edge, easing to a stop
-    let l = 0; while (l < 2 && d > at[l + 1]) l++;
-    const f = Math.min(1, Math.max(0, (d - at[l]) / (at[l + 1] - at[l]))), dim = 1 - 0.3 * smooth(300, 1500, d);
-    for (let y = 0; y < N; y++) {
-      sample(levels[l], sx, y, px); sample(levels[l + 1], sx, y, py);
-      const i = (y * PLATE_W + x) * 3;
-      for (let c = 0; c < 3; c++) plate[i + c] = (px[c] + (py[c] - px[c]) * f) * dim;
-    }
-  }
-  await saveRGB(plate, PLATE_W, N, path.join(OUT, "hero-plate.webp"), 72);
-}
 
 // The sky's own colour along the picture's top edge, for the page behind it.
 { let r = 0, g = 0, b = 0; for (let x = 0; x < 700; x++) { r += art[x * 3]; g += art[x * 3 + 1]; b += art[x * 3 + 2]; } console.log("sky at the top edge:", [r, g, b].map((v) => Math.round(v / 700))); }

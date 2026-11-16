@@ -51,9 +51,6 @@ export const ROUTE_SECOND = [[826,470],[808,469],[790,473],[773,477],[755,482],[
 export const CHINA = [843, 457];
 export const DAR = [302, 772];
 
-/** Where the coast road's straight lines meet, off the right of the picture: the truck drives along rays from here. */
-export const ROAD_VP = [1620, 868];
-
 /** The aircraft's box, and the truck's, with room round each. */
 export const PLANE_BOX = { x: 766, y: 66, w: 488, h: 224 };
 export const TRUCK_BOX = { x: 856, y: 920, w: 298, h: 226 };

@@ -133,9 +133,11 @@ export function SiteHeader() {
         <nav className="flex items-center justify-between py-3 md:py-4">
           <div className="flex items-center gap-8">
             <Link href="/" aria-label="Target Express Air Cargo — home">
-              <BrandLockup />
+              <BrandLockup tone="night" />
             </Link>
-            <div className="hidden items-center gap-6 md:flex">
+            {/* Nine links need about 1180px beside the logo and the buttons; under that they crowd the logo
+                and push Track off the edge, so the menu button carries them instead. */}
+            <div className="hidden items-center gap-6 min-[1180px]:flex">
               {NAV.map((item) => (
                 <Link
                   key={item.href}
@@ -189,7 +191,7 @@ export function SiteHeader() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-white hover:bg-white/10 hover:text-white md:hidden"
+                  className="h-8 w-8 text-white hover:bg-white/10 hover:text-white min-[1180px]:hidden"
                 >
                   <Menu className="h-[18px] w-[18px]" />
                   <span className="sr-only">Open menu</span>

@@ -32,6 +32,14 @@ export const IMAGES = {
   paperwork: photo("1450101499163-c8848c66ca85"),
   /** A wing over the clouds in late sun. */
   wingClouds: photo("1436491865332-7a61a109cc05"),
+  /** Above the cloud: blue overhead, the cloud deck below. The sky behind every public page. */
+  skyAbove: photo("1513002749550-c59d786b8e6c"),
+  /** An airliner against a blue sky. */
+  planeInSky: photo("1569629743817-70d8db6c323b"),
+  /** A large warehouse floor, stacked. */
+  warehouseFloor: photo("1586528116311-ad8dd3c8310d"),
+  /** A box passed from one pair of hands to another. */
+  parcelHandover: photo("1566576721346-d4a3b4eaeb55"),
 
   // Goods and markets
   clothingRail: photo("1441986300917-64674bd600d8"),
@@ -41,6 +49,21 @@ export const IMAGES = {
   furniture: photo("1555041469-a586c61ea9bc"),
   lighting: photo("1524484485831-a92ffc0de03f"),
   autoParts: photo("1486262715619-67b85e0b08d3"),
+  /** Clothes on a rail in a shop, warm light. */
+  clothesShop: photo("1445205170230-053b83016050"),
+  /** A market stall hung with garments. */
+  clothingStall: photo("1567401893414-76b7b1e5a7a5"),
+  sneakerPair: photo("1600185365483-26d7a4cc7519"),
+  /** Headphones, keyboard and mouse on a desk. */
+  gadgetsDesk: photo("1550009158-9ebf69173e03"),
+  circuitBoard: photo("1518770660439-4636190af475"),
+  jewellery: photo("1515562141207-7a88fb7ce338"),
+  /** A stall of toy figures. */
+  toys: photo("1558060370-d644479cb6f7"),
+  /** A buyer going through a rail in a small shop. */
+  boutique: photo("1441984904996-e0b6ba687e04"),
+  /** A card in one hand, a laptop under the other. */
+  payingOnline: photo("1620714223084-8fcacc6dfd8d"),
 } as const;
 
 /** A sized, cropped, format-negotiated URL. */
@@ -55,18 +78,18 @@ export function img(url: string, width: number, quality = 68) {
  * plausible picture beats a picture of the wrong thing.
  */
 const MARKET_IMAGES: Record<string, string> = {
-  "yiwu-international-trade-city": IMAGES.warehouseAisle,
+  "yiwu-international-trade-city": IMAGES.jewellery,
   "guangzhou-wholesale-markets": IMAGES.clothingRail,
   "shenzhen-electronics-markets": IMAGES.electronicsBench,
   "foshan-furniture-markets": IMAGES.furniture,
   "zhongda-fabric-market": IMAGES.fabricRolls,
   "keqiao-textile-market": IMAGES.fabricRolls,
-  "baima-clothing-market": IMAGES.clothingRail,
-  "huaqiangbei-electronics": IMAGES.electronicsBench,
+  "baima-clothing-market": IMAGES.clothingStall,
+  "huaqiangbei-electronics": IMAGES.circuitBoard,
   "guangzhou-shoe-markets": IMAGES.sneakers,
   "guangzhou-auto-parts": IMAGES.autoParts,
   "guzhen-lighting-market": IMAGES.lighting,
-  "chenghai-toy-market": IMAGES.warehouseAisle,
+  "chenghai-toy-market": IMAGES.toys,
   "packaging-materials-market": IMAGES.packedCartons,
 };
 

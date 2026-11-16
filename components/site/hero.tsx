@@ -5,24 +5,25 @@ import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { ArrowRight, PackageSearch } from "lucide-react";
 
-import { ART, ART_SIZE, PLATE, ROUTE, ROUTE_ENDS, useHeroScene } from "@/components/site/hero-art";
-import { countdownLabel, upcomingFlights } from "@/lib/flights";
+import { ART, ART_SIZE, ROUTE, ROUTE_ENDS, useHeroScene } from "@/components/site/hero-art";
+import { AIRCRAFT_PATH } from "@/lib/aircraft";
+import { daysAwaySwahili, SWAHILI_DAYS, upcomingFlights } from "@/lib/flights";
 import { normaliseCode } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
- * Public hero: the scene fills the screen (owner, 16 Nov 2026: "full screen —
- * no block of colour beside the picture"; "the truck moving, the plane moving,
- * realistic"). See hero-art.tsx for how the picture is made to move.
+ * Public hero: the whole scene in one view, alive (owner, 16 Nov 2026: "show
+ * all of it, not zoomed, no blur", "the truck moving, the plane moving,
+ * realistic", "planes coming from China to Tanzania"). See hero-art.tsx for how
+ * the picture is made to move, and globals.css (`.hero…`) for the layout: the
+ * words above the picture on a phone, beside it on a wide screen.
  *
- * Layout is in globals.css (`.hero…`). On a phone the words sit in the sky and
- * the whole picture runs the full width under them. On a wide screen the
- * picture stands at the right, a little taller than the screen, and the same
- * scene carries on to the left edge out of focus, with the words on it.
- *
- * Tracking stays a field rather than a button: it is the single most common
- * reason anyone opens this site, and sending someone to another page to type a
- * number they already have in their hand is a step for nothing.
+ * Few words (owner, 16 Nov 2026: "those words are too much", and the panel
+ * under them): the promise, the three things the company stands on, one field
+ * and one line. Tracking stays a field rather than a button: it is the single
+ * most common reason anyone opens this site, and sending someone to another
+ * page to type a number they already have in their hand is a step for nothing.
+ * The next plane is the one date a buyer needs before anything else.
  */
 export function Hero() {
   const router = useRouter();
@@ -35,7 +36,7 @@ export function Hero() {
   useHeroScene(canvasRef, stageRef, pictureRef, onLive);
 
   // Derived from today's date, never stored. See lib/flights.ts.
-  const nextFlight = upcomingFlights(1)[0];
+  const next = upcomingFlights(1)[0];
 
   function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -47,48 +48,60 @@ export function Hero() {
   return (
     <section className="hero">
       <canvas ref={canvasRef} aria-hidden className={cn("hero-canvas", live && "is-live")} />
-      {/* The stills the canvas plays over, and all there is without it. */}
-      {/* eslint-disable-next-line @next/next/no-img-element -- the canvas reads these exact files */}
-      <img src={PLATE} alt="" aria-hidden className="hero-plate" />
-      <div aria-hidden className="hero-scrim" />
 
       <div className="hero-copy container">
-        <div className="max-w-xl pb-6 pt-24 sm:pt-28 lg:pb-0 lg:pt-0">
-          <h1 className="rise rise-1 text-balance font-display text-[2.5rem] font-bold leading-[1.02] tracking-tight drop-shadow-[0_2px_20px_rgba(0,10,30,0.6)] sm:text-6xl xl:text-7xl">
-            Kutoka China, <span className="text-[#ff3140]">siku 3–10.</span>
+        <div className="pb-5 pt-24 sm:pb-8 sm:pt-28">
+          <h1 className="rise text-balance font-display text-[2rem] font-bold leading-[1.1] tracking-tight drop-shadow-[0_2px_18px_rgba(0,10,30,0.55)] sm:text-[2.5rem] xl:text-[2.75rem]">
+            Mzigo wako kutoka China, <span className="text-[#ff3140]">ndani ya siku 3–10.</span>
           </h1>
+          <p className="rise rise-1 mt-3 text-[15px] leading-relaxed text-white/75 sm:text-base">Kwa haraka, salama na uhakika.</p>
 
-          <form onSubmit={onSubmit} className="rise rise-2 mt-6 flex max-w-md gap-2">
-            <div className="relative flex-1">
-              <PackageSearch className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-white/50" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="TX-000123"
-                aria-label="Tracking or batch number"
-                className="h-12 w-full rounded-xl border border-white/20 bg-[#00183d]/45 pl-10 pr-3 font-mono text-[16px] uppercase tabular text-white outline-none backdrop-blur-md transition-colors placeholder:font-sans placeholder:normal-case placeholder:text-white/45 focus:border-white/55"
-              />
-            </div>
+          {/* One field, one button. */}
+          <form
+            onSubmit={onSubmit}
+            className="rise rise-2 mt-6 flex max-w-[25rem] items-center gap-2 rounded-full border border-white/20 bg-[#04193f]/80 p-1.5 pl-4 shadow-[0_18px_44px_-22px_rgba(0,0,0,0.9)] transition-colors focus-within:border-white/55"
+          >
+            <label htmlFor="hero-track" className="sr-only">
+              Fuatilia mzigo wako
+            </label>
+            <PackageSearch aria-hidden className="size-[18px] shrink-0 text-white/50" />
+            <input
+              id="hero-track"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="TX-000123"
+              autoComplete="off"
+              className="h-10 min-w-0 flex-1 bg-transparent font-mono text-[16px] uppercase tabular text-white outline-none placeholder:text-white/40"
+            />
             <button
               type="submit"
-              className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#D81E2A] px-5 font-semibold text-white shadow-[0_8px_28px_-6px_rgba(216,30,42,0.75)] transition-[filter] hover:brightness-110"
+              className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-[#D81E2A] px-4 text-sm font-semibold text-white transition-[filter] hover:brightness-110"
             >
               Fuatilia
               <ArrowRight className="size-4" />
             </button>
           </form>
 
-          {nextFlight ? (
+          {/* The next plane, in one line; the rest of the timetable is a press away. */}
+          {next ? (
             <Link
               href="/schedule"
-              className="rise rise-3 mt-4 inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-white/15 bg-[#00183d]/45 px-3 py-1.5 text-xs text-white/85 backdrop-blur-md transition-colors hover:text-white"
+              className="rise rise-3 group mt-4 inline-flex items-center gap-2.5 text-[13px] text-white/70 transition-colors hover:text-white"
             >
-              <span className="relative flex size-2" aria-hidden>
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#ff3140] opacity-60 motion-reduce:animate-none" />
-                <span className="relative inline-flex size-2 rounded-full bg-[#ff3140]" />
+              <span className="relative flex size-1.5" aria-hidden>
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#ff3140] opacity-70 motion-reduce:animate-none" />
+                <span className="relative inline-flex size-1.5 rounded-full bg-[#ff3140]" />
               </span>
-              Ndege inayofuata · {nextFlight.departureDay}
-              <span className="text-white/55">{countdownLabel(nextFlight)}</span>
+              {/* The date is today's on the visitor's own clock, which can be a day on from the server's. */}
+              <span suppressHydrationWarning>
+                Ndege ijayo:{" "}
+                <span suppressHydrationWarning className="font-semibold text-white">
+                  {SWAHILI_DAYS[next.departsAt.getDay()]} {next.departsAt.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                </span>
+                <span className="mx-1.5 text-white/30">·</span>
+                {daysAwaySwahili(next.daysAway)}
+              </span>
+              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
             </Link>
           ) : null}
         </div>
@@ -105,10 +118,11 @@ export function Hero() {
           fetchPriority="high"
           decoding="async"
         />
-        {/* Light running the route, China to Dar, and both ends breathing out. Drawn in the picture's own pixels. */}
+        {/* On the map: aircraft flying the route from China to Dar, and both ends breathing out.
+            Drawn in the picture's own pixels, so they sit on its red line at any size. */}
         <svg aria-hidden viewBox={`0 0 ${ART_SIZE} ${ART_SIZE}`} className="motion-reduce:hidden">
           <defs>
-            <filter id="hero-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <filter id="hero-glow" x="-80%" y="-80%" width="260%" height="260%">
               <feGaussianBlur stdDeviation="5" result="b" />
               <feMerge>
                 <feMergeNode in="b" />
@@ -116,14 +130,6 @@ export function Hero() {
               </feMerge>
             </filter>
           </defs>
-          <g fill="none" filter="url(#hero-glow)">
-            <path d={ROUTE} pathLength={100} stroke="white" strokeWidth="5" strokeLinecap="round" strokeDasharray="5 95">
-              <animate attributeName="stroke-dashoffset" values="100;0" dur="3s" repeatCount="indefinite" />
-            </path>
-            <path d={ROUTE} pathLength={100} stroke="#ffd9d4" strokeWidth="3.5" strokeLinecap="round" strokeDasharray="3 97">
-              <animate attributeName="stroke-dashoffset" values="100;0" dur="3s" begin="1.5s" repeatCount="indefinite" />
-            </path>
-          </g>
           {[
             { at: ROUTE_ENDS.china, c: "#ffd27a" },
             { at: ROUTE_ENDS.dar, c: "#ff3b47" },
@@ -132,6 +138,15 @@ export function Hero() {
               <animate attributeName="r" values="10;54" dur="2.4s" repeatCount="indefinite" />
               <animate attributeName="stroke-opacity" values="0.95;0" dur="2.4s" repeatCount="indefinite" />
             </circle>
+          ))}
+          {[0, 1, 2].map((i) => (
+            <g key={i} filter="url(#hero-glow)" opacity="0">
+              {/* a wake of light behind it, then the aircraft itself, nose first along the line */}
+              <path d="M -44 0 L -6 0" stroke="white" strokeOpacity="0.75" strokeWidth="3" strokeLinecap="round" />
+              <path d={AIRCRAFT_PATH} transform="scale(1.9)" fill="white" />
+              <animateMotion path={ROUTE} dur="10.5s" begin={`${i * 3.5}s`} repeatCount="indefinite" rotate="auto" />
+              <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.07;0.9;1" dur="10.5s" begin={`${i * 3.5}s`} repeatCount="indefinite" />
+            </g>
           ))}
         </svg>
       </div>

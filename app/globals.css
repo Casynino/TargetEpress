@@ -3,10 +3,7 @@
 @tailwind utilities;
 
 @layer base {
-  /* `.theme-light` gives a part of a page the day colours whatever the site
-     theme is: the homepage is light by the owner's choice (16 Nov 2026). */
-  :root,
-  .theme-light {
+  :root {
     --background: 0 0% 100%;
     --foreground: 217 40% 12%;
 
@@ -731,71 +728,183 @@ html { touch-action: manipulation; }
 @keyframes login-pop { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .login-up, .login-pop { animation: none; } }
 
-/* Homepage motion (owner, 16 Nov 2026: "things moving, futuristic"): the hero
-   photograph drifts slowly closer, the glass labels float, and nothing moves
-   for someone whose phone asks for less motion. */
+/* A photograph that drifts slowly closer (the homepage's bands). Still for
+   someone whose phone asks for less motion. */
 @keyframes ken-burns {
   from { transform: scale(1.02); }
   to { transform: scale(1.14) translate3d(-1.5%, -1%, 0); }
 }
 .ken-burns { animation: ken-burns 28s ease-in-out infinite alternate; transform-origin: 50% 40%; }
-@keyframes float-y {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-9px); }
-}
-.float-y { animation: float-y 6s ease-in-out infinite; }
-.float-y-2 { animation-delay: -2s; }
-.float-y-3 { animation-delay: -4s; }
-@keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 hsl(214 74% 62% / 0.45); }
-  50% { box-shadow: 0 0 0 10px hsl(214 74% 62% / 0); }
-}
-.glow-pulse { animation: glow-pulse 2.8s ease-out infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .ken-burns, .float-y, .glow-pulse { animation: none; }
+  .ken-burns { animation: none; }
 }
 /* The light that runs along the homepage's line of steps: down it on a phone,
    across it on a computer. */
 @keyframes flow-y { 0% { top: 0; opacity: 0; } 12%, 88% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
 @keyframes flow-x { 0% { left: 0; opacity: 0; } 12%, 88% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
 
-/* Clouds drifting across the homepage's sky. */
-.drift-cloud {
-  position: absolute;
-  border-radius: 9999px;
-  background: radial-gradient(ellipse at center, rgb(255 255 255 / 0.9), rgb(255 255 255 / 0) 70%);
-  filter: blur(16px);
-  animation: cloud-drift 50s ease-in-out infinite alternate;
-}
-.drift-cloud-2 { animation-duration: 70s; animation-direction: alternate-reverse; }
-@keyframes cloud-drift { from { transform: translateX(-8%); } to { transform: translateX(16%); } }
-@media (prefers-reduced-motion: reduce) { .drift-cloud { animation: none; } }
-
 /* ---- The homepage hero (components/site/hero.tsx) --------------------------
-   The scene fills the screen. A phone: the words in the sky, the square picture
-   full width under them. A wide screen: the picture at the right, a little
-   taller than the screen so its sky clears the header, and the same scene
-   carried on to the left edge out of focus (`.hero-plate`). The sky colour is
-   the picture's own along its top edge, so there is no join. The canvas draws
-   all of this once it is running; these rules place the stills it starts from. */
+   The whole picture is always in view, never blurred, never zoomed past what
+   the screen can show. A phone, a tablet, a squarish window: the words in sky
+   above, the picture under them at full width. A wide screen: the hero is one
+   screen tall, the whole picture stands at its right, and the canvas carries
+   the scene on to the left of it, where the words sit. The sky colour is the
+   picture's own. The canvas draws all of this once it is running; these rules
+   place the still it starts from. */
 .hero { position: relative; isolation: isolate; overflow: hidden; color: #fff; background: linear-gradient(#00122f, #00183d 45%); }
+/* The last of the hero thins out, so the page's own sky and cloud show through its foot instead of a cut line. */
+.hero { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 5rem), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 5rem), transparent); }
 .hero-canvas { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; opacity: 0; pointer-events: none; transition: opacity 0.7s ease; }
 .hero-canvas.is-live { opacity: 1; }
 .hero-copy { position: relative; z-index: 3; }
-.hero-stage { position: relative; width: 100%; aspect-ratio: 1 / 1; }
+.hero-stage { position: relative; width: 100%; max-width: min(2000px, 96svh); margin-inline: auto; aspect-ratio: 1 / 1; }
 .hero-stage > img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .hero-stage > svg { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; pointer-events: none; }
-.hero-plate, .hero-scrim { display: none; }
-/* the foot of the scene lifts into the white page like mist */
-.hero-mist { position: absolute; inset-inline: 0; bottom: 0; z-index: 2; height: 7%; pointer-events: none; background: linear-gradient(to top, #fff, rgb(255 255 255 / 0.55) 35%, rgb(255 255 255 / 0)); }
+/* Without the canvas (less motion asked for, or no WebGL) the foot of the still lifts into the page as mist.
+   With it, the canvas lays real cloud there instead. */
+.hero-mist { position: absolute; inset-inline: 0; bottom: 0; z-index: 2; height: 9%; pointer-events: none; background: linear-gradient(to top, hsl(var(--background)), hsl(var(--background) / 0.6) 35%, hsl(var(--background) / 0)); transition: opacity 0.7s ease; }
+.hero-canvas.is-live ~ .hero-mist { opacity: 0; }
 
-@media (min-width: 1024px) and (min-aspect-ratio: 3/2) {
-  .hero { height: 100vh; height: 100svh; min-height: 600px; container-type: size; }
-  /* vh first for browsers without container units; cqh follows the hero's real height */
-  .hero-stage { position: absolute; right: 0; top: 3vh; width: 112vh; height: 112vh; top: 3cqh; width: 112cqh; height: 112cqh; aspect-ratio: auto; }
-  .hero-plate { display: block; position: absolute; max-width: none; top: 3vh; right: 112vh; height: 112vh; width: calc(112vh * 1500 / 1254); top: 3cqh; right: 112cqh; height: 112cqh; width: calc(112cqh * 1500 / 1254); }
-  /* a little night under the words, so they read on any frame */
-  .hero-scrim { display: block; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: linear-gradient(to right, rgb(0 14 38 / 0.55), rgb(0 14 38 / 0.25) 34%, rgb(0 14 38 / 0) 56%); }
+/* a tablet upright: the picture is kept small enough that the words and the whole scene share the screen */
+@media (min-width: 640px) {
+  .hero-stage { max-width: min(100%, max(26rem, calc(100svh - 22rem))); }
+}
+
+@media (min-width: 900px) and (min-aspect-ratio: 5/4) {
+  .hero {
+    height: 100vh; height: 100svh; min-height: 620px; container-type: size;
+    --copy: 30rem; /* the words' column */
+    --gutter: max(1rem, calc((100vw - 82.5rem) / 2 + 1rem)); /* where `.container` starts */
+  }
+  /* As tall as the screen, or as wide as the words leave room for, whichever is less; it stands on the
+     foot of the hero and the sky carries on above it. vh first for browsers without container units. */
+  .hero-stage {
+    position: absolute; right: 0; bottom: -3vh; bottom: -3cqh;
+    width: min(104vh, calc(100vw - var(--copy) - var(--gutter) - 2.5rem));
+    width: min(104cqh, calc(100cqw - var(--copy) - var(--gutter) - 2.5rem));
+    max-width: none; margin: 0;
+  }
   .hero-copy { display: flex; align-items: center; height: 100%; }
-  .hero-mist { height: 9%; }
+  .hero-copy > div { width: var(--copy); max-width: 100%; padding-top: 4rem; padding-bottom: 0; }
+}
+
+/* ---- The sky behind the public site (components/site/site-sky.tsx) ----------
+   One layer, fixed behind every public page (owner, 16 Nov 2026: the pages were "too white" and he
+   asked for cloud, a ground with some style, the way his other sites have one). It is the view an air
+   cargo company has: above the cloud, blue overhead and the cloud deck along the foot of the screen,
+   so whatever scrolls over it, the page is in the air. One photograph serves day and night: by day it
+   shows through a pale sky, by night it sinks into navy with stars over it. Sections with no ground
+   of their own let it through. The layer only ever changes its transform, so a phone composites it
+   and never repaints the page for it.
+
+   `.site` (the public layout) also sets the page colour the sky is laid on. It is scoped here, not in
+   the theme, so the staff app keeps its own white and its own night. */
+.site {
+  position: relative; isolation: isolate;
+  --background: 211 60% 93%;
+  --muted-foreground: 216 24% 34%;
+  --border: 214 34% 83%;
+  --input: 214 34% 83%;
+  background-color: hsl(var(--background));
+}
+.dark .site {
+  --background: 219 56% 7.5%;
+  --muted-foreground: 216 22% 70%;
+  --card: 219 42% 11.5%;
+  --muted: 219 36% 15%;
+  --border: 219 32% 20%;
+  --input: 219 32% 20%;
+}
+.site-sky {
+  position: fixed; top: 0; left: 0; right: 0; height: 100vh; height: 100lvh; z-index: -1; overflow: hidden; pointer-events: none;
+  color: #1c3157; /* the far-off planes */
+  background: linear-gradient(180deg, hsl(212 64% 86%), hsl(212 60% 91%) 46%, hsl(210 62% 95%));
+}
+.dark .site-sky { color: #fff; background: linear-gradient(180deg, hsl(221 62% 5.5%), hsl(219 56% 7.5%) 50%, hsl(217 52% 11%)); }
+/* The cloud is kept faint, so a word over it reads as on plain sky. The far layer thins out toward the top of
+   the screen; the near one lies along the foot of it, mirrored and larger, and drifts the other way. */
+.site-sky img { position: absolute; max-width: none; object-fit: cover; object-position: 50% 100%; }
+.sky-far {
+  left: -14%; top: 0; width: 128%; height: 100%; opacity: 0.3;
+  -webkit-mask-image: linear-gradient(transparent 6%, #000 62%); mask-image: linear-gradient(transparent 6%, #000 62%);
+  animation: sky-far 90s ease-in-out infinite alternate;
+}
+.sky-near {
+  left: -30%; bottom: -5%; width: 160%; height: 58%; opacity: 0.36; transform: scaleX(-1);
+  -webkit-mask-image: linear-gradient(transparent, #000 62%); mask-image: linear-gradient(transparent, #000 62%);
+  animation: sky-near 66s ease-in-out infinite alternate;
+}
+.dark .sky-far { opacity: 0.09; }
+.dark .sky-near { opacity: 0.13; }
+@keyframes sky-far { from { transform: translate3d(-9%, 0, 0); } to { transform: translate3d(9%, 0, 0); } }
+@keyframes sky-near { from { transform: translate3d(12%, 0, 0) scaleX(-1); } to { transform: translate3d(-12%, 0, 0) scaleX(-1); } }
+/* night: stars in the upper sky, thinning out before the cloud */
+.site-sky::before {
+  content: ""; position: absolute; inset: 0 0 38% 0; opacity: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='420'%3E%3Ccircle cx='397.1' cy='237.5' r='0.70' fill='white' fill-opacity='0.64'/%3E%3Ccircle cx='279.4' cy='266.6' r='0.50' fill='white' fill-opacity='0.70'/%3E%3Ccircle cx='296.3' cy='303.4' r='0.50' fill='white' fill-opacity='0.29'/%3E%3Ccircle cx='18.2' cy='83.3' r='0.50' fill='white' fill-opacity='0.51'/%3E%3Ccircle cx='99.2' cy='111.9' r='0.50' fill='white' fill-opacity='0.30'/%3E%3Ccircle cx='48.8' cy='190.8' r='1.10' fill='white' fill-opacity='0.26'/%3E%3Ccircle cx='77.4' cy='178.7' r='0.90' fill='white' fill-opacity='0.28'/%3E%3Ccircle cx='255.0' cy='376.5' r='0.70' fill='white' fill-opacity='0.68'/%3E%3Ccircle cx='346.5' cy='344.9' r='0.50' fill='white' fill-opacity='0.28'/%3E%3Ccircle cx='111.9' cy='165.3' r='0.90' fill='white' fill-opacity='0.72'/%3E%3Ccircle cx='222.7' cy='409.6' r='0.60' fill='white' fill-opacity='0.74'/%3E%3Ccircle cx='229.2' cy='348.1' r='0.60' fill='white' fill-opacity='0.43'/%3E%3Ccircle cx='7.6' cy='13.9' r='0.60' fill='white' fill-opacity='0.43'/%3E%3Ccircle cx='211.8' cy='230.1' r='0.50' fill='white' fill-opacity='0.69'/%3E%3Ccircle cx='283.7' cy='343.2' r='0.70' fill='white' fill-opacity='0.62'/%3E%3Ccircle cx='59.6' cy='134.0' r='0.50' fill='white' fill-opacity='0.29'/%3E%3Ccircle cx='63.7' cy='200.0' r='0.50' fill='white' fill-opacity='0.45'/%3E%3Ccircle cx='78.4' cy='20.3' r='0.90' fill='white' fill-opacity='0.65'/%3E%3Ccircle cx='85.8' cy='393.6' r='0.90' fill='white' fill-opacity='0.57'/%3E%3Ccircle cx='30.7' cy='8.4' r='0.60' fill='white' fill-opacity='0.52'/%3E%3Ccircle cx='259.4' cy='399.9' r='0.70' fill='white' fill-opacity='0.67'/%3E%3Ccircle cx='114.2' cy='117.6' r='0.90' fill='white' fill-opacity='0.34'/%3E%3Ccircle cx='338.6' cy='66.6' r='1.10' fill='white' fill-opacity='0.69'/%3E%3Ccircle cx='413.5' cy='35.0' r='1.10' fill='white' fill-opacity='0.38'/%3E%3Ccircle cx='98.4' cy='372.4' r='0.90' fill='white' fill-opacity='0.28'/%3E%3Ccircle cx='397.2' cy='179.5' r='0.70' fill='white' fill-opacity='0.52'/%3E%3Ccircle cx='140.0' cy='205.2' r='0.50' fill='white' fill-opacity='0.72'/%3E%3Ccircle cx='227.6' cy='61.4' r='0.50' fill='white' fill-opacity='0.66'/%3E%3Ccircle cx='354.2' cy='71.9' r='1.10' fill='white' fill-opacity='0.33'/%3E%3Ccircle cx='295.9' cy='72.5' r='0.60' fill='white' fill-opacity='0.29'/%3E%3Ccircle cx='244.7' cy='303.0' r='0.60' fill='white' fill-opacity='0.31'/%3E%3Ccircle cx='9.7' cy='123.6' r='0.90' fill='white' fill-opacity='0.44'/%3E%3Ccircle cx='338.2' cy='93.1' r='0.50' fill='white' fill-opacity='0.42'/%3E%3Ccircle cx='307.6' cy='265.8' r='0.50' fill='white' fill-opacity='0.66'/%3E%3C/svg%3E") 0 0 / 420px 420px;
+  -webkit-mask-image: linear-gradient(#000 30%, transparent); mask-image: linear-gradient(#000 30%, transparent);
+}
+.dark .site-sky::before { opacity: 0.85; }
+/* Two planes far off, each on its own slanted lane, crossing now and then: one climbing to the right, a smaller
+   one coming back the other way higher up. Each crossing is followed by a stretch of empty sky. */
+.sky-lane { position: absolute; left: 0; width: 100%; height: 0; }
+.sky-lane-a { top: 34%; transform: rotate(-8deg); }
+.sky-lane-b { top: 15%; transform: rotate(5deg) scaleX(-1); }
+.sky-plane { position: absolute; left: 0; top: 0; opacity: 0.3; transform: translate3d(-240px, 0, 0); animation: sky-fly 52s linear infinite; }
+.sky-lane-b .sky-plane { width: 136px; height: 16px; opacity: 0.2; animation-duration: 83s; animation-delay: -34s; }
+.dark .sky-plane { opacity: 0.4; }
+.dark .sky-lane-b .sky-plane { opacity: 0.26; }
+@keyframes sky-fly { from { transform: translate3d(-240px, 0, 0); } 62%, to { transform: translate3d(calc(100vw + 240px), 0, 0); } }
+@media (prefers-reduced-motion: reduce) {
+  .site-sky img { animation: none; }
+  .sky-lane { display: none; }
+}
+@media print { .site-sky { display: none; } }
+
+/* China's markets on the homepage: a row of tall photographs. On a phone it is swiped. On a computer
+   the section holds still for a moment and the row runs sideways past the reader as the page is
+   scrolled (`--p`, 0 to 1, is set by ScrollProgress in reveal.tsx), so thirteen markets pass without
+   thirteen rows of page. Asked for less motion, it is a plain row that scrolls sideways. */
+.run-view { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+.run-view::-webkit-scrollbar { display: none; }
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  .run-pin { height: 230vh; }
+  .run-stick { position: sticky; top: 0; display: flex; height: 100vh; flex-direction: column; justify-content: center; overflow: hidden; }
+  .run-view { overflow: visible; }
+  .run-track { transform: translate3d(calc(var(--p, 0) * (100vw - 100%)), 0, 0); will-change: transform; }
+}
+/* The cargo's route down the homepage: a line from the market in China to the counter in Dar, the four stops
+   along it, and a plane that keeps to the middle of the screen as the page is scrolled, so the reader flies
+   the route. The part already flown is solid red; the rest is still a dashed plan. `--p` comes from
+   ScrollProgress (mode "centre"). Both moving parts are transforms only. */
+.route { position: relative; }
+.route-line { position: absolute; top: 0; bottom: 0; left: 15px; width: 2px; pointer-events: none; }
+.route-line::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(to bottom, hsl(var(--brand) / 0.35) 0 7px, transparent 7px 15px); }
+.route-flown { position: absolute; inset: 0; background: hsl(var(--signal)); transform: scaleY(var(--p, 0)); transform-origin: 50% 0; }
+.route-plane { position: absolute; inset: 0; transform: translate3d(0, calc(var(--p, 0) * 100%), 0); }
+.route-plane svg { position: absolute; left: 50%; top: 0; width: 34px; height: 34px; margin: -17px 0 0 -17px; color: hsl(var(--signal)); filter: drop-shadow(0 4px 10px hsl(var(--signal) / 0.45)); }
+.route-stop { position: relative; padding-left: 44px; }
+.route-node { position: absolute; left: 8px; top: 50%; width: 16px; height: 16px; margin-top: -8px; border-radius: 9999px; background: hsl(var(--card)); border: 3px solid hsl(var(--signal)); box-shadow: 0 0 0 5px hsl(var(--signal) / 0.14); }
+@media (min-width: 768px) {
+  .route-line { left: 50%; margin-left: -1px; }
+  .route-stop { padding-left: 0; }
+  .route-node { left: 50%; margin-left: -8px; }
+}
+@media (prefers-reduced-motion: reduce) { .route-plane { display: none; } .route-flown { transform: none; opacity: 0.5; } }
+
+/* A card that leans toward the mouse and catches the light under it (Tilt in reveal.tsx). */
+.tilt { position: relative; transform: perspective(1000px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.tilt-sheen { position: absolute; inset: 0; z-index: 5; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.35s ease; background: radial-gradient(20rem circle at var(--mx, 50%) var(--my, 50%), rgb(255 255 255 / 0.2), transparent 62%); }
+@media (hover: hover) { .tilt:hover .tilt-sheen { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .tilt { transform: none; transition: none; } }
+
+/* Each public page comes in with a short fade (app/(public)/template.tsx), so moving between pages is a
+   change of scene, not a cut. Nothing is left applied once it has played. */
+.page-in { animation: page-in 0.45s ease backwards; }
+@keyframes page-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .page-in { animation: none; } }
+
+/* A photograph that moves a little slower than the page (the homepage's sourcing pictures). */
+@media (prefers-reduced-motion: no-preference) {
+  .lag { transform: translate3d(0, calc((0.5 - var(--p, 0.5)) * var(--lag, 40px)), 0); will-change: transform; }
 }

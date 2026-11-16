@@ -96,3 +96,13 @@ export function flightTone(flight: ScheduledFlight): "closed" | "urgent" | "open
   if (flight.daysAway <= 1) return "urgent";
   return "open";
 }
+
+/** The days of the week as the public site says them: it speaks Swahili to its customers. Indexed by getDay(). */
+export const SWAHILI_DAYS = ["Jumapili", "Jumatatu", "Jumanne", "Jumatano", "Alhamisi", "Ijumaa", "Jumamosi"] as const;
+
+/** "Leo", "Kesho", "Siku 3" — how long until a flight, for the public site. */
+export function daysAwaySwahili(days: number) {
+  if (days <= 0) return "Leo";
+  if (days === 1) return "Kesho";
+  return `Siku ${days}`;
+}

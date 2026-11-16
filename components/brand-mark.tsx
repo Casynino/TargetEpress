@@ -33,11 +33,17 @@ export function BrandMark({
    * "paper" pins the mark to the artwork's own inks. Printed documents are
    * white in either theme, so a token that brightens for the dark sidebar would
    * put pale blue on a page somebody is about to photocopy.
+   *
+   * "night" is for a bar that is dark in both themes — the public site's
+   * header, which lies on the night sky of the page heroes. There the token
+   * turns navy the moment a visitor picks the day theme, and a navy globe on a
+   * navy sky is no logo at all: the globe is white and the jet a red bright
+   * enough to read on the dark.
    */
-  tone?: "theme" | "paper";
+  tone?: "theme" | "paper" | "night";
 }) {
-  const globe = tone === "paper" ? "fill-[#182A48]" : "fill-brand";
-  const jet = tone === "paper" ? "fill-[#D81E2A]" : "fill-signal";
+  const globe = tone === "paper" ? "fill-[#182A48]" : tone === "night" ? "fill-white" : "fill-brand";
+  const jet = tone === "paper" ? "fill-[#D81E2A]" : tone === "night" ? "fill-[#ff3140]" : "fill-signal";
 
   return (
     <svg
@@ -68,18 +74,21 @@ export function BrandMark({
 export function BrandLockup({
   className,
   subtitle = true,
+  tone = "theme",
 }: {
   className?: string;
   subtitle?: boolean;
+  /** "night" for a bar that is dark in both themes; see BrandMark. */
+  tone?: "theme" | "night";
 }) {
   return (
     // gap-2, not gap-2.5: the aircraft leaves the emblem at the top right, so
     // the box is empty beside the words and already reads as a wider gap than
     // it measures.
     <span className={cn("flex items-center gap-2", className)}>
-      <BrandMark className="h-8 w-auto shrink-0" />
+      <BrandMark className="h-8 w-auto shrink-0" tone={tone} />
       <span className="flex flex-col leading-none">
-        <span className="font-display text-[16px] font-extrabold tracking-tight text-signal">
+        <span className={cn("font-display text-[16px] font-extrabold tracking-tight", tone === "night" ? "text-[#ff3140]" : "text-signal")}>
           Target
         </span>
         {subtitle ? (
@@ -95,7 +104,7 @@ export function BrandLockup({
             clerk reading three familiar English words under a mark they see
             on every carton. Translate the interface; leave the name.
           */
-          <span className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
+          <span className={cn("mt-1 text-xs font-bold uppercase tracking-[0.12em]", tone === "night" ? "text-white" : "text-brand")}>
             Express Air Cargo
           </span>
         ) : null}
