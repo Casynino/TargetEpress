@@ -19,8 +19,8 @@ import { cn } from "@/lib/utils";
  * words above the picture on a phone, beside it on a wide screen.
  *
  * Few words (owner, 16 Nov 2026: "those words are too much", and the panel
- * under them): the promise, the three things the company stands on, one field
- * and one line. Tracking stays a field rather than a button: it is the single
+ * under them; then "use very less words"): the promise, one field and one
+ * line. Tracking stays a field rather than a button: it is the single
  * most common reason anyone opens this site, and sending someone to another
  * page to type a number they already have in their hand is a step for nothing.
  * The next plane is the one date a buyer needs before anything else.
@@ -51,15 +51,14 @@ export function Hero() {
 
       <div className="hero-copy container">
         <div className="pb-5 pt-24 sm:pb-8 sm:pt-28">
-          <h1 className="rise text-balance font-display text-[2rem] font-bold leading-[1.1] tracking-tight drop-shadow-[0_2px_18px_rgba(0,10,30,0.55)] sm:text-[2.5rem] xl:text-[2.75rem]">
+          <h1 className="rise text-balance font-display text-[2rem] font-semibold leading-[1.08] tracking-[-0.035em] drop-shadow-[0_2px_18px_rgba(0,10,30,0.55)] sm:text-[2.6rem] xl:text-[3rem]">
             Mzigo wako kutoka China, <span className="text-[#ff3140]">ndani ya siku 3–10.</span>
           </h1>
-          <p className="rise rise-1 mt-3 text-[15px] leading-relaxed text-white/75 sm:text-base">Kwa haraka, salama na uhakika.</p>
 
           {/* One field, one button. */}
           <form
             onSubmit={onSubmit}
-            className="rise rise-2 mt-6 flex max-w-[25rem] items-center gap-2 rounded-full border border-white/20 bg-[#04193f]/80 p-1.5 pl-4 shadow-[0_18px_44px_-22px_rgba(0,0,0,0.9)] transition-colors focus-within:border-white/55"
+            className="rise rise-1 mt-7 flex max-w-[25rem] items-center gap-2 rounded-full border border-white/20 bg-[#04193f]/80 p-1.5 pl-4 shadow-[0_18px_44px_-22px_rgba(0,0,0,0.9)] transition-colors focus-within:border-white/55"
           >
             <label htmlFor="hero-track" className="sr-only">
               Fuatilia mzigo wako
@@ -86,7 +85,7 @@ export function Hero() {
           {next ? (
             <Link
               href="/schedule"
-              className="rise rise-3 group mt-4 inline-flex items-center gap-2.5 text-[13px] text-white/70 transition-colors hover:text-white"
+              className="rise rise-2 group mt-4 inline-flex items-center gap-2.5 text-[13px] text-white/70 transition-colors hover:text-white"
             >
               <span className="relative flex size-1.5" aria-hidden>
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#ff3140] opacity-70 motion-reduce:animate-none" />

@@ -163,7 +163,8 @@ export function RevealWords({
   accent,
 }: {
   text: string;
-  as?: "h1" | "h2" | "h3" | "p";
+  /** `span` for one line of a heading that has several. */
+  as?: "h1" | "h2" | "h3" | "p" | "span";
   className?: string;
   /** Words from this index on take the accent colour. */
   accent?: { from: number; className: string };
@@ -227,8 +228,9 @@ export function CountUp({ value, suffix = "", className }: { value: number; suff
  * (0 to 1) for CSS to move things by: the markets row that runs sideways, a
  * photograph that lags behind the page. `pin` counts while the box is pinned
  * to the screen (it is taller than the screen); `through` counts from the box
- * entering at the foot of the screen to leaving at the top; `centre` is how
- * far down the box the middle of the screen has got. One listener, one
+ * entering at the foot of the screen to leaving at the top; `view` counts
+ * while the box is comfortably in view, from its middle coming up past the
+ * lower part of the screen to reaching the upper part. One listener, one
  * style write per frame; nothing is written for someone who asked for less
  * motion, so the CSS falls back to its still layout.
  */
@@ -239,7 +241,7 @@ export function ScrollProgress({
   children,
   ...rest
 }: {
-  mode?: "pin" | "through" | "centre";
+  mode?: "pin" | "through" | "view";
   as?: "div" | "section" | "ol";
   className?: string;
   children?: React.ReactNode;
@@ -254,7 +256,7 @@ export function ScrollProgress({
       frame = 0;
       const r = node.getBoundingClientRect(), vh = window.innerHeight;
       const p =
-        mode === "pin" ? -r.top / Math.max(1, r.height - vh) : mode === "centre" ? (vh * 0.56 - r.top) / Math.max(1, r.height) : (vh - r.top) / Math.max(1, r.height + vh);
+        mode === "pin" ? -r.top / Math.max(1, r.height - vh) : mode === "view" ? (vh * 0.9 - (r.top + r.height / 2)) / (vh * 0.55) : (vh - r.top) / Math.max(1, r.height + vh);
       node.style.setProperty("--p", Math.min(1, Math.max(0, p)).toFixed(4));
     };
     const queue = () => {

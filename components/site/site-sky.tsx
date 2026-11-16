@@ -1,32 +1,20 @@
+import { SkyScene } from "@/components/site/sky-scene";
 import { AIRCRAFT_PATH } from "@/lib/aircraft";
-import { IMAGES, img } from "@/lib/imagery";
 
 /**
  * The sky every public page sits on, fixed behind the page (see `.site-sky`
- * in globals.css for why, and how it follows day and night).
+ * in globals.css for how it follows day and night).
  *
- * Quiet on purpose (owner, 16 Nov 2026: the first one was "too much, I can't
- * read anything … make the balance"): a plain sky with faint cloud in it, more
- * of it along the foot of the screen, drifting; and now and then a small plane
- * crossing far off with its trail. Nothing in it is strong enough to compete
- * with a word laid over it.
- *
- * One photograph of real cloud, used twice (far and near). A plain <img>, not
- * next/image: it is decoration behind the whole site, and a phone should fetch
- * the small crop and nothing else.
+ * The scene itself is SkyScene: above the cloud, flying. Over it, two planes
+ * cross far off now and then, and by night the stars come out. Words are never
+ * laid straight on the busy part of it: cards on the public site are glass
+ * (`.site .bg-card`), which is what keeps a moving sky and readable text on
+ * the same page.
  */
 export function SiteSky() {
-  const cloud = (className: string) => (
-    <picture>
-      <source media="(max-width: 700px)" srcSet={img(IMAGES.skyAbove, 900, 55)} />
-      {/* eslint-disable-next-line @next/next/no-img-element -- see above */}
-      <img className={className} src={img(IMAGES.skyAbove, 1800, 58)} alt="" decoding="async" />
-    </picture>
-  );
   return (
     <div aria-hidden className="site-sky">
-      {cloud("sky-far")}
-      {cloud("sky-near")}
+      <SkyScene />
       <span className="sky-lane sky-lane-a">
         <Plane id="sky-trail-a" />
       </span>

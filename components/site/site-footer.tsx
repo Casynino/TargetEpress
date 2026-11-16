@@ -5,8 +5,9 @@ import { BrandLockup } from "@/components/brand-mark";
 import { COMPANY } from "@/lib/constants";
 
 export function SiteFooter() {
+  // Nearly solid: the foot of the screen is where the sky's cloud is busiest, and this is small type.
   return (
-    <footer className="mt-20 border-t bg-muted/30">
+    <footer className="mt-20 border-t bg-background/80 backdrop-blur-md max-sm:bg-background/90 max-sm:backdrop-blur-none">
       <div className="container py-14">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-4">
           <div className="md:col-span-2">

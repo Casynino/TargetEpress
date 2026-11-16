@@ -32,8 +32,6 @@ export const IMAGES = {
   paperwork: photo("1450101499163-c8848c66ca85"),
   /** A wing over the clouds in late sun. */
   wingClouds: photo("1436491865332-7a61a109cc05"),
-  /** Above the cloud: blue overhead, the cloud deck below. The sky behind every public page. */
-  skyAbove: photo("1513002749550-c59d786b8e6c"),
   /** An airliner against a blue sky. */
   planeInSky: photo("1569629743817-70d8db6c323b"),
   /** A large warehouse floor, stacked. */
@@ -62,8 +60,6 @@ export const IMAGES = {
   toys: photo("1558060370-d644479cb6f7"),
   /** A buyer going through a rail in a small shop. */
   boutique: photo("1441984904996-e0b6ba687e04"),
-  /** A card in one hand, a laptop under the other. */
-  payingOnline: photo("1620714223084-8fcacc6dfd8d"),
 } as const;
 
 /** A sized, cropped, format-negotiated URL. */
