@@ -14,9 +14,12 @@ import { cn } from "@/lib/utils";
  * words above the picture on a phone, beside it on a wide screen.
  *
  * Words only, and few (owner, 16 Nov 2026: the tracking box and the line
- * under it were "too much" and spoiled the clean first screen): the company's
- * promise, set in two sizes. Tracking and the next flights are the first thing
- * under the scene (TrackPill and the flights on the homepage).
+ * under it were "too much"; then "huge and clean, key words, not too many",
+ * with the days "very small"): three short lines that say the whole business
+ * (buy in China, by air, to Dar) and the promise as a small label over them.
+ * They stand beside or above the scene, never over it. Tracking and the next
+ * flights are the first thing under the scene (TrackPill and the flights on
+ * the homepage).
  */
 export function Hero() {
   const [live, setLive] = useState(false);
@@ -32,14 +35,17 @@ export function Hero() {
 
       <div className="hero-copy container">
         <div className="pb-4 pt-24 sm:pb-8 sm:pt-28">
-          <span aria-hidden className="rise block h-[3px] w-9 rounded-full bg-[#ff3140]" />
-          {/* Two sizes, one sentence: the lead-in said quietly, the promise said large. The large line is
-              sized to the screen so it stays on one line on the narrowest phone. */}
-          <h1 className="mt-4 font-display drop-shadow-[0_2px_18px_rgba(0,10,30,0.55)]">
-            <span className="rise rise-1 block text-[1.3rem] font-normal leading-tight tracking-[-0.02em] text-white/85 sm:text-[1.6rem]">Mzigo wako kutoka China,</span>
-            <span className="rise rise-2 mt-1.5 block whitespace-nowrap text-[min(2.3rem,9vw)] font-bold leading-[1.05] tracking-[-0.04em] sm:text-[2.6rem] xl:text-[2.9rem]">
-              ndani ya siku <span className="text-[#ff3140]">3–10.</span>
-            </span>
+          {/* The promise, small: the three key words under it are what is read first. */}
+          <p className="rise flex items-center gap-3 text-[12px] font-semibold uppercase tracking-[0.26em] text-white/85 sm:text-[13px]">
+            <span aria-hidden className="h-[3px] w-8 rounded-full bg-[#ff3140]" />
+            Siku 3–10
+          </p>
+          {/* Three short lines, large. Sized to the screen so the longest stays on one line on the
+              narrowest phone, and never so large on a computer that it leaves its column. */}
+          <h1 className="mt-4 font-display text-[min(3rem,11.6vw)] font-extrabold uppercase leading-[0.98] tracking-[-0.045em] drop-shadow-[0_2px_18px_rgba(0,10,30,0.55)] sm:text-[3.4rem] xl:text-[3.8rem]">
+            <span className="rise rise-1 block">Nunua China.</span>
+            <span className="rise rise-2 block">Kwa ndege.</span>
+            <span className="rise rise-3 block text-[#ff3140]">Hadi Dar.</span>
           </h1>
         </div>
       </div>
