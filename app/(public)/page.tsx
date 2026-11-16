@@ -5,6 +5,7 @@ import { ArrowRight, MapPin, MessageCircle, Plane } from "lucide-react";
 import { Hero } from "@/components/site/hero";
 import { LiveStats } from "@/components/site/live-stats";
 import { Reveal, RevealWords, ScrollProgress, Tilt } from "@/components/site/reveal";
+import { TrackPill } from "@/components/site/track-pill";
 import { AIRCRAFT_PATH } from "@/lib/aircraft";
 import { COMPANY } from "@/lib/constants";
 import { daysAwaySwahili, flightTone, SWAHILI_DAYS, upcomingFlights } from "@/lib/flights";
@@ -79,10 +80,12 @@ export default async function HomePage() {
     <>
       <Hero />
 
-      {/* ---- The next planes, straight under the scene (owner, 16 Nov 2026: "the schedule should be
-          here"): when the next flight leaves is the first thing a customer with goods in China asks. ---- */}
-      <section className="relative pb-14 pt-8 md:pb-20 md:pt-14">
+      {/* ---- Tracking and the next planes, straight under the scene (owner, 16 Nov 2026: "the schedule
+          should be here", and the tracking box out of the scene): the two things a customer came for. ---- */}
+      <section className="relative pb-14 pt-6 md:pb-20 md:pt-12">
         <div className="container">
+          {/* Track a cargo: the commonest reason anyone opens the site, so it is the first thing under the scene. */}
+          <TrackPill className="mb-8 max-w-md md:mb-10" />
           <div className="flex flex-wrap items-end justify-between gap-4">
             <RevealWords text="Ndege zinazofuata." className={TITLE} />
             <Link href="/schedule" className={MORE}>
