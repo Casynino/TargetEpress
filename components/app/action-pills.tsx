@@ -130,8 +130,12 @@ export function ActionPills({
       /* On a phone, one line of icons in equal shares of the row — one glyph,
          one word, every tile the same width. As pills they wrapped by their
          own width into a staircase with an orphan on the last line. From sm
-         up they are the pills they always were. */
-      className="flex flex-nowrap justify-center sm:flex-wrap sm:justify-start sm:gap-2"
+         up they are the pills they always were. Below md the row is not drawn
+         at all (owner, 16 Nov 2026, as on ZELab: a phone opens on the banner and
+         the work, and the drawer and bottom tabs already reach every page; the
+         two actions that sit in this row are on the Finance and Collections
+         pages too). A computer keeps it exactly as it was. */
+      className="flex flex-nowrap justify-center max-md:hidden sm:flex-wrap sm:justify-start sm:gap-2"
       style={{ "--cols": phoneColumns(tiles) } as React.CSSProperties}
     >
       {/*

@@ -92,7 +92,11 @@ export function AttentionCenter({
       {/* The heading, sized as on Super Drive (owner, 8 Nov 2026): small
           spaced capitals and a cream count bubble, with this desk's own way
           into the full list on the right. */}
-      <div className="mb-2.5 flex items-center justify-between gap-3">
+      {/* On a phone the list is the whole of it, as on ZELab (owner, 16 Nov
+          2026): no heading, no chips, and each row a coloured dot, its title and
+          an arrow — the detail and the figures are one tap away. A computer
+          keeps every part. */}
+      <div className="mb-2.5 flex items-center justify-between gap-3 max-md:hidden">
         <h2 className="flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           {t("Needs your attention")}
           {items.length > 0 ? (
@@ -115,7 +119,7 @@ export function AttentionCenter({
           than one kind of problem — a single "All" chip is a label pretending
           to be a control. */}
       {items.length > 0 && groups.length > 1 ? (
-        <div className="mb-2 flex flex-wrap gap-1.5" role="tablist" aria-label={t("Filter")}>
+        <div className="mb-2 flex flex-wrap gap-1.5 max-md:hidden" role="tablist" aria-label={t("Filter")}>
           {[["All", items.length] as [string, number], ...groups].map(([group, count]) => (
             <button
               key={group}
@@ -137,7 +141,7 @@ export function AttentionCenter({
       ) : null}
 
       {/* Flat, as on ORA and Super Drive: a hairline shadow, not a raised card. */}
-      <section className="overflow-hidden rounded-xl border bg-card shadow-[0_1px_2px_rgba(15,27,45,0.04)]">
+      <section aria-label={t("Needs your attention")} className="overflow-hidden rounded-xl border bg-card shadow-[0_1px_2px_rgba(15,27,45,0.04)] max-md:rounded-2xl">
         {items.length === 0 ? (
           <p className="px-3.5 py-3 text-[13px] text-muted-foreground">{empty}</p>
         ) : shown.length === 0 ? (
@@ -154,15 +158,16 @@ export function AttentionCenter({
                   <li key={item.id} data-row>
                     <Link
                       href={item.href}
-                      className="group flex items-center gap-2.5 px-3.5 py-2.5 transition-colors hover:bg-muted/40"
+                      className="group flex items-center gap-2.5 px-3.5 py-2.5 transition-colors hover:bg-muted/40 max-md:gap-3 max-md:px-4 max-md:py-3.5"
                     >
-                      <span aria-hidden className={cn("h-7 w-[3px] shrink-0 rounded-full", meta.bar)} />
-                      <Icon className={cn("size-4 shrink-0", meta.text)} />
+                      <span aria-hidden className={cn("h-7 w-[3px] shrink-0 rounded-full max-md:hidden", meta.bar)} />
+                      <span aria-hidden className={cn("size-2 shrink-0 rounded-full md:hidden", meta.bar)} />
+                      <Icon className={cn("size-4 shrink-0 max-md:hidden", meta.text)} />
                       <span className="min-w-0 flex-1">
-                        <span className="line-clamp-2 text-[13px] font-semibold leading-tight sm:line-clamp-1">
+                        <span className="line-clamp-2 text-[13px] font-semibold leading-tight max-md:text-[15px] max-md:font-normal max-md:leading-snug sm:line-clamp-1">
                           {item.label}
                         </span>
-                        <span className="block truncate text-[11px] leading-tight text-muted-foreground">
+                        <span className="block truncate text-[11px] leading-tight text-muted-foreground max-md:hidden">
                           {/* On a phone the figure rides in this line, so the
                               title keeps the whole width. */}
                           {item.value ? (
@@ -183,7 +188,7 @@ export function AttentionCenter({
                           ) : null}
                         </span>
                       ) : null}
-                      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5" />
+                      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 max-md:size-4" />
                     </Link>
                   </li>
                 );
