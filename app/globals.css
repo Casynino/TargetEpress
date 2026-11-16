@@ -755,3 +755,24 @@ html { touch-action: manipulation; }
    across it on a computer. */
 @keyframes flow-y { 0% { top: 0; opacity: 0; } 12%, 88% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
 @keyframes flow-x { 0% { left: 0; opacity: 0; } 12%, 88% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
+/* The homepage hero's sky: clouds drift, and the airliner crosses from the
+   China side (right) towards Tanzania (left), easing down as it goes. */
+.hero-cloud {
+  position: absolute;
+  border-radius: 9999px;
+  background: radial-gradient(ellipse at center, rgb(255 255 255 / 0.85), rgb(255 255 255 / 0) 70%);
+  filter: blur(14px);
+  animation: cloud-drift 60s ease-in-out infinite alternate;
+}
+.hero-cloud-2 { animation-duration: 80s; animation-direction: alternate-reverse; }
+.hero-cloud-3 { animation-duration: 70s; }
+@keyframes cloud-drift { from { transform: translateX(-6%); } to { transform: translateX(14%); } }
+.hero-plane { left: 0; animation: plane-cross 18s linear infinite; will-change: transform; }
+@keyframes plane-cross {
+  0% { transform: translate3d(105vw, -30px, 0) rotate(-4deg); }
+  100% { transform: translate3d(-75vw, 60px, 0) rotate(-4deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-cloud { animation: none; }
+  .hero-plane { animation: none; transform: translate3d(40vw, 0, 0) rotate(-4deg); }
+}
