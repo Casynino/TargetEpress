@@ -6,7 +6,8 @@ import { Hero } from "@/components/site/hero";
 import { LiveStats } from "@/components/site/live-stats";
 import { COMPANY } from "@/lib/constants";
 import { countdownLabel, flightTone, upcomingFlights } from "@/lib/flights";
-import { IMAGES, img } from "@/lib/imagery";
+import { IMAGES, img, marketImage } from "@/lib/imagery";
+import { MARKETS } from "@/lib/markets";
 import { cn } from "@/lib/utils";
 
 /*
@@ -26,15 +27,21 @@ const STEPS = [
   { image: IMAGES.counter, title: "Unachukua Dar", line: "Lipa, onyesha QR, chukua." },
 ];
 
-/** What flies, by photograph. Each one is a goods type the business really prices. */
-const GOODS = [
-  { image: IMAGES.clothingRail, label: "Nguo" },
-  { image: IMAGES.electronicsBench, label: "Electronics" },
-  { image: IMAGES.sneakers, label: "Viatu" },
-  { image: IMAGES.furniture, label: "Samani" },
-  { image: IMAGES.autoParts, label: "Vipuri" },
-  { image: IMAGES.fabricRolls, label: "Vitambaa" },
-];
+/**
+ * Six of the markets, each with its own photograph (owner: "we should see China,
+ * we should see markets"). Read from the market guide so the names never drift
+ * from the page they open.
+ */
+const MARKET_PICKS = [
+  "guangzhou-wholesale-markets",
+  "shenzhen-electronics-markets",
+  "guangzhou-shoe-markets",
+  "foshan-furniture-markets",
+  "guangzhou-auto-parts",
+  "zhongda-fabric-market",
+]
+  .map((slug) => MARKETS.find((m) => m.slug === slug))
+  .filter((m): m is (typeof MARKETS)[number] => Boolean(m));
 
 const WHATSAPP = `https://wa.me/${COMPANY.whatsapp}`;
 
@@ -54,6 +61,44 @@ export default function HomePage() {
 
       {/* What the company has actually done, counted from the records. */}
       <LiveStats />
+
+      {/* ---- China's markets: photographs you swipe ---- */}
+      <section className="section pb-6 md:pb-10">
+        <div className="container">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <Eyebrow>Nunua China</Eyebrow>
+              <h2 className="mt-3 font-display text-3xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
+                Masoko ya China.
+              </h2>
+            </div>
+            <Link href="/china/markets" className="inline-flex items-center gap-1.5 text-sm font-semibold text-signal underline-offset-4 hover:underline">
+              Masoko yote <ArrowRight className="size-4" />
+            </Link>
+          </div>
+
+          <ul className="-mx-4 mt-8 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-3 md:gap-5 md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden">
+            {MARKET_PICKS.map((m) => (
+              <li key={m.slug} className="w-[64%] shrink-0 snap-start sm:w-[40%] md:w-auto">
+                <Link href={`/china/markets#${m.slug}`} className="group relative block aspect-[3/4] overflow-hidden rounded-2xl bg-muted md:aspect-[4/3]">
+                  <Image
+                    src={img(marketImage(m.slug), 800)}
+                    alt=""
+                    fill
+                    sizes="(min-width: 768px) 33vw, 64vw"
+                    className="object-cover transition-transform duration-700 group-hover:scale-[1.04] motion-reduce:transition-none"
+                  />
+                  <div aria-hidden className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 p-4">
+                    <p className="font-display text-lg font-semibold leading-tight text-white">{m.name}</p>
+                    <p className="mt-1 text-xs text-white/70">{m.city}</p>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
 
       {/* ---- How it works: four photographs ---- */}
       <section className="section">
@@ -116,41 +161,6 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ---- What flies: a grid of photographs ---- */}
-      <section className="section border-t">
-        <div className="container">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <Eyebrow>Tunasafirisha</Eyebrow>
-              <h2 className="mt-3 font-display text-3xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
-                Kutoka simu hadi vipuri.
-              </h2>
-            </div>
-            <a
-              href={WHATSAPP}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-signal underline-offset-4 hover:underline"
-            >
-              <MessageCircle className="size-4" />
-              Uliza bei yako
-            </a>
-          </div>
-
-          <ul className="mt-10 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5">
-            {GOODS.map((g) => (
-              <li key={g.label} className="relative aspect-square overflow-hidden rounded-2xl bg-muted md:aspect-[4/3]">
-                <Image src={img(g.image, 700)} alt="" fill sizes="(min-width: 768px) 33vw, 50vw" className="object-cover" />
-                <div aria-hidden className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 to-transparent" />
-                <p className="absolute bottom-3 left-3 font-display text-base font-semibold text-white sm:bottom-4 sm:left-4 sm:text-xl">
-                  {g.label}
-                </p>
-              </li>
-            ))}
-          </ul>
         </div>
       </section>
 
