@@ -33,18 +33,14 @@ export async function LiveStats() {
   ];
 
   return (
-    <section aria-label="Target Express kwa namba" className="relative isolate overflow-hidden bg-[hsl(var(--ink))] py-14 text-white md:py-20">
+    <section aria-label="Target Express kwa namba" className="relative isolate overflow-hidden bg-gradient-to-b from-white to-[hsl(210_60%_97%)] py-14 md:py-20">
       <div
         aria-hidden
         className="absolute inset-0 -z-10"
-        style={{ background: "radial-gradient(circle at 50% 50%, hsl(214 80% 40% / 0.35), transparent 55%)" }}
+        style={{ background: "radial-gradient(circle at 50% 50%, hsl(205 80% 75% / 0.35), transparent 55%)" }}
       />
       <div className="container">
-        <p className="text-center text-[11px] font-semibold uppercase tracking-[0.28em] text-white/55">
-          <span className="sm:hidden">China → Dar es Salaam</span>
-          <span className="max-sm:hidden">Guangzhou · Hong Kong → Dar es Salaam</span>
-        </p>
-        <div className="relative mx-auto mt-6 max-w-[560px]">
+        <div className="relative mx-auto max-w-[560px]">
           <div className="mx-auto w-[78%] max-lg:pointer-events-none">
             <CargoGlobe spin={0.2} />
           </div>
@@ -52,14 +48,14 @@ export async function LiveStats() {
             <div
               key={cell.label}
               className={cn(
-                "float-y absolute rounded-2xl border border-white/15 bg-[hsl(var(--ink)/0.55)] px-3.5 py-2.5 backdrop-blur-md",
+                "float-y absolute rounded-2xl border border-[hsl(214_30%_88%)] bg-white/90 px-3.5 py-2.5 shadow-[0_14px_30px_-18px_rgba(15,30,60,0.45)] backdrop-blur-md",
                 i % 3 === 1 && "float-y-2",
                 i % 3 === 2 && "float-y-3",
                 SPOTS[i],
               )}
             >
               <p className="font-display text-xl font-bold leading-none tabular sm:text-2xl">{cell.value}</p>
-              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60">{cell.label}</p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{cell.label}</p>
             </div>
           ))}
         </div>

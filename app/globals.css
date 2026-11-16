@@ -3,7 +3,10 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  /* `.theme-light` gives a part of a page the day colours whatever the site
+     theme is: the homepage is light by the owner's choice (16 Nov 2026). */
+  :root,
+  .theme-light {
     --background: 0 0% 100%;
     --foreground: 217 40% 12%;
 
@@ -755,3 +758,15 @@ html { touch-action: manipulation; }
    across it on a computer. */
 @keyframes flow-y { 0% { top: 0; opacity: 0; } 12%, 88% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
 @keyframes flow-x { 0% { left: 0; opacity: 0; } 12%, 88% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
+
+/* Clouds drifting across the homepage's sky. */
+.drift-cloud {
+  position: absolute;
+  border-radius: 9999px;
+  background: radial-gradient(ellipse at center, rgb(255 255 255 / 0.9), rgb(255 255 255 / 0) 70%);
+  filter: blur(16px);
+  animation: cloud-drift 50s ease-in-out infinite alternate;
+}
+.drift-cloud-2 { animation-duration: 70s; animation-direction: alternate-reverse; }
+@keyframes cloud-drift { from { transform: translateX(-8%); } to { transform: translateX(16%); } }
+@media (prefers-reduced-motion: reduce) { .drift-cloud { animation: none; } }

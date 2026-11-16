@@ -36,6 +36,10 @@ export const IMAGES = {
   planeClimb: photo("1544016768-982d1554f0b9"),
   /** An aircraft on final approach over the runway lights: cargo coming in. */
   planeLanding: photo("1556388158-158ea5ccacbd"),
+  /** An airliner flying towards the camera in a blue sky with white clouds; no livery shows. */
+  planeSky: photo("1569629743817-70d8db6c323b"),
+  /** Above a sea of white cloud in a pale blue sky. */
+  cloudSea: photo("1513002749550-c59d786b8e6c"),
   /** A wing over the clouds in late sun. */
   wingClouds: photo("1436491865332-7a61a109cc05"),
 
