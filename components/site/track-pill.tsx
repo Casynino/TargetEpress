@@ -43,7 +43,7 @@ export function TrackPill({ className }: { className?: string }) {
         type="submit"
         className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-[#D81E2A] px-4 text-sm font-semibold text-white transition-[filter] hover:brightness-110"
       >
-        Fuatilia
+        Track
         <ArrowRight className="size-4" />
       </button>
     </form>
