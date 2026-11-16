@@ -770,3 +770,32 @@ html { touch-action: manipulation; }
 .drift-cloud-2 { animation-duration: 70s; animation-direction: alternate-reverse; }
 @keyframes cloud-drift { from { transform: translateX(-8%); } to { transform: translateX(16%); } }
 @media (prefers-reduced-motion: reduce) { .drift-cloud { animation: none; } }
+
+/* ---- The homepage hero (components/site/hero.tsx) --------------------------
+   The scene fills the screen. A phone: the words in the sky, the square picture
+   full width under them. A wide screen: the picture at the right, a little
+   taller than the screen so its sky clears the header, and the same scene
+   carried on to the left edge out of focus (`.hero-plate`). The sky colour is
+   the picture's own along its top edge, so there is no join. The canvas draws
+   all of this once it is running; these rules place the stills it starts from. */
+.hero { position: relative; isolation: isolate; overflow: hidden; color: #fff; background: linear-gradient(#00122f, #00183d 45%); }
+.hero-canvas { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; opacity: 0; pointer-events: none; transition: opacity 0.7s ease; }
+.hero-canvas.is-live { opacity: 1; }
+.hero-copy { position: relative; z-index: 3; }
+.hero-stage { position: relative; width: 100%; aspect-ratio: 1 / 1; }
+.hero-stage > img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hero-stage > svg { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; pointer-events: none; }
+.hero-plate, .hero-scrim { display: none; }
+/* the foot of the scene lifts into the white page like mist */
+.hero-mist { position: absolute; inset-inline: 0; bottom: 0; z-index: 2; height: 7%; pointer-events: none; background: linear-gradient(to top, #fff, rgb(255 255 255 / 0.55) 35%, rgb(255 255 255 / 0)); }
+
+@media (min-width: 1024px) and (min-aspect-ratio: 3/2) {
+  .hero { height: 100vh; height: 100svh; min-height: 600px; container-type: size; }
+  /* vh first for browsers without container units; cqh follows the hero's real height */
+  .hero-stage { position: absolute; right: 0; top: 3vh; width: 112vh; height: 112vh; top: 3cqh; width: 112cqh; height: 112cqh; aspect-ratio: auto; }
+  .hero-plate { display: block; position: absolute; max-width: none; top: 3vh; right: 112vh; height: 112vh; width: calc(112vh * 1500 / 1254); top: 3cqh; right: 112cqh; height: 112cqh; width: calc(112cqh * 1500 / 1254); }
+  /* a little night under the words, so they read on any frame */
+  .hero-scrim { display: block; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: linear-gradient(to right, rgb(0 14 38 / 0.55), rgb(0 14 38 / 0.25) 34%, rgb(0 14 38 / 0) 56%); }
+  .hero-copy { display: flex; align-items: center; height: 100%; }
+  .hero-mist { height: 9%; }
+}
