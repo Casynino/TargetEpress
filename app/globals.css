@@ -727,3 +727,31 @@ html { touch-action: manipulation; }
 .login-pop { animation: login-pop 0.22s cubic-bezier(0.22, 1, 0.36, 1) both; }
 @keyframes login-pop { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .login-up, .login-pop { animation: none; } }
+
+/* Homepage motion (owner, 16 Nov 2026: "things moving, futuristic"): the hero
+   photograph drifts slowly closer, the glass labels float, and nothing moves
+   for someone whose phone asks for less motion. */
+@keyframes ken-burns {
+  from { transform: scale(1.02); }
+  to { transform: scale(1.14) translate3d(-1.5%, -1%, 0); }
+}
+.ken-burns { animation: ken-burns 28s ease-in-out infinite alternate; transform-origin: 50% 40%; }
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+.float-y { animation: float-y 6s ease-in-out infinite; }
+.float-y-2 { animation-delay: -2s; }
+.float-y-3 { animation-delay: -4s; }
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(214 74% 62% / 0.45); }
+  50% { box-shadow: 0 0 0 10px hsl(214 74% 62% / 0); }
+}
+.glow-pulse { animation: glow-pulse 2.8s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .ken-burns, .float-y, .glow-pulse { animation: none; }
+}
+/* The light that runs along the homepage's line of steps: down it on a phone,
+   across it on a computer. */
+@keyframes flow-y { 0% { top: 0; opacity: 0; } 12%, 88% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+@keyframes flow-x { 0% { left: 0; opacity: 0; } 12%, 88% { opacity: 1; } 100% { left: 100%; opacity: 0; } }

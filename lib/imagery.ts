@@ -30,8 +30,14 @@ export const IMAGES = {
   packedCartons: photo("1595246140625-573b715d11dc"),
   airportNight: photo("1520437358207-323b43b50729"),
   paperwork: photo("1450101499163-c8848c66ca85"),
-  /** Hands passing a labelled parcel over a counter: the collection in Dar. */
-  counter: photo("1566576721346-d4a3b4eaeb55"),
+  /** The earth at night from orbit, city lights showing: the homepage's sky. */
+  earthNight: photo("1451187580459-43490279c0fa"),
+  /** An airliner climbing at dusk, seen from below; no airline's livery shows. */
+  planeClimb: photo("1544016768-982d1554f0b9"),
+  /** An aircraft on final approach over the runway lights: cargo coming in. */
+  planeLanding: photo("1556388158-158ea5ccacbd"),
+  /** A wing over the clouds in late sun. */
+  wingClouds: photo("1436491865332-7a61a109cc05"),
 
   // Goods and markets
   clothingRail: photo("1441986300917-64674bd600d8"),
