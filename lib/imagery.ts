@@ -30,6 +30,8 @@ export const IMAGES = {
   packedCartons: photo("1595246140625-573b715d11dc"),
   airportNight: photo("1520437358207-323b43b50729"),
   paperwork: photo("1450101499163-c8848c66ca85"),
+  /** Hands passing a labelled parcel over a counter: the collection in Dar. */
+  counter: photo("1566576721346-d4a3b4eaeb55"),
 
   // Goods and markets
   clothingRail: photo("1441986300917-64674bd600d8"),
