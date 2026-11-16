@@ -759,6 +759,10 @@ html { touch-action: manipulation; }
 .hero-copy { position: relative; z-index: 3; }
 .hero-stage { position: relative; width: 100%; max-width: min(2000px, 96svh); margin-inline: auto; aspect-ratio: 1 / 1; }
 .hero-stage > img { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* Before the canvas is on (the first moment of a load, or for good without WebGL) the still is all there is.
+   Its edges melt into the sky round it, so the page never opens on a picture with a cut edge beside a
+   block of colour. The canvas covers it once it is live. */
+.hero-stage > img { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%); mask-image: linear-gradient(to bottom, transparent, #000 14%); }
 .hero-stage > svg { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; pointer-events: none; }
 /* Without the canvas (less motion asked for, or no WebGL) the foot of the still lifts into the page as mist.
    With it, the canvas lays real cloud there instead. */
@@ -768,6 +772,12 @@ html { touch-action: manipulation; }
 /* a tablet upright: the picture is kept small enough that the words and the whole scene share the screen */
 @media (min-width: 640px) {
   .hero-stage { max-width: min(100%, max(26rem, calc(100svh - 22rem))); }
+  /* narrower than the screen here, so its sides fade as well as its top */
+  .hero-stage > img {
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%), linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 14%), linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+    -webkit-mask-composite: source-in; mask-composite: intersect;
+  }
 }
 
 @media (min-width: 900px) and (min-aspect-ratio: 5/4) {
@@ -786,6 +796,11 @@ html { touch-action: manipulation; }
   }
   .hero-copy { display: flex; align-items: center; height: 100%; }
   .hero-copy > div { width: var(--copy); max-width: 100%; padding-top: 4rem; padding-bottom: 0; }
+  /* it stands at the right edge here: only the side toward the words, and the top, fade */
+  .hero-stage > img {
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12%), linear-gradient(to right, transparent, #000 30%);
+    mask-image: linear-gradient(to bottom, transparent, #000 12%), linear-gradient(to right, transparent, #000 30%);
+  }
 }
 
 /* ---- The sky behind the public site (components/site/site-sky.tsx) ----------
