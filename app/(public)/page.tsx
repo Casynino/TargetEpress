@@ -19,12 +19,12 @@ import { cn } from "@/lib/utils";
  * offices are in the footer on every page.
  */
 
-/** Four steps, each a photograph and a line. A real sequence, so it is numbered. */
+/** Four steps, each a photograph and its title. A real sequence, so it is numbered. */
 const STEPS = [
-  { image: IMAGES.packedCartons, title: "Supplier anatuma Guangzhou", line: "Mpe address yetu ya China." },
-  { image: IMAGES.cargoHold, title: "Tunapima na kupiga picha", line: "Uzito, vipande, picha na QR." },
-  { image: IMAGES.apron, title: "Inapanda ndege", line: "Jumatano, Ijumaa na Jumapili." },
-  { image: IMAGES.counter, title: "Unachukua Dar", line: "Lipa, onyesha QR, chukua." },
+  { image: IMAGES.packedCartons, title: "Supplier anatuma Guangzhou" },
+  { image: IMAGES.cargoHold, title: "Tunapima na kupiga picha" },
+  { image: IMAGES.apron, title: "Inapanda ndege" },
+  { image: IMAGES.counter, title: "Unachukua Dar" },
 ];
 
 /**
@@ -124,8 +124,7 @@ export default function HomePage() {
                     0{i + 1}
                   </span>
                 </div>
-                <h3 className="mt-4 font-display text-lg font-semibold leading-tight">{step.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{step.line}</p>
+                <h3 className="mt-3 font-display text-base font-semibold leading-tight sm:text-lg">{step.title}</h3>
               </li>
             ))}
           </ol>
@@ -228,7 +227,6 @@ export default function HomePage() {
             <h2 className="max-w-lg text-balance font-display text-3xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
               Unatuma mzigo mwezi huu?
             </h2>
-            <p className="mt-4 max-w-md text-white/75">Tuulize kabla Supplier wako hajatuma.</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a
                 href={WHATSAPP}
