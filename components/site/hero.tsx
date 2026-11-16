@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { ArrowRight } from "lucide-react";
 
 import { ART, ART_SIZE, ROUTE, ROUTE_ENDS, useHeroScene } from "@/components/site/hero-art";
 import { AIRCRAFT_PATH } from "@/lib/aircraft";
@@ -13,13 +14,14 @@ import { cn } from "@/lib/utils";
  * the picture is made to move, and globals.css (`.hero…`) for the layout: the
  * words above the picture on a phone, beside it on a wide screen.
  *
- * Words only, and few (owner, 16 Nov 2026: the tracking box and the line
- * under it were "too much"; then "huge and clean, key words, not too many",
- * with the days "very small"): three short lines that say the whole business
- * (buy in China, by air, to Dar) and the promise as a small label over them.
- * They stand beside or above the scene, never over it. Tracking and the next
- * flights are the first thing under the scene (TrackPill and the flights on
- * the homepage).
+ * Words only (owner, 16 Nov 2026: the tracking box and the line under it
+ * were "too much"; then "huge and clean", with the days "very small"). The
+ * words and their lettering are the company's own poster, which the owner
+ * sent: "Bei zimedondoka, speed ile ile!", the China to Tanzania pill, and its
+ * one line of copy. Never a Swahili phrase made up here: one was tried
+ * ("Nunua China. Kwa ndege.") and the owner threw it out as bad Swahili. The
+ * words stand beside or above the scene, never over it. Tracking and the next
+ * flights are the first thing under the scene.
  */
 export function Hero() {
   const [live, setLive] = useState(false);
@@ -34,19 +36,30 @@ export function Hero() {
       <canvas ref={canvasRef} aria-hidden className={cn("hero-canvas", live && "is-live")} />
 
       <div className="hero-copy container">
-        <div className="pb-4 pt-24 sm:pb-8 sm:pt-28">
-          {/* The promise, small: the three key words under it are what is read first. */}
-          <p className="rise flex items-center gap-3 text-[12px] font-semibold uppercase tracking-[0.26em] text-white/85 sm:text-[13px]">
-            <span aria-hidden className="h-[3px] w-8 rounded-full bg-[#ff3140]" />
-            Siku 3–10
-          </p>
-          {/* Three short lines, large. Sized to the screen so the longest stays on one line on the
-              narrowest phone, and never so large on a computer that it leaves its column. */}
-          <h1 className="mt-4 font-display text-[min(3rem,11.6vw)] font-extrabold uppercase leading-[0.98] tracking-[-0.045em] drop-shadow-[0_2px_18px_rgba(0,10,30,0.55)] sm:text-[3.4rem] xl:text-[3.8rem]">
-            <span className="rise rise-1 block">Nunua China.</span>
-            <span className="rise rise-2 block">Kwa ndege.</span>
-            <span className="rise rise-3 block text-[#ff3140]">Hadi Dar.</span>
+        <div className="pb-5 pt-[6.75rem] sm:pb-8 sm:pt-28">
+          {/* The company's own poster headline, lettered as on the poster (`.poster…` in globals.css):
+              the first two lines on its red banner, the third with its red stroke under it. Sized to
+              the screen, and kept modest on a phone (the owner found it "too big" there): it stands
+              in the sky over the picture and must leave the picture alone. */}
+          <h1 className="poster text-[min(3.4rem,11.6vw)] sm:text-[4.3rem] xl:text-[4.6rem]">
+            <span className="rise poster-line poster-red">Bei</span>
+            <span className="rise rise-1 poster-line poster-red">zimedondoka,</span>
+            <span className="rise rise-2 poster-line poster-swoosh">Speed ile ile!</span>
           </h1>
+          <div className="rise rise-3 mt-5 flex flex-wrap items-center gap-x-3.5 gap-y-2">
+            <span className="inline-flex h-9 items-stretch overflow-hidden rounded-full border-2 border-white bg-[#182A48] font-display text-[13px] font-extrabold uppercase tracking-[0.04em] text-white shadow-[0_10px_26px_-12px_rgba(0,0,0,0.8)] sm:h-10 sm:text-sm">
+              <span className="flex items-center bg-[#D81E2A] pl-4 pr-5 [clip-path:polygon(0_0,100%_0,calc(100%-10px)_100%,0_100%)]">China</span>
+              <span className="flex items-center gap-2 pl-1.5 pr-4">
+                <ArrowRight aria-hidden className="size-4" strokeWidth={3} />
+                Tanzania
+              </span>
+            </span>
+            <span className="whitespace-nowrap text-[12px] font-semibold uppercase tracking-[0.2em] text-white/85">Siku 3–10</span>
+          </div>
+          {/* The poster's own line. Left off a phone, where the scene needs the room. */}
+          <p className="rise rise-4 mt-4 max-w-[22rem] text-[15px] leading-relaxed text-white/80 max-sm:hidden">
+            Tuma mzigo wako kwa bei nafuu zaidi bila kuacha kufurahia huduma ya haraka!
+          </p>
         </div>
       </div>
 
