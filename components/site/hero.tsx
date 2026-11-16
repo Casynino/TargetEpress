@@ -17,8 +17,8 @@ import { cn } from "@/lib/utils";
  * Words only (owner, 16 Nov 2026: the tracking box and the line under it
  * were "too much"; then "huge and clean", with the days "very small"). The
  * words and their lettering are the company's own poster, which the owner
- * sent: "Bei zimedondoka, speed ile ile!", the China to Tanzania pill, and its
- * one line of copy. Never a Swahili phrase made up here: one was tried
+ * sent: "Bei zimedondoka, speed ile ile!", China to Tanzania, and its one line
+ * of copy. Lettering only: he had the poster's banner and pill taken off. Never a Swahili phrase made up here: one was tried
  * ("Nunua China. Kwa ndege.") and the owner threw it out as bad Swahili. The
  * words stand beside or above the scene, never over it. Tracking and the next
  * flights are the first thing under the scene.
@@ -37,27 +37,26 @@ export function Hero() {
 
       <div className="hero-copy container">
         <div className="pb-5 pt-[6.75rem] sm:pb-8 sm:pt-28">
-          {/* The company's own poster headline, lettered as on the poster (`.poster…` in globals.css):
-              the first two lines on its red banner, the third with its red stroke under it. Sized to
-              the screen, and kept modest on a phone (the owner found it "too big" there): it stands
-              in the sky over the picture and must leave the picture alone. */}
-          <h1 className="poster text-[min(3.4rem,11.6vw)] sm:text-[4.3rem] xl:text-[4.6rem]">
-            <span className="rise poster-line poster-red">Bei</span>
-            <span className="rise rise-1 poster-line poster-red">zimedondoka,</span>
-            <span className="rise rise-2 poster-line poster-swoosh">Speed ile ile!</span>
+          {/* The company's own poster headline, in the poster's lettering (`.poster` in globals.css) and
+              nothing else: no banner, no pill, no stroke (the owner: "no need of background, I want a
+              clean look"). Kept modest on a phone, where he found it "too big": it stands in the sky
+              over the picture and must leave the picture alone. */}
+          <h1 className="poster text-[min(3.4rem,11.6vw)] sm:text-[4rem] xl:text-[4.3rem]">
+            <span className="rise block whitespace-nowrap">Bei zimedondoka,</span>
+            <span className="rise rise-1 block whitespace-nowrap text-[#ff3140]">Speed ile ile!</span>
           </h1>
-          <div className="rise rise-3 mt-5 flex flex-wrap items-center gap-x-3.5 gap-y-2">
-            <span className="inline-flex h-9 items-stretch overflow-hidden rounded-full border-2 border-white bg-[#182A48] font-display text-[13px] font-extrabold uppercase tracking-[0.04em] text-white shadow-[0_10px_26px_-12px_rgba(0,0,0,0.8)] sm:h-10 sm:text-sm">
-              <span className="flex items-center bg-[#D81E2A] pl-4 pr-5 [clip-path:polygon(0_0,100%_0,calc(100%-10px)_100%,0_100%)]">China</span>
-              <span className="flex items-center gap-2 pl-1.5 pr-4">
-                <ArrowRight aria-hidden className="size-4" strokeWidth={3} />
-                Tanzania
-              </span>
+          {/* The route and the days: plain lettering, no shape round it. */}
+          <p className="rise rise-2 mt-4 flex flex-wrap items-center gap-x-2.5 gap-y-1 whitespace-nowrap">
+            <span className="poster flex items-center gap-2.5 text-[1.45rem] leading-none sm:text-[1.7rem]">
+              China
+              <ArrowRight aria-hidden className="size-[0.85em] text-[#ff3140]" strokeWidth={3.2} />
+              Tanzania
             </span>
-            <span className="whitespace-nowrap text-[12px] font-semibold uppercase tracking-[0.2em] text-white/85">Siku 3–10</span>
-          </div>
+            <span aria-hidden className="text-white/35">·</span>
+            <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-white/80">Siku 3–10</span>
+          </p>
           {/* The poster's own line. Left off a phone, where the scene needs the room. */}
-          <p className="rise rise-4 mt-4 max-w-[22rem] text-[15px] leading-relaxed text-white/80 max-sm:hidden">
+          <p className="rise rise-3 mt-4 max-w-[22rem] text-[15px] leading-relaxed text-white/80 max-sm:hidden">
             Tuma mzigo wako kwa bei nafuu zaidi bila kuacha kufurahia huduma ya haraka!
           </p>
         </div>

@@ -770,13 +770,9 @@ html { touch-action: manipulation; }
 .hero-canvas.is-live ~ .hero-mist { opacity: 0; }
 
 /* The homepage's headline, lettered as on the company's own posters: heavy, condensed, slanted capitals
-   (`--font-poster`, loaded by the public layout). A line may stand on the poster's red banner, which
-   leans with the letters, or carry the poster's red stroke under it. Sizes are in em, so the banner
-   and the stroke follow whatever size the line is set at. */
-.poster { font-family: var(--font-poster), var(--font-display), sans-serif; font-style: italic; font-weight: 800; text-transform: uppercase; line-height: 0.9; letter-spacing: 0; color: #fff; }
-.poster-line { position: relative; isolation: isolate; display: block; width: fit-content; margin-left: -0.16em; padding: 0.05em 0.3em 0.09em 0.16em; text-shadow: 0 0.03em 0 rgb(0 0 0 / 0.2), 0 0.12em 0.4em rgb(0 10 30 / 0.45); }
-.poster-red::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: 0.05em; background: linear-gradient(180deg, #f2323e, #c5101c); transform: skewX(-9deg); box-shadow: 0 0.2em 0.5em -0.15em rgb(0 0 0 / 0.55); }
-.poster-swoosh::after { content: ""; position: absolute; z-index: -1; left: 0.14em; right: 0.06em; bottom: 0.01em; height: 0.08em; border-radius: 9999px; background: linear-gradient(90deg, #ff3140 62%, rgb(255 49 64 / 0)); transform: rotate(-1.6deg) skewX(-40deg); transform-origin: 0 50%; }
+   (`--font-poster`, loaded by the public layout). Lettering only, on the open sky: the owner had the
+   poster's red banner and pill taken off for a clean look. */
+.poster { font-family: var(--font-poster), var(--font-display), sans-serif; font-style: italic; font-weight: 800; text-transform: uppercase; line-height: 0.94; letter-spacing: 0; color: #fff; text-shadow: 0 0.1em 0.4em rgb(0 10 30 / 0.45); }
 
 /* a tablet upright: the picture is kept small enough that the words and the whole scene share the screen */
 @media (min-width: 640px) {
