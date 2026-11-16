@@ -116,11 +116,6 @@ export function SiteHeader() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  /* The homepage opens on a light sky (owner, 16 Nov 2026), so until the page
-     is scrolled the bar there is navy type on nothing; everywhere else, and
-     once scrolled, it is the dark glass bar with white type it always was. */
-  const onLight = pathname === "/" && !scrolled;
-
   return (
     <header
       className={cn(
@@ -128,8 +123,7 @@ export function SiteHeader() {
         // transparent one reveals the page background above the hero — the white
         // band. Fixed lets the hero photograph run underneath it. Every hero
         // carries enough top padding to clear it.
-        "fixed inset-x-0 top-0 z-40 transition-[background-color,border-color,backdrop-filter,box-shadow,color] duration-300",
-        onLight ? "text-[hsl(217_45%_14%)]" : "text-white",
+        "fixed inset-x-0 top-0 z-40 text-white transition-[background-color,border-color,backdrop-filter,box-shadow] duration-300",
         scrolled
           ? "border-b border-white/10 bg-[hsl(220_30%_7%/0.72)] shadow-lift backdrop-blur-xl"
           : "border-b border-transparent bg-transparent"
@@ -149,10 +143,8 @@ export function SiteHeader() {
                   className={cn(
                     "relative whitespace-nowrap text-sm transition-colors hover:text-gold",
                     pathname === item.href
-                      ? cn("font-semibold after:absolute after:-bottom-1.5 after:left-0 after:h-px after:w-full after:bg-gold", onLight ? "text-[hsl(217_45%_14%)]" : "text-white")
-                      : onLight
-                        ? "text-[hsl(217_30%_25%/0.75)]"
-                        : "text-white/65"
+                      ? "font-semibold text-white after:absolute after:-bottom-1.5 after:left-0 after:h-px after:w-full after:bg-gold"
+                      : "text-white/65"
                   )}
                 >
                   {item.label}
@@ -162,18 +154,15 @@ export function SiteHeader() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <ThemeToggle className={cn("h-8 w-8", onLight && "text-[hsl(217_45%_14%)] hover:bg-black/5")} />
-            <Separator orientation="vertical" className={cn("hidden h-6 sm:block", onLight ? "bg-black/15" : "bg-white/20")} />
+            <ThemeToggle className="h-8 w-8" />
+            <Separator orientation="vertical" className="hidden h-6 bg-white/20 sm:block" />
             {/* One door, labelled for whoever is standing at it. Staff who are
                 already signed in are not asked to log in again — they are
                 offered the desk they left. */}
             <Button
               asChild
               variant="ghost"
-              className={cn(
-                "hidden h-8 gap-1.5 px-2 text-sm font-normal md:inline-flex",
-                onLight ? "text-[hsl(217_30%_25%/0.8)] hover:bg-black/5 hover:text-[hsl(217_45%_14%)]" : "text-white/65 hover:bg-white/10 hover:text-white",
-              )}
+              className="hidden h-8 gap-1.5 px-2 text-sm font-normal text-white/65 hover:bg-white/10 hover:text-white md:inline-flex"
             >
               {signedIn ? (
                 <Link href="/app/dashboard">
@@ -200,7 +189,7 @@ export function SiteHeader() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={cn("h-8 w-8 md:hidden", onLight ? "text-[hsl(217_45%_14%)] hover:bg-black/5" : "text-white hover:bg-white/10 hover:text-white")}
+                  className="h-8 w-8 text-white hover:bg-white/10 hover:text-white md:hidden"
                 >
                   <Menu className="h-[18px] w-[18px]" />
                   <span className="sr-only">Open menu</span>
