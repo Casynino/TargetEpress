@@ -5674,7 +5674,7 @@ const ZH: Record<string, string> = {
   "Your actions, newest first": "你的操作记录，最新在前",
   "Your activity": "我的工作量",
   "Your browser blocked clipboard access.": "浏览器阻止了剪贴板访问。",
-  "Your cargo reaches Tanzania in 3-10 days.": "货物 3-10 天到达坦桑尼亚。",
+  "Your cargo reaches Tanzania in 3-5 days.": "货物 3-5 天到达坦桑尼亚。",
   "Your changes are recorded with your name against them. Management can read the full history.":
     "你的修改会连同你的名字一起记录。管理层可以查看完整记录。",
   "Your dashboard opens automatically based on your department.":

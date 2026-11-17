@@ -5,6 +5,7 @@ import { ArrowRight } from "lucide-react";
 
 import { ART, ART_SIZE, ROUTE, ROUTE_ENDS, useHeroScene } from "@/components/site/hero-art";
 import { AIRCRAFT_PATH } from "@/lib/aircraft";
+import { COMPANY } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 /**
@@ -53,7 +54,8 @@ export function Hero() {
               Tanzania
             </span>
             <span aria-hidden className="text-white/35">·</span>
-            <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-white/80">Siku 3–10</span>
+            {/* the company's promise, from the one place every screen reads it */}
+            <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-white/80">Siku {COMPANY.promiseDays.replace("-", "–")}</span>
           </p>
           {/* The poster's own line. Left off a phone, where the scene needs the room. */}
           <p className="rise rise-3 mt-4 max-w-[22rem] text-[15px] leading-relaxed text-white/80 max-sm:hidden">

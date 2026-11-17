@@ -233,15 +233,15 @@ export async function corridorPerformance() {
   /*
     THE PROMISE IS MEASURED THE WAY THE CUSTOMER COUNTS IT.
 
-    "Your cargo reaches Tanzania in 3-10 days" starts when the customer hands
+    The promise ("Your cargo reaches Tanzania in N days") starts when the customer hands
     the goods over in Guangzhou, not when a plane leaves — the days spent
     waiting for the next flight are days the customer is waiting too, and they
     are ours. It ends when the cargo reaches our Dar warehouse, which is the
     point the promise names; the wait for the customer to come and collect is
     the separate figure above.
 
-    It was `flight <= 3` before: the wrong leg, graded against a promise of
-    three days the business stopped making when the rate card moved to 3-10.
+    It was `flight <= 3` before: the wrong leg, graded against a number written
+    here and not the promise in COMPANY, which had moved on without it.
     Both errors pushed the same way, and the owner's home screen read 0%.
   */
   const toTanzania = delivered.map((s) => days(s.registeredAt, s.arrivedAt!));

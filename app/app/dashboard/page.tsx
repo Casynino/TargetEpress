@@ -1445,7 +1445,7 @@ async function DarDashboard({
               },
               {
                 /* The same span the owner's screen grades: handed over in
-                   China → reached our Dar warehouse, against the 3-10 days
+                   China → reached our Dar warehouse, against the days
                    the rate card promises. It measured departure → check-in
                    against a three-day promise, which is neither the leg the
                    customer counts nor a promise the business still makes. */

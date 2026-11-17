@@ -35,17 +35,17 @@ export const COMPANY = {
   shortName: "Target Express",
 
   /**
-   * The promise the business is built on: 3-10 days, door to door.
+   * The promise the business is built on: 3-5 days, door to door.
    *
-   * It said "three days" until the hero copy was rewritten to 3-10. Leaving
-   * this alone would have put a three-day promise in the footer of the same
-   * page whose headline says 3-10 — a contradiction a customer reads as either
-   * carelessness or a bait price.
+   * Every screen that states it reads it from here (the homepage's headline,
+   * the footer, the sign-in page, the share card), so the figure cannot differ
+   * between the top and the foot of the same page — a contradiction a customer
+   * reads as either carelessness or a bait price.
    */
-  promiseSw: "Ndani ya siku 3-10, mzigo wako kutoka China unafika Tanzania.",
-  promiseEn: "Your cargo reaches Tanzania in 3-10 days.",
+  promiseSw: "Ndani ya siku 3-5, mzigo wako kutoka China unafika Tanzania.",
+  promiseEn: "Your cargo reaches Tanzania in 3-5 days.",
   /** The same figure on its own, for stat tiles. */
-  promiseDays: "3-10",
+  promiseDays: "3-5",
   /**
    * The promise as NUMBERS, for the screens that measure against it.
    *
@@ -56,7 +56,7 @@ export const COMPANY = {
    * next person who rewrites the promise changes both in one place.
    */
   promiseMinDays: 3,
-  promiseMaxDays: 10,
+  promiseMaxDays: 5,
   taglineSw: "Kutoka China kwa bei nafuu",
   taglineEn: "From China, at a fair price",
 
